@@ -11,6 +11,7 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN
 
 class TracingPropagatorTest extends DDCoreSpecification {
   HttpCodec.Injector injector
@@ -135,5 +136,50 @@ class TracingPropagatorTest extends DDCoreSpecification {
     child.finish()
     root.finish()
     tracer.close()
+  }
+
+  def 'test AWS X-Ray propagator'() {
+    setup:
+    def tracer = tracerBuilder().build()
+    def span = tracer.buildSpan('test', 'operation').start()
+    def propagator = Propagators.forConcerns(XRAY_TRACING_CONCERN)
+    def setter = Mock(CarrierSetter)
+    def carrier = new Object()
+
+    when:
+    propagator.inject(span, carrier, setter)
+
+    then:
+    1 * setter.set(carrier, 'X-Amzn-Trace-Id', _)
+
+    cleanup:
+    span.finish()
+    tracer.close()
+  }
+
+  def 'test APM Tracing disabled propagator stop propagation'() {
+    setup:
+    injectSysConfig('apm.tracing.enabled', apmTracingEnabled.toString())
+    def tracer = tracerBuilder().build()
+    def span = tracer.buildSpan('test', 'operation').start()
+    def setter = Mock(CarrierSetter)
+    def carrier = new Object()
+
+    when:
+    Propagators.defaultPropagator().inject(span, carrier, setter)
+
+    then:
+    if (apmTracingEnabled) {
+      (1.._) * setter.set(_, _, _)
+    } else {
+      0 * setter.set(_, _, _)
+    }
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    apmTracingEnabled << [true, false]
   }
 }

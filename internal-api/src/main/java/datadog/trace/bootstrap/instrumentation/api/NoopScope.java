@@ -17,7 +17,7 @@ final class NoopScope implements AgentScope {
 
   @Override
   public Continuation capture() {
-    return AgentTracer.NoopContinuation.INSTANCE;
+    return NoopContinuation.INSTANCE;
   }
 
   @Override

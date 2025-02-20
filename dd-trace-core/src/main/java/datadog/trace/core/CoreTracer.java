@@ -5,7 +5,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -30,7 +33,6 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.flare.TracerFlare;
@@ -77,7 +79,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.datastreams.DataStreamContextInjector;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.flare.TracerFlarePoller;
@@ -85,11 +86,13 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.propagation.ApmTracingDisabledPropagator;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
+import datadog.trace.core.propagation.XRayPropagator;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -711,19 +714,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // Create default extractor from config if not provided and decorate it with DSM extractor
-    HttpCodec.Extractor builtExtractor =
-        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    builtExtractor = this.dataStreamsMonitoring.extractor(builtExtractor);
-    // Create all HTTP injectors plus the DSM one
-    Map<TracePropagationStyle, HttpCodec.Injector> injectors =
-        HttpCodec.allInjectorsFor(config, invertMap(baggageMapping));
-    DataStreamContextInjector dataStreamContextInjector = this.dataStreamsMonitoring.injector();
-    // Store all propagators to propagation
-    this.propagation =
-        new CorePropagation(builtExtractor, injector, injectors, dataStreamContextInjector);
+    // Store all propagators to propagation -- only DSM injection left
+    this.propagation = new CorePropagation(this.dataStreamsMonitoring.injector());
 
-    Propagators.register(TRACING_CONCERN, new TracingPropagator(injector, extractor));
+    // Register context propagators
+    HttpCodec.Extractor tracingExtractor =
+        extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
+    TracingPropagator tracingPropagator = new TracingPropagator(injector, tracingExtractor);
+    // Check if apm tracing is disabled:
+    // If disabled, use the APM tracing disabled propagator by default that will limit tracing
+    // concern
+    // injection and delegate to the tracing propagator if needed,
+    // If disabled, the most common case, use the usual tracing propagator by default.
+    boolean apmTracingDisabled = !config.isApmTracingEnabled();
+    boolean dsm = config.isDataStreamsEnabled();
+    Propagators.register(
+        STANDALONE_ASM_CONCERN, new ApmTracingDisabledPropagator(), apmTracingDisabled);
+    Propagators.register(TRACING_CONCERN, tracingPropagator, !apmTracingDisabled);
+    Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
+    if (dsm) {
+      Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -921,8 +932,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentScope.Continuation captureActiveSpan() {
+    AgentScope activeScope = this.scopeManager.active();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return scopeManager.captureSpan(activeScope.span(), activeScope.source());
+    } else {
+      return AgentTracer.noopContinuation();
+    }
+  }
+
+  @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span);
+    return scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id());
   }
 
   @Override

@@ -14,6 +14,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
@@ -201,9 +202,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public Propagator propagator() {
+    return new DataStreamPropagator(
+        this.traceConfigSupplier, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+  }
+
+  @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
     return new DataStreamContextExtractor(
-        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, getThreadServiceName());
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags, serviceNameOverride);
   }
 
   @Override
@@ -425,6 +432,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clear() {
     timeToBucket.clear();
+    schemaSamplers.clear();
   }
 
   void report() {

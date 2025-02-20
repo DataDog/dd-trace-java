@@ -17,6 +17,8 @@ import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
+import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
@@ -73,6 +75,8 @@ public enum CiVisibilityCountMetric {
       IsNew.class,
       IsModified.class,
       IsQuarantined.class,
+      IsDisabled.class,
+      IsAttemptToFix.class,
       IsRetry.class,
       HasFailedAllRetries.class,
       RetryReason.class,
@@ -151,7 +155,12 @@ public enum CiVisibilityCountMetric {
   IMPACTED_TESTS_DETECTION_REQUEST("impacted_tests_detection.request", RequestCompressed.class),
   /** The number of tests requests sent to the changed files endpoint that errored */
   IMPACTED_TESTS_DETECTION_REQUEST_ERRORS(
-      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class);
+      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of requests sent to the test management tests endpoint */
+  TEST_MANAGEMENT_TESTS_REQUEST("test_management.request", RequestCompressed.class),
+  /** The number of tests requests sent to the test management tests endpoint that errored */
+  TEST_MANAGEMENT_TESTS_REQUEST_ERRORS(
+      "test_management.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

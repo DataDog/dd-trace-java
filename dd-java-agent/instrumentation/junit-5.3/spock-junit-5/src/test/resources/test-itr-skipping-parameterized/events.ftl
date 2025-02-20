@@ -55,7 +55,7 @@
       "test.module" : "spock-junit-5",
       "test.name" : "test add 1 and 2",
       "test.parameters" : "{\"metadata\":{\"test_name\":\"test add 1 and 2\"}}",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test add #a and #b(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V",

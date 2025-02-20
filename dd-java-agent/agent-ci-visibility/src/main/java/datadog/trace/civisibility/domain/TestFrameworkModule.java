@@ -33,6 +33,10 @@ public interface TestFrameworkModule {
 
   boolean isQuarantined(TestIdentifier test);
 
+  boolean isDisabled(TestIdentifier test);
+
+  boolean isAttemptToFix(TestIdentifier test);
+
   /**
    * Returns the reason for skipping a test, IF it can be skipped.
    *

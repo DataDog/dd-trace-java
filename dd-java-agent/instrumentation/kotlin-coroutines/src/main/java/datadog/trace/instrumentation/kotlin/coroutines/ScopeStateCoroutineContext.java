@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -119,10 +121,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
      */
     public void maybeInitialize() {
       if (!isInitialized) {
-        final AgentScope activeScope = AgentTracer.get().activeScope();
-        if (activeScope != null && activeScope.isAsyncPropagating()) {
-          continuation = activeScope.capture().hold();
-        }
+        continuation = captureActiveSpan().hold();
         isInitialized = true;
       }
     }

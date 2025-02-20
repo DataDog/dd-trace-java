@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -16,8 +16,8 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -69,7 +69,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
       if (Config.get().isAwsPropagationEnabled()) {
         try {
-          propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+          Propagators.forConcern(XRAY_TRACING_CONCERN).inject(span, request, DECORATE);
         } catch (Throwable e) {
           log.warn("Unable to inject trace header", e);
         }

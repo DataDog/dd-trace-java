@@ -2,7 +2,7 @@ package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** Regular test case execution with no alterations. */
 public class Regular implements TestExecutionPolicy {
@@ -34,6 +34,11 @@ public class Regular implements TestExecutionPolicy {
 
   @Override
   public boolean hasFailedAllRetries() {
+    return false;
+  }
+
+  @Override
+  public boolean hasSucceededAllRetries() {
     return false;
   }
 }

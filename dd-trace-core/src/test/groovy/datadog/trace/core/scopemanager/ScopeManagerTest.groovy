@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
@@ -249,22 +250,22 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
   }
 
-  def "DDScope only creates continuations when propagation is set"() {
+  def "DDScope creates no-op continuations when propagation is not set"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
+    tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(false)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
-    continuation == null
+    continuation == noopContinuation()
 
     when:
     tracer.setAsyncPropagationEnabled(true)
-    continuation = scope.capture()
+    continuation = tracer.captureActiveSpan()
 
     then:
-    continuation != null
+    continuation != noopContinuation() && continuation != null
 
     cleanup:
     continuation.cancel()
@@ -275,7 +276,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -293,7 +294,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scopeRef.get().capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -321,7 +322,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -355,7 +356,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def childScope = tracer.activateSpan(childSpan)
     tracer.setAsyncPropagationEnabled(true)
 
-    def continuation = childScope.capture()
+    def continuation = tracer.captureActiveSpan()
     childScope.close()
 
     then:
@@ -379,7 +380,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: "the continued scope becomes active and span state doesnt change"
     newScope instanceof ContinuableScope
-    newScope.isAsyncPropagating()
+    tracer.isAsyncPropagationEnabled()
     scopeManager.active() == newScope
     newScope != childScope
     newScope != parentScope
@@ -389,7 +390,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
 
     when: "creating and activating a second continuation"
-    def newContinuation = newScope.capture()
+    def newContinuation = tracer.captureActiveSpan()
     newScope.close()
     def secondContinuedScope = newContinuation.activate()
     secondContinuedScope.close()
@@ -408,7 +409,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
@@ -694,7 +695,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
@@ -777,7 +778,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
@@ -804,7 +805,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span2 = tracer.buildSpan("test", "test").start()
     def scope2 = tracer.activateSpan(span2)
     tracer.setAsyncPropagationEnabled(true)
-    def continuation2 = scope2.capture()
+    def continuation2 = tracer.captureActiveSpan()
 
     then:
     continuation2 != null
@@ -839,7 +840,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def start = System.nanoTime()
     def scope = (ContinuableScope) tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(true)
-    continuation = scope.capture()
+    continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.http_url_connection;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -85,7 +86,7 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
         if (!state.hasSpan() && !state.isFinished()) {
           final AgentSpan span = state.start(thiz);
           if (!connected) {
-            propagate().inject(span, thiz, SETTER);
+            defaultPropagator().inject(span, thiz, SETTER);
             propagate()
                 .injectPathwayContext(
                     span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

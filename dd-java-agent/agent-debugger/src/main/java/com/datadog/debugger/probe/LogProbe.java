@@ -444,8 +444,8 @@ public class LogProbe extends ProbeDefinition implements Sampled {
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    // if evaluation is at exit and with condition, skip collecting data at entry
-    boolean captureEntry = !(getEvaluateAt() == MethodLocation.EXIT && hasCondition());
+    // only capture entry values if explicitly not at Exit. By default, we are using evaluateAt=EXIT
+    boolean captureEntry = getEvaluateAt() != MethodLocation.EXIT;
     return new CapturedContextInstrumentor(
             this,
             methodInfo,
@@ -701,15 +701,19 @@ public class LogProbe extends ProbeDefinition implements Sampled {
       shouldCommit = true;
     }
     if (shouldCommit) {
-      if (isCaptureSnapshot()) {
-        // freeze context just before commit because line probes have only one context
-        Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        lineContext.freeze(new TimeoutChecker(timeout));
-        snapshot.addLine(lineContext, line);
+      incrementBudget();
+      if (inBudget()) {
+        if (isCaptureSnapshot()) {
+          // freeze context just before commit because line probes have only one context
+          Duration timeout =
+              Duration.of(
+                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
+          lineContext.freeze(new TimeoutChecker(timeout));
+          snapshot.addLine(lineContext, line);
+        }
+        commitSnapshot(snapshot, sink);
+        return;
       }
-      commitSnapshot(snapshot, sink);
-      return;
     }
     sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
   }

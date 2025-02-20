@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty40.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -88,7 +89,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
-        propagate().inject(span, request.headers(), SETTER);
+        defaultPropagator().inject(span, request.headers(), SETTER);
         propagate()
             .injectPathwayContext(
                 span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);

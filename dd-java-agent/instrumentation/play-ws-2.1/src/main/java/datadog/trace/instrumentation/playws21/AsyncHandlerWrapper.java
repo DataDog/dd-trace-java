@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.playws21;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.capture;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 
@@ -27,7 +27,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
   public AsyncHandlerWrapper(final AsyncHandler delegate, final AgentSpan span) {
     this.delegate = delegate;
     this.span = span;
-    continuation = capture();
+    continuation = captureSpan(span);
   }
 
   @Override

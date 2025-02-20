@@ -7,7 +7,14 @@ muzzle {
   pass {
     group = 'org.apache.ignite'
     module = 'ignite-core'
-    versions = "[2.0.0,3)"
+    versions = "[2.0.0,2.17.0)"
+  }
+  // ignite-core 2.17.0 is compiled with Java 11
+  pass {
+    group = 'org.apache.ignite'
+    module = 'ignite-core'
+    versions = "[2.17.0,3)"
+    javaVersion = 11
   }
 }
 
