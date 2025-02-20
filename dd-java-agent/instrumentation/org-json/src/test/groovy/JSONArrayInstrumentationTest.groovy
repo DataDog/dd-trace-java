@@ -3,9 +3,18 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 
 class JSONArrayInstrumentationTest extends AgentTestRunner {
+
+  private static json = """{"menu": {
+    "name": "nameTest",
+    "value": "File",
+    "popup": "Popup",
+    "labels": [
+        "File",
+        "Edit"
+      ]
+  }}"""
 
   @Override
   void configurePreAgent() {
@@ -16,28 +25,17 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final json = """{"menu": {
-      "name": "nameTest",
-      "value": "File",
-      "popup": "Popup",
-      "labels": [
-          "File",
-          "Edit"
-        ]
-    }}"""
+    final jsonObject = new JSONObject(json)
+    final menuObject = jsonObject.getJSONObject("menu")
 
     when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").getJSONArray("labels").get(0)
+    final array = menuObject.getJSONArray("labels")
 
     then:
-    name == "File"
-    1 * module.taintObjectIfTainted(_ as JSONObject, json)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
-    2 * module.taintObjectIfTainted(_ as JSONArray, _ as JSONObject)
-    2 * module.taintStringIfTainted("File", _ as JSONArray)
+    array.length() == 2
+    array.get(0) == "File"
+    array.get(1) == "Edit"
+    1 * module.taintObjectIfTainted(_ as JSONArray, _ as JSONObject)
     0 * _
   }
 
@@ -45,28 +43,22 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final json = """{"menu": {
-      "name": "nameTest",
-      "value": "File",
-      "popup": "Popup",
-      "labels": [
-          "File",
-          "Edit"
-        ]
-    }}"""
+    final jsonObject = new JSONObject(json)
+    final jsonArray =jsonObject.getJSONObject("menu").getJSONArray("labels")
 
     when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").getJSONArray("labels").optString(0, "defaultvalue")
+    final name = jsonArray.optString(0, "defaultvalue")
 
     then:
     name == "File"
-    1 * module.taintObjectIfTainted(_ as JSONObject, json)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintObjectIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
-    2 * module.taintObjectIfTainted(_ as JSONArray, _ as JSONObject)
     1 * module.taintStringIfTainted("File", _ as JSONArray)
     0 * _
+
+    where:
+    method      | arguments
+    "opt"       | [0]
+    "optString" | [0, "defaultvalue"]
+    "get"       | [0]
+    "getString" | [0, "defaultvalue"]
   }
 }

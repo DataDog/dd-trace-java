@@ -4,11 +4,11 @@ import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
 import datadog.communication.monitor.NoOpCounter
 import datadog.trace.api.StatsDClient
-import datadog.trace.test.util.DDSpecification
+import spock.lang.Specification
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class CounterTest extends DDSpecification {
+class CounterTest extends Specification {
 
   def "counter counts stuff"() {
     StatsDClient statsd = Mock(StatsDClient)

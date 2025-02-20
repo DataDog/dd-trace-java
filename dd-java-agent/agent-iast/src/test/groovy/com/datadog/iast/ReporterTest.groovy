@@ -78,9 +78,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path": "foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         }
       ]
@@ -187,9 +187,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":1,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"1"
           },
-          "stackId":"1",
           "type":"WEAK_HASH"
         },
         {
@@ -199,9 +199,9 @@ class ReporterTest extends DDSpecification {
             "spanId":123456,
             "line":2,
             "path":"foo",
-            "method": "foo"
+            "method": "foo",
+            "stackId":"2"
           },
-          "stackId":"2",
           "type":"WEAK_HASH"
         }
       ]
@@ -533,6 +533,80 @@ class ReporterTest extends DDSpecification {
     batch.vulnerabilities.size() == 2
   }
 
+  void 'two cookie vulnerabilities that share location share stackId and only generate one stack'() {
+    given:
+    final Reporter reporter = new Reporter()
+    final traceSegment = Mock(TraceSegment)
+    final ctx = new IastRequestContext(noOpTaintedObjects())
+    final reqCtx = Mock(RequestContext)
+    final spanId = 123456
+    VulnerabilityBatch batch = null
+    Map stackTraceBatch = new ConcurrentHashMap()
+
+    final span = Stub(AgentSpan)
+    span.getRequestContext() >> reqCtx
+    span.getSpanId() >> spanId
+
+    final location = Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1))
+
+    final v1 = new Vulnerability(
+      VulnerabilityType.INSECURE_COOKIE,
+      location,
+      new Evidence("JSESSIONID")
+      )
+    final v2 = new Vulnerability(
+      VulnerabilityType.NO_SAMESITE_COOKIE,
+      location,
+      new Evidence("JSESSIONID")
+      )
+
+    when:
+    reporter.report(span, v1)
+    reporter.report(span, v2)
+
+    then:
+    1 * reqCtx.getData(RequestContextSlot.IAST) >> ctx
+    2 * reqCtx.getTraceSegment() >> traceSegment
+    // first vulnerability
+    1 * traceSegment.getDataTop('iast') >> null
+    1 * traceSegment.setDataTop('iast', _) >> { batch = it[1] as VulnerabilityBatch }
+    1 * reqCtx.getOrCreateMetaStructTop('_dd.stack', _)  >> { stackTraceBatch }
+    // second vulnerability
+    1 * traceSegment.getDataTop('iast') >> { return batch } // second vulnerability
+    JSONAssert.assertEquals('''{
+      "vulnerabilities": [
+        {
+          "evidence": { "value":"JSESSIONID" },
+          "hash":1156210466,
+          "location": {
+            "spanId":123456,
+            "line":1,
+            "path":"foo",
+            "method": "foo",
+            "stackId":"1"
+          },
+          "type":"INSECURE_COOKIE"
+        },
+        {
+          "evidence": {"value":"JSESSIONID"},
+          "hash":1090504969,
+          "location": {
+            "spanId":123456,
+            "line":1,
+            "path":"foo",
+            "method": "foo",
+            "stackId":"1"
+          },
+          "type":"NO_SAMESITE_COOKIE"
+        }
+      ]
+    }''', batch.toString(), true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
+    assert  stackTraceBatch.get("vulnerability").size() == 1
+    0 * _
+  }
+
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {
     final traceSegment = Mock(TraceSegment) {
       getDataTop('iast') >> batch
@@ -578,7 +652,7 @@ class ReporterTest extends DDSpecification {
     StackTraceEvent currentStackTrace = null
     for (int i = 0; i < vulnerabilities.size(); i++) {
       for (StackTraceEvent event : batch.get("vulnerability")) {
-        if(event.getId() == vulnerabilities[i].getStackId()) {
+        if(event.getId() == vulnerabilities[i].getLocation().getStackId()) {
           currentStackTrace = event
           break
         }

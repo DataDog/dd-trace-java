@@ -1,10 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,35 +26,29 @@ public final class ExecutorInstrumentationUtils {
     if (task == null) {
       return false;
     }
-
     if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, task)) {
       return false;
     }
-
-    final AgentScope scope = activeScope();
-
-    return scope != null && scope.isAsyncPropagating();
+    return activeSpan() != null && isAsyncPropagationEnabled();
   }
 
   /**
-   * Create task state given current scope.
+   * Create task state given current span.
    *
    * @param contextStore context storage
    * @param task task instance
-   * @param scope current scope
+   * @param span current span
    * @param <T> task class type
    * @return new state
    */
   public static <T> State setupState(
-      final ContextStore<T, State> contextStore, final T task, final AgentScope scope) {
+      final ContextStore<T, State> contextStore, final T task, final AgentSpan span) {
 
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
 
-    if (!state.captureAndSetContinuation(scope)) {
+    if (!state.captureAndSetContinuation(span)) {
       log.debug(
-          "continuation was already set for {} in scope {}, no continuation captured.",
-          task,
-          scope);
+          "continuation was already set for {} in span {}, no continuation captured.", task, span);
     }
 
     return state;

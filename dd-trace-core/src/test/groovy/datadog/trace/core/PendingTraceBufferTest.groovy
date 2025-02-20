@@ -496,7 +496,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def addContinuation(DDSpan span) {
     def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
-    continuations << scope.capture()
+    continuations << scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id())
     scope.close()
     return span
   }

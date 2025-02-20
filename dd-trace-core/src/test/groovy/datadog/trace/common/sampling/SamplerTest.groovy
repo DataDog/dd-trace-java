@@ -31,6 +31,19 @@ class SamplerTest extends DDSpecification{
     sampler instanceof AsmStandaloneSampler
   }
 
+  void "test that AsmStandaloneSampler is selected when apm tracing disabled and sca enabled is enabled"() {
+    setup:
+    System.setProperty("dd.apm.tracing.enabled", "false")
+    System.setProperty("dd.appsec.sca.enabled", "true")
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof AsmStandaloneSampler
+  }
+
   void "test that AsmStandaloneSampler is not selected when apm tracing and asm not enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")

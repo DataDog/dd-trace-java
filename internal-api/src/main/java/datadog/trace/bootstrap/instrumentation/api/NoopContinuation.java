@@ -16,7 +16,7 @@ final class NoopContinuation implements AgentScope.Continuation {
   }
 
   @Override
-  public AgentSpan getSpan() {
+  public AgentSpan span() {
     return NoopSpan.INSTANCE;
   }
 
