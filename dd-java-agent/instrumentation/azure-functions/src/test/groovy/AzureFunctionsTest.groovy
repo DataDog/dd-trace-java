@@ -8,6 +8,8 @@ import com.microsoft.azure.functions.HttpResponseMessage
 import com.microsoft.azure.functions.HttpStatus
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import okhttp3.internal.Version
 
 abstract class AzureFunctionsTest extends VersionedNamingTestBase {
 
@@ -23,19 +25,27 @@ abstract class AzureFunctionsTest extends VersionedNamingTestBase {
     HttpResponseMessage response = mock(HttpResponseMessage)
     ExecutionContext context = mock(ExecutionContext)
 
-    and:
-    when(request.getHeaders()).thenReturn(Collections.emptyMap())
-    when(request.getHttpMethod()).thenReturn(HttpMethod.GET)
-    when(request.getUri()).thenReturn(new URI("https://localhost:7071/api/HttpTest"))
-    when(request.createResponseBuilder(HttpStatus.OK)).thenReturn(responseBuilder)
+    String functionName = "HttpTest"
+    Map<String, String> headers = ["user-agent": Version.userAgent()]
+    HttpMethod method = HttpMethod.GET
+    String responseBody = "Hello Datadog test!"
+    HttpStatus status = HttpStatus.OK
+    int statusCode = 200
+    URI uri = new URI("https://localhost:7071/api/HttpTest")
 
-    when(responseBuilder.body("Hello Datadog test!")).thenReturn(responseBuilder)
+    and:
+    when(request.getHeaders()).thenReturn(headers)
+    when(request.getHttpMethod()).thenReturn(method)
+    when(request.getUri()).thenReturn(uri)
+    when(request.createResponseBuilder(status)).thenReturn(responseBuilder)
+
+    when(responseBuilder.body(responseBody)).thenReturn(responseBuilder)
     when(responseBuilder.build()).thenReturn(response)
 
-    when(response.getStatusCode()).thenReturn(200)
-    when(response.getBody()).thenReturn("Hello Datadog test!")
+    when(response.getStatusCode()).thenReturn(statusCode)
+    when(response.getBody()).thenReturn(responseBody)
 
-    when(context.getFunctionName()).thenReturn("HttpTest")
+    when(context.getFunctionName()).thenReturn(functionName)
 
     when:
     new Function().run(request, context)
@@ -44,9 +54,23 @@ abstract class AzureFunctionsTest extends VersionedNamingTestBase {
     assertTraces(1) {
       trace(1) {
         span {
+          parent()
           operationName operation()
           spanType DDSpanTypes.SERVERLESS
           errored false
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "azure-functions"
+            "$Tags.SPAN_KIND" "$Tags.SPAN_KIND_SERVER"
+            "$Tags.HTTP_HOSTNAME" "localhost"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_ROUTE" "/api/HttpTest"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_URL" "https://localhost:7071/api/HttpTest"
+            "$Tags.HTTP_USER_AGENT" "${Version.userAgent()}"
+            "aas.function.name" "HttpTest"
+            "aas.function.trigger" "Http"
+          }
         }
       }
     }
