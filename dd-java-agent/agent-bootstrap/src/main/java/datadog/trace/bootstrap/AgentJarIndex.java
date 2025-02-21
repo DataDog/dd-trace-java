@@ -142,6 +142,12 @@ public final class AgentJarIndex {
       if (null != prefixRoot) {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
+          if (-1 != prefixTrie.apply(entryKey)) {
+            log.warn(
+                "entryKey '{}' has multiple prefixIds: overriding existing prefixId with '{}'.",
+                entryKey,
+                prefixId);
+          }
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
             // optimization: wildcard will match everything under here so can skip
