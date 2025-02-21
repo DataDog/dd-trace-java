@@ -142,7 +142,8 @@ public final class AgentJarIndex {
       if (null != prefixRoot) {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
-          if (-1 != prefixTrie.apply(entryKey)) {
+          int existingPrefixId = prefixTrie.apply(entryKey);
+          if (-1 != existingPrefixId && prefixId != existingPrefixId) {
             log.warn(
                 "entryKey '{}' has multiple prefixIds: overriding existing prefixId with '{}'.",
                 entryKey,
