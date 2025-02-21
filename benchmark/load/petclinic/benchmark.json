@@ -41,6 +41,12 @@
         "VARIANT": "iast",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true"
       }
+    },
+    "code_origins": {
+      "env": {
+        "VARIANT": "code_origins",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.code.origin.for.spans.enabled=true"
+      }
     }
   }
 }
