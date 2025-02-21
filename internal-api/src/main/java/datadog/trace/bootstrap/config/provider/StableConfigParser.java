@@ -31,29 +31,27 @@ public class StableConfigParser {
     Map<String, String> configMap = new HashMap<>();
     String[] configId = new String[1];
     try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
-      // Use AtomicBoolean because it's mutable within a lambda expression to
-      boolean[] apmConfigFound =
-          new boolean[1]; // Track if we've found 'apm_configuration_default:'
-      boolean[] configIdFound = new boolean[1]; // Track if we've found 'config_id:'
+      int apmConfigNotFound = -1, apmConfigStarted = 0, apmConfigComplete = 1;
+      int[] apmConfigFound = {apmConfigNotFound};
       lines.forEach(
           line -> {
             Matcher matcher = idPattern.matcher(line);
             if (matcher.find()) {
               // Do not allow duplicate config_id keys
-              if (configIdFound[0]) {
+              if (configId[0] != null) {
                 throw new RuntimeException("Duplicate config_id keys found; file may be malformed");
               }
               configId[0] = trimQuotes(matcher.group(1).trim());
-              configIdFound[0] = true;
               return; // go to next line
             }
-            // TODO: Do not allow duplicate apm_configuration_default keys? Or just return early.
-            if (!apmConfigFound[0] && apmConfigPattern.matcher(line).matches()) {
-              apmConfigFound[0] = true;
+            // TODO: Do not allow duplicate apm_configuration_default keys; and/or return early once
+            // apmConfigFound[0] == apmConfigComplete
+            if (apmConfigFound[0] == apmConfigNotFound
+                && apmConfigPattern.matcher(line).matches()) {
+              apmConfigFound[0] = apmConfigStarted;
               return; // go to next line
             }
-
-            if (apmConfigFound[0]) {
+            if (apmConfigFound[0] == apmConfigStarted) {
               Matcher keyValueMatcher = keyValPattern.matcher(line);
               if (keyValueMatcher.matches()) {
                 configMap.put(
@@ -61,7 +59,7 @@ public class StableConfigParser {
                     trimQuotes(keyValueMatcher.group(2).trim())); // Store key-value pair in map
               } else {
                 // If we encounter a non-indented or non-key-value line, stop processing
-                apmConfigFound[0] = false;
+                apmConfigFound[0] = apmConfigComplete;
               }
             }
           });
