@@ -42,6 +42,7 @@ import com.google.common.io.ByteStreams;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -561,7 +562,10 @@ public class ProfileUploaderTest {
 
     verify(recording).release();
 
-    if (Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
+    // J9 has 'almost' implemented JFR, but not really
+    // we need to skip this part for J9
+    if (!Platform.isJ9()
+        && Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
       verify(ioLogger)
           .error(
               eq("Failed to upload profile, it's too big. Dumping information about the profile"));

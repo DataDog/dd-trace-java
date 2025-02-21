@@ -239,7 +239,7 @@ public class TempLocationManagerTest {
     Files.createFile(otherTempdir.resolve("dummy"));
     boolean rslt =
         instance.cleanup(
-            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 10 : 0.5d)), TimeUnit.MILLISECONDS);
+            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
   }
 

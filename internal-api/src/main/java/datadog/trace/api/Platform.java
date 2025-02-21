@@ -39,10 +39,13 @@ public final class Platform {
       /* Check only for the open-sources JFR implementation.
        * If it is ever needed to support also the closed sourced JDK 8 version the check should be
        * enhanced.
-       * Need this custom check because ClassLoaderMatchers.hasClassNamed() does not support bootstrap class loader yet.
-       * Note: the downside of this is that we load some JFR classes at startup.
+       * Note: we need to hardcode the good-known-versions instead of probing for JFR classes to
+       *       make this work with GraalVM native image.
+       * Note: as of version 0.49.0 of J9 the JVM contains JFR classes, but it is not fully functional
        */
-      return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+      return ((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 272) || (isJavaVersionAtLeast(11))))
+          && !isJ9()
+          && !isOracleJDK8();
     } catch (Throwable e) {
       return false;
     }
