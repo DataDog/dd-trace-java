@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.ByteOutput;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -83,4 +84,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
       }
     }
   }
+
+  // just to make muzzle not instrument versions < 3.0
+  public static void muzzleCheck(ByteOutput bo) {}
 }
