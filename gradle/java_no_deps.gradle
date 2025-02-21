@@ -139,6 +139,53 @@ javadoc {
   }
 }
 
+def nativeLibsDir = "$rootDir/native_libs"
+tasks.register('checkForNativeLibs') {
+    doLast {
+        def tree = fileTree(dir: nativeLibsDir, include: ['**/*.so', '**/*.dylib', '**/*.dll'])
+        if (tree.empty) {
+            throw new GradleException("Couldn't find any libraries in $tree")
+        }
+    }
+}
+
+tasks.register('copyNativeLibs', Copy) {
+    def existsLib = { filename ->
+        def fileObj = file("$nativeLibsDir/${filename}")
+        if (!fileObj.exists()) {
+            logger.warn("Could not find ${fileObj.absolutePath}")
+            false
+        } else {
+            true
+        }
+    }
+    def files = ['linux/x86_64/glibc/libdatadog_library_config_java.so',
+                       'linux/x86_64/musl/libdatadog_library_config_java.so',
+                       'linux/aarch64/glibc/libdatadog_library_config_java.so',
+                       'linux/aarch64/musl/libdatadog_library_config_java.so',
+                       'macos/x86_64/libdatadog_library_config_java.dylib',
+                       'macos/aarch64/libdatadog_library_config_java.dylib',
+                       'windows/x86_64/libdatadog_library_config_java.dll']
+    
+    // TODO: if (project.hasProperty('useReleaseBinaries'))
+    // TODO: add task to build locally if this is not set
+
+    doFirst {
+        if (!files.every(existsLib)) {
+            throw new GradleException("Missing native lib in $nativeLibsDir")
+        }
+    }
+
+    from nativeLibsDir, {
+        include '**/*.so'
+        include '**/*.dylib'
+        include '**/*.dll'
+    }
+    into "${sourceSets.main.output.resourcesDir}/native_libs/"
+
+    dependsOn checkForNativeLibs
+}
+
 def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 
 project.afterEvaluate {

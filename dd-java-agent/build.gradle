@@ -182,6 +182,7 @@ tasks.register('generateAgentJarIndex', JavaExec) {
 
   dependsOn 'processResources'
   dependsOn 'writeVersionNumberFile'
+  dependsOn 'copyNativeLibs'
 }
 
 compileJava.dependsOn 'generateAgentJarIndex'
