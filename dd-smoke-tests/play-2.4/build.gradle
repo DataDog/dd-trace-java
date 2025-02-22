@@ -3,6 +3,7 @@ plugins {
 }
 
 ext {
+  defaultJdkVersion = 8
   // TODO Java 17: This version of play doesn't support Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
@@ -11,6 +12,13 @@ apply from: "$rootDir/gradle/java.gradle"
 
 def playVer = "2.4.11"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")
+
+java {
+  toolchain {
+    // ScalaPlugin won't pick up another JDK unless specified with a toolchain.
+    languageVersion.set(JavaLanguageVersion.of(8))
+  }
+}
 
 play {
   platform {
