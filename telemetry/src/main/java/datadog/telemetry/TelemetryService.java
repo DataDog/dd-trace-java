@@ -124,19 +124,6 @@ public class TelemetryService {
     return this.distributionSeries.offer(series);
   }
 
-  public void sendAppClosingEvent() {
-    TelemetryRequest telemetryRequest =
-        new TelemetryRequest(
-            this.eventSource,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_CLOSING,
-            debug);
-    if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
-      log.warn("Couldn't send app-closing event!");
-    }
-  }
-
   // keeps track of unsent events from the previous attempt
   private BufferedEvents bufferedEvents;
 
@@ -172,10 +159,11 @@ public class TelemetryService {
   }
 
   /**
+   * @param isClosing True if this is the last telemetry message, sent on shutdown flush.
    * @return true - only part of data has been sent because of the request size limit false - all
    *     data has been sent, or it has failed sending a request
    */
-  public boolean sendTelemetryEvents() {
+  public boolean sendTelemetryEvents(final boolean isClosing) {
     EventSource eventSource;
     EventSink eventSink;
     if (bufferedEvents == null) {
@@ -192,7 +180,7 @@ public class TelemetryService {
     }
     TelemetryRequest request;
     boolean isMoreDataAvailable = false;
-    if (eventSource.isEmpty()) {
+    if (eventSource.isEmpty() && !isClosing) {
       log.debug("Preparing app-heartbeat request");
       request =
           new TelemetryRequest(
@@ -202,7 +190,14 @@ public class TelemetryService {
       request =
           new TelemetryRequest(
               eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
-      request.writeHeartbeat();
+      if (isClosing) {
+        // Write early, if moved, ensure it does not get skipped because of size limits.
+        request.writeAppClosing();
+      } else {
+        // If this is a flush, no need to sent the heartbeat. If it was needed, it would have been
+        // scheduled already.
+        request.writeHeartbeat();
+      }
       request.writeConfigurations();
       request.writeIntegrations();
       request.writeDependencies();
