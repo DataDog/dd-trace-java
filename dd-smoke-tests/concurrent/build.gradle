@@ -1,0 +1,42 @@
+plugins {
+  id 'java'
+  id 'application'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Concurrent Integration Tests.'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation project(':dd-trace-api')
+  testImplementation project(':dd-smoke-tests')
+
+  testImplementation platform('org.junit:junit-bom:5.10.0')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+application {
+  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+}
+
+test {
+  useJUnitPlatform()
+}
+
+jar {
+  manifest {
+    attributes(
+      'Main-Class': 'datadog.smoketest.concurrent.ConcurrentApp'
+      )
+  }
+}
+
+//tasks.withType(Test).configureEach {
+//  dependsOn "shadowJar"
+//
+//  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+//}
