@@ -46,10 +46,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final ConcurrentMap<Integer, AtomicLongArray> raspErrorCodeCounter =
       new ConcurrentSkipListMap<>();
+  private static final ConcurrentMap<Integer, AtomicLongArray> wafErrorCodeCounter =
+      new ConcurrentSkipListMap<>();
 
   static {
     for (int i = -1 * ABSTRACT_POWERWAF_EXCEPTION_NUMBER; i < 0; i++) {
       raspErrorCodeCounter.put(i, new AtomicLongArray(RuleType.getNumValues()));
+      wafErrorCodeCounter.put(i, new AtomicLongArray(RuleType.getNumValues()));
     }
   }
 
@@ -119,6 +122,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void raspErrorCode(final RuleType ruleType, final int ddwafRunErrorCode) {
     raspErrorCodeCounter.get(ddwafRunErrorCode).incrementAndGet(ruleType.ordinal());
+  }
+
+  public void wafErrorCode(final RuleType ruleType, final int ddwafRunErrorCode) {
+    wafErrorCodeCounter.get(ddwafRunErrorCode).incrementAndGet(ruleType.ordinal());
   }
 
   public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
@@ -240,6 +247,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         if (counter > 0) {
           if (!rawMetricsQueue.offer(
               new RaspError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
+            return;
+          }
+          if (!rawMetricsQueue.offer(
+              new WafError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
             return;
           }
         }
@@ -405,6 +416,31 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final Integer ddwafRunError) {
       super(
           "rasp.error",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "waf_version:" + wafVersion,
+                "event_rules_version:" + rulesVersion,
+                "waf_error:" + ddwafRunError
+              }
+              : new String[] {
+                "rule_type:" + ruleType.type,
+                "waf_version:" + wafVersion,
+                "waf_error:" + ddwafRunError
+              });
+    }
+  }
+
+  public static class WafError extends WafMetric {
+    public WafError(
+        final long counter,
+        final RuleType ruleType,
+        final String wafVersion,
+        final Integer ddwafRunError) {
+      super(
+          "waf.error",
           counter,
           ruleType.variant != null
               ? new String[] {

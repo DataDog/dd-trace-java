@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -141,9 +142,10 @@ public class PubSubDecorator extends MessagingClientDecorator {
         .getDataStreamsMonitoring()
         .setCheckpoint(
             span,
-            sortedTags,
-            publishTime.getSeconds() * 1_000 + publishTime.getNanos() / (int) 1e6,
-            message.getSerializedSize());
+            DataStreamsContext.create(
+                sortedTags,
+                publishTime.getSeconds() * 1_000 + publishTime.getNanos() / (int) 1e6,
+                message.getSerializedSize()));
     afterStart(span);
     span.setResourceName(
         CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(parsedSubscription, CONSUMER_PREFIX));

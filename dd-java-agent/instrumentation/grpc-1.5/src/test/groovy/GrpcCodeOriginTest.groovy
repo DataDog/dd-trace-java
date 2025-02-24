@@ -69,7 +69,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
                 serverReceived << value.message
 
                 (1..msgCount).each {
-                  if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                  if (TEST_TRACER.isAsyncPropagationEnabled()) {
                     observer.onNext(value)
                   } else {
                     observer.onError(new IllegalStateException("not async propagating!"))
@@ -79,7 +79,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
               @Override
               void onError(Throwable t) {
-                if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                if (TEST_TRACER.isAsyncPropagationEnabled()) {
                   error.set(t)
                   observer.onError(t)
                 } else {
@@ -89,7 +89,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
               @Override
               void onCompleted() {
-                if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                if (TEST_TRACER.isAsyncPropagationEnabled()) {
                   observer.onCompleted()
                 } else {
                   observer.onError(new IllegalStateException("not async propagating!"))
@@ -109,7 +109,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
     def streamObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
-          if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+          if (TEST_TRACER.isAsyncPropagationEnabled()) {
             clientReceived << value.message
           } else {
             error.set(new IllegalStateException("not async propagating!"))
@@ -118,7 +118,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
         @Override
         void onError(Throwable t) {
-          if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+          if (TEST_TRACER.isAsyncPropagationEnabled()) {
             error.set(t)
           } else {
             error.set(new IllegalStateException("not async propagating!"))
@@ -127,7 +127,7 @@ abstract class GrpcCodeOriginTest extends VersionedNamingTestBase {
 
         @Override
         void onCompleted() {
-          if (!TEST_TRACER.activeScope().isAsyncPropagating()) {
+          if (!TEST_TRACER.isAsyncPropagationEnabled()) {
             error.set(new IllegalStateException("not async propagating!"))
           }
         }
