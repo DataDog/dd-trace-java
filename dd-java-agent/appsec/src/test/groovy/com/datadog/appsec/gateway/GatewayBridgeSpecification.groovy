@@ -81,9 +81,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  ApiSecurityRequestSampler requestSampler = Mock(ApiSecurityRequestSampler) {
-    preSampleRequest(_ as AppSecRequestContext) >> false
-  }
+  ApiSecurityRequestSampler requestSampler = Mock(ApiSecurityRequestSampler)
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
@@ -111,7 +109,6 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userCB
-  Consumer<RequestContext> postProcessingCB
   LoginEventCallback loginEventCB
 
   void setup() {
@@ -169,6 +166,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
+    1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -451,7 +449,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.postProcessing(), _) >> { postProcessingCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()

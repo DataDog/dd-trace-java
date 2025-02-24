@@ -2,7 +2,7 @@ package com.datadog.iast.overhead;
 
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
-import datadog.trace.util.NonBlockingSemaphore;
+import com.datadog.iast.util.NonBlockingSemaphore;
 
 public class OverheadContext {
 

@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.assertj.core.api.ThrowableAssert;
@@ -225,8 +224,6 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), callback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
-    ss.registerCallback(events.postProcessing(), callback);
-    cbp.getCallback(events.postProcessing()).accept(null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -297,8 +294,6 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), throwback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
-    ss.registerCallback(events.postProcessing(), throwback);
-    cbp.getCallback(events.postProcessing()).accept(null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -444,7 +439,6 @@ public class InstrumentationGatewayTest {
 
   private static class Callback<D, T>
       implements Supplier<Flow<D>>,
-          Consumer<RequestContext>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>>,
@@ -475,11 +469,6 @@ public class InstrumentationGatewayTest {
     public Flow<D> get() {
       count++;
       return new Flow.ResultFlow<>((D) ctxt);
-    }
-
-    @Override
-    public void accept(RequestContext requestContext) {
-      count++;
     }
 
     @Override
@@ -529,7 +518,6 @@ public class InstrumentationGatewayTest {
 
   private static class Throwback<D, T>
       implements Supplier<Flow<D>>,
-          Consumer<RequestContext>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>>,
@@ -551,12 +539,6 @@ public class InstrumentationGatewayTest {
 
     @Override
     public Flow<D> get() {
-      count++;
-      throw new IllegalArgumentException();
-    }
-
-    @Override
-    public void accept(RequestContext requestContext) {
       count++;
       throw new IllegalArgumentException();
     }
