@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -1215,7 +1216,13 @@ public class Agent {
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
+      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
+      featureEnabled = getStableConfig(StableConfigSource.USER, featureEnabledSysprop);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1351,6 +1358,11 @@ public class Agent {
       value = ddGetEnv(sysProp);
     }
     return value;
+  }
+
+  /** Looks for sysProp in the Stable Configuration input */
+  private static String getStableConfig(StableConfigSource source, final String sysProp) {
+    return source.get(sysProp);
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
