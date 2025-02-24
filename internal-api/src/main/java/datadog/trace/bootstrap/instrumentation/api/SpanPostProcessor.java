@@ -20,7 +20,7 @@ public interface SpanPostProcessor {
    * much as possible. This method is guaranteed to be called even if post-processing of previous
    * spans have timed out.
    */
-  void process(AgentSpan span, BooleanSupplier timeoutCheck);
+  void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck);
 
   class Holder {
     private static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
@@ -32,6 +32,6 @@ public interface SpanPostProcessor {
 
   class NoOpSpanPostProcessor implements SpanPostProcessor {
     @Override
-    public void process(AgentSpan span, BooleanSupplier timeoutCheck) {}
+    public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {}
   }
 }

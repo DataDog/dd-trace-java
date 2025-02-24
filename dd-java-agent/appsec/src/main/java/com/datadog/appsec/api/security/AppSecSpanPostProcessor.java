@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
   }
 
   @Override
-  public void process(AgentSpan span, BooleanSupplier timeoutCheck) {
+  public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {
     final RequestContext ctx_ = span.getRequestContext();
     if (ctx_ == null) {
       return;
@@ -58,7 +59,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       } catch (Exception e) {
         log.debug("Error closing AppSecRequestContext", e);
       }
-      sampler.counter.release();
+      sampler.releaseOne();
     }
   }
 

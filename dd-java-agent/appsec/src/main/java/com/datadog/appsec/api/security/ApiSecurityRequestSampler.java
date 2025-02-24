@@ -28,8 +28,7 @@ public class ApiSecurityRequestSampler {
   private final long expirationTimeInMs;
   private final int capacity;
   private final TimeSource timeSource;
-
-  final NonBlockingSemaphore counter =
+  private final NonBlockingSemaphore counter =
       NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   public ApiSecurityRequestSampler() {
@@ -84,6 +83,11 @@ public class ApiSecurityRequestSampler {
       return false;
     }
     return updateApiAccessIfExpired(hash);
+  }
+
+  /** Release one permit for the sampler. This must be called after processing a span. */
+  void releaseOne() {
+    counter.release();
   }
 
   private boolean updateApiAccessIfExpired(final long hash) {
