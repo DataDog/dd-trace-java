@@ -8,7 +8,6 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Concern;
 import datadog.context.propagation.Propagators;
-import java.util.LinkedHashMap;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -20,20 +19,6 @@ public interface AgentPropagation {
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
-  // The input tags should be sorted.
-  <C> void injectPathwayContext(
-      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
-
-  <C> void injectPathwayContext(
-      AgentSpan span,
-      C carrier,
-      Setter<C> setter,
-      LinkedHashMap<String, String> sortedTags,
-      long defaultTimestamp,
-      long payloadSizeBytes);
-
-  <C> void injectPathwayContextWithoutSendingStats(
-      AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags);
 
   interface Setter<C> extends CarrierSetter<C> {
     void set(C carrier, String key, String value);

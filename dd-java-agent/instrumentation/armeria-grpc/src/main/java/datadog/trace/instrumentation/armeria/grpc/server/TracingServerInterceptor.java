@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.armeria.grpc.server;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -71,7 +72,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
-        .setCheckpoint(span, SERVER_PATHWAY_EDGE_TAGS, 0, 0);
+        .setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
 
     RequestContext reqContext = span.getRequestContext();
     if (reqContext != null) {

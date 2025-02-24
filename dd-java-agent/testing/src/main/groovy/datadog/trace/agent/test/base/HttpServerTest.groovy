@@ -1748,6 +1748,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     requestBodyNoStreaming ? IG_BODY_CONVERTED_HEADER : IG_BODY_END_BLOCK_HEADER
   }
 
+  @Flaky(value = "APPSEC-56822", suites = ["PlayScalaAsyncServerTest"])
   def 'user blocking'() {
     setup:
     assumeTrue(testUserBlocking())

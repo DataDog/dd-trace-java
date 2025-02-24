@@ -65,3 +65,10 @@ dd-java-agent/instrumentation/spring-security-5/ @DataDog/asm-java
 # @DataDog/data-jobs-monitoring
 dd-java-agent/instrumentation/spark/            @DataDog/data-jobs-monitoring
 dd-java-agent/instrumentation/spark-executor/   @DataDog/data-jobs-monitoring
+
+# @DataDog/data-streams-monitoring
+dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/datastreams  @DataDog/data-streams-monitoring
+dd-trace-core/src/main/java/datadog/trace/core/datastreams                  @DataDog/data-streams-monitoring
+dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                @DataDog/data-streams-monitoring
+internal-api/src/main/java/datadog/trace/api/datastreams                    @DataDog/data-streams-monitoring
+internal-api/src/test/groovy/datadog/trace/api/datastreams                  @DataDog/data-streams-monitoring
