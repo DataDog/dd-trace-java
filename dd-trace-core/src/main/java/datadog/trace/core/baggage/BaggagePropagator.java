@@ -33,7 +33,7 @@ public class BaggagePropagator implements Propagator {
               '"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{',
               '}'));
   private static final Set<Character> UNSAFE_CHARACTERS_VALUE =
-      new HashSet<>(Arrays.asList('\"', ',', ';', '\\'));
+      new HashSet<>(Arrays.asList('"', ',', ';', '\\'));
 
   public BaggagePropagator(Config config) {
     this.injectBaggage = config.isBaggageInject();
@@ -60,7 +60,7 @@ public class BaggagePropagator implements Propagator {
     int size = 0;
     for (int i = 0; i < input.length(); i++) {
       char c = input.charAt(i);
-      if (UNSAFE_CHARACTERS.contains(c) || c > '~' || c <= ' ') { // encode character
+      if (c > '~' || c <= ' ' || UNSAFE_CHARACTERS.contains(c)) { // encode character
         byte[] bytes = Character.toString(c).getBytes(StandardCharsets.UTF_8);
         for (byte b : bytes) {
           builder.append('%');
@@ -82,20 +82,27 @@ public class BaggagePropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
+    int maxItems = config.getTraceBaggageMaxItems();
+    int maxBytes = config.getTraceBaggageMaxBytes();
+    //noinspection ConstantValue
+    if (!this.injectBaggage
+        || maxItems == 0
+        || maxBytes == 0
+        || context == null
+        || carrier == null
+        || setter == null) {
+      return;
+    }
+
     BaggageContext baggageContext = BaggageContext.fromContext(context);
     if (baggageContext == null) {
       log.debug("BaggageContext instance is missing from the following context {}", context);
       return;
     }
 
-    if (baggageContext.isUpdatedCache()) {
-      setter.set(carrier, BAGGAGE_KEY, baggageContext.getBaggageString());
-      return;
-    }
-
-    int maxItems = config.getTraceBaggageMaxItems();
-    int maxBytes = config.getTraceBaggageMaxBytes();
-    if (!this.injectBaggage || maxItems == 0 || maxBytes == 0) {
+    String baggageHeader = baggageContext.getW3cBaggageHeader();
+    if (baggageHeader != null) {
+      setter.set(carrier, BAGGAGE_KEY, baggageHeader);
       return;
     }
 
@@ -128,8 +135,7 @@ public class BaggagePropagator implements Propagator {
     }
 
     String baggageString = baggageText.toString();
-    ;
-    baggageContext.setBaggageString(baggageString);
+    baggageContext.setW3cBaggageHeader(baggageString);
     setter.set(carrier, BAGGAGE_KEY, baggageString);
   }
 
@@ -202,7 +208,7 @@ public class BaggagePropagator implements Propagator {
           && key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          extractedContext = BaggageContext.create(baggage, value);
+          extractedContext = BaggageContext.createW3CBaggageContext(baggage, value);
         }
       }
     }

@@ -42,8 +42,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
   def 'test baggage propagator context injection'() {
     setup:
-    context = BaggageContext.create(baggageMap, "").storeInto(context)
-    BaggageContext.fromContext(context).addBaggage("cache", "off") //force the cache to be not up to date
+    context = new BaggageContext(baggageMap).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -53,22 +52,21 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
     where:
     baggageMap                                               | baggageHeader
-    ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"] | "key1=val1,key2=val2,foo=bar,x=y,cache=off"
-    ['",;\\()/:<=>?@[]{}': '",;\\']                          | "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C,cache=off"
-    [key1: "val1"]                                           | "key1=val1,cache=off"
-    [key1: "val1", key2: "val2"]                             | "key1=val1,key2=val2,cache=off"
-    [serverNode: "DF 28"]                                    | "serverNode=DF%2028,cache=off"
-    [userId: "Amélie"]                                       | "userId=Am%C3%A9lie,cache=off"
-    ["user!d(me)": "false"]                                  | "user!d%28me%29=false,cache=off"
-    ["abcdefg": "hijklmnopq♥"]                               | "abcdefg=hijklmnopq%E2%99%A5,cache=off"
+    ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"] | "key1=val1,key2=val2,foo=bar,x=y"
+    ['",;\\()/:<=>?@[]{}': '",;\\']                          | "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
+    [key1: "val1"]                                           | "key1=val1"
+    [key1: "val1", key2: "val2"]                             | "key1=val1,key2=val2"
+    [serverNode: "DF 28"]                                    | "serverNode=DF%2028"
+    [userId: "Amélie"]                                       | "userId=Am%C3%A9lie"
+    ["user!d(me)": "false"]                                  | "user!d%28me%29=false"
+    ["abcdefg": "hijklmnopq♥"]                               | "abcdefg=hijklmnopq%E2%99%A5"
   }
 
   def "test baggage item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = BaggageContext.create(baggage, "").storeInto(context)
-    BaggageContext.fromContext(context).addBaggage("key2", "val2") //force the cache to be not up to date
+    context = new BaggageContext(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -77,17 +75,16 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
-    baggage                      | baggageHeader
-    [key1: "val1"]               | "key1=val1,key2=val2"
-    [key1: "val1", key3: "val3"] | "key1=val1,key3=val3"
+    baggage                                    | baggageHeader
+    [key1: "val1", key2: "val2"]               | "key1=val1,key2=val2"
+    [key1: "val1", key2: "val2", key3: "val3"] | "key1=val1,key2=val2"
   }
 
   def "test baggage bytes limit"() {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = BaggageContext.create(baggage, "").storeInto(context)
-    BaggageContext.fromContext(context).addBaggage("key2", "val2") //force the cache to be not up to date
+    context = new BaggageContext(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -96,10 +93,10 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
-    baggage                      | baggageHeader
-    [key1: "val1"]               | "key1=val1,key2=val2"
-    [key1: "val1", key3: "val3"] | "key1=val1,key3=val3"
-    ["abcdefg": "hijklmnopq♥"]   | ""
+    baggage                                    | baggageHeader
+    [key1: "val1", key2: "val2"]               | "key1=val1,key2=val2"
+    [key1: "val1", key2: "val2", key3: "val3"] | "key1=val1,key2=val2"
+    ["abcdefg": "hijklmnopq♥"]                 | ""
   }
 
   def 'test tracing propagator context extractor'() {
@@ -155,7 +152,6 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     then:
     BaggageContext baggageContext = BaggageContext.fromContext(context)
     baggageContext.getBaggage() == baggageMap
-    baggageContext.isUpdatedCache() //ensure that the cache is filled
 
     when:
     this.propagator.inject(context, carrier, setter)

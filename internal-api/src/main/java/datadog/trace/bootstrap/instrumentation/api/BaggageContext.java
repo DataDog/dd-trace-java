@@ -12,7 +12,15 @@ public class BaggageContext implements ImplicitContextKeyed {
   private String baggageString;
   private boolean updatedCache;
 
-  public static BaggageContext create(Map<String, String> baggage, String baggageString) {
+  // Exclusively used for testing purposes
+  public BaggageContext(Map<String, String> baggage) {
+    this.baggage = baggage;
+    this.baggageString = "";
+    updatedCache = false;
+  }
+
+  public static BaggageContext createW3CBaggageContext(
+      Map<String, String> baggage, String baggageString) {
     return new BaggageContext(baggage, baggageString);
   }
 
@@ -22,27 +30,26 @@ public class BaggageContext implements ImplicitContextKeyed {
     updatedCache = true;
   }
 
-  public void addBaggage(String key, String value) {
+  public void addW3CBaggage(String key, String value) {
     baggage.put(key, value);
     updatedCache = false;
   }
 
-  public void removeBaggage(String key) {
+  public void removeW3CBaggage(String key) {
     baggage.remove(key);
     updatedCache = false;
   }
 
-  public void setBaggageString(String baggageString) {
+  public void setW3cBaggageHeader(String baggageString) {
     this.baggageString = baggageString;
     updatedCache = true;
   }
 
-  public boolean isUpdatedCache() {
-    return updatedCache;
-  }
-
-  public String getBaggageString() {
-    return baggageString;
+  public String getW3cBaggageHeader() {
+    if (updatedCache) {
+      return baggageString;
+    }
+    return null;
   }
 
   public Map<String, String> getBaggage() {
