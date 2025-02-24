@@ -13,7 +13,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public final class AgentPropagation {
   public static final Concern TRACING_CONCERN = named("tracing");
   public static final Concern XRAY_TRACING_CONCERN = named("tracing-xray");
-  public static final Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
