@@ -277,9 +277,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     RequestContext requestContext = root.getRequestContext();
     if (requestContext != null) {
       try {
-        if (!root.isRequiresPostProcessing()) {
-          requestContext.close();
-        }
+        requestContext.close();
       } catch (IOException e) {
         log.warn("Error closing request context data", e);
       }

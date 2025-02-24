@@ -142,6 +142,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // Used to detect missing request-end event at close.
   private volatile boolean requestEndCalled;
 
+  private volatile boolean keepOpenForApiSecurityPostProcessing;
+  private volatile Long apiSecurityEndpointHash;
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -369,7 +372,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.method = method;
   }
 
-  public String getSavedRawURI() {
+  String getSavedRawURI() {
     return savedRawURI;
   }
 
@@ -385,12 +388,24 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return route;
   }
 
-  void setRoute(String route) {
-    if (this.route != null && this.route.compareToIgnoreCase(route) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different route for given request context");
-    }
+  public void setRoute(String route) {
     this.route = route;
+  }
+
+  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
+    this.keepOpenForApiSecurityPostProcessing = flag;
+  }
+
+  public boolean isKeepOpenForApiSecurityPostProcessing() {
+    return this.keepOpenForApiSecurityPostProcessing;
+  }
+
+  public void setApiSecurityEndpointHash(long hash) {
+    this.apiSecurityEndpointHash = hash;
+  }
+
+  public Long getApiSecurityEndpointHash() {
+    return this.apiSecurityEndpointHash;
   }
 
   void addRequestHeader(String name, String value) {
@@ -578,23 +593,33 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return sessionId;
   }
 
+  /**
+   * Close the context and release all resources. This method is idempotent and can be called
+   * multiple times. For each root span, this method is always called from
+   * CoreTracer#onRootSpaPublished.
+   */
   @Override
   public void close() {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-    if (additive != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
-    }
-    collectedCookies = null;
-    requestHeaders.clear();
-    responseHeaders.clear();
-    persistentData.clear();
-    if (derivatives != null) {
-      derivatives.clear();
-      derivatives = null;
+    // For API Security, we sometimes keep contexts open for late processing. In that case, this
+    // flag needs to be
+    // later reset by the API Security post-processor and close must be called again.
+    if (!keepOpenForApiSecurityPostProcessing) {
+      if (additive != null) {
+        log.debug(
+            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+        closeAdditive();
+      }
+      collectedCookies = null;
+      requestHeaders.clear();
+      responseHeaders.clear();
+      persistentData.clear();
+      if (derivatives != null) {
+        derivatives.clear();
+        derivatives = null;
+      }
     }
   }
 
@@ -661,6 +686,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void reportDerivatives(Map<String, String> data) {
+    log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
     if (derivatives == null) {
@@ -670,11 +696,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  boolean commitDerivatives(TraceSegment traceSegment) {
+  public boolean commitDerivatives(TraceSegment traceSegment) {
+    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null || derivatives == null) {
       return false;
     }
     derivatives.forEach(traceSegment::setTagTop);
+    log.debug("Committed derivatives: {} for {}", derivatives, traceSegment);
     derivatives = null;
     return true;
   }

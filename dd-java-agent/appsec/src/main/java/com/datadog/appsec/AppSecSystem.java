@@ -1,6 +1,7 @@
 package com.datadog.appsec;
 
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
@@ -21,6 +22,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -66,7 +68,14 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+    ApiSecurityRequestSampler requestSampler;
+    if (Config.get().isApiSecurityEnabled()) {
+      requestSampler = new ApiSecurityRequestSampler();
+      SpanPostProcessor.Holder.INSTANCE =
+          new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+    } else {
+      requestSampler = new ApiSecurityRequestSampler.NoOp();
+    }
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup

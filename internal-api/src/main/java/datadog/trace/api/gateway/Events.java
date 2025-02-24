@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -311,18 +310,6 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> shellCmd() {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
-  }
-
-  static final int POST_PROCESSING_ID = 26;
-
-  @SuppressWarnings("rawtypes")
-  private static final EventType POST_PROCESSING =
-      new ET<>("trace.post.processing", POST_PROCESSING_ID);
-
-  /** The span post-processing */
-  @SuppressWarnings("unchecked")
-  public EventType<Consumer<RequestContext>> postProcessing() {
-    return (EventType<Consumer<RequestContext>>) POST_PROCESSING;
   }
 
   static final int MAX_EVENTS = nextId.get();
