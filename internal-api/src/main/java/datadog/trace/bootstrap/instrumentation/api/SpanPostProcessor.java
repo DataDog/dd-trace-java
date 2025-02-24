@@ -23,7 +23,7 @@ public interface SpanPostProcessor {
   void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck);
 
   class Holder {
-    private static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
+    public static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
 
     // XXX: At the moment, a single post-processor can be registered, and only AppSec defines one.
     // If other products add their own, we'll need to refactor this to support multiple processors.
