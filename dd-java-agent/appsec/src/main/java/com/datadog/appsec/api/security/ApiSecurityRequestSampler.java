@@ -3,6 +3,7 @@ package com.datadog.appsec.api.security;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.util.NonBlockingSemaphore;
 
+import javax.annotation.Nonnull;
 import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,38 +33,42 @@ public class ApiSecurityRequestSampler {
   public ApiSecurityRequestSampler(int capacity, long expirationTimeInMs) {
     this.capacity = capacity;
     this.expirationTimeInMs = expirationTimeInMs;
-    this.apiAccessMap = new ConcurrentHashMap<>();
+    this.apiAccessMap = new ConcurrentHashMap<>(MAX_SIZE);
     this.apiAccessQueue = new ConcurrentLinkedDeque<>();
   }
 
-  public void preSampleRequest(final AppSecRequestContext ctx) {
-    if (!isValid(ctx)) {
+  public void preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
+    final String route = ctx.getRoute();
+    if (route == null) {
       return;
     }
-
-    if (!isApiAccessExpired(ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus())) {
+    final String method = ctx.getMethod();
+    if (method == null) {
       return;
     }
-
+    final int statusCode = ctx.getResponseStatus();
+    if (statusCode == 0) {
+      return;
+    }
+    long hash = computeApiHash(route, method, statusCode);
+    ctx.setApiSecurityEndpointHash(hash);
+    if (!isApiAccessExpired(hash)) {
+      return;
+    }
     if (counter.acquire()) {
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     }
   }
 
   public boolean sampleRequest(AppSecRequestContext ctx) {
-    if (!isValid(ctx)) {
+    if (ctx == null) {
       return false;
     }
-
-    return updateApiAccessIfExpired(
-        ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus());
-  }
-
-  private boolean isValid(AppSecRequestContext ctx) {
-    return ctx != null
-        && ctx.getRoute() != null
-        && ctx.getMethod() != null
-        && ctx.getResponseStatus() != 0;
+    final Long hash = ctx.getApiSecurityEndpointHash();
+    if (hash == null) {
+      return false;
+    }
+    return updateApiAccessIfExpired(hash);
   }
 
   /**
@@ -72,15 +77,9 @@ public class ApiSecurityRequestSampler {
    * exist, a new record is added. If the capacity limit is reached, the oldest record is removed.
    * This method should not be called concurrently by multiple threads, due absence of additional
    * synchronization for updating data structures is not required.
-   *
-   * @param route The route of the API endpoint request
-   * @param method The method of the API request
-   * @param statusCode The HTTP response status code of the API request
-   * @return return true if the record was updated or added, false otherwise
    */
-  public boolean updateApiAccessIfExpired(String route, String method, int statusCode) {
-    long currentTime = System.currentTimeMillis();
-    long hash = computeApiHash(route, method, statusCode);
+  public boolean updateApiAccessIfExpired(final long hash) {
+    final long currentTime = System.currentTimeMillis();
 
     // New or updated record
     boolean isNewOrUpdated = false;
@@ -107,14 +106,13 @@ public class ApiSecurityRequestSampler {
     return isNewOrUpdated;
   }
 
-  public boolean isApiAccessExpired(String route, String method, int statusCode) {
+  public boolean isApiAccessExpired(final long hash) {
     long currentTime = System.currentTimeMillis();
-    long hash = computeApiHash(route, method, statusCode);
     return !apiAccessMap.containsKey(hash)
         || currentTime - apiAccessMap.get(hash) > expirationTimeInMs;
   }
 
-  private void cleanupExpiredEntries(long currentTime) {
+  private void cleanupExpiredEntries(final long currentTime) {
     while (!apiAccessQueue.isEmpty()) {
       Long oldestHash = apiAccessQueue.peekFirst();
       if (oldestHash == null) break;
@@ -129,7 +127,7 @@ public class ApiSecurityRequestSampler {
     }
   }
 
-  private long computeApiHash(String route, String method, int statusCode) {
+  private long computeApiHash(final String route, final String method, final int statusCode) {
     long result = 17;
     result = 31 * result + route.hashCode();
     result = 31 * result + method.hashCode();
@@ -143,7 +141,7 @@ public class ApiSecurityRequestSampler {
     }
 
     @Override
-    public void preSampleRequest(AppSecRequestContext ctx) {
+    public void preSampleRequest(@Nonnull AppSecRequestContext ctx) {
     }
 
     @Override

@@ -143,6 +143,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile String sessionId;
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
+  private volatile Long apiSecurityEndpointHash;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
@@ -388,10 +389,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void setRoute(String route) {
-    if (this.route != null && this.route.compareToIgnoreCase(route) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different route for given request context");
-    }
     this.route = route;
   }
 
@@ -401,6 +398,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isKeepOpenForApiSecurityPostProcessing() {
     return this.keepOpenForApiSecurityPostProcessing;
+  }
+
+  public void setApiSecurityEndpointHash(long hash) {
+    this.apiSecurityEndpointHash = hash;
+  }
+
+  public Long getApiSecurityEndpointHash() {
+    return this.apiSecurityEndpointHash;
   }
 
   void addRequestHeader(String name, String value) {
