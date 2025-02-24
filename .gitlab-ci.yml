@@ -24,6 +24,7 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
+  REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
 
 default:
   tags: [ "arch:amd64" ]
