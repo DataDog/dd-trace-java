@@ -33,6 +33,7 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testCodeOriginTraceAnnotation")
   void testCodeOriginTraceAnnotation() throws Exception {
+    appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME);
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME);
