@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.PathwayContext.DATADOG_KEY;
+import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -9,6 +9,9 @@ import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -45,16 +48,13 @@ public class SqsInterceptor implements ExecutionInterceptor {
       if (!optionalQueueUrl.isPresent()) {
         return request;
       }
-      String queueUrl = optionalQueueUrl.get();
-      AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
-      sortedTags.put(TYPE_TAG, "sqs");
 
+      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+      datadog.context.Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(request.messageAttributes());
-      propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
+      dsmPropagator.inject(ctx, messageAttributes, SETTER);
+
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
     } else if (context.request() instanceof SendMessageBatchRequest) {
@@ -63,19 +63,15 @@ public class SqsInterceptor implements ExecutionInterceptor {
       if (!optionalQueueUrl.isPresent()) {
         return request;
       }
-      String queueUrl = optionalQueueUrl.get();
-      AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
-      sortedTags.put(TYPE_TAG, "sqs");
 
+      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+      datadog.context.Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
       for (SendMessageBatchRequestEntry entry : request.entries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
-        propagate().injectPathwayContext(span, messageAttributes, SETTER, sortedTags);
+        dsmPropagator.inject(ctx, messageAttributes, SETTER);
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
       }
 
@@ -94,5 +90,20 @@ public class SqsInterceptor implements ExecutionInterceptor {
     } else {
       return context.request();
     }
+  }
+
+  private datadog.context.Context getContext(
+      ExecutionAttributes executionAttributes, String queueUrl) {
+    AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
+    return span.with(dsmContext);
+  }
+
+  private LinkedHashMap<String, String> getTags(String queueUrl) {
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
+    sortedTags.put(TYPE_TAG, "sqs");
+    return sortedTags;
   }
 }

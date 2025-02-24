@@ -422,6 +422,7 @@ public class Config {
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
+  private final boolean distributedDebuggerEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1559,6 +1560,9 @@ public class Config {
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    distributedDebuggerEnabled =
+        configProvider.getBoolean(
+            DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
     dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
@@ -3169,6 +3173,10 @@ public class Config {
 
   public int getDebuggerCodeOriginMaxUserFrames() {
     return debuggerCodeOriginMaxUserFrames;
+  }
+
+  public boolean isDistributedDebuggerEnabled() {
+    return distributedDebuggerEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
