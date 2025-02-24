@@ -364,7 +364,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   private boolean isExceptionDebuggingEnabled() {
-    if (!Config.get().isDebuggerExceptionEnabled()) {
+    if (!DebuggerContext.isExceptionReplayEnabled()) {
       return false;
     }
     boolean captureOnlyRootSpan =
