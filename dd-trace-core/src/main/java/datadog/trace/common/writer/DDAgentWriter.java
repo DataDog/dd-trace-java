@@ -17,6 +17,8 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDAgentWriter extends RemoteWriter {
 
@@ -27,6 +29,8 @@ public class DDAgentWriter extends RemoteWriter {
   private static final int BUFFER_SIZE = 1024;
 
   public static class DDAgentWriterBuilder {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DDAgentWriterBuilder.class);
 
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
@@ -151,6 +155,8 @@ public class DDAgentWriter extends RemoteWriter {
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
+      LOGGER.warn("ADDING MAPPER IN AGENT WRITER {} ", mapperDiscovery);
+
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =

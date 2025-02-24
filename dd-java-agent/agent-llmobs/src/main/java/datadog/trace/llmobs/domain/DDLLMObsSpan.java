@@ -9,6 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DDLLMObsSpan implements LLMObsSpan {
 
@@ -28,6 +30,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final AgentSpan span;
 
   private boolean finished = false;
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
 
   public DDLLMObsSpan(
       @Nonnull String kind,
@@ -77,6 +81,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
+    LOGGER.warn("ANNOTATE IN {} OUT {}", inputData, outputData);
     if (inputData != null && !inputData.isEmpty()) {
       this.span.setTag(INPUT, inputData);
     }
