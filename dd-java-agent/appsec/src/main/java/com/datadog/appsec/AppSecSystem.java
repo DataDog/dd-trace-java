@@ -23,6 +23,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,8 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
-import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +72,8 @@ public class AppSecSystem {
     ApiSecurityRequestSampler requestSampler;
     if (Config.get().isApiSecurityEnabled()) {
       requestSampler = new ApiSecurityRequestSampler();
-      SpanPostProcessor.Holder.INSTANCE = new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+      SpanPostProcessor.Holder.INSTANCE =
+          new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
     } else {
       requestSampler = new ApiSecurityRequestSampler.NoOp();
     }

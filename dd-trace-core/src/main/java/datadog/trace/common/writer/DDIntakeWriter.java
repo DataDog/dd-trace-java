@@ -5,7 +5,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;
-import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;

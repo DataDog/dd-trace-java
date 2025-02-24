@@ -600,12 +600,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   /**
-   * Close the context and release all resources. This method is idempotent and can be called multiple times.
-   * For each root span, this method is always called from CoreTracer#onRootSpaPublished.
+   * Close the context and release all resources. This method is idempotent and can be called
+   * multiple times. For each root span, this method is always called from
+   * CoreTracer#onRootSpaPublished.
    */
   @Override
   public void close() {
-    // For API Security, we sometimes keep contexts open for late processing. In that case, this flag needs to be
+    // For API Security, we sometimes keep contexts open for late processing. In that case, this
+    // flag needs to be
     // later reset by the API Security post-processor and close must be called again.
     if (!keepOpenForApiSecurityPostProcessing) {
       closeAdditive();

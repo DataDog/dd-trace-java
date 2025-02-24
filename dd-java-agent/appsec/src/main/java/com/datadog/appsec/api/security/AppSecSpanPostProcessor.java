@@ -11,11 +11,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
@@ -23,7 +22,8 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
   private final ApiSecurityRequestSampler sampler;
   private final EventProducerService producerService;
 
-  public AppSecSpanPostProcessor(ApiSecurityRequestSampler sampler, EventProducerService producerService) {
+  public AppSecSpanPostProcessor(
+      ApiSecurityRequestSampler sampler, EventProducerService producerService) {
     this.sampler = sampler;
     this.producerService = producerService;
   }
@@ -63,21 +63,20 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
   }
 
   private void maybeExtractSchemas(AppSecRequestContext ctx) {
-      final EventProducerService.DataSubscriberInfo sub = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
-      if (sub == null|| sub.isEmpty()) {
-        return;
-      }
+    final EventProducerService.DataSubscriberInfo sub =
+        producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
+    if (sub == null || sub.isEmpty()) {
+      return;
+    }
 
-      final DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.WAF_CONTEXT_PROCESSOR,
-              Collections.singletonMap("extract-schema", true));
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
-      } catch (ExpiredSubscriberInfoException e) {
-        log.debug("Subscriber info expired", e);
-      }
+    final DataBundle bundle =
+        new SingletonDataBundle<>(
+            KnownAddresses.WAF_CONTEXT_PROCESSOR, Collections.singletonMap("extract-schema", true));
+    try {
+      GatewayContext gwCtx = new GatewayContext(false);
+      producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
+    } catch (ExpiredSubscriberInfoException e) {
+      log.debug("Subscriber info expired", e);
+    }
   }
-
 }

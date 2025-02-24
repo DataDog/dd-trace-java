@@ -15,7 +15,6 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -74,12 +73,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue,
-            secondaryQueue,
-            healthMetrics,
-            dispatcher,
-            flushInterval,
-            timeUnit);
+            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -262,15 +256,16 @@ public class TraceProcessingWorker implements AutoCloseable {
         final long timeout = Config.get().getTracePostProcessingTimeout();
         final long deadline = System.currentTimeMillis() + timeout;
         final boolean[] timedOut = {false};
-        final BooleanSupplier timeoutCheck = () -> {
-          if (timedOut[0]) {
-            return true;
-          }
-          if (System.currentTimeMillis() > deadline) {
-            timedOut[0] = true;
-          }
-          return timedOut[0];
-        };
+        final BooleanSupplier timeoutCheck =
+            () -> {
+              if (timedOut[0]) {
+                return true;
+              }
+              if (System.currentTimeMillis() > deadline) {
+                timedOut[0] = true;
+              }
+              return timedOut[0];
+            };
         for (DDSpan span : trace) {
           postProcessor.process(span, timeoutCheck);
         }

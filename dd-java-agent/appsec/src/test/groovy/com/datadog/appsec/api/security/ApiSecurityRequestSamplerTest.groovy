@@ -4,8 +4,6 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.test.util.DDSpecification
 
-import java.time.Duration
-
 class ApiSecurityRequestSamplerTest extends DDSpecification {
 
   void 'happy path with single request'() {
@@ -163,6 +161,20 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     !sampleDecision
   }
 
+  void 'sampleRequest with null hash'() {
+    // This case should never happen, as a request without a hash should have been short-circuited at multiple places
+    // before reaching this point. But checking just in case.
+    given:
+    def sampler = new ApiSecurityRequestSampler()
+    def ctx = createContext('route1', 'GET', 200)
+
+    when:
+    def sampleDecision = sampler.sampleRequest(ctx)
+
+    then:
+    !sampleDecision
+  }
+
   void 'sampleRequest honors expiration'() {
     given:
     def ctx = createContext('route1', 'GET', 200)
@@ -201,12 +213,51 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     0 * _
   }
 
-  private AppSecRequestContext createContext(final String route, final String method, int statusCode) {
+  void 'internal accessMap never goes beyond capacity'() {
+    given:
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    final int maxCapacity = 10
+    ApiSecurityRequestSampler sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+
+    expect:
+    for (int i = 0; i < maxCapacity * 10; i++) {
+      timeSource.advance(1_000_000)
+      final ctx = createContext('route1', 'GET', 200 + 1)
+      ctx.setApiSecurityEndpointHash(i as long)
+      ctx.setKeepOpenForApiSecurityPostProcessing(true)
+      assert sampler.sampleRequest(ctx)
+      assert sampler.accessMap.size() <= maxCapacity
+    }
+  }
+
+  void 'expired entries are purged from internal accessMap'() {
+    given:
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    final int maxCapacity = 10
+    ApiSecurityRequestSampler sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+
+    expect:
+    for (int i = 0; i < maxCapacity * 10; i++) {
+      final ctx = createContext('route1', 'GET', 200 + 1)
+      ctx.setApiSecurityEndpointHash(i as long)
+      ctx.setKeepOpenForApiSecurityPostProcessing(true)
+      assert sampler.sampleRequest(ctx)
+      assert sampler.accessMap.size() <= 2
+      if (i % 2) {
+        timeSource.advance(expirationTimeInMs * 1_000_000)
+      }
+    }
+  }
+
+  private static AppSecRequestContext createContext(final String route, final String method, int statusCode) {
     final AppSecRequestContext ctx = new AppSecRequestContext()
     ctx.setRoute(route)
     ctx.setMethod(method)
     ctx.setResponseStatus(statusCode)
     ctx
   }
-
 }

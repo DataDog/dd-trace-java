@@ -41,7 +41,6 @@ import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.util.NonBlockingSemaphore;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackUtils;
 import java.net.URI;
