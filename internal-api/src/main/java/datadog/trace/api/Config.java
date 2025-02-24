@@ -4645,8 +4645,6 @@ public class Config {
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
-        + ", apiSecurityRequestSampleRate="
-        + apiSecurityRequestSampleRate
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
