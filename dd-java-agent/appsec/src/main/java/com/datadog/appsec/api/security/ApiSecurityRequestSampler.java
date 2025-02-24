@@ -1,6 +1,8 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.util.NonBlockingSemaphore;
 
 import javax.annotation.Nonnull;
@@ -23,18 +25,20 @@ public class ApiSecurityRequestSampler {
   private final Deque<Long> apiAccessQueue; // hashes ordered by access time
   private final long expirationTimeInMs;
   private final int capacity;
+  private final TimeSource timeSource;
 
   final NonBlockingSemaphore counter = NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   public ApiSecurityRequestSampler() {
-    this(MAX_SIZE, INTERVAL_SECONDS * 1000);
+    this(MAX_SIZE, INTERVAL_SECONDS * 1000, SystemTimeSource.INSTANCE);
   }
 
-  public ApiSecurityRequestSampler(int capacity, long expirationTimeInMs) {
+  public ApiSecurityRequestSampler(int capacity, long expirationTimeInMs, @Nonnull TimeSource timeSource) {
     this.capacity = capacity;
     this.expirationTimeInMs = expirationTimeInMs;
     this.apiAccessMap = new ConcurrentHashMap<>(MAX_SIZE);
     this.apiAccessQueue = new ConcurrentLinkedDeque<>();
+    this.timeSource = timeSource;
   }
 
   public void preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
@@ -79,12 +83,12 @@ public class ApiSecurityRequestSampler {
    * synchronization for updating data structures is not required.
    */
   public boolean updateApiAccessIfExpired(final long hash) {
-    final long currentTime = System.currentTimeMillis();
+    final long currentTime = timeSource.getCurrentTimeMillis();
 
     // New or updated record
     boolean isNewOrUpdated = false;
     if (!apiAccessMap.containsKey(hash)
-        || currentTime - apiAccessMap.get(hash) > expirationTimeInMs) {
+        || currentTime - apiAccessMap.get(hash) >= expirationTimeInMs) {
 
       cleanupExpiredEntries(currentTime);
 
@@ -107,9 +111,9 @@ public class ApiSecurityRequestSampler {
   }
 
   public boolean isApiAccessExpired(final long hash) {
-    long currentTime = System.currentTimeMillis();
+    long currentTime = timeSource.getCurrentTimeMillis();
     return !apiAccessMap.containsKey(hash)
-        || currentTime - apiAccessMap.get(hash) > expirationTimeInMs;
+        || currentTime - apiAccessMap.get(hash) >= expirationTimeInMs;
   }
 
   private void cleanupExpiredEntries(final long currentTime) {
@@ -118,7 +122,7 @@ public class ApiSecurityRequestSampler {
       if (oldestHash == null) break;
 
       Long lastAccessTime = apiAccessMap.get(oldestHash);
-      if (lastAccessTime == null || currentTime - lastAccessTime > expirationTimeInMs) {
+      if (lastAccessTime == null || currentTime - lastAccessTime >= expirationTimeInMs) {
         apiAccessQueue.pollFirst(); // remove from head
         apiAccessMap.remove(oldestHash);
       } else {
@@ -137,7 +141,7 @@ public class ApiSecurityRequestSampler {
 
   public static final class NoOp extends ApiSecurityRequestSampler {
     public NoOp() {
-      super(0, 0);
+      super(0, 0, SystemTimeSource.INSTANCE);
     }
 
     @Override

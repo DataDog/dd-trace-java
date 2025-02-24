@@ -1,7 +1,10 @@
 package com.datadog.appsec.api.security
 
 import com.datadog.appsec.gateway.AppSecRequestContext
+import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.test.util.DDSpecification
+
+import java.time.Duration
 
 class ApiSecurityRequestSamplerTest extends DDSpecification {
 
@@ -146,6 +149,55 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     1 * ctx.getRoute()
     1 * ctx.getMethod()
     1 * ctx.getResponseStatus()
+    0 * _
+  }
+
+  void 'sampleRequest with null context'() {
+    given:
+    def sampler = new ApiSecurityRequestSampler()
+
+    when:
+    def sampleDecision = sampler.sampleRequest(null)
+
+    then:
+    !sampleDecision
+  }
+
+  void 'sampleRequest honors expiration'() {
+    given:
+    def ctx = createContext('route1', 'GET', 200)
+    ctx.setApiSecurityEndpointHash(42L)
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    ctx = Spy(ctx)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10L
+    final long expirationTimeInNs = expirationTimeInMs * 1_000_000
+    def sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+
+    when:
+    def sampleDecision = sampler.sampleRequest(ctx)
+
+    then:
+    sampleDecision
+    1 * ctx.getApiSecurityEndpointHash()
+    0 * _
+
+    when:
+    sampleDecision = sampler.sampleRequest(ctx)
+
+    then: 'second request is not sampled'
+    !sampleDecision
+    1 * ctx.getApiSecurityEndpointHash()
+    0 * _
+
+    when: 'expiration time has passed'
+    timeSource.advance(expirationTimeInNs)
+    sampleDecision = sampler.sampleRequest(ctx)
+
+    then: 'request is sampled again'
+    sampleDecision
+    1 * ctx.getApiSecurityEndpointHash()
     0 * _
   }
 
