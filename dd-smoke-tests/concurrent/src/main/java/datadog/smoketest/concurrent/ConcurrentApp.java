@@ -8,6 +8,7 @@ public class ConcurrentApp {
     demoExecutorService.main(args);
 
     // demo ForkJoin
+    demoForkJoin.main(args);
 
     // demo custom spans
 
