@@ -8,20 +8,17 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Concurrent Integration Tests.'
 
-repositories {
-  mavenCentral()
+application {
+  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 dependencies {
+  implementation('io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:2.13.1')
   implementation project(':dd-trace-api')
   testImplementation project(':dd-smoke-tests')
 
   testImplementation platform('org.junit:junit-bom:5.10.0')
   testImplementation 'org.junit.jupiter:junit-jupiter'
-}
-
-application {
-  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 test {
