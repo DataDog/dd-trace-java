@@ -1,6 +1,7 @@
 plugins {
   id 'java'
   id 'application'
+  id 'com.github.johnrengelman.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -35,8 +36,8 @@ jar {
   }
 }
 
-//tasks.withType(Test).configureEach {
-//  dependsOn "shadowJar"
-//
-//  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
-//}
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
