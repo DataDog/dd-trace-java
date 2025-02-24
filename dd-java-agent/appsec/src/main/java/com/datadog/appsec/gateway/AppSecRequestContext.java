@@ -399,6 +399,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.keepOpenForApiSecurityPostProcessing = flag;
   }
 
+  public boolean isKeepOpenForApiSecurityPostProcessing() {
+    return this.keepOpenForApiSecurityPostProcessing;
+  }
+
   void addRequestHeader(String name, String value) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");

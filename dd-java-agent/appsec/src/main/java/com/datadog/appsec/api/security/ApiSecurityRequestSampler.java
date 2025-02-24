@@ -1,7 +1,6 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.NonBlockingSemaphore;
 
 import java.util.Deque;
@@ -11,7 +10,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class ApiSecurityRequestSampler {
 
-  private static final int MAX_POST_PROCESSING_TASKS = 8;
+  /**
+   * A maximum number of request contexts we'll keep open past the end of request at any given time. This will avoid
+   * excessive memory usage in case of a high number of concurrent requests, and should also prevent memory leaks in
+   * case of a bug.
+   */
+  private static final int MAX_POST_PROCESSING_TASKS = 4;
   private static final int INTERVAL_SECONDS = 30;
   private static final int MAX_SIZE = 4096;
   private final Map<Long, Long> apiAccessMap; // Map<hash, timestamp>
@@ -19,7 +23,7 @@ public class ApiSecurityRequestSampler {
   private final long expirationTimeInMs;
   private final int capacity;
 
-  private final NonBlockingSemaphore counter = NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
+  final NonBlockingSemaphore counter = NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   public ApiSecurityRequestSampler() {
     this(MAX_SIZE, INTERVAL_SECONDS * 1000);
@@ -32,12 +36,7 @@ public class ApiSecurityRequestSampler {
     this.apiAccessQueue = new ConcurrentLinkedDeque<>();
   }
 
-  public void preSampleRequest(final AppSecRequestContext ctx, final Map<String, Object> tags) {
-    final Object route = tags.get(Tags.HTTP_ROUTE);
-    if (route instanceof String) {
-      ctx.setRoute((String) route);
-    }
-
+  public void preSampleRequest(final AppSecRequestContext ctx) {
     if (!isValid(ctx)) {
       return;
     }
@@ -136,6 +135,21 @@ public class ApiSecurityRequestSampler {
     result = 31 * result + method.hashCode();
     result = 31 * result + statusCode;
     return result;
+  }
+
+  public static final class NoOp extends ApiSecurityRequestSampler {
+    public NoOp() {
+      super(0, 0);
+    }
+
+    @Override
+    public void preSampleRequest(AppSecRequestContext ctx) {
+    }
+
+    @Override
+    public boolean sampleRequest(AppSecRequestContext ctx) {
+      return false;
+    }
   }
 
 }

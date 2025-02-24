@@ -70,9 +70,12 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+    ApiSecurityRequestSampler requestSampler;
     if (Config.get().isApiSecurityEnabled()) {
-      SpanPostProcessor.Holder.INSTANCE = new AppSecSpanPostProcessor();
+      requestSampler = new ApiSecurityRequestSampler();
+      SpanPostProcessor.Holder.INSTANCE = new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+    } else {
+      requestSampler = new ApiSecurityRequestSampler.NoOp();
     }
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);

@@ -7,69 +7,77 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.gateway.GatewayContext;
-import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
 
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
+  private static final Logger log = LoggerFactory.getLogger(AppSecSpanPostProcessor.class);
+  private final ApiSecurityRequestSampler sampler;
+  private final EventProducerService producerService;
+
+  public AppSecSpanPostProcessor(ApiSecurityRequestSampler sampler, EventProducerService producerService) {
+    this.sampler = sampler;
+    this.producerService = producerService;
+  }
+
   @Override
   public void process(AgentSpan span, BooleanSupplier timeoutCheck) {
-    if (timeoutCheck.getAsBoolean()) {
+    final RequestContext ctx_ = span.getRequestContext();
+    if (ctx_ == null) {
       return;
     }
-    final RequestContext ctx = span.getRequestContext();
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
       return;
     }
-    final AppSecRequestContext appsecCtx = ctx.getData(RequestContextSlot.APPSEC);
-    if (appsecCtx == null) {
+
+    if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
       return;
     }
 
-    maybeExtractSchemas(appsecCtx);
-    ctx.close();
-    // Decrease the counter to allow the next request to be post-processed
-    postProcessingCounter.release();
+    try {
+      if (timeoutCheck.getAsBoolean()) {
+        return;
+      }
+      if (!sampler.sampleRequest(ctx)) {
+        return;
+      }
+      maybeExtractSchemas(ctx);
+    } finally {
+      ctx.setKeepOpenForApiSecurityPostProcessing(false);
+      try {
+        ctx.close();
+      } catch (Exception e) {
+        log.debug("Error closing AppSecRequestContext", e);
+      }
+      sampler.counter.release();
+    }
   }
 
   private void maybeExtractSchemas(AppSecRequestContext ctx) {
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest(ctx);
-    }
-
-    if (!extractSchema) {
-      return;
-    }
-
-    while (true) {
-      EventProducerService.DataSubscriberInfo subInfo = requestEndSubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
-        requestEndSubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
+      final EventProducerService.DataSubscriberInfo sub = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
+      if (sub == null|| sub.isEmpty()) {
         return;
       }
 
-      DataBundle bundle =
+      final DataBundle bundle =
           new SingletonDataBundle<>(
               KnownAddresses.WAF_CONTEXT_PROCESSOR,
               Collections.singletonMap("extract-schema", true));
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-        return;
+        producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
-        requestEndSubInfo = null;
+        log.debug("Subscriber info expired", e);
       }
-    }
   }
 
 }

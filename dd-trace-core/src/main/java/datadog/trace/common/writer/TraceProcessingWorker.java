@@ -53,8 +53,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SingleSpanSampler singleSpanSampler,
-      final SpanPostProcessor spanPostProcessor) {
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
@@ -80,8 +79,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             healthMetrics,
             dispatcher,
             flushInterval,
-            timeUnit,
-            spanPostProcessor);
+            timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -142,7 +140,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final SpanPostProcessor spanPostProcessor;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
@@ -150,8 +147,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
-        final TimeUnit timeUnit,
-        final SpanPostProcessor spanPostProcessor) {
+        final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
@@ -163,7 +159,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       } else {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
-      this.spanPostProcessor = spanPostProcessor;
     }
 
     @Override
@@ -262,6 +257,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
+      final SpanPostProcessor postProcessor = SpanPostProcessor.Holder.INSTANCE;
       try {
         final long timeout = Config.get().getTracePostProcessingTimeout();
         final long deadline = System.currentTimeMillis() + timeout;
@@ -275,9 +271,8 @@ public class TraceProcessingWorker implements AutoCloseable {
           }
           return timedOut[0];
         };
-
         for (DDSpan span : trace) {
-          spanPostProcessor.process(span, timeoutCheck);
+          postProcessor.process(span, timeoutCheck);
         }
       } catch (Throwable e) {
         log.debug("Error while trace post-processing", e);

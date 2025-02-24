@@ -831,7 +831,12 @@ public class GatewayBridge {
       }
     }
 
-    requestSampler.preSampleRequest(ctx, tags);
+    // API Security sampling requires http.route tag.
+    final Object route = tags.get(Tags.HTTP_ROUTE);
+    if (route instanceof String) {
+      ctx.setRoute((String) route);
+      requestSampler.preSampleRequest(ctx);
+    }
 
     return NoopFlow.INSTANCE;
   }

@@ -9,7 +9,6 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AppSecSpanPostProcessor;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -155,7 +154,6 @@ public class DDAgentWriter extends RemoteWriter {
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
-      final SpanPostProcessor spanPostProcessor = new AppSecSpanPostProcessor();
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -165,8 +163,7 @@ public class DDAgentWriter extends RemoteWriter {
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
-              singleSpanSampler,
-              spanPostProcessor);
+              singleSpanSampler);
 
       return new DDAgentWriter(
           traceProcessingWorker,

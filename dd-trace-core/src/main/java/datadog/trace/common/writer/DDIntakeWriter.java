@@ -5,7 +5,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;
-import datadog.trace.bootstrap.instrumentation.api.AppSecSpanPostProcessor;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -115,8 +114,6 @@ public class DDIntakeWriter extends RemoteWriter {
         dispatcher = new CompositePayloadDispatcher(dispatchers);
       }
 
-      SpanPostProcessor spanPostProcessor = new AppSecSpanPostProcessor();
-
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -126,8 +123,7 @@ public class DDIntakeWriter extends RemoteWriter {
               prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
-              singleSpanSampler,
-              spanPostProcessor);
+              singleSpanSampler);
 
       return new DDIntakeWriter(
           traceProcessingWorker,
