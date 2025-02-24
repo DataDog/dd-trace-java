@@ -1,4 +1,4 @@
-package datadog.trace.core.postprocessor
+package com.datadog.appsec.api.security
 
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContext

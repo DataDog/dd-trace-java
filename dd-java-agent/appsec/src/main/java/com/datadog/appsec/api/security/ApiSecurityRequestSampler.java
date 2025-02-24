@@ -1,16 +1,54 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.NonBlockingSemaphore;
+
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class ApiSecurityRequestSampler {
 
-  private final ApiAccessTracker apiAccessTracker;
-  private final Config config;
+  private static final int MAX_POST_PROCESSING_TASKS = 8;
+  private static final int INTERVAL_SECONDS = 30;
+  private static final int MAX_SIZE = 4096;
+  private final Map<Long, Long> apiAccessMap; // Map<hash, timestamp>
+  private final Deque<Long> apiAccessQueue; // hashes ordered by access time
+  private final long expirationTimeInMs;
+  private final int capacity;
 
-  public ApiSecurityRequestSampler(final Config config) {
-    this.apiAccessTracker = new ApiAccessTracker();
-    this.config = config;
+  private final NonBlockingSemaphore counter = NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
+
+  public ApiSecurityRequestSampler() {
+    this(MAX_SIZE, INTERVAL_SECONDS * 1000);
+  }
+
+  public ApiSecurityRequestSampler(int capacity, long expirationTimeInMs) {
+    this.capacity = capacity;
+    this.expirationTimeInMs = expirationTimeInMs;
+    this.apiAccessMap = new ConcurrentHashMap<>();
+    this.apiAccessQueue = new ConcurrentLinkedDeque<>();
+  }
+
+  public void preSampleRequest(final AppSecRequestContext ctx, final Map<String, Object> tags) {
+    final Object route = tags.get(Tags.HTTP_ROUTE);
+    if (route instanceof String) {
+      ctx.setRoute((String) route);
+    }
+
+    if (!isValid(ctx)) {
+      return;
+    }
+
+    if (!isApiAccessExpired(ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus())) {
+      return;
+    }
+
+    if (counter.acquire()) {
+      ctx.setKeepOpenForApiSecurityPostProcessing(true);
+    }
   }
 
   public boolean sampleRequest(AppSecRequestContext ctx) {
@@ -18,24 +56,86 @@ public class ApiSecurityRequestSampler {
       return false;
     }
 
-    return apiAccessTracker.updateApiAccessIfExpired(
-        ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus());
-  }
-
-  public boolean preSampleRequest(AppSecRequestContext ctx) {
-    if (!isValid(ctx)) {
-      return false;
-    }
-
-    return apiAccessTracker.isApiAccessExpired(
+    return updateApiAccessIfExpired(
         ctx.getRoute(), ctx.getMethod(), ctx.getResponseStatus());
   }
 
   private boolean isValid(AppSecRequestContext ctx) {
-    return config.isApiSecurityEnabled()
-        && ctx != null
+    return ctx != null
         && ctx.getRoute() != null
         && ctx.getMethod() != null
         && ctx.getResponseStatus() != 0;
   }
+
+  /**
+   * Updates the API access log with the given route, method, and status code. If the record already
+   * exists and is outdated, it is updated by moving to the end of the list. If the record does not
+   * exist, a new record is added. If the capacity limit is reached, the oldest record is removed.
+   * This method should not be called concurrently by multiple threads, due absence of additional
+   * synchronization for updating data structures is not required.
+   *
+   * @param route The route of the API endpoint request
+   * @param method The method of the API request
+   * @param statusCode The HTTP response status code of the API request
+   * @return return true if the record was updated or added, false otherwise
+   */
+  public boolean updateApiAccessIfExpired(String route, String method, int statusCode) {
+    long currentTime = System.currentTimeMillis();
+    long hash = computeApiHash(route, method, statusCode);
+
+    // New or updated record
+    boolean isNewOrUpdated = false;
+    if (!apiAccessMap.containsKey(hash)
+        || currentTime - apiAccessMap.get(hash) > expirationTimeInMs) {
+
+      cleanupExpiredEntries(currentTime);
+
+      apiAccessMap.put(hash, currentTime); // Update timestamp
+      // move hash to the end of the queue
+      apiAccessQueue.remove(hash);
+      apiAccessQueue.addLast(hash);
+      isNewOrUpdated = true;
+
+      // Remove the oldest hash if capacity is reached
+      while (apiAccessMap.size() > this.capacity) {
+        Long oldestHash = apiAccessQueue.pollFirst();
+        if (oldestHash != null) {
+          apiAccessMap.remove(oldestHash);
+        }
+      }
+    }
+
+    return isNewOrUpdated;
+  }
+
+  public boolean isApiAccessExpired(String route, String method, int statusCode) {
+    long currentTime = System.currentTimeMillis();
+    long hash = computeApiHash(route, method, statusCode);
+    return !apiAccessMap.containsKey(hash)
+        || currentTime - apiAccessMap.get(hash) > expirationTimeInMs;
+  }
+
+  private void cleanupExpiredEntries(long currentTime) {
+    while (!apiAccessQueue.isEmpty()) {
+      Long oldestHash = apiAccessQueue.peekFirst();
+      if (oldestHash == null) break;
+
+      Long lastAccessTime = apiAccessMap.get(oldestHash);
+      if (lastAccessTime == null || currentTime - lastAccessTime > expirationTimeInMs) {
+        apiAccessQueue.pollFirst(); // remove from head
+        apiAccessMap.remove(oldestHash);
+      } else {
+        break; // is up-to-date
+      }
+    }
+  }
+
+  private long computeApiHash(String route, String method, int statusCode) {
+    long result = 17;
+    result = 31 * result + route.hashCode();
+    result = 31 * result + method.hashCode();
+    result = 31 * result + statusCode;
+    return result;
+  }
+
 }

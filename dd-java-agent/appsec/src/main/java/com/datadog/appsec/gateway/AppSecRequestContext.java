@@ -142,6 +142,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
 
+  private volatile boolean keepOpenForApiSecurityPostProcessing;
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -385,12 +387,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return route;
   }
 
-  void setRoute(String route) {
+  public void setRoute(String route) {
     if (this.route != null && this.route.compareToIgnoreCase(route) != 0) {
       throw new IllegalStateException(
           "Forbidden attempt to set different route for given request context");
     }
     this.route = route;
+  }
+
+  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
+    this.keepOpenForApiSecurityPostProcessing = flag;
   }
 
   void addRequestHeader(String name, String value) {
@@ -584,16 +590,24 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return sessionId;
   }
 
+  /**
+   * Close the context and release all resources. This method is idempotent and can be called multiple times.
+   * For each root span, this method is always called from CoreTracer#onRootSpaPublished.
+   */
   @Override
   public void close() {
-    closeAdditive();
-    collectedCookies = null;
-    requestHeaders.clear();
-    responseHeaders.clear();
-    persistentData.clear();
-    if (derivatives != null) {
-      derivatives.clear();
-      derivatives = null;
+    // For API Security, we sometimes keep contexts open for late processing. In that case, this flag needs to be
+    // later reset by the API Security post-processor and close must be called again.
+    if (!keepOpenForApiSecurityPostProcessing) {
+      closeAdditive();
+      collectedCookies = null;
+      requestHeaders.clear();
+      responseHeaders.clear();
+      persistentData.clear();
+      if (derivatives != null) {
+        derivatives.clear();
+        derivatives = null;
+      }
     }
   }
 

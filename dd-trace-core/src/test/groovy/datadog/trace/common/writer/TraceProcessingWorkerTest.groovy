@@ -7,7 +7,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.postprocessor.SpanPostProcessor
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor
 import datadog.trace.test.util.DDSpecification
 import spock.util.concurrent.PollingConditions
 

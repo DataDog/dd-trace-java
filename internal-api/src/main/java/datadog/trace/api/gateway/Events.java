@@ -315,18 +315,6 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
   }
 
-  static final int POST_PROCESSING_ID = 26;
-
-  @SuppressWarnings("rawtypes")
-  private static final EventType POST_PROCESSING =
-      new ET<>("trace.post.processing", POST_PROCESSING_ID);
-
-  /** The span post-processing */
-  @SuppressWarnings("unchecked")
-  public EventType<Consumer<RequestContext>> postProcessing() {
-    return (EventType<Consumer<RequestContext>>) POST_PROCESSING;
-  }
-
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

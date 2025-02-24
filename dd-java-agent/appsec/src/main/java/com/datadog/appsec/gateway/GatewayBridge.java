@@ -26,7 +26,6 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
-import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.gateway.Events;
@@ -95,10 +94,6 @@ public class GatewayBridge {
   }
 
   private static final String METASTRUCT_EXPLOIT = "exploit";
-
-  private final int MAX_POST_PROCESSING_TASKS = 16;
-  private final NonBlockingSemaphore postProcessingCounter =
-      NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
@@ -169,7 +164,6 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
-    subscriptionService.registerCallback(EVENTS.postProcessing(), this::onPostProcessing);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -837,15 +831,7 @@ public class GatewayBridge {
       }
     }
 
-    // Route used in post-processing
-    Object route = tags.get(Tags.HTTP_ROUTE);
-    if (route instanceof String) {
-      ctx.setRoute((String) route);
-    }
-    if (requestSampler.preSampleRequest(ctx) && postProcessingCounter.acquire()) {
-      // The request is pre-sampled - we need to post-process it
-      spanInfo.setRequiresPostProcessing(true);
-    }
+    requestSampler.preSampleRequest(ctx, tags);
 
     return NoopFlow.INSTANCE;
   }
@@ -903,19 +889,6 @@ public class GatewayBridge {
     } else {
       ctx.addRequestHeader(name, value);
     }
-  }
-
-  // This handler is executed in a separate thread due the computation possible overhead
-  private void onPostProcessing(RequestContext ctx_) {
-    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null) {
-      return;
-    }
-
-    maybeExtractSchemas(ctx);
-    ctx.close();
-    // Decrease the counter to allow the next request to be post-processed
-    postProcessingCounter.release();
   }
 
   public void stop() {
@@ -1079,40 +1052,6 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
-      }
-    }
-  }
-
-  private void maybeExtractSchemas(AppSecRequestContext ctx) {
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest(ctx);
-    }
-
-    if (!extractSchema) {
-      return;
-    }
-
-    while (true) {
-      DataSubscriberInfo subInfo = requestEndSubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
-        requestEndSubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
-        return;
-      }
-
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.WAF_CONTEXT_PROCESSOR,
-              Collections.singletonMap("extract-schema", true));
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-        return;
-      } catch (ExpiredSubscriberInfoException e) {
-        requestEndSubInfo = null;
       }
     }
   }
