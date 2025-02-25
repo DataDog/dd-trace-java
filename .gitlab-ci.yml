@@ -129,9 +129,11 @@ build_and_populate_dep_cache:
       then
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
+    - .gitlab/prepare-test-environment.sh save
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
+    - .gitlab/prepare-test-environment.sh restore
     - .circleci/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
     - .circleci/collect_results.sh
