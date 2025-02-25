@@ -93,6 +93,7 @@ public abstract class TestEventsHandlerHolder {
         entry : HANDLERS.entrySet()) {
       entry.getValue().close();
     }
+    HANDLERS.clear();
     if (DEFAULT_HANDLER != null) {
       DEFAULT_HANDLER.close();
       DEFAULT_HANDLER = null;
