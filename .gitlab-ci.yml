@@ -112,7 +112,7 @@ build_and_populate_dep_cache:
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
 .prepare_test_env: &prepare_test_env
   - export gitlabVariables=("DD_SERVICE" "DD_ENTITY_ID" "DD_SITE" "DD_ENV" "DD_DATACENTER" "DD_PARTITION" "DD_CLOUDPROVIDER")
-  - [ ! -e pretest.env ] || rm pretest.env 
+  - '[ ! -e pretest.env ] || rm pretest.env'
   - |
     for VARIABLE in "${gitlabVariables[@]}"
     do
