@@ -1,6 +1,8 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.util.NonBlockingSemaphore;
@@ -10,6 +12,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import javax.annotation.Nonnull;
 
 public class ApiSecurityRequestSampler {
+
+  private static final Logger log = LoggerFactory.getLogger(ApiSecurityRequestSampler.class);
 
   /**
    * A maximum number of request contexts we'll keep open past the end of request at any given time.
@@ -52,22 +56,27 @@ public class ApiSecurityRequestSampler {
   public void preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
     final String route = ctx.getRoute();
     if (route == null) {
+      log.debug("Route is null, skipping API security sampling");
       return;
     }
     final String method = ctx.getMethod();
     if (method == null) {
+      log.debug("Method is null, skipping API security sampling");
       return;
     }
     final int statusCode = ctx.getResponseStatus();
     if (statusCode == 0) {
+      log.debug("Status code is 0, skipping API security sampling");
       return;
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
     if (!isApiAccessExpired(hash)) {
+      log.debug("API security sampling is not required for this request");
       return;
     }
     if (counter.acquire()) {
+      log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     }
   }

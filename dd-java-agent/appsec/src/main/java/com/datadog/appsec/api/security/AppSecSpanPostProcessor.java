@@ -41,14 +41,17 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     }
 
     if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
+      log.debug("Request context not marked for API security post-processing");
       return;
     }
 
     try {
       if (timeoutCheck.getAsBoolean()) {
+        log.debug("Timeout detected, skipping API security post-processing");
         return;
       }
       if (!sampler.sampleRequest(ctx)) {
+        log.debug("Request not sampled, skipping API security post-processing");
         return;
       }
       maybeExtractSchemas(ctx);
@@ -67,6 +70,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     final EventProducerService.DataSubscriberInfo sub =
         producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     if (sub == null || sub.isEmpty()) {
+      log.debug("No subscribers for schema extraction");
       return;
     }
 
