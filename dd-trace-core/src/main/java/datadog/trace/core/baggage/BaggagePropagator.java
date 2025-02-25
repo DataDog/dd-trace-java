@@ -109,7 +109,7 @@ public class BaggagePropagator implements Propagator {
     int processedBaggage = 0;
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
-    for (final Map.Entry<String, String> entry : baggageContext.getBaggage().entrySet()) {
+    for (final Map.Entry<String, String> entry : baggageContext.asMap().entrySet()) {
       int byteSize = 1; // default include size of '='
       if (processedBaggage
           != 0) { // if there are already baggage items processed, add and allocate bytes for a
@@ -208,7 +208,7 @@ public class BaggagePropagator implements Propagator {
           && key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          extractedContext = BaggageContext.createW3CBaggageContext(baggage, value);
+          extractedContext = BaggageContext.create(baggage, value);
         }
       }
     }

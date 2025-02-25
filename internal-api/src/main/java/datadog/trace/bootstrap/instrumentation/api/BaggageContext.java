@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
+import java.util.HashMap;
 import java.util.Map;
 
 public class BaggageContext implements ImplicitContextKeyed {
@@ -12,16 +13,22 @@ public class BaggageContext implements ImplicitContextKeyed {
   private String baggageString;
   private boolean updatedCache;
 
-  // Exclusively used for testing purposes
-  public BaggageContext(Map<String, String> baggage) {
+  public BaggageContext empty() {
+    return create(new HashMap<>(), "");
+  }
+
+  public static BaggageContext create(Map<String, String> baggage) {
+    return new BaggageContext(baggage);
+  }
+
+  private BaggageContext(Map<String, String> baggage) {
     this.baggage = baggage;
     this.baggageString = "";
     updatedCache = false;
   }
 
-  public static BaggageContext createW3CBaggageContext(
-      Map<String, String> baggage, String baggageString) {
-    return new BaggageContext(baggage, baggageString);
+  public static BaggageContext create(Map<String, String> baggage, String w3cHeader) {
+    return new BaggageContext(baggage, w3cHeader);
   }
 
   private BaggageContext(Map<String, String> baggage, String baggageString) {
@@ -40,8 +47,8 @@ public class BaggageContext implements ImplicitContextKeyed {
     updatedCache = false;
   }
 
-  public void setW3cBaggageHeader(String baggageString) {
-    this.baggageString = baggageString;
+  public void setW3cBaggageHeader(String w3cHeader) {
+    this.baggageString = w3cHeader;
     updatedCache = true;
   }
 
@@ -52,8 +59,8 @@ public class BaggageContext implements ImplicitContextKeyed {
     return null;
   }
 
-  public Map<String, String> getBaggage() {
-    return baggage;
+  public Map<String, String> asMap() {
+    return new HashMap<>(baggage);
   }
 
   public static BaggageContext fromContext(Context context) {

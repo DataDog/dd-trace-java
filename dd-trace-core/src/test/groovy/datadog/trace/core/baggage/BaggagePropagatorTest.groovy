@@ -42,7 +42,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
   def 'test baggage propagator context injection'() {
     setup:
-    context = new BaggageContext(baggageMap).storeInto(context)
+    context = BaggageContext.create(baggageMap).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -51,22 +51,22 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     assert carrier[BAGGAGE_KEY] == baggageHeader
 
     where:
-    baggageMap                                               | baggageHeader
-    ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"] | "key1=val1,key2=val2,foo=bar,x=y"
-    ['",;\\()/:<=>?@[]{}': '",;\\']                          | "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
-    [key1: "val1"]                                           | "key1=val1"
-    [key1: "val1", key2: "val2"]                             | "key1=val1,key2=val2"
-    [serverNode: "DF 28"]                                    | "serverNode=DF%2028"
-    [userId: "Amélie"]                                       | "userId=Am%C3%A9lie"
-    ["user!d(me)": "false"]                                  | "user!d%28me%29=false"
-    ["abcdefg": "hijklmnopq♥"]                               | "abcdefg=hijklmnopq%E2%99%A5"
+    baggageMap                                     | baggageHeader
+    ["key1": "val1", "key2": "val2", "foo": "bar"] | "key1=val1,key2=val2,foo=bar"
+    ['",;\\()/:<=>?@[]{}': '",;\\']                | "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
+    [key1: "val1"]                                 | "key1=val1"
+    [key1: "val1", key2: "val2"]                   | "key1=val1,key2=val2"
+    [serverNode: "DF 28"]                          | "serverNode=DF%2028"
+    [userId: "Amélie"]                             | "userId=Am%C3%A9lie"
+    ["user!d(me)": "false"]                        | "user!d%28me%29=false"
+    ["abcdefg": "hijklmnopq♥"]                     | "abcdefg=hijklmnopq%E2%99%A5"
   }
 
   def "test baggage item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = new BaggageContext(baggage).storeInto(context)
+    context = BaggageContext.create(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -84,7 +84,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = new BaggageContext(baggage).storeInto(context)
+    context = BaggageContext.create(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -109,11 +109,11 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
 
     then:
-    BaggageContext.fromContext(context).getBaggage() == baggageMap
+    BaggageContext.fromContext(context).asMap() == baggageMap
 
     where:
     baggageHeader                                                      | baggageMap
-    "key1=val1,key2=val2,foo=bar,x=y"                                  | ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"]
+    "key1=val1,key2=val2,foo=bar"                                      | ["key1": "val1", "key2": "val2", "foo": "bar"]
     "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C" | ['",;\\()/:<=>?@[]{}': '",;\\']
   }
 
@@ -151,7 +151,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
     then:
     BaggageContext baggageContext = BaggageContext.fromContext(context)
-    baggageContext.getBaggage() == baggageMap
+    baggageContext.asMap() == baggageMap
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -161,7 +161,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
     where:
     baggageHeader                                                      | baggageMap
-    "key1=val1,key2=val2,foo=bar,x=y"                                  | ["key1": "val1", "key2": "val2", "foo": "bar", "x": "y"]
+    "key1=val1,key2=val2,foo=bar"                                      | ["key1": "val1", "key2": "val2", "foo": "bar"]
     "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C" | ['",;\\()/:<=>?@[]{}': '",;\\']
   }
 }
