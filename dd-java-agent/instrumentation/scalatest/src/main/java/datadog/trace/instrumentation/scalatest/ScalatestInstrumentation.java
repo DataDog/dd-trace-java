@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.scalatest;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -7,13 +8,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.scalatest.Reporter;
 import org.scalatest.events.Event;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public ScalatestInstrumentation() {
     super("ci-visibility", "scalatest");
@@ -25,8 +30,13 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.scalatest.DispatchReporter";
+  public String hierarchyMarkerType() {
+    return "org.scalatest.Reporter";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -51,8 +61,13 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   public static class DispatchEventAdvice {
     @Advice.OnMethodEnter
     public static void onDispatchEvent(@Advice.Argument(value = 0) Event event) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(Reporter.class) != 0) {
+        // nested call
+        return;
+      }
+
       // Instead of registering our reporter using Scalatest's standard "-C" argument,
-      // we hook into internal dispatch reporter.
+      // we hook into internal reporter.
       // The reason is that Scalatest invokes registered reporters in a separate thread,
       // while we need to process events in the thread where they originate.
       // This is required because test span has to be active in the thread where
@@ -60,6 +75,11 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
       // so that children spans and coverage records
       // could be properly associated with it.
       DatadogReporter.handle(event);
+    }
+
+    @Advice.OnMethodExit
+    public static void afterDispatchEvent() {
+      CallDepthThreadLocalMap.decrementCallDepth(Reporter.class);
     }
   }
 }
