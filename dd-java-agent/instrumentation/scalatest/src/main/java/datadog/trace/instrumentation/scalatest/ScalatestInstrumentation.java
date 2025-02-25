@@ -50,6 +50,9 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.scalatest.events.Event"))),
         ScalatestInstrumentation.class.getName() + "$DispatchEventAdvice");
+    transformer.applyAdvice(
+        named("fireReadyEvents"),
+        ScalatestInstrumentation.class.getName() + "$SuppressAsyncEventsAdvice");
   }
 
   public static class DispatchEventAdvice {
@@ -73,6 +76,24 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
 
     @Advice.OnMethodExit
     public static void afterDispatchEvent() {
+      CallDepthThreadLocalMap.decrementCallDepth(Reporter.class);
+    }
+  }
+
+  /**
+   * {@link org.scalatest.tools.TestSortingReporter#fireReadyEvents} is triggered asynchronously. It
+   * fires some events that are then delegated to other reporters. We need to suppress them (by
+   * increasing the call depth so that {@link DispatchEventAdvice} is aborted) as the same events
+   * are reported earlier synchronously from {@link org.scalatest.tools.TestSortingReporter#apply}
+   */
+  public static class SuppressAsyncEventsAdvice {
+    @Advice.OnMethodEnter
+    public static void onAsyncEventsTrigger() {
+      CallDepthThreadLocalMap.incrementCallDepth(Reporter.class);
+    }
+
+    @Advice.OnMethodExit
+    public static void afterAsyncEventsTrigger() {
       CallDepthThreadLocalMap.decrementCallDepth(Reporter.class);
     }
   }
