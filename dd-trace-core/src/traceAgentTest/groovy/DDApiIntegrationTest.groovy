@@ -18,6 +18,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.MonitoringImpl
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import spock.lang.Shared
 
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
@@ -30,6 +31,11 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   // Looks like okHttp needs to resolve this, even for connection over socket
   static final SOMEHOST = "datadoghq.com"
   static final SOMEPORT = 123
+
+  @Shared
+  Process process
+  @Shared
+  File socketPath
 
   def discovery
   def udsDiscovery
@@ -46,6 +52,14 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     agentResponse.set(responseJson)
   }
 
+  def setupSpec() {
+    File tmpDir = File.createTempDir()
+    tmpDir.deleteOnExit()
+    socketPath = new File(tmpDir, "socket")
+    println "!!!socat UNIX-LISEN:${socketPath},reuseaddr,fork TCP-CONNECT:${agentContainerHost}:${agentContainerPort}"
+    process = Runtime.getRuntime().exec("socat UNIX-LISTEN:${socketPath},reuseaddr,fork TCP-CONNECT:${agentContainerHost}:${agentContainerPort}")
+  }
+
   def setup() {
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
     span = tracer.buildSpan("fakeOperation").start()
@@ -55,6 +69,10 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
 
   def cleanup() {
     tracer?.close()
+  }
+
+  def cleanupSpec() {
+    process?.destroy()
   }
 
   def beforeTest(boolean enableV05) {

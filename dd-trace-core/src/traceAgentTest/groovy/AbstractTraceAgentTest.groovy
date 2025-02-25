@@ -29,16 +29,27 @@ abstract class AbstractTraceAgentTest extends DDSpecification {
         // This is clearly a race-condition and maybe we should avoid verifying complete response
         .withStartupCheckStrategy(new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10)))
       agentContainer.start()
-    } else {
     }
   }
 
   def setup() {
+    injectSysConfig(TracerConfig.AGENT_HOST, getAgentContainerHost())
+    injectSysConfig(TracerConfig.TRACE_AGENT_PORT, getAgentContainerPort())
+  }
+
+  String getAgentContainerHost() {
     if (agentContainer) {
-      injectSysConfig(TracerConfig.AGENT_HOST, (String) agentContainer.getHost())
-      injectSysConfig(TracerConfig.TRACE_AGENT_PORT, (String) agentContainer.getMappedPort(ConfigDefaults.DEFAULT_TRACE_AGENT_PORT))
+      return (String) agentContainer.getHost()
     } else {
-      injectSysConfig(TracerConfig.AGENT_HOST, System.getenv("CI_AGENT_HOST"))
+      return System.getenv("CI_AGENT_HOST")
+    }
+  }
+
+  String getAgentContainerPort() {
+    if (agentContainer) {
+      return (String) agentContainer.getMappedPort(ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
+    } else {
+      return ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
     }
   }
 
