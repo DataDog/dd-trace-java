@@ -17,14 +17,6 @@ stages:
   - ci-visibility-tests
   - generate-signing-key
 
-#TODO display memory usage
-#TODO test containers
-#TODO paralization (muzzle)
-#TODO publish tests to datadog
-#TODO agent_integration_tests
-#TODO no output timeout
-#TODO xlarge_tests
-
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
@@ -45,6 +37,10 @@ default:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204-slim:release
   script:
     - echo "done"
+
+.set_datadog_api_keys: &set_datadog_api_keys
+  - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
+  - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
 
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
@@ -211,10 +207,6 @@ muzzle-dep-report:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
-.set_datadog_api_keys: &set_datadog_api_keys
-  - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
-  - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
-
 .test_job:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
@@ -273,6 +265,7 @@ required:
     - spotless
     - muzzle
     - test_published_artifacts
+    - agent_integration_tests
 
 deploy_to_profiling_backend:
   stage: publish
