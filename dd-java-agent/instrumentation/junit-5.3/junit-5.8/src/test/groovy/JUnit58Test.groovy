@@ -1,6 +1,8 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.ClassOrderer
@@ -89,7 +91,7 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
+    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.JUNIT5)
 
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {

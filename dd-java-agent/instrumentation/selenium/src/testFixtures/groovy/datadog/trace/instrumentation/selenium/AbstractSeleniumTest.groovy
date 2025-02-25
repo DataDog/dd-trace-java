@@ -2,8 +2,10 @@ package datadog.trace.instrumentation.selenium
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.communication.util.IOUtils
+
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
@@ -50,7 +52,7 @@ abstract class AbstractSeleniumTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runTests(List<Class<?>> tests) {
-    TestEventsHandlerHolder.startForcefully()
+    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.JUNIT5)
 
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {

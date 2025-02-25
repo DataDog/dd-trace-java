@@ -112,7 +112,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean execute(@Advice.This HierarchicalTestExecutorService.TestTask testTask) {
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+      if (TestEventsHandlerHolder.DEFAULT_HANDLER == null) {
         // is possible when running tracer's instrumentation tests
         return null;
       }
@@ -138,7 +138,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(testIdentifier, testSource);
+          TestEventsHandlerHolder.DEFAULT_HANDLER.executionPolicy(testIdentifier, testSource);
       if (!executionPolicy.applicable()) {
         return null;
       }

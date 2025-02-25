@@ -5,13 +5,20 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.AgentThreadFactory;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestEngine;
 
 public abstract class TestEventsHandlerHolder {
 
-  public static volatile TestEventsHandler<TestDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
+  // store one handler per framework running
+  public static Map<TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
+      HANDLERS = new HashMap<>();
+  public static volatile TestEventsHandler<TestDescriptor, TestDescriptor> DEFAULT_HANDLER;
   private static ContextStore<TestDescriptor, DDTestSuite> SUITE_STORE;
   private static ContextStore<TestDescriptor, DDTest> TEST_STORE;
   private static volatile ContextStore<TestDescriptor, TestExecutionHistory>
@@ -59,25 +66,36 @@ public abstract class TestEventsHandlerHolder {
     }
   }
 
-  public static synchronized void start() {
-    if (TEST_EVENTS_HANDLER == null) {
-      TEST_EVENTS_HANDLER =
-          InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+  public static synchronized void start(TestEngine testEngine) {
+    TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineToFramework(testEngine);
+    TestEventsHandler<TestDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
+    if (handler == null) {
+      handler = InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+      HANDLERS.put(framework, handler);
+      if (DEFAULT_HANDLER == null) {
+        DEFAULT_HANDLER = handler;
+      }
     }
   }
 
   // used by instrumentation tests
-  public static synchronized void startForcefully() {
+  public static synchronized void startForcefully(TestFrameworkInstrumentation framework) {
     if (SUITE_STORE != null && TEST_STORE != null) {
-      TEST_EVENTS_HANDLER =
+      TestEventsHandler<TestDescriptor, TestDescriptor> handler =
           InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+      HANDLERS.put(framework, handler);
+      DEFAULT_HANDLER = handler;
     }
   }
 
   public static synchronized void stop() {
-    if (TEST_EVENTS_HANDLER != null) {
-      TEST_EVENTS_HANDLER.close();
-      TEST_EVENTS_HANDLER = null;
+    for (Map.Entry<TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
+        entry : HANDLERS.entrySet()) {
+      entry.getValue().close();
+    }
+    if (DEFAULT_HANDLER != null) {
+      DEFAULT_HANDLER.close();
+      DEFAULT_HANDLER = null;
     }
   }
 

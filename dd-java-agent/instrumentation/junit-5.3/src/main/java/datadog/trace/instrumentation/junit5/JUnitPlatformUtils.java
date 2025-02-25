@@ -4,6 +4,7 @@ import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -18,6 +19,7 @@ import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
@@ -204,5 +206,16 @@ public abstract class JUnitPlatformUtils {
       testDescriptor = testDescriptor.getParent().orElse(null);
     }
     return testDescriptor;
+  }
+
+  public static TestFrameworkInstrumentation engineToFramework(TestEngine testEngine) {
+    String testEngineClassName = testEngine.getClass().getName();
+    if (testEngineClassName.startsWith("io.cucumber")) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (testEngineClassName.startsWith("org.spockframework")) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT5;
+    }
   }
 }
