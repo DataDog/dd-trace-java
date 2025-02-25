@@ -1,6 +1,7 @@
 package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import datadog.trace.api.Config;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import datadog.trace.api.time.SystemTimeSource;
@@ -21,8 +22,7 @@ public class ApiSecurityRequestSampler {
    * should also prevent memory leaks.
    */
   private static final int MAX_POST_PROCESSING_TASKS = 4;
-
-  private static final int INTERVAL_SECONDS = 30;
+  /** Maximum number of entries in the access map. */
   private static final int MAX_SIZE = 4096;
   /** Mapping from endpoint hash to last access timestamp in millis. */
   private final ConcurrentHashMap<Long, Long> accessMap;
@@ -36,7 +36,7 @@ public class ApiSecurityRequestSampler {
       NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
 
   public ApiSecurityRequestSampler() {
-    this(MAX_SIZE, INTERVAL_SECONDS * 1000, SystemTimeSource.INSTANCE);
+    this(MAX_SIZE, (long) (Config.get().getApiSecuritySampleDelay() * 1_000), SystemTimeSource.INSTANCE);
   }
 
   public ApiSecurityRequestSampler(

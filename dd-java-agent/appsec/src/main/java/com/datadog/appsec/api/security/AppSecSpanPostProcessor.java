@@ -9,6 +9,7 @@ import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import java.util.Collections;
@@ -54,7 +55,8 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
         log.debug("Request not sampled, skipping API security post-processing");
         return;
       }
-      maybeExtractSchemas(ctx);
+      log.debug("Request sampled, processing API security post-processing");
+      extractSchemas(ctx, ctx_.getTraceSegment());
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
       try {
@@ -66,7 +68,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     }
   }
 
-  private void maybeExtractSchemas(AppSecRequestContext ctx) {
+  private void extractSchemas(final AppSecRequestContext ctx, final TraceSegment traceSegment) {
     final EventProducerService.DataSubscriberInfo sub =
         producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     if (sub == null || sub.isEmpty()) {
@@ -80,6 +82,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     try {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
+      ctx.commitDerivatives(traceSegment);
     } catch (ExpiredSubscriberInfoException e) {
       log.debug("Subscriber info expired", e);
     }

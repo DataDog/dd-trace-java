@@ -289,6 +289,7 @@ public class Config {
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
+  private final float apiSecuritySampleDelay;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1317,6 +1318,7 @@ public class Config {
     apiSecurityRequestSampleRate =
         configProvider.getFloat(
             API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecuritySampleDelay = configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2649,6 +2651,10 @@ public class Config {
 
   public float getApiSecurityRequestSampleRate() {
     return apiSecurityRequestSampleRate;
+  }
+
+  public float getApiSecuritySampleDelay() {
+    return apiSecuritySampleDelay;
   }
 
   public ProductActivation getIastActivation() {

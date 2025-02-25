@@ -694,7 +694,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  boolean commitDerivatives(TraceSegment traceSegment) {
+  public boolean commitDerivatives(TraceSegment traceSegment) {
     if (traceSegment == null || derivatives == null) {
       return false;
     }
