@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
@@ -18,11 +19,12 @@ import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,8 +124,8 @@ public class TracingRequestHandler extends RequestHandler2 {
             AgentDataStreamsMonitoring dataStreamsMonitoring =
                 AgentTracer.get().getDataStreamsMonitoring();
             PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-            pathwayContext.setCheckpoint(
-                sortedTags, dataStreamsMonitoring::add, arrivalTime.getTime());
+            DataStreamsContext context = create(sortedTags, arrivalTime.getTime(), 0);
+            pathwayContext.setCheckpoint(context, dataStreamsMonitoring::add);
             if (!span.context().getPathwayContext().isStarted()) {
               span.context().mergePathwayContext(pathwayContext);
             }

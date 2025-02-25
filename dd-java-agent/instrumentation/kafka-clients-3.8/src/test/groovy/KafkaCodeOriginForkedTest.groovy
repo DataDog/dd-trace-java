@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.asserts.TagsAssert.assertTags
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 class KafkaCodeOriginForkedTest extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
@@ -147,7 +147,7 @@ class KafkaCodeOriginForkedTest extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC,greeting)) { meta, ex ->
-        assert activeScope().isAsyncPropagating()
+        assert isAsyncPropagationEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
