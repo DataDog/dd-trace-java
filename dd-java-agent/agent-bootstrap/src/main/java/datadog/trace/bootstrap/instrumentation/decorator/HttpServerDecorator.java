@@ -106,6 +106,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return serverSpan.setTag(key, value);
     }
 
+    /**
+     * @param map
+     * @return
+     */
+    @Override
+    public AgentSpan setAllTags(Map<String, ?> map) {
+      return null;
+    }
+
     @Override
     public AgentSpan setTag(String key, Number value) {
       return serverSpan.setTag(key, value);
@@ -281,11 +290,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     @Override
     public AgentSpan setResourceName(CharSequence resourceName, byte priority) {
       return serverSpan.setResourceName(resourceName, priority);
-    }
-
-    @Override
-    public boolean eligibleForDropping() {
-      return serverSpan.eligibleForDropping();
     }
 
     @Override
