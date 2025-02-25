@@ -542,7 +542,7 @@ public class PowerWAFModule implements AppSecModule {
               // when the request ends
               log.debug("There is no active span available");
             }
-          reqCtx.reportEvents(events);
+            reqCtx.reportEvents(events);
           } else {
             log.debug("Rate limited WAF events");
             WafMetricCollector.get().wafRequestRateLimited();
