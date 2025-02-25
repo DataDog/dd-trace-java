@@ -1,5 +1,5 @@
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
@@ -9,9 +9,9 @@ import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
 import org.example.TestFailedThenSucceedMUnit
 import org.example.TestSkippedMUnit
-import org.example.TestSucceedMUnitSlow
 import org.example.TestSkippedSuiteMUnit
 import org.example.TestSucceedMUnit
+import org.example.TestSucceedMUnitSlow
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -43,8 +43,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | success | tests                        | retriedTests
     "test-failed"              | false   | [TestFailedMUnit]            | []
-    "test-retry-failed"        | false   | [TestFailedMUnit]            | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
-    "test-failed-then-succeed" | true    | [TestFailedThenSucceedMUnit] | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null)]
+    "test-retry-failed"        | false   | [TestFailedMUnit]            | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedMUnit] | [new TestFQN("org.example.TestFailedThenSucceedMUnit", "Calculator.add")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -57,7 +57,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName             | tests                  | knownTestsList
-    "test-efd-known-test"    | [TestSucceedMUnit]     | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null)]
+    "test-efd-known-test"    | [TestSucceedMUnit]     | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
     "test-efd-new-test"      | [TestSucceedMUnit]     | []
     "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | [] // is executed only twice
   }
@@ -80,7 +80,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -89,11 +88,10 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName              | tests             | quarantined
-    "test-quarantined-failed" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-quarantined-failed" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenFlakyRetryEnabled(true)
@@ -105,12 +103,11 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                  | tests             | quarantined                                                                 | retried
-    "test-quarantined-failed-atr" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    testcaseName                  | tests             | quarantined                                                    | retried
+    "test-quarantined-failed-atr" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     givenEarlyFlakinessDetectionEnabled(true)
@@ -122,9 +119,28 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                     | tests             | quarantined                                                                 | known
-    "test-quarantined-failed-known" | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
-    "test-quarantined-failed-efd"    | [TestFailedMUnit] | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)] | []
+    testcaseName                    | tests             | quarantined                                                    | known
+    "test-quarantined-failed-known" | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
+    "test-quarantined-failed-efd"   | [TestFailedMUnit] | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")] | []
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests              | attemptToFix                                                    | quarantined                                                     | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []                                                              | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []                                                              | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {

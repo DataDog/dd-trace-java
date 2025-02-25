@@ -32,12 +32,19 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
+  REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
 
 default:
   tags: [ "arch:amd64" ]
+
+.fan_in:
+  stage: tests
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204-slim:release
+  script:
+    - echo "done"
 
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
@@ -81,7 +88,7 @@ build:
     BUILD_CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
-    - ./gradlew resolveAndLockAll --write-locks
+    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks; fi
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
@@ -107,6 +114,87 @@ build_and_populate_dep_cache:
       when: on_success
     - when: manual
       allow_failure: true
+
+spotless:
+  extends: .gradle_build
+  stage: tests
+  needs: []
+  script:
+    - export JAVA_HOME=$JAVA_11_HOME
+    - ./gradlew spotlessCheck $GRADLE_ARGS
+
+test_published_artifacts:
+  extends: .gradle_build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
+  stage: tests
+  needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
+  variables:
+    BUILD_CACHE_TYPE: lib
+  script:
+    - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+    - rm -rf "${mvn_local_repo}/com/datadoghq"
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - cd test-published-dependencies
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew check --info $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_reports.sh
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
+
+muzzle:
+  extends: .gradle_build
+  needs: [ build ]
+  stage: tests
+  parallel: 8
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
+  variables:
+    BUILD_CACHE_TYPE: test
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - echo CI_NODE_INDEX=$CI_NODE_INDEX
+    - echo CI_NODE_TOTAL=CI_NODE_TOTAL
+    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
+    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
+    - split --number=l/$CI_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
+    - export NODE_ZERO_INDEX=$((CI_NODE_INDEX - 1))
+    - ./gradlew `cat muzzleSplit${NODE_ZERO_INDEX} | xargs` $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_reports.sh
+  artifacts:
+    when: always
+    paths:
+      - ./reports
+      - '.gradle/daemon/*/*.out.log'
+
+muzzle-dep-report:
+  extends: .gradle_build
+  needs: [ build ]
+  stage: tests
+  variables:
+    BUILD_CACHE_TYPE: test
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_muzzle_deps.sh
+  artifacts:
+    when: always
+    paths:
+      - ./reports
+      - '.gradle/daemon/*/*.out.log'
 
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
@@ -178,6 +266,13 @@ agent_integration_tests:
         DD_APM_ENABLED: "true"
         DD_BIND_HOST: "0.0.0.0"
         DD_API_KEY: "invalid_key_but_this_is_fine"
+
+required:
+  extends: .fan_in
+  needs:
+    - spotless
+    - muzzle
+    - test_published_artifacts
 
 deploy_to_profiling_backend:
   stage: publish

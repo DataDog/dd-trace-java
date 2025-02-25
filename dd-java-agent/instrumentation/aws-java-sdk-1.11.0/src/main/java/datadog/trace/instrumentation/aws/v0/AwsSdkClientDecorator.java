@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
@@ -264,7 +265,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, 0, responseSize);
+              .setCheckpoint(span, create(sortedTags, 0, responseSize));
         }
 
         if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
@@ -285,7 +286,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, 0, payloadSize);
+              .setCheckpoint(span, create(sortedTags, 0, payloadSize));
         }
       }
     }

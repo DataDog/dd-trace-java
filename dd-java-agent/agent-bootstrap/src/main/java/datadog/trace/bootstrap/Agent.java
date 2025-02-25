@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -329,8 +330,6 @@ public class Agent {
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
         registerMBeanServerBuilderCallback(new StartJmxCallback(jmxStartDelay));
-        // one minute fail-safe in case nothing touches JMX and callback isn't triggered
-        scheduleJmxStart(60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
         registerLogManagerCallback(new StartJmxCallback(jmxStartDelay));
@@ -437,6 +436,8 @@ public class Agent {
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
+    // one minute fail-safe in case the class was unintentionally loaded during premain
+    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -448,6 +449,8 @@ public class Agent {
   }
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
+    // one minute fail-safe in case the class was unintentionally loaded during premain
+    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -459,8 +462,14 @@ public class Agent {
   }
 
   protected abstract static class ClassLoadCallBack implements Runnable {
+    private final AtomicBoolean starting = new AtomicBoolean();
+
     @Override
     public void run() {
+      if (starting.getAndSet(true)) {
+        return; // someone has already called us
+      }
+
       /*
        * This callback is called from within bytecode transformer. This can be a problem if callback tries
        * to load classes being transformed. To avoid this we start a thread here that calls the callback.
@@ -558,6 +567,7 @@ public class Agent {
     }
 
     private void resumeRemoteComponents() {
+      log.debug("Resuming remote components.");
       try {
         // remote components were paused for custom log-manager/jmx-builder
         // add small delay before resuming remote I/O to help stabilization
@@ -1206,7 +1216,13 @@ public class Agent {
     final String featureEnabledSysprop = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureEnabledSysprop);
     if (featureEnabled == null) {
+      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureEnabledSysprop);
+    }
+    if (featureEnabled == null) {
+      featureEnabled = getStableConfig(StableConfigSource.USER, featureEnabledSysprop);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1342,6 +1358,11 @@ public class Agent {
       value = ddGetEnv(sysProp);
     }
     return value;
+  }
+
+  /** Looks for sysProp in the Stable Configuration input */
+  private static String getStableConfig(StableConfigSource source, final String sysProp) {
+    return source.get(sysProp);
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */

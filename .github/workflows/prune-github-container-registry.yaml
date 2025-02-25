@@ -23,5 +23,5 @@ jobs:
           keep-tags: |
             latest_snapshot
           prune-tags-regexes: |
-            ^[a-z0-9]{40}$
+            ^[a-z0-9]{40}(-arm64|-amd64)?$
           prune-untagged: true

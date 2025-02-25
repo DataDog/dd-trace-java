@@ -15,6 +15,31 @@ public interface Tracer {
   String getSpanId();
 
   /**
+   * Add a new interceptor to the tracer. Interceptors with duplicate priority to existing ones are
+   * ignored.
+   *
+   * @param traceInterceptor
+   * @return false if an interceptor with same priority exists.
+   */
+  boolean addTraceInterceptor(TraceInterceptor traceInterceptor);
+
+  TraceScope muteTracing();
+
+  /**
+   * When asynchronous propagation is enabled, prevent the currently active trace from reporting
+   * until the returned Continuation is either activated (and the returned scope is closed) or the
+   * continuation is canceled.
+   *
+   * <p>Should be called on the parent thread.
+   *
+   * @deprecated Unstable API. Might be removed at any time.
+   * @return Continuation of the active span, no-op continuation if there's no active span or
+   *     asynchronous propagation is disabled.
+   */
+  @Deprecated
+  TraceScope.Continuation captureActiveSpan();
+
+  /**
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
    *
@@ -36,15 +61,4 @@ public interface Tracer {
    */
   @Deprecated
   void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
-
-  /**
-   * Add a new interceptor to the tracer. Interceptors with duplicate priority to existing ones are
-   * ignored.
-   *
-   * @param traceInterceptor
-   * @return false if an interceptor with same priority exists.
-   */
-  boolean addTraceInterceptor(TraceInterceptor traceInterceptor);
-
-  TraceScope muteTracing();
 }

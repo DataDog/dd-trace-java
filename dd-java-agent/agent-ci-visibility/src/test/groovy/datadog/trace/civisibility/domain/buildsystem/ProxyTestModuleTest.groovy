@@ -24,7 +24,6 @@ class ProxyTestModuleTest extends DDSpecification {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
-    executionSettings.getFlakyTests() >> null
 
     def config = Stub(Config)
     config.getCiVisibilityFlakyRetryCount() >> 2 // this counts all executions of a test case (first attempt is counted too)

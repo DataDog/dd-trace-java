@@ -1,5 +1,6 @@
 import com.intuit.karate.FileUtils
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
@@ -68,10 +69,10 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | success | tests                           | retriedTests
     "test-failed"              | false   | [TestFailedKarate]              | []
-    "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
-    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null)]
+    "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
     "test-retry-parameterized" | false   | [TestFailedParameterizedKarate] | [
-      new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null)
+      new TestFQN("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline")
     ]
   }
 
@@ -85,9 +86,9 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                              | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null)]
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")]
     "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
-      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null)
+      new TestFQN("[org/example/test_parameterized] test parameterized", "first scenario as an outline")
     ]
     "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
@@ -96,7 +97,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    givenTestManagementEnabled(true)
     givenQuarantinedTests(quarantined)
 
     runTests(tests, true)
@@ -105,7 +105,73 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName              | tests              | quarantined
-    "test-quarantined-failed" | [TestFailedKarate] | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null)]
+    "test-quarantined-failed" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                  | tests              | quarantined                                                               | retried
+    "test-quarantined-failed-atr" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                    | tests              | quarantined                                                               | known
+    "test-quarantined-failed-known" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-quarantined-failed-efd"   | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName           | tests              | disabled
+    "test-disabled-failed" | [TestFailedKarate] | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests               | attemptToFix                                                               | quarantined                                                                | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailedKarate]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | []                                                                         | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []                                                                         | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailedKarate]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedKarate]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | []                                                                         | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []                                                                         | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")]
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

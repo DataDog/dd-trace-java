@@ -4,7 +4,7 @@ import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.OkHttpSink
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring

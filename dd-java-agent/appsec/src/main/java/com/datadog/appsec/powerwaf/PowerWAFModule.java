@@ -26,6 +26,7 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -46,6 +47,7 @@ import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
 import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
+import io.sqreen.powerwaf.exception.UnclassifiedPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -439,9 +441,18 @@ public class PowerWAFModule implements AppSecModule {
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
-      } catch (AbstractPowerwafException e) {
+      } catch (UnclassifiedPowerwafException e) {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
+        }
+        return;
+      } catch (AbstractPowerwafException e) {
+        if (gwCtx.isRasp) {
+          reqCtx.increaseRaspErrorCode(e.code);
+          WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
+        } else {
+          reqCtx.increaseWafErrorCode(e.code);
+          WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, e.code);
         }
         return;
       } finally {
@@ -498,7 +509,9 @@ public class PowerWAFModule implements AppSecModule {
             // If APM is disabled, inform downstream services that the current
             // distributed trace contains at least one ASM event and must inherit
             // the given force-keep priority
-            activeSpan.getLocalRootSpan().setTag(Tags.PROPAGATED_APPSEC, true);
+            activeSpan
+                .getLocalRootSpan()
+                .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
           } else {
             // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
             // when the request ends
