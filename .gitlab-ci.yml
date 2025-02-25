@@ -123,6 +123,10 @@ build_and_populate_dep_cache:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
+.set_datadog_api_keys: &set_datadog_api_keys
+  - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
+  - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
+
 .test_job:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
@@ -137,8 +141,6 @@ build_and_populate_dep_cache:
     GRADLE_PARAMS: ""
     CONTINUE_ON_FAILURE: "false"
   script:
-    - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
-    - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
     - > 
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
       then
@@ -149,6 +151,7 @@ build_and_populate_dep_cache:
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
+    - *set_datadog_api_keys
     - .circleci/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
     - .circleci/collect_results.sh
