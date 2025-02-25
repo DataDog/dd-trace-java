@@ -108,6 +108,21 @@ build_and_populate_dep_cache:
     - when: manual
       allow_failure: true
 
+# In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
+# To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
+.prepare_test_env: &prepare_test_env
+  - export gitlabVariables=("DD_SERVICE" "DD_ENTITY_ID" "DD_SITE" "DD_ENV" "DD_DATACENTER" "DD_PARTITION" "DD_CLOUDPROVIDER")
+  - [ ! -e pretest.env ] || rm pretest.env 
+  - |
+    for VARIABLE in "${gitlabVariables[@]}"
+    do
+      echo "export $VARIABLE=${!VARIABLE}" >> pretest.env
+      unset "$VARIABLE"
+    done
+
+.restore_pretest_env: &restore_pretest_env
+  - source pretest.env
+
 .test_job:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
@@ -129,11 +144,11 @@ build_and_populate_dep_cache:
       then
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
-    - .gitlab/prepare-test-environment.sh save
+    - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
-    - .gitlab/prepare-test-environment.sh restore
+    - *restore_pretest_env
     - .circleci/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
     - .circleci/collect_results.sh
