@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -93,7 +94,10 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
       }
 
       TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      SkipReason skipReason =
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.JUNIT4)
+              .skipReason(test);
       if (skipReason == null) {
         return null;
       }
