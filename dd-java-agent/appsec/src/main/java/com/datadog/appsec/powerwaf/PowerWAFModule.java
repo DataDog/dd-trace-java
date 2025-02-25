@@ -538,7 +538,7 @@ public class PowerWAFModule implements AppSecModule {
                   .getLocalRootSpan()
                   .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             } else {
-              // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
+              // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
               // when the request ends
               log.debug("There is no active span available");
             }
