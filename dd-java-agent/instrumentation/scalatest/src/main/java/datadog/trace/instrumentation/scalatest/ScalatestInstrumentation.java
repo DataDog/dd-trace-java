@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.scalatest;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -11,14 +10,12 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.scalatest.Reporter;
 import org.scalatest.events.Event;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public ScalatestInstrumentation() {
     super("ci-visibility", "scalatest");
@@ -30,13 +27,10 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String hierarchyMarkerType() {
-    return "org.scalatest.Reporter";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.scalatest.DispatchReporter", "org.scalatest.tools.TestSortingReporter",
+    };
   }
 
   @Override
