@@ -116,7 +116,7 @@ public final class OOMENotifierScriptInitializer {
   private static class ScriptCleanupVisitor implements FileVisitor<Path> {
     private static final Pattern PID_PATTERN = Pattern.compile(".*?" + PID_PREFIX + "(\\d+)");
 
-    private final Set<String> pidSet = PidHelper.getJavaPids();
+    private Set<String> pidSet;
 
     static void run(Path dir) {
       try {
@@ -145,9 +145,14 @@ public final class OOMENotifierScriptInitializer {
       Matcher matcher = PID_PATTERN.matcher(fileName);
       if (matcher.find()) {
         String pid = matcher.group(1);
-        if (pid != null && !pid.equals(PidHelper.getPid()) && !this.pidSet.contains(pid)) {
-          LOG.debug("Cleaning process specific file {}", file);
-          Files.delete(file);
+        if (pid != null && !pid.equals(PidHelper.getPid())) {
+          if (this.pidSet == null) {
+            this.pidSet = PidHelper.getJavaPids(); // only fork jps when required
+          }
+          if (!this.pidSet.contains(pid)) {
+            LOG.debug("Cleaning process specific file {}", file);
+            Files.delete(file);
+          }
         }
       }
       return CONTINUE;

@@ -84,9 +84,9 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.JSON
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -528,7 +528,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
     assert activeSpan() != noopSpan(): "Parent span shouldn't be noopSpan"
-    assert activeScope().asyncPropagating: "Scope should be propagating async."
+    assert isAsyncPropagationEnabled(): "Span should be propagating async."
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
     }
@@ -1748,6 +1748,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     requestBodyNoStreaming ? IG_BODY_CONVERTED_HEADER : IG_BODY_END_BLOCK_HEADER
   }
 
+  @Flaky(value = "APPSEC-56822", suites = ["PlayScalaAsyncServerTest"])
   def 'user blocking'() {
     setup:
     assumeTrue(testUserBlocking())

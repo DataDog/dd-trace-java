@@ -57,6 +57,13 @@ excludedClassesCoverage += [
   'datadog.trace.api.appsec.AppSecEventTracker',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
+  // Data Streams Monitoring
+  "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
+  "datadog.trace.api.datastreams.NoopPathwayContext",
+  "datadog.trace.api.datastreams.StatsPoint",
+  // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
@@ -70,15 +77,12 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
-  "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
@@ -98,7 +102,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContext",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContextKey",
-  "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.api.civisibility.config.TestIdentifier",
@@ -232,6 +235,7 @@ dependencies {
   testImplementation libs.commons.math
   testImplementation libs.bundles.mockito
   testImplementation libs.truth
+  testImplementation 'org.yaml:snakeyaml:2.0'
 }
 
 jmh {
