@@ -3746,6 +3746,7 @@ public class Config {
 
   private int schemaVersionFromConfig() {
     String defaultVersion;
+    // use v1 so Azure Functions operation name is consistent with that of other tracers
     if (azureFunctions) {
       defaultVersion = "v1";
     } else {
