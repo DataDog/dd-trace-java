@@ -212,10 +212,6 @@ muzzle-dep-report:
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
   needs: [ build ]
   stage: tests
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
   variables:
     BUILD_CACHE_TYPE: lib
     GRADLE_PARAMS: ""
