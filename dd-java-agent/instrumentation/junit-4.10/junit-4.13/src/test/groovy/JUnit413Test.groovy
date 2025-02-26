@@ -52,7 +52,7 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
     }
   }
 

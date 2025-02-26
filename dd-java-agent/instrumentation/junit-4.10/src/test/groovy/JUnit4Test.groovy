@@ -221,7 +221,7 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
     }
   }
 

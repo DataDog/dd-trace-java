@@ -99,7 +99,7 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
       TestExecutionPolicy executionPolicy =
           TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.JUNIT4)
+              .get(TestFrameworkInstrumentation.CUCUMBER)
               .executionPolicy(testIdentifier, TestSourceData.UNKNOWN);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method

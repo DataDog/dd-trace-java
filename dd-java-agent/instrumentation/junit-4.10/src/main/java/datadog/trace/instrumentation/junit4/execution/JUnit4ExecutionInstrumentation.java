@@ -63,7 +63,6 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       parentPackageName + ".SkippedByDatadog",
       parentPackageName + ".JUnit4Utils",
       parentPackageName + ".TracingListener",
-      parentPackageName + ".JUnit4Framework",
       parentPackageName + ".TestEventsHandlerHolder",
       packageName + ".FailureSuppressingNotifier"
     };
