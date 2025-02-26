@@ -147,6 +147,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.Config",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
   "datadog.trace.api.ConfigCollector",

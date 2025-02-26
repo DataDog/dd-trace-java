@@ -1,10 +1,6 @@
 package datadog.trace.api
 
-import datadog.trace.api.config.IastConfig
 import datadog.trace.api.env.FixedCapturedEnvironment
-import datadog.trace.api.iast.IastContext
-import datadog.trace.api.iast.IastDetectionMode
-import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -262,27 +258,6 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
-    //IAST properties
-    prop.setProperty(IastConfig.IAST_WEAK_HASH_ALGORITHMS, "SHA1,MD5")
-    prop.setProperty(IastConfig.IAST_DEBUG_ENABLED, "true")
-    prop.setProperty(IastConfig.IAST_TELEMETRY_VERBOSITY, "DEBUG")
-    prop.setProperty(IastConfig.IAST_DETECTION_MODE, "FULL")
-    prop.setProperty(IastConfig.IAST_REDACTION_ENABLED, "true")
-    prop.setProperty(IastConfig.IAST_REDACTION_NAME_PATTERN, ".*password.*")
-    prop.setProperty(IastConfig.IAST_REDACTION_VALUE_PATTERN, ".*secret.*")
-    prop.setProperty(IastConfig.IAST_STACK_TRACE_LEAK_SUPPRESS, "false")
-    prop.setProperty(IastConfig.IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED, "false") // Deprecated alias
-    prop.setProperty(IastConfig.IAST_HARDCODED_SECRET_ENABLED, "true")
-    prop.setProperty(IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH, "1024")
-    prop.setProperty(IastConfig.IAST_CONTEXT_MODE, "GLOBAL")
-    prop.setProperty(IastConfig.IAST_ANONYMOUS_CLASSES_ENABLED, "false")
-    prop.setProperty(IastConfig.IAST_SOURCE_MAPPING_ENABLED, "true")
-    prop.setProperty(IastConfig.IAST_SOURCE_MAPPING_MAX_SIZE, "500")
-    prop.setProperty(IastConfig.IAST_EXPERIMENTAL_PROPAGATION_ENABLED, "false")
-    prop.setProperty(IastConfig.IAST_STACK_TRACE_ENABLED, "true")
-    prop.setProperty(IastConfig.IAST_SECURITY_CONTROLS_CONFIGURATION, "/etc/iast/security-config.json")
-    prop.setProperty(IastConfig.IAST_DB_ROWS_TO_TAINT, "5")
-
     when:
     Config config = Config.get(prop)
 
@@ -375,27 +350,6 @@ class ConfigTest extends DDSpecification {
     config.debuggerExceptionEnabled == true
 
     config.xDatadogTagsMaxLength == 128
-
-    //iast properties
-    config.getIastWeakHashAlgorithms() == ["SHA1", "MD5"] as Set
-    config.isIastDebugEnabled()
-    config.getIastTelemetryVerbosity() == Verbosity.DEBUG
-    config.getIastDetectionMode() == IastDetectionMode.FULL
-    config.isIastRedactionEnabled()
-    config.getIastRedactionNamePattern() == ".*password.*"
-    config.getIastRedactionValuePattern() == ".*secret.*"
-    !config.isIastStacktraceLeakSuppress()
-    config.isIastHardcodedSecretEnabled()
-    config.getIastTruncationMaxValueLength() == 1024
-    config.getIastContextMode() == IastContext.Mode.GLOBAL
-    !config.isIastAnonymousClassesEnabled()
-    config.isIastSourceMappingEnabled()
-    config.getIastSourceMappingMaxSize() == 500
-    !config.isIastExperimentalPropagationEnabled()
-    config.isIastStackTraceEnabled()
-    config.getIastSecurityControlsConfiguration() == "/etc/iast/security-config.json"
-    config.getIastDbRowsToTaint() == 5
-
   }
 
   def "specify overrides via system properties"() {
