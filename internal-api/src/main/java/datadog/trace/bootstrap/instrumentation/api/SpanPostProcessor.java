@@ -27,7 +27,7 @@ public interface SpanPostProcessor {
 
     // XXX: At the moment, a single post-processor can be registered, and only AppSec defines one.
     // If other products add their own, we'll need to refactor this to support multiple processors.
-    @Nonnull public static volatile SpanPostProcessor INSTANCE = NOOP;
+    public static volatile SpanPostProcessor INSTANCE = NOOP;
   }
 
   class NoOpSpanPostProcessor implements SpanPostProcessor {

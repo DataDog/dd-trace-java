@@ -2,8 +2,10 @@ package com.datadog.appsec.api.security
 
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.ExpiredSubscriberInfoException
+import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
@@ -16,6 +18,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
+    def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
@@ -28,9 +31,11 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
-    1 * producer.getDataSubscribers(_) >> subInfo
+    1 * reqCtx.getTraceSegment() >> traceSegment
+    1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _)
+    1 * ctx.commitDerivatives(traceSegment)
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
     1 * ctx.close()
     1 * sampler.releaseOne()
@@ -67,6 +72,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
+    def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
@@ -79,6 +85,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
+    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> null
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
     1 * ctx.close() >> { throw new RuntimeException() }
@@ -184,6 +191,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
+    def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
@@ -196,6 +204,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
+    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> true
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
@@ -211,6 +220,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
+    def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
@@ -223,6 +233,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> true
+    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _) >> { throw new ExpiredSubscriberInfoException() }

@@ -288,7 +288,6 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
-  private final float apiSecurityRequestSampleRate;
   private final float apiSecuritySampleDelay;
 
   private final IastDetectionMode iastDetectionMode;
@@ -1315,9 +1314,6 @@ public class Config {
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
-    apiSecurityRequestSampleRate =
-        configProvider.getFloat(
-            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
     apiSecuritySampleDelay =
         configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
 
@@ -2648,10 +2644,6 @@ public class Config {
 
   public boolean isApiSecurityEnabled() {
     return apiSecurityEnabled;
-  }
-
-  public float getApiSecurityRequestSampleRate() {
-    return apiSecurityRequestSampleRate;
   }
 
   public float getApiSecuritySampleDelay() {
