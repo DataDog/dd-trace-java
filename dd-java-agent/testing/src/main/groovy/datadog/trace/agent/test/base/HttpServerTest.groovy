@@ -26,6 +26,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -404,6 +406,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     server instanceof WebsocketServer
   }
 
+  boolean testEndpointDiscovery() {
+    false
+  }
+
   @Override
   int version() {
     return 0
@@ -457,6 +463,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     SESSION_ID("session", 200, null),
     WEBSOCKET("websocket", 101, null)
+
+    ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
     private final String path
     private final String rawPath
@@ -2099,6 +2107,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
   }
+
+  void 'test endpoint discovery'() {
+    setup:
+    assumeTrue(testEndpointDiscovery())
+
+    when:
+    final endpoints = EndpointCollector.get().drain().toList()
+    final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+
+    then:
+    !discovered.isEmpty()
+    discovered.each {
+      assert it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert it.type == Endpoint.Type.REST
+      assert it.operation == Endpoint.Operation.HTTP_REQUEST
+    }
+    assertEndpointDiscovery(discovered)
+  }
+
+  // to be overridden for more specific asserts
+  void assertEndpointDiscovery(final List<?> endpoints) { }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()

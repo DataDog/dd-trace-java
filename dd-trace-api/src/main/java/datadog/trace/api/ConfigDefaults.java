@@ -115,6 +115,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
+  static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = true;
+  static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;

@@ -27,6 +27,11 @@ public final class AppSecConfig {
   public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
       "experimental.api-security.enabled";
   public static final String API_SECURITY_SAMPLE_DELAY = "api-security.sample.delay";
+  public static final String API_SECURITY_REQUEST_SAMPLE_RATE = "api-security.request.sample.rate";
+  public static final String API_SECURITY_ENDPOINT_COLLECTION_ENABLED =
+      "api-security.endpoint.collection.enabled";
+  public static final String API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT =
+      "api-security.endpoint.collection.message.limit";
 
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
   public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
