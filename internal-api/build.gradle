@@ -210,7 +210,6 @@ excludedClassesCoverage += [
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
-  'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
