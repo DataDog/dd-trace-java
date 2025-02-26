@@ -47,7 +47,7 @@ public class SymbolAggregator {
   private int totalClasses;
   // ClassNameTrie is not thread safe, All accesses must be protected by a lock
   private final ClassNameTrie.Builder loadedClasses = new ClassNameTrie.Builder();
-  private final Queue<String> jarsToScanQueue = new ArrayBlockingQueue<>(64);
+  private final Queue<String> jarsToScanQueue = new ArrayBlockingQueue<>(128);
   private final Set<String> alreadyScannedJars = ConcurrentHashMap.newKeySet();
 
   public SymbolAggregator(
@@ -224,7 +224,7 @@ public class SymbolAggregator {
       alreadyScannedJars.add(jarPath.toString());
     } catch (IOException e) {
       symDBReport.addIOException(jarPath.toString(), e);
-      throw new RuntimeException(e);
+      LOGGER.debug("Exception during scanning directory: {}", jarPath, e);
     }
   }
 
