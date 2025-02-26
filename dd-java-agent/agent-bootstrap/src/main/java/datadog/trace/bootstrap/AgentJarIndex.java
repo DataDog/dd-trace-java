@@ -145,9 +145,8 @@ public final class AgentJarIndex {
           int existingPrefixId = prefixTrie.apply(entryKey);
           if (-1 != existingPrefixId && prefixId != existingPrefixId) {
             log.warn(
-                "entryKey '{}' has multiple prefixIds: overriding existing prefixId with '{}'.",
-                entryKey,
-                prefixId);
+                "Detected duplicate content under this directory: '{}'. Ensure your content is under a distinct directory.",
+                entryKey);
           }
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
