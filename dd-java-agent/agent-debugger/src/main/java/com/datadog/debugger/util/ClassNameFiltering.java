@@ -6,9 +6,11 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.ClassNameTrie;
 import java.util.Collections;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** A class to filter out classes based on their package name. */
 public class ClassNameFiltering implements ClassNameFilter {
+  private static final Pattern LAMBDA_PROXY_CLASS_PATTERN = Pattern.compile(".*\\$\\$Lambda.*/.*");
 
   private final ClassNameTrie includeTrie;
   private final ClassNameTrie excludeTrie;
@@ -33,7 +35,12 @@ public class ClassNameFiltering implements ClassNameFilter {
   }
 
   public boolean isExcluded(String className) {
-    return includeTrie.apply(className) < 0 && excludeTrie.apply(className) > 0;
+    return (includeTrie.apply(className) < 0 && excludeTrie.apply(className) > 0)
+        || isLambdaProxyClass(className);
+  }
+
+  static boolean isLambdaProxyClass(String className) {
+    return LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
   }
 
   public static ClassNameFiltering allowAll() {

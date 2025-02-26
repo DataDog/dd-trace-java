@@ -33,6 +33,7 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testCodeOriginTraceAnnotation")
   void testCodeOriginTraceAnnotation() throws Exception {
+    appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME);
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME);
@@ -49,7 +50,7 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
                 assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_METHOD));
                 assertEquals(
                     "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_SIGNATURE));
-                assertEquals("133", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_LINE));
+                assertEquals("134", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_LINE));
                 codeOrigin.set(true);
               }
             }

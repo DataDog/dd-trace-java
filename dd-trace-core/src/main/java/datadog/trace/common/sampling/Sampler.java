@@ -36,9 +36,7 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (!config.isApmTracingEnabled()
-            && (config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
-                || config.getIastActivation() == ProductActivation.FULLY_ENABLED)) {
+        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
           return new AsmStandaloneSampler(Clock.systemUTC());
         }
@@ -101,6 +99,12 @@ public interface Sampler {
         sampler = new AllSampler();
       }
       return sampler;
+    }
+
+    private static boolean isAsmEnabled(Config config) {
+      return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+          || config.getIastActivation() == ProductActivation.FULLY_ENABLED
+          || config.isAppSecScaEnabled();
     }
 
     public static Sampler forConfig(final Properties config) {

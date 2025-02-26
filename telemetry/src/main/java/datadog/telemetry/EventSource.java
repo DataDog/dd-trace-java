@@ -49,7 +49,8 @@ interface EventSource {
         && !hasDependencyEvent()
         && !hasMetricEvent()
         && !hasDistributionSeriesEvent()
-        && !hasLogMessageEvent();
+        && !hasLogMessageEvent()
+        && !hasProductChangeEvent();
   }
 
   final class Queued implements EventSource {
