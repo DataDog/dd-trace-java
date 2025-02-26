@@ -33,7 +33,6 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
   }
 
   void 'second request is not sampled for the same endpoint'() {
-    Long hash
     given:
     AppSecRequestContext ctx1 = Spy(createContext('route1', 'GET', 200))
     AppSecRequestContext ctx2 = Spy(createContext('route1', 'GET', 200))

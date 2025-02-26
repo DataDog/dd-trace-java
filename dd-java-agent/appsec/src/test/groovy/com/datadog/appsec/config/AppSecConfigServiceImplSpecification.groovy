@@ -14,7 +14,6 @@ import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
 
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
