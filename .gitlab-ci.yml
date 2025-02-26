@@ -24,6 +24,9 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
+  SYSTEM_TESTS_COMMIT:
+    description: "Commit hash of system-tests repo to use"
+    value: "315bc8a32cc888834726397f088336ba8038277f"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
 
 default:
@@ -183,6 +186,93 @@ muzzle-dep-report:
     when: always
     paths:
       - ./reports
+      - '.gradle/daemon/*/*.out.log'
+
+.system-tests-job:
+  image: $SYSTEM_TESTS_IMAGE
+  tags: [ "docker-in-docker:amd64" ]
+  stage: tests
+  needs: [ build ]
+  variables:
+    BUILD_CACHE_TYPE: lib
+  before_script:
+    - cd /system-tests
+    - git fetch origin $SYSTEM_TESTS_COMMIT
+    - git reset --hard FETCH_HEAD
+    - mkdir -p /system-tests/binaries/
+    - cp $CI_PROJECT_DIR/workspace/dd-java-agent/build/libs/*.jar /system-tests/binaries/
+    - cp $CI_PROJECT_DIR/workspace/dd-trace-api/build/libs/*.jar /system-tests/binaries/
+    - cd /system-tests
+    - export SYSTEM_TESTS_E2E_DD_API_KEY=""
+    - export SYSTEM_TESTS_E2E_DD_APP_KEY=""
+    - export SYSTEM_TESTS_DD_API_KEY="$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.SYSTEM_TESTS_DD_API_KEY --with-decryption --query "Parameter.Value" --out text)"
+
+system-tests:
+  extends: .system-tests-job
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT: ['akka-http', 'jersey-grizzly2', 'play', 'resteasy-netty3', 'ratpack', 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-payara', 'spring-boot-undertow', 'spring-boot-wildfly', 'uds-spring-boot', 'vertx3', 'vertx4']
+        SCENARIO: [ DEFAULT, APM_TRACING_E2E, APM_TRACING_E2E_SINGLE_SPAN, APPSEC_BLOCKING, APPSEC_REQUEST_BLOCKING, APPSEC_RASP, APPSEC_RUNTIME_ACTIVATION, REMOTE_CONFIG_MOCKED_BACKEND_ASM_DD ]
+      - WEBLOG_VARIANT: ['spring-boot-3-native']
+        SCENARIO: [ DEFAULT, APM_TRACING_E2E, APM_TRACING_E2E_SINGLE_SPAN ]
+  script:
+    - ./build.sh java --weblog-variant $WEBLOG_VARIANT
+    - >
+      if [[ $SCENARIO =~ .*_E2E.* ]]; then
+        export DD_SITE=datadoghq.com;
+        export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY;
+        export DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY;
+      else
+        export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY;
+      fi
+    - echo "Running scenario $SCENARIO"
+    - ./run.sh $SCENARIO
+  after_script:
+    - |
+      mkdir -p artifacts
+      cd /system-tests
+      shopt -s nullglob
+      for log_dir in logs*; do
+        tar -cvzf ../artifacts/${log_dir}_${WEBLOG_VARIANT}.tar.gz $log_dir
+      done
+  artifacts:
+    when: always
+    paths:
+      - artifacts
+      - '.gradle/daemon/*/*.out.log'
+
+debugger-system-tests:
+  extends: .system-tests-job
+  script:
+    - ./build.sh --library java --weblog-variant spring-boot
+    - DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY ./run.sh DEBUGGER_SCENARIOS
+  after_script:
+    - |
+      mkdir -p logs_debugger
+      for dir in /system-tests/logs*/; do
+          cp -r "$dir" logs_debugger
+      done
+  artifacts:
+    when: always
+    reports:
+      junit: logs_debugger/*.xml
+    paths:
+      - logs_debugger
+      - '.gradle/daemon/*/*.out.log'
+
+parametric-tests:
+  extends: .system-tests-job
+  script:
+    - ./build.sh -i runner
+    - timeout 20m ./run.sh PARAMETRIC --library java --durations=30 -vv
+  after_script:
+    - tar -cvzf logs_java_parametric_dev.tar.gz -C /system-tests logs_parametric
+  artifacts:
+    when: always
+    reports:
+      junit: /system-tests/logs_parametric/*.xml
+    paths:
+      - logs_java_parametric_dev.tar.gz
       - '.gradle/daemon/*/*.out.log'
 
 required:
