@@ -2,6 +2,8 @@ muzzle {
   pass {
     group = 'com.microsoft.azure.functions'
     module = 'azure-functions-java-library'
+
+    // 1.2.2 is the first stable release.  The earlier versions are either betas or are unstable
     versions = '[1.2.2,)'
   }
 }
