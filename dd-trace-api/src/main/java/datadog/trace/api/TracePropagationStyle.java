@@ -18,8 +18,8 @@ public enum TracePropagationStyle {
   // Amazon X-Ray context propagation style
   // https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
   XRAY,
-  // TODO: add INFERREDPROXY style here,
-  // may NOT make full sense to add, because they are meeant to be for
+  // header parsing for inferred proxy servers using the header prefix "x-dd-proxy"
+  INFERREDPROXY,
   // W3C trace context propagation style
   // https://www.w3.org/TR/trace-context-1/
   TRACECONTEXT,

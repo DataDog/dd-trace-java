@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.TracePropagationStyle.DATADOG;
-import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.api.TracePropagationStyle.*;
 import static java.util.Arrays.asList;
 
 import java.util.Arrays;
@@ -78,7 +77,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final Set<TracePropagationStyle> DEFAULT_TRACE_PROPAGATION_STYLE =
-      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT));
+      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, INFERREDPROXY));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;

@@ -92,6 +92,9 @@ public final class TracerConfig {
   public static final String TRACE_PROPAGATION_STYLE_INJECT = "trace.propagation.style.inject";
   public static final String TRACE_PROPAGATION_EXTRACT_FIRST = "trace.propagation.extract.first";
 
+  public static final String TRACE_INFERRED_PROXY_SERVICES_ENABLED =
+      "trace.inferred.proxy.services.enabled";
+
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";

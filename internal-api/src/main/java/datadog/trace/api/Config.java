@@ -935,6 +935,7 @@ public class Config {
       Set<TracePropagationStyle> common =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
+      // may have to modify this by adding in inferred proxy from it's standalone env variable later
       Set<TracePropagationStyle> extract =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
@@ -2250,6 +2251,22 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isInferredProxyToExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.INFERREDPROXY);
+  }
+
+  public boolean isInferredProxyToInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.INFERREDPROXY);
+  }
+
+  public boolean isInferredProxyEnabledByEnv() {
+    return configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
+  }
+
+  public boolean isInferredProxyPropagationEnabled() {
+    return isInferredProxyToExtract() || isInferredProxyToInject() || isInferredProxyEnabledByEnv();
   }
 
   public int getClockSyncPeriod() {

@@ -5,10 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.STANDALONE_ASM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.*;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -22,6 +19,7 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.context.propagation.InferredProxyPropagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
@@ -727,12 +725,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // If disabled, the most common case, use the usual tracing propagator by default.
     boolean apmTracingDisabled = !config.isApmTracingEnabled();
     boolean dsm = config.isDataStreamsEnabled();
+    boolean inferredProxy = config.isInferredProxyPropagationEnabled();
     Propagators.register(
         STANDALONE_ASM_CONCERN, new ApmTracingDisabledPropagator(), apmTracingDisabled);
     Propagators.register(TRACING_CONCERN, tracingPropagator, !apmTracingDisabled);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (dsm) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+    }
+    if (inferredProxy) {
+      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
     }
 
     this.tagInterceptor =

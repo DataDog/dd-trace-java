@@ -15,6 +15,7 @@ public interface AgentPropagation {
   Concern TRACING_CONCERN = named("tracing");
   Concern XRAY_TRACING_CONCERN = named("tracing-xray");
   Concern STANDALONE_ASM_CONCERN = named("asm-standalone");
+  Concern INFERRED_PROXY_CONCERN = named("inferred-proxy");
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
