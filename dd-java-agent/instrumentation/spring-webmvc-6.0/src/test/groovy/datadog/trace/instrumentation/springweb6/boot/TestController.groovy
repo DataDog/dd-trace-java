@@ -137,6 +137,16 @@ class TestController {
     }
   }
 
+  @RequestMapping(value = "/discovery",
+  method = [RequestMethod.POST, RequestMethod.PATCH, RequestMethod.PUT],
+  consumes = MediaType.APPLICATION_JSON_VALUE,
+  produces = MediaType.TEXT_PLAIN_VALUE)
+  ResponseEntity discovery() {
+    HttpServerTest.controller(ENDPOINT_DISCOVERY) {
+      new ResponseEntity(ENDPOINT_DISCOVERY.body, HttpStatus.valueOf(ENDPOINT_DISCOVERY.status))
+    }
+  }
+
   @ExceptionHandler
   ResponseEntity handleException(Throwable throwable) {
     new ResponseEntity(throwable.message, HttpStatus.INTERNAL_SERVER_ERROR)

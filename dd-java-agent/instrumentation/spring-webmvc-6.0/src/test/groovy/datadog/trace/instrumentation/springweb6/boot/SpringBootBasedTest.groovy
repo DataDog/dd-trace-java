@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.springweb6.boot
 
+import datadog.trace.api.telemetry.Endpoint
+import org.springframework.http.MediaType
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
@@ -209,6 +212,22 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String testPathParam() {
     "/path/{id}/param"
+  }
+
+  @Override
+  boolean testEndpointDiscovery() {
+    true
+  }
+
+  @Override
+  void assertEndpointDiscovery(final List<?> endpoints) {
+    final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
+    assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])
+    discovered.values().each {
+      assert it.requestBodyType.containsAll([MediaType.APPLICATION_JSON_VALUE])
+      assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
+      assert it.metadata['handler'] == 'datadog.trace.instrumentation.springweb6.boot.TestController#discovery()'
+    }
   }
 
   def "test character encoding of #testPassword"() {
