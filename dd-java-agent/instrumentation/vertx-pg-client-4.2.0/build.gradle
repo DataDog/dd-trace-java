@@ -1,0 +1,35 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.vertx'
+    module = 'vertx-pg-client'
+    versions = '[4.2.0)'
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
+latestDepTest {
+  finalizedBy 'latestDepForkedTest'
+}
+
+dependencies {
+  compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.0'
+
+  testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.0'
+
+  // This is needed for the test container to start
+  testImplementation group: 'org.testcontainers', name: 'postgresql', version: libs.versions.testcontainers.get()
+
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
