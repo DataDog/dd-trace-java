@@ -512,7 +512,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan startSpan(
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     AgentSpan apiGtwSpan = null;
-    if (context.isApiGatewaySupported()) {
+    if (Config.get().isInferredProxyPropagationEnabled()) {
       // create the apigtw span
       apiGtwSpan =
           tracer()

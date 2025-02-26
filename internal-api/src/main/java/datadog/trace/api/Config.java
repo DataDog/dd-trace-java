@@ -190,6 +190,7 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final boolean tracePropagationExtractFirst;
+  private final boolean inferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1004,6 +1005,7 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    inferredProxyEnabled = configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -2262,7 +2264,7 @@ public class Config {
   }
 
   public boolean isInferredProxyEnabledByEnv() {
-    return configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
+    return inferredProxyEnabled;
   }
 
   public boolean isInferredProxyPropagationEnabled() {
