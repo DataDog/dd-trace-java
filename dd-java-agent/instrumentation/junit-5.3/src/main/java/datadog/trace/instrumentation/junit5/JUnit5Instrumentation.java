@@ -81,9 +81,8 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     public static void setContextStores(@Advice.This TestEngine testEngine) {
       ContextStore<TestDescriptor, Object> contextStore =
           InstrumentationContext.get(TestDescriptor.class, Object.class);
-      TestEventsHandlerHolder.setContextStores(
-          (ContextStore) contextStore, (ContextStore) contextStore);
-      TestEventsHandlerHolder.start(testEngine);
+      TestEventsHandlerHolder.start(
+          testEngine, (ContextStore) contextStore, (ContextStore) contextStore);
     }
   }
 

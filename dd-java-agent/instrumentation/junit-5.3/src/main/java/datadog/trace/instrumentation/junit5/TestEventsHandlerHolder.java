@@ -8,7 +8,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.AgentThreadFactory;
-import java.util.HashMap;
+import datadog.trace.util.ConcurrentEnumMap;
 import java.util.Map;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
@@ -16,11 +16,10 @@ import org.junit.platform.engine.TestEngine;
 public abstract class TestEventsHandlerHolder {
 
   // store one handler per framework running
-  public static Map<TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
-      HANDLERS = new HashMap<>();
-  public static volatile TestEventsHandler<TestDescriptor, TestDescriptor> DEFAULT_HANDLER;
-  private static ContextStore<TestDescriptor, DDTestSuite> SUITE_STORE;
-  private static ContextStore<TestDescriptor, DDTest> TEST_STORE;
+  public static final Map<
+          TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
+      HANDLERS = new ConcurrentEnumMap<>(TestFrameworkInstrumentation.class);
+
   private static volatile ContextStore<TestDescriptor, TestExecutionHistory>
       EXECUTION_HISTORY_STORE;
 
@@ -31,17 +30,6 @@ public abstract class TestEventsHandlerHolder {
                 AgentThreadFactory.AgentThread.CI_TEST_EVENTS_SHUTDOWN_HOOK,
                 TestEventsHandlerHolder::stop,
                 false));
-  }
-
-  public static synchronized void setContextStores(
-      ContextStore<TestDescriptor, DDTestSuite> suiteStore,
-      ContextStore<TestDescriptor, DDTest> testStore) {
-    if (SUITE_STORE == null) {
-      SUITE_STORE = suiteStore;
-    }
-    if (TEST_STORE == null) {
-      TEST_STORE = testStore;
-    }
   }
 
   public static synchronized void setExecutionHistoryStore(
@@ -66,41 +54,23 @@ public abstract class TestEventsHandlerHolder {
     }
   }
 
-  public static synchronized void start(TestEngine testEngine) {
+  public static synchronized void start(
+      TestEngine testEngine,
+      ContextStore<TestDescriptor, DDTestSuite> suiteStore,
+      ContextStore<TestDescriptor, DDTest> testStore) {
     TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineToFramework(testEngine);
     TestEventsHandler<TestDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
     if (handler == null) {
-      handler = InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+      handler = InstrumentationBridge.createTestEventsHandler("junit", suiteStore, testStore);
       HANDLERS.put(framework, handler);
-      if (DEFAULT_HANDLER == null) {
-        DEFAULT_HANDLER = handler;
-      }
-    }
-  }
-
-  // used by instrumentation tests
-  public static synchronized void startForcefully(TestFrameworkInstrumentation framework) {
-    if (SUITE_STORE != null && TEST_STORE != null) {
-      TestEventsHandler<TestDescriptor, TestDescriptor> handler =
-          InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
-      HANDLERS.put(framework, handler);
-      DEFAULT_HANDLER = handler;
     }
   }
 
   public static synchronized void stop() {
-    for (Map.Entry<TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
-        entry : HANDLERS.entrySet()) {
-      entry.getValue().close();
-      if (entry.getValue().equals(DEFAULT_HANDLER)) {
-        DEFAULT_HANDLER = null;
-      }
+    for (TestEventsHandler<TestDescriptor, TestDescriptor> handler : HANDLERS.values()) {
+      handler.close();
     }
     HANDLERS.clear();
-    if (DEFAULT_HANDLER != null) {
-      DEFAULT_HANDLER.close();
-      DEFAULT_HANDLER = null;
-    }
   }
 
   private TestEventsHandlerHolder() {}

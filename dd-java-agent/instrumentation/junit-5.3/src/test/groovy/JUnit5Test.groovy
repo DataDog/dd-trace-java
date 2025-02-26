@@ -1,7 +1,6 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
@@ -245,8 +244,6 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.JUNIT5)
-
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])

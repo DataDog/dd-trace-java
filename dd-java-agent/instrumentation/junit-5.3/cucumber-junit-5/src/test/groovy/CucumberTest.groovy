@@ -1,9 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
@@ -223,8 +221,6 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runFeatures(List<String> classpathFeatures, boolean parallel, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.CUCUMBER)
-
     DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
     for (i in 0..<classpathFeatures.size()) {
       selectors[i] = selectClasspathResource(classpathFeatures[i])

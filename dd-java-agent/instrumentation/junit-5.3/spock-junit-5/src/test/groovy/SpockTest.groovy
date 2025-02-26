@@ -1,11 +1,9 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
-
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestFailedParameterizedSpock
 import org.example.TestFailedSpock
@@ -213,8 +211,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.SPOCK)
-
     DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
     for (i in 0..<classes.size()) {
       selectors[i] = selectClass(classes[i])
