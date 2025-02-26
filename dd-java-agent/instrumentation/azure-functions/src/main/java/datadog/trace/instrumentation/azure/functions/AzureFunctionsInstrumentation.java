@@ -32,6 +32,11 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
+    /*
+    Due to the class-loading in the Azure Function environment we cannot assume that
+    "com.microsoft.azure.functions.annotation.FunctionName" will be visible (as in defined as a
+    resource) for any types using that annotation
+    */
     return null;
   }
 
