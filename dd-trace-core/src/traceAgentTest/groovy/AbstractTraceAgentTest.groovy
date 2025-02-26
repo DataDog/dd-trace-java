@@ -40,17 +40,17 @@ abstract class AbstractTraceAgentTest extends DDSpecification {
   String getAgentContainerHost() {
     if (agentContainer) {
       return (String) agentContainer.getHost()
-    } else {
-      return System.getenv("CI_AGENT_HOST")
     }
+
+    return System.getenv("CI_AGENT_HOST")
   }
 
   String getAgentContainerPort() {
     if (agentContainer) {
       return (String) agentContainer.getMappedPort(ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
-    } else {
-      return ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
     }
+
+    return ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
   }
 
   def cleanupSpec() {
