@@ -68,6 +68,7 @@ ext {
   excludedClassesCoverage = [
     'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
     'com.datadog.appsec.powerwaf.LibSqreenInitialization',
+    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
     'com.datadog.appsec.report.*',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
@@ -87,7 +88,6 @@ ext {
     'com.datadog.appsec.config.CurrentAppSecConfig',
     // equals() / hashCode() are not well covered
     'com.datadog.appsec.config.AppSecConfig.Helper',
-    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
     'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
     // assert never fails
     'com.datadog.appsec.util.StandardizedLogging',
