@@ -2,15 +2,15 @@ package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.util.NonBlockingSemaphore;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Semaphore;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ApiSecurityRequestSampler {
 
@@ -32,11 +32,13 @@ public class ApiSecurityRequestSampler {
   private final long expirationTimeInMs;
   private final int capacity;
   private final TimeSource timeSource;
-  private final NonBlockingSemaphore counter =
-      NonBlockingSemaphore.withPermitCount(MAX_POST_PROCESSING_TASKS);
+  private final Semaphore counter = new Semaphore(MAX_POST_PROCESSING_TASKS);
 
   public ApiSecurityRequestSampler() {
-    this(MAX_SIZE, (long) (Config.get().getApiSecuritySampleDelay() * 1_000), SystemTimeSource.INSTANCE);
+    this(
+        MAX_SIZE,
+        (long) (Config.get().getApiSecuritySampleDelay() * 1_000),
+        SystemTimeSource.INSTANCE);
   }
 
   public ApiSecurityRequestSampler(
@@ -75,7 +77,7 @@ public class ApiSecurityRequestSampler {
       log.debug("API security sampling is not required for this request");
       return;
     }
-    if (counter.acquire()) {
+    if (counter.tryAcquire()) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     }
