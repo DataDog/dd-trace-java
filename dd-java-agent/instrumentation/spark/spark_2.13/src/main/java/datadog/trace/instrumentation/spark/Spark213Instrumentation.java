@@ -23,6 +23,11 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
+      packageName + ".transport.DatadogInternalTransportBuilder",
+      packageName + ".transport.DatadogInternalTransportConfig",
+      packageName + ".transport.DatadogInternalTransport",
+      packageName + ".transport.EventAccumulator",
+      "datadog.trace.bootstrap.blocking.BlockingExceptionHandler",
     };
   }
 

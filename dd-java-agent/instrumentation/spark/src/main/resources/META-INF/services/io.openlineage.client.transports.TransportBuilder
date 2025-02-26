@@ -1,0 +1,1 @@
+datadog.trace.instrumentation.spark.transport.DatadogInternalTransportBuilder

@@ -84,6 +84,9 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
         if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
           opentracingFound.set(true)
         }
+        if (it.path.contains("io.openlineage.client.transports.TransportBuilder")) {
+          it.path = "META-INF/services/io.openlineage.client.transports.TransportBuilder"
+        }
       }
     }
     doLast {
