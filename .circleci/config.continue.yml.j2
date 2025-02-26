@@ -696,6 +696,8 @@ jobs:
     <<: *tests
 
     resource_class: medium
+    environment:
+      - CI_AGENT_HOST=localhost
 
     docker:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}8
