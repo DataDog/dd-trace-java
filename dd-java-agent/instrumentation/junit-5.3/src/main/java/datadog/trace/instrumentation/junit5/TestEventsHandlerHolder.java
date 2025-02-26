@@ -92,6 +92,9 @@ public abstract class TestEventsHandlerHolder {
     for (Map.Entry<TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
         entry : HANDLERS.entrySet()) {
       entry.getValue().close();
+      if (entry.getValue().equals(DEFAULT_HANDLER)) {
+        DEFAULT_HANDLER = null;
+      }
     }
     HANDLERS.clear();
     if (DEFAULT_HANDLER != null) {
