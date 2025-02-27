@@ -3,7 +3,7 @@ package datadog.context;
 import java.util.Map;
 
 public class InferredProxyContext implements ImplicitContextKeyed {
-  private static final ContextKey<InferredProxyContext> CONTEXT_KEY =
+  public static final ContextKey<InferredProxyContext> CONTEXT_KEY =
       ContextKey.named("inferred-proxy-key");
   private Map<String, String> inferredProxy;
 

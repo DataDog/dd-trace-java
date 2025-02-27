@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class InferredProxyPropagator implements Propagator {
-  static final String INFERRED_PROXY_KEY = "x-dd-proxy";
+  public static final String INFERRED_PROXY_KEY = "x-dd-proxy";
   /**
    * Injects a context into a downstream service using the given carrier.
    *
@@ -46,7 +46,10 @@ public class InferredProxyPropagator implements Propagator {
     if (extractedContext == null) {
       return context;
     }
-
+    System.out.println("extracted Context:");
+    System.out.println(extractedContext);
+    System.out.println("after Extracted");
+    System.out.println(extractedContext.getInferredProxyContext());
     return extractedContext.storeInto(context);
   }
 
@@ -58,7 +61,8 @@ public class InferredProxyPropagator implements Propagator {
 
     private Map<String, String> parseInferredProxyHeaders(String input) {
       Map<String, String> parsedHeaders = new HashMap<>();
-      System.out.println(input);
+      System.out.println("parsing input: " + input);
+      // parsedHeaders.put(input);
       return parsedHeaders;
     }
 
@@ -72,10 +76,11 @@ public class InferredProxyPropagator implements Propagator {
     public void accept(String key, String value) {
       System.out.println("hello: " + key);
       System.out.println(value);
-      if (key == null || key.isEmpty()) {
+      if (key == null || key.isEmpty() || !key.equalsIgnoreCase(INFERRED_PROXY_KEY)) {
         return;
       }
-      if (key.equalsIgnoreCase(INFERRED_PROXY_KEY)) {
+      Map<String, String> inferredProxyMap = parseInferredProxyHeaders(value);
+      if (extractedContext == null) {
         extractedContext = new InferredProxyContext(parseInferredProxyHeaders(value));
       }
     }

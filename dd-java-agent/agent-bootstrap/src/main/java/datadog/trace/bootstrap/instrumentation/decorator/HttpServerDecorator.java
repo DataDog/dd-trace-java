@@ -513,11 +513,36 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     AgentSpan apiGtwSpan = null;
     if (Config.get().isInferredProxyPropagationEnabled()) {
+      System.out.println("inferred proxy to be crearted");
       // create the apigtw span
       apiGtwSpan =
-          tracer()
-              .startSpan(
-                  "api_gtw_instrumentation_name", "test apigw span", callIGCallbackStart(context));
+          tracer().startSpan("inferred_proxy", "aws.apigateway", callIGCallbackStart(context));
+
+      // set tags from Context
+      //      System.out.println("here");
+      //      InferredProxyContext inferredProxyContext =
+      // Context.root().get(InferredProxyContext.CONTEXT_KEY);
+      //      System.out.println("hello inferred context obj: " + inferredProxyContext);
+      //      Map<String, String> contextMap = inferredProxyContext.getInferredProxyContext();
+      //      System.out.println("hello inferred map: " + contextMap);
+      //          //get(InferredProxyPropagator.INFERRED_PROXY_KEY);
+      //      if (contextMap != null) {
+      //        apiGtwSpan.setAllTags(inferredProxyContext.getInferredProxyContext());
+      //      }
+
+      // apiGtwSpan.setTag(DDTAGS.name, "aws.apigateway");
+      apiGtwSpan.setTag(Tags.COMPONENT, "aws.apigateway");
+      apiGtwSpan.setTag(DDTags.RESOURCE_NAME, "GET /api/hello");
+      apiGtwSpan.setTag(DDTags.TRACE_START_TIME, "123");
+      apiGtwSpan.setTag(DDTags.SERVICE_NAME, "example.com");
+      apiGtwSpan.setTag(DDTags.SPAN_TYPE, "web");
+      apiGtwSpan.setTag(Tags.HTTP_METHOD, "GET");
+      apiGtwSpan.setTag(Tags.HTTP_URL, "example.com/api/hello");
+      apiGtwSpan.setHttpStatusCode(200);
+      apiGtwSpan.setTag("stage", "dev");
+      apiGtwSpan.setTag("_dd.inferred_span", "1");
+
+      // apiGtwSpan.setAllTags()
     }
     AgentSpan span =
         tracer()
@@ -535,7 +560,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
     System.out.println("starting http server span");
-    span.setTag("apigw-testing", "hello jordan regular http span");
     return new MySpan(apiGtwSpan, span);
   }
 
