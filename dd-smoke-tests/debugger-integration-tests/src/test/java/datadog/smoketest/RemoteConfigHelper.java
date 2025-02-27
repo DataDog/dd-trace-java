@@ -5,6 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.StringJoiner;
 
 public class RemoteConfigHelper {
   public static class RemoteConfig {
@@ -39,28 +40,20 @@ public class RemoteConfigHelper {
   }
 
   private static String buildClientConfigs(List<RemoteConfig> remoteConfigs) {
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < remoteConfigs.size(); i++) {
-      RemoteConfig rc = remoteConfigs.get(i);
-      if (i > 0) {
-        sb.append(",\n");
-      }
-      sb.append(
+    StringJoiner sj = new StringJoiner(",\n");
+    for (RemoteConfig rc : remoteConfigs) {
+      sj.add(
           String.format(
               "                        \"datadog/2/%s/%s/config\"\n", rc.product, rc.configId));
     }
-    return sb.toString();
+    return sj.toString();
   }
 
   private static String buildTargetFiles(List<RemoteConfig> remoteConfigs) {
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < remoteConfigs.size(); i++) {
-      RemoteConfig rc = remoteConfigs.get(i);
+    StringJoiner sj = new StringJoiner(",\n");
+    for (RemoteConfig rc : remoteConfigs) {
       String encodedConfig = new String(Base64.getEncoder().encode(rc.config.getBytes()));
-      if (i > 0) {
-        sb.append(",\n");
-      }
-      sb.append(
+      sj.add(
           String.format(
               "    {\n"
                   + "      \"path\": \"datadog/2/%s/%s/config\",\n"
@@ -68,7 +61,7 @@ public class RemoteConfigHelper {
                   + "    }\n",
               rc.product, rc.configId, encodedConfig));
     }
-    return sb.toString();
+    return sj.toString();
   }
 
   private static List<String> buildHashes(List<RemoteConfig> remoteConfigs) {
@@ -84,13 +77,10 @@ public class RemoteConfigHelper {
   }
 
   private static String buildTargets(List<String> hashes, List<RemoteConfig> remoteConfigs) {
-    StringBuilder sb = new StringBuilder();
+    StringJoiner sj = new StringJoiner(",\n");
     for (int i = 0; i < remoteConfigs.size(); i++) {
       RemoteConfig rc = remoteConfigs.get(i);
-      if (i > 0) {
-        sb.append(",\n");
-      }
-      sb.append(
+      sj.add(
           String.format(
               "     \"datadog/2/%s/%s/config\":{"
                   + "           \"length\": %d,\n"
@@ -102,7 +92,7 @@ public class RemoteConfigHelper {
                   + "         }",
               rc.product, rc.configId, rc.config.length(), hashes.get(i)));
     }
-    String targets = sb.toString();
+    String targets = sj.toString();
     return String.format(
         "{\"signed\":\n"
             + "  { \"_type\":\"targets\",\n"

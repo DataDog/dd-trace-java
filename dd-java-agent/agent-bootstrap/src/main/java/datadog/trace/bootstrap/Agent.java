@@ -98,7 +98,7 @@ public class Agent {
     TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
     DYNAMIC_INSTRUMENTATION(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
     EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
-    SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
@@ -151,7 +151,7 @@ public class Agent {
   private static boolean telemetryEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
   private static boolean exceptionReplayEnabled = false;
-  private static boolean spanOriginEnabled = false;
+  private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
@@ -264,7 +264,7 @@ public class Agent {
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
-    spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
+    codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
