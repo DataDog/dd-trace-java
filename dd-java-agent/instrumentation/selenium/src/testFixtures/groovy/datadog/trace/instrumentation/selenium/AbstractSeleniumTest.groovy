@@ -52,8 +52,6 @@ abstract class AbstractSeleniumTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runTests(List<Class<?>> tests) {
-    TestEventsHandlerHolder.startForcefully(TestFrameworkInstrumentation.JUNIT5)
-
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])
