@@ -165,8 +165,10 @@ public class DebuggerAgent {
     }
     LOGGER.info("Stopping Dynamic Instrumentation");
     unsubscribeConfigurationPoller();
-    // uninstall all probes by providing empty configuration
-    configurationUpdater.accept(REMOTE_CONFIG, Collections.emptyList());
+    if (configurationUpdater != null) {
+      // uninstall all probes by providing empty configuration
+      configurationUpdater.accept(REMOTE_CONFIG, Collections.emptyList());
+    }
     if (symDBEnablement != null) {
       symDBEnablement.stopSymbolExtraction();
     }
@@ -192,28 +194,48 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.info("Stopping Exception Replay");
-    // uninstall all exception probes by providing empty configuration
-    configurationUpdater.accept(EXCEPTION, Collections.emptyList());
+    if (configurationUpdater != null) {
+      // uninstall all exception probes by providing empty configuration
+      configurationUpdater.accept(EXCEPTION, Collections.emptyList());
+    }
     exceptionDebugger = null;
     DebuggerContext.initExceptionDebugger(null);
   }
 
   public static void startCodeOriginForSpans() {
+    if (!codeOriginEnabled.compareAndSet(false, true)) {
+      return;
+    }
     LOGGER.info("Starting Code Origin for spans");
     DebuggerContext.initCodeOrigin(
         new DefaultCodeOriginRecorder(Config.get(), configurationUpdater));
   }
 
   public static void stopCodeOriginForSpans() {
+    if (!codeOriginEnabled.compareAndSet(true, false)) {
+      return;
+    }
     LOGGER.info("Stopping Code Origin for spans");
-    // uninstall all code origin probes by providing empty configuration
-    configurationUpdater.accept(CODE_ORIGIN, Collections.emptyList());
+    if (configurationUpdater != null) {
+      // uninstall all code origin probes by providing empty configuration
+      configurationUpdater.accept(CODE_ORIGIN, Collections.emptyList());
+    }
     DebuggerContext.initCodeOrigin(null);
   }
 
-  public static void startDistributedDebugger() {}
+  public static void startDistributedDebugger() {
+    if (!distributedDebuggerEnabled.compareAndSet(false, true)) {
+      return;
+    }
+    LOGGER.info("Starting Distributed Debugger");
+  }
 
-  public static void stopDistributedDebugger() {}
+  public static void stopDistributedDebugger() {
+    if (!distributedDebuggerEnabled.compareAndSet(true, false)) {
+      return;
+    }
+    LOGGER.info("Sopping Distributed Debugger");
+  }
 
   private static DebuggerSink createDebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
     String tags = getDefaultTagsMergedWithGlobalTags(config);
