@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CwsConfig;
@@ -816,6 +817,10 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+
+    // event tracking SDK must be available for customers even if AppSec is fully disabled
+    AppSecEventTracker.install();
+
     if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
       return;
     }
