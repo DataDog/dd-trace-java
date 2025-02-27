@@ -70,14 +70,6 @@ public final class PercentEscaper {
   /** The amount of padding (chars) to use when growing the escape buffer. */
   private static final int DEST_PAD = 32;
 
-  private static final String SAFE_CHARS =
-      "-._~" // Unreserved characters.
-          + "!$'()*"
-          // + ",;=" // baggage delimiters, so let's escape them
-          + "&" // The subdelim characters.
-          + "@:" // The gendelim characters permitted in paths.
-          + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
   private static final String UNSAFE_CHARACTERS_KEY = "\",;\\()/:<=>?@[]{} ";
   private static final String UNSAFE_CHARACTERS_VALUE = "\",;\\ ";
 
@@ -85,11 +77,10 @@ public final class PercentEscaper {
   private static final char[] UPPER_HEX_DIGITS = "0123456789ABCDEF".toCharArray();
 
   /**
-   * An array of flags where for any {@code char c} if {@code safeOctets[c]} is true then {@code c}
+   * Arrays of flags where for any {@code char c} if {@code safeOctets[c]} is true then {@code c}
    * should remain unmodified in the output. If {@code c >= safeOctets.length} then it should be
    * escaped.
    */
-  //  private static final boolean[] safeOctets = createSafeOctets(SAFE_CHARS);
   private static final boolean[] unsafeKeyOctets = createUnsafeOctets(UNSAFE_CHARACTERS_KEY);
 
   private static final boolean[] unsafeValOctets = createUnsafeOctets(UNSAFE_CHARACTERS_VALUE);

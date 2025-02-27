@@ -23,7 +23,7 @@ public class BaggagePropagator implements Propagator {
   private static final Logger log = LoggerFactory.getLogger(BaggagePropagator.class);
   private static final PercentEscaper UTF_ESCAPER = PercentEscaper.create();
   static final String BAGGAGE_KEY = "baggage";
-  private Config config;
+  private final Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
 
