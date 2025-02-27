@@ -15,6 +15,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
+import java.util.Iterator;
 
 /**
  * Subtype UNIX socket for a higher-fidelity impersonation of TCP sockets. This is named "tunneling"
@@ -128,19 +129,27 @@ final class TunnelingJdkSocket extends Socket {
     ByteBuffer buffer = ByteBuffer.allocate(256);
 
     try {
-      if (selector.select(timeout) == 0) {
-        System.out.println("Timeout (" + timeout + "ms) while waiting for data.");
-      }
-      for (SelectionKey key : selector.selectedKeys()) {
-        if (key.isReadable()) {
-          int r = unixSocketChannel.read(buffer);
-          if (r == -1) {
-            unixSocketChannel.close();
-            System.out.println("Not accepting client messages anymore.");
+      while (true) {
+        if (selector.select(timeout) == 0) {
+          System.out.println("Timeout (" + timeout + "ms) while waiting for data.");
+          break;
+        }
+        Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
+        while (keyIterator.hasNext()) {
+          SelectionKey key = keyIterator.next();
+          keyIterator.remove();
+          if (key.isReadable()) {
+            int r = unixSocketChannel.read(buffer);
+            if (r == -1) {
+              unixSocketChannel.close();
+              System.out.println("Not accepting client messages anymore.");
+              return InputStream.nullInputStream();
+            }
           }
         }
+        buffer.flip();
+        break;
       }
-      buffer.flip();
     } finally {
       selector.close();
     }
