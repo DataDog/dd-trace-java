@@ -103,6 +103,8 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
     } catch (AssertionError e) {
+      println "Expected events: $expectedEvents" // TODO remove
+      println "Actual events: $actualEvents" // TODO remove
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
