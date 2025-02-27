@@ -6,15 +6,13 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.BaggageContext;
+import datadog.trace.core.util.PercentEscaper;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
@@ -23,17 +21,11 @@ import org.slf4j.LoggerFactory;
 @ParametersAreNonnullByDefault
 public class BaggagePropagator implements Propagator {
   private static final Logger log = LoggerFactory.getLogger(BaggagePropagator.class);
+  private static final PercentEscaper UTF_ESCAPER = PercentEscaper.create();
   static final String BAGGAGE_KEY = "baggage";
   private Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
-  private static final Set<Character> UNSAFE_CHARACTERS_KEY =
-      new HashSet<>(
-          Arrays.asList(
-              '"', ',', ';', '\\', '(', ')', '/', ':', '<', '=', '>', '?', '@', '[', ']', '{',
-              '}'));
-  private static final Set<Character> UNSAFE_CHARACTERS_VALUE =
-      new HashSet<>(Arrays.asList('"', ',', ';', '\\'));
 
   public BaggagePropagator(Config config) {
     this.injectBaggage = config.isBaggageInject();
@@ -46,38 +38,6 @@ public class BaggagePropagator implements Propagator {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
     config = Config.get();
-  }
-
-  private int encodeKey(String key, StringBuilder builder) {
-    return encode(key, builder, UNSAFE_CHARACTERS_KEY);
-  }
-
-  private int encodeValue(String key, StringBuilder builder) {
-    return encode(key, builder, UNSAFE_CHARACTERS_VALUE);
-  }
-
-  private int encode(String input, StringBuilder builder, Set<Character> UNSAFE_CHARACTERS) {
-    int size = 0;
-    for (int i = 0; i < input.length(); i++) {
-      char c = input.charAt(i);
-      if (c > '~' || c <= ' ' || UNSAFE_CHARACTERS.contains(c)) { // encode character
-        byte[] bytes = Character.toString(c).getBytes(StandardCharsets.UTF_8);
-        for (byte b : bytes) {
-          builder.append('%');
-          builder.append(encodeChar((b >> 4) & 0xF));
-          builder.append(encodeChar(b & 0xF));
-          size++;
-        }
-      } else {
-        builder.append(c);
-        size++;
-      }
-    }
-    return size;
-  }
-
-  private char encodeChar(int ascii) {
-    return (char) (ascii < 10 ? '0' + ascii : 'A' + (ascii - 10));
   }
 
   @Override
@@ -110,28 +70,30 @@ public class BaggagePropagator implements Propagator {
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
     for (final Map.Entry<String, String> entry : baggageContext.asMap().entrySet()) {
-      int byteSize = 1; // default include size of '='
-      if (processedBaggage
-          != 0) { // if there are already baggage items processed, add and allocate bytes for a
-        // comma
+      AtomicInteger pairSize = new AtomicInteger(1);
+      // if there are already baggage items processed, add and allocate bytes for a comma
+      if (processedBaggage != 0) {
         baggageText.append(',');
-        byteSize++;
+        pairSize.incrementAndGet();
       }
 
-      byteSize += encodeKey(entry.getKey(), baggageText);
+      baggageText.append(
+          UTF_ESCAPER.escape(entry.getKey(), pairSize, UTF_ESCAPER.getUnsafeKeyOctets()));
       baggageText.append('=');
-      byteSize += encodeValue(entry.getValue(), baggageText);
+      baggageText.append(
+          UTF_ESCAPER.escape(entry.getValue(), pairSize, UTF_ESCAPER.getUnsafeValOctets()));
 
       processedBaggage++;
-      if (processedBaggage == maxItems) { // reached the max number of baggage items allowed
+      // reached the max number of baggage items allowed
+      if (processedBaggage == maxItems) {
         break;
       }
-      if (currentBytes + byteSize
-          > maxBytes) { // Drop newest k/v pair if adding it leads to exceeding the limit
+      // Drop newest k/v pair if adding it leads to exceeding the limit
+      if (currentBytes + pairSize.get() > maxBytes) {
         baggageText.setLength(currentBytes);
         break;
       }
-      currentBytes += byteSize;
+      currentBytes += pairSize.get();
     }
 
     String baggageString = baggageText.toString();
@@ -204,8 +166,8 @@ public class BaggagePropagator implements Propagator {
 
     @Override
     public void accept(String key, String value) {
-      if (key != null
-          && key.equalsIgnoreCase(BAGGAGE_KEY)) { // Only process tags that are relevant to baggage
+      // Only process tags that are relevant to baggage
+      if (key != null && key.equalsIgnoreCase(BAGGAGE_KEY)) {
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
           extractedContext = BaggageContext.create(baggage, value);
