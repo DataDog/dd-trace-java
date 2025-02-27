@@ -31,7 +31,7 @@ class HelloPluginFunctionalTest {
         .withProjectDir(testProjectDir.toFile())
         .withPluginClasspath()
         .withGradleVersion("8.5")
-        .withArguments("hello")
+        .withArguments("hello", "--stacktrace")
         .forwardOutput()
         .build();
 
