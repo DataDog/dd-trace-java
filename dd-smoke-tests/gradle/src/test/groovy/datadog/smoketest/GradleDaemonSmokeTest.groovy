@@ -12,6 +12,7 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
 import org.gradle.wrapper.Download
+import org.gradle.wrapper.GradleUserHomeLookup
 import org.gradle.wrapper.Install
 import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
@@ -49,34 +50,35 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
 
     where:
-    gradleVersion         | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.0"                 | "test-succeed-old-gradle"                          | true            | 5              | 1
-    "7.6.4"               | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
-    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
-    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
-    "7.6.4"               | "test-skip-legacy-instrumentation"                 | true            | 2              | 0
-    "7.6.4"               | "test-failed-legacy-instrumentation"               | false           | 4              | 0
-    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
+    gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
+    "3.0"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
+    "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
+    "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
+    "7.6.4"       | "test-skip-legacy-instrumentation"                 | true            | 2              | 0
+    "7.6.4"       | "test-failed-legacy-instrumentation"               | false           | 4              | 0
+    "7.6.4"       | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
   }
 
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
 
     where:
-    gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
-    "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
-    "8.9"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
-    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
-    "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
-    "8.9"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
-    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
-    LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | false        | 7              | 2
-    LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | false        | 6              | 2
-    LATEST_GRADLE_VERSION | "test-skip-new-instrumentation"                    | false              | true            | false        | 2              | 0
-    LATEST_GRADLE_VERSION | "test-failed-new-instrumentation"                  | false              | false           | false        | 4              | 0
-    LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"        | false              | false           | false        | 1              | 0
-    LATEST_GRADLE_VERSION | "test-succeed-junit-5"                             | false              | true            | false        | 5              | 1
-    LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                        | false              | false           | true         | 8              | 0
+    gradleVersion         | projectName                                     | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
+    "8.3"                 | "test-succeed-new-instrumentation"              | false              | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"              | false              | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"              | false              | true            | false        | 5              | 1
+    "8.3"                 | "test-succeed-new-instrumentation"              | true               | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"              | true               | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"              | true               | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation" | false              | true            | false        | 7              | 2
+    LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"  | false              | true            | false        | 6              | 2
+    LATEST_GRADLE_VERSION | "test-skip-new-instrumentation"                 | false              | true            | false        | 2              | 0
+    LATEST_GRADLE_VERSION | "test-failed-new-instrumentation"               | false              | false           | false        | 4              | 0
+    LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"     | false              | false           | false        | 1              | 0
+    LATEST_GRADLE_VERSION | "test-succeed-junit-5"                          | false              | true            | false        | 5              | 1
+    LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                     | false              | false           | true         | 8              | 0
+    LATEST_GRADLE_VERSION | "test-succeed-gradle-plugin-test"               | false              | true            | false        | 5              | 0
   }
 
   private runGradleTest(String gradleVersion, String projectName, boolean configurationCache, boolean successExpected, boolean flakyRetries, int expectedTraces, int expectedCoverages) {
