@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.selenium
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.communication.util.IOUtils
 
