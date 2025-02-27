@@ -53,7 +53,10 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(@Advice.Argument(0) Object serviceImpl) {
       try {
         Class<?> serviceClass = serviceImpl.getClass();
-        Class<?> superClass = findImplBase(serviceClass);
+        Class<?> superClass = serviceClass.getSuperclass();
+        while (superClass != null && !superClass.getSimpleName().endsWith("ImplBase")) {
+          superClass = superClass.getSuperclass();
+        }
         if (superClass != null) {
           Method[] declaredMethods = superClass.getDeclaredMethods();
           // bindService() would be the only method in this case and it's irrelevant
@@ -76,14 +79,6 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
       } catch (Throwable e) {
         // this should be logged somehow
       }
-    }
-
-    public static Class<?> findImplBase(Class<?> serviceClass) {
-      Class<?> superclass = serviceClass.getSuperclass();
-      while (superclass != null && !superclass.getSimpleName().endsWith("ImplBase")) {
-        superclass = superclass.getSuperclass();
-      }
-      return superclass;
     }
   }
 }
