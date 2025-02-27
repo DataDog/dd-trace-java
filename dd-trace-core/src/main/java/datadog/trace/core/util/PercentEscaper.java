@@ -108,12 +108,12 @@ public final class PercentEscaper {
     return octets;
   }
 
-  public boolean[] getUnsafeKeyOctets() {
-    return unsafeKeyOctets;
+  public String escapeKey(String s, AtomicInteger size) {
+    return escape(s, size, unsafeKeyOctets);
   }
 
-  public boolean[] getUnsafeValOctets() {
-    return unsafeValOctets;
+  public String escapeValue(String s, AtomicInteger size) {
+    return escape(s, size, unsafeKeyOctets);
   }
 
   /** Escape the provided String, using percent-style URL Encoding. */

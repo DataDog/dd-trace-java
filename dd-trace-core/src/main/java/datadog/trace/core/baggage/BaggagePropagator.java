@@ -77,11 +77,9 @@ public class BaggagePropagator implements Propagator {
         pairSize.incrementAndGet();
       }
 
-      baggageText.append(
-          UTF_ESCAPER.escape(entry.getKey(), pairSize, UTF_ESCAPER.getUnsafeKeyOctets()));
+      baggageText.append(UTF_ESCAPER.escapeKey(entry.getKey(), pairSize));
       baggageText.append('=');
-      baggageText.append(
-          UTF_ESCAPER.escape(entry.getValue(), pairSize, UTF_ESCAPER.getUnsafeValOctets()));
+      baggageText.append(UTF_ESCAPER.escapeValue(entry.getValue(), pairSize));
 
       processedBaggage++;
       // reached the max number of baggage items allowed
