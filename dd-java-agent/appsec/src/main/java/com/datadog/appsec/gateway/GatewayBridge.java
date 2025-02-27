@@ -828,13 +828,22 @@ public class GatewayBridge {
       } else {
         WafMetricCollector.get().wafRequest();
       }
-    }
 
-    // API Security sampling requires http.route tag.
-    final Object route = tags.get(Tags.HTTP_ROUTE);
-    if (route instanceof String) {
-      ctx.setRoute((String) route);
-      requestSampler.preSampleRequest(ctx);
+      // API Security sampling requires http.route tag.
+      log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
+      Object route = tags.get(Tags.HTTP_ROUTE);
+      if (route == null) {
+        log.debug("No route tag found in the current span, checking root");
+        route = traceSeg.getTagTop(Tags.HTTP_ROUTE);
+      }
+      if (route == null) {
+        log.debug("No route tag found in the root span");
+      } else if (route instanceof String) {
+        ctx.setRoute((String) route);
+        requestSampler.preSampleRequest(ctx);
+      } else {
+        log.debug("Route tag is not a string, skipping API Security sampling: {}", route.getClass().getSimpleName());
+      }
     }
 
     return NoopFlow.INSTANCE;
