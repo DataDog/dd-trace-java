@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.springsecurity5;
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.trace.api.EventTracker;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.telemetry.LoginEvent;
@@ -34,7 +36,7 @@ public class SpringSecurityUserEventDecorator {
       Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   public void onUserNotFound() {
-    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    final AppSecEventTracker tracker = getEventTracker();
     if (tracker == null) {
       return;
     }
@@ -48,7 +50,7 @@ public class SpringSecurityUserEventDecorator {
       return;
     }
 
-    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    final AppSecEventTracker tracker = getEventTracker();
     if (tracker == null) {
       return;
     }
@@ -75,7 +77,7 @@ public class SpringSecurityUserEventDecorator {
       return;
     }
 
-    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    final AppSecEventTracker tracker = getEventTracker();
     if (tracker == null) {
       return;
     }
@@ -127,7 +129,7 @@ public class SpringSecurityUserEventDecorator {
       return;
     }
 
-    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    final AppSecEventTracker tracker = getEventTracker();
     if (tracker == null) {
       return;
     }
@@ -180,5 +182,10 @@ public class SpringSecurityUserEventDecorator {
       return true;
     }
     return false;
+  }
+
+  private static AppSecEventTracker getEventTracker() {
+    final EventTracker tracker = GlobalTracer.getEventTracker();
+    return tracker instanceof AppSecEventTracker ? (AppSecEventTracker) tracker : null;
   }
 }
