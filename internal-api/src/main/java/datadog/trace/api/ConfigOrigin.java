@@ -8,9 +8,9 @@ public enum ConfigOrigin {
   /** configurations that are set through JVM properties */
   JVM_PROP("jvm_prop"),
   /** configuration read in the stable config file, managed by users */
-  USER_STABLE_CONFIG("user_stable_config"),
+  USER_STABLE_CONFIG("local_stable_config"),
   /** configuration read in the stable config file, managed by fleet */
-  MANAGED_STABLE_CONFIG("managed_stable_config"),
+  MANAGED_STABLE_CONFIG("fleet_stable_config"),
   /** set when the user has not set any configuration for the key (defaults to a value) */
   DEFAULT("default");
 
