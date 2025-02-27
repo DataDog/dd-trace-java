@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -83,6 +84,7 @@ public class TempLocationManagerTest {
     assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
   }
 
+  @Flaky("https://datadoghq.atlassian.net/browse/PROF-11290")
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testCleanup(String subPath) throws Exception {
