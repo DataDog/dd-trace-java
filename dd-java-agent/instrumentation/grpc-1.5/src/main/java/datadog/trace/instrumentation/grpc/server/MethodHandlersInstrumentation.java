@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -52,9 +53,19 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(@Advice.Argument(0) Object serviceImpl) {
       try {
         Class<?> serviceClass = serviceImpl.getClass();
-        Class<?> superclass = serviceClass.getSuperclass();
-        if (superclass != null) {
-          for (Method method : superclass.getDeclaredMethods()) {
+        Class<?> superClass = findImplBase(serviceClass);
+        if (superClass != null) {
+          Method[] declaredMethods = superClass.getDeclaredMethods();
+          // bindService() would be the only method in this case and it's irrelevant
+          if (declaredMethods.length == 1) {
+            declaredMethods =
+                Arrays.stream(serviceClass.getInterfaces())
+                    .filter(i -> i.getSimpleName().equals("AsyncService"))
+                    .findFirst()
+                    .orElse(superClass)
+                    .getDeclaredMethods();
+          }
+          for (Method method : declaredMethods) {
             try {
               entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
             } catch (Throwable e) {
@@ -65,6 +76,14 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
       } catch (Throwable e) {
         // this should be logged somehow
       }
+    }
+
+    public static Class<?> findImplBase(Class<?> serviceClass) {
+      Class<?> superclass = serviceClass.getSuperclass();
+      while (superclass != null && !superclass.getSimpleName().endsWith("ImplBase")) {
+        superclass = superclass.getSuperclass();
+      }
+      return superclass;
     }
   }
 }
