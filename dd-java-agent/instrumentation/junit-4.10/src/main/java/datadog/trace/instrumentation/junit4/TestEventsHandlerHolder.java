@@ -28,7 +28,10 @@ public abstract class TestEventsHandlerHolder {
   public static synchronized void start(TestFrameworkInstrumentation framework) {
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
     if (handler == null) {
-      HANDLERS.put(framework, InstrumentationBridge.createTestEventsHandler("junit", null, null));
+      HANDLERS.put(
+          framework,
+          InstrumentationBridge.createTestEventsHandler(
+              framework.name().toLowerCase(), null, null));
     }
   }
 
