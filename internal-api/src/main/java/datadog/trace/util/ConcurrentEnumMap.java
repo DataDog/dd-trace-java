@@ -61,7 +61,7 @@ public class ConcurrentEnumMap<K extends Enum<K>, V> implements Map<K, V> {
   @Override
   public V putIfAbsent(@Nonnull K key, V value) {
     int idx = indexOf(key);
-    for (; ; ) {
+    while (true) {
       V existing = values.get(idx);
       if (existing != null) {
         return existing;
@@ -91,7 +91,7 @@ public class ConcurrentEnumMap<K extends Enum<K>, V> implements Map<K, V> {
   @Override
   public V replace(@Nonnull K key, @Nonnull V value) {
     int idx = indexOf(key);
-    for (; ; ) {
+    while (true) {
       V cur = values.get(idx);
       if (cur == null) {
         return null;
