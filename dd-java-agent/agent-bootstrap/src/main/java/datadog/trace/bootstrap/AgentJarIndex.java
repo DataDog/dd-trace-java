@@ -145,7 +145,7 @@ public final class AgentJarIndex {
           int existingPrefixId = prefixTrie.apply(entryKey);
           if (-1 != existingPrefixId && prefixId != existingPrefixId) {
             log.warn(
-                "Detected duplicate content under this directory: '{}'. Ensure your content is under a distinct directory.",
+                "Detected duplicate content under '{}'. Ensure your content is under a distinct directory.",
                 entryKey);
           }
           prefixTrie.put(entryKey, prefixId);
