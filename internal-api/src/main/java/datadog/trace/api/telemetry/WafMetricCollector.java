@@ -38,6 +38,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTimeoutRequestCounter = new AtomicRequestCounter();
+  private static final AtomicLongArray wafInputTruncatedCounter =
+      new AtomicLongArray(TruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
@@ -106,6 +108,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void wafRequestTimeout() {
     wafTimeoutRequestCounter.increment();
+  }
+
+  public void wafInputTruncated(final TruncatedType truncatedType, long increment) {
+    wafInputTruncatedCounter.addAndGet(truncatedType.ordinal(), increment);
   }
 
   public void raspRuleEval(final RuleType ruleType) {
@@ -204,6 +210,17 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               false,
               true))) {
         return;
+      }
+    }
+
+    // Input Truncated Type metric
+    for (TruncatedType truncatedType : TruncatedType.values()) {
+      long counter = wafInputTruncatedCounter.getAndSet(truncatedType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(
+            new WafInputTruncatedRawMetric(counter, truncatedType.getValue()))) {
+          return;
+        }
       }
     }
 
@@ -357,6 +374,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "rule_triggered:" + triggered,
           "request_blocked:" + blocked,
           "waf_timeout:" + wafTimeout);
+    }
+  }
+
+  public static class WafInputTruncatedRawMetric extends WafMetric {
+    public WafInputTruncatedRawMetric(final long counter, final int truncationReason) {
+      super("waf.input_truncated", counter, "truncation_reason:" + truncationReason);
     }
   }
 
