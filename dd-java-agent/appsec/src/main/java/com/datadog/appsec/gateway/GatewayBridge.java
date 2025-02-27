@@ -830,7 +830,8 @@ public class GatewayBridge {
       }
 
       // API Security sampling requires http.route tag.
-      log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
+      log.debug(
+          "Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
       Object route = tags.get(Tags.HTTP_ROUTE);
       if (route == null) {
         log.debug("No route tag found in the current span, checking root");
@@ -842,7 +843,9 @@ public class GatewayBridge {
         ctx.setRoute((String) route);
         requestSampler.preSampleRequest(ctx);
       } else {
-        log.debug("Route tag is not a string, skipping API Security sampling: {}", route.getClass().getSimpleName());
+        log.debug(
+            "Route tag is not a string, skipping API Security sampling: {}",
+            route.getClass().getSimpleName());
       }
     }
 
