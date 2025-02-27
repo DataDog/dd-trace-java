@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng
 
+
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
@@ -18,6 +19,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
   static ComparableVersion currentTestNGVersion = new ComparableVersion(TracingListener.FRAMEWORK_VERSION)
   static ComparableVersion testNGv75 = new ComparableVersion("7.5")
+  static ComparableVersion testNGv70 = new ComparableVersion("7.0")
 
   def "test #testcaseName"() {
     runTests(tests, null, success)
@@ -241,12 +243,43 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
+  def "test known tests ordering #testcaseName"() {
+    Assumptions.assumeTrue(isTestOrderingSupported())
+
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertTestsOrder(expectedOrder)
+
+    where:
+    testcaseName       | tests                                      | knownTestsList | expectedOrder
+    "ordering-methods" | [TestSucceedAndSkipped]                    | [test("org.example.TestSucceedAndSkipped", "test_skipped")]                                                                                | [
+      test("org.example.TestSucceedAndSkipped", "test_succeed"),
+      test("org.example.TestSucceedAndSkipped", "test_skipped")
+    ]
+    "ordering-classes" | [TestSucceedNested, TestSucceedAndSkipped] | [
+      test('org.example.TestSucceedAndSkipped', 'test_succeed'),
+      test('org.example.TestSucceedAndSkipped', 'test_skipped'),
+      test('org.example.TestSucceedNested$NestedSuite', 'test_succeed_nested'),
+    ]                                                                                | [
+      test('org.example.TestSucceedNested', 'test_succeed'),
+      test('org.example.TestSucceedAndSkipped', 'test_skipped'),
+      test('org.example.TestSucceedAndSkipped', 'test_succeed'),
+      test('org.example.TestSucceedNested$NestedSuite', 'test_succeed_nested'),
+    ]
+  }
+
   private static boolean isEFDSupported() {
     currentTestNGVersion >= testNGv75
   }
 
   private static boolean isExceptionSuppressionSupported() {
     currentTestNGVersion >= testNGv75
+  }
+
+  private static boolean isTestOrderingSupported() {
+    currentTestNGVersion >= testNGv70
   }
 
   protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true) {

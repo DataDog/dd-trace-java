@@ -59,7 +59,9 @@ import java.util.function.Predicate
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
-  static String dummyModule
+  public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
+  public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
+
   static final String DUMMY_CI_TAG = "dummy_ci_tag"
   static final String DUMMY_CI_TAG_VALUE = "dummy_ci_tag_value"
   static final String DUMMY_SOURCE_PATH = "dummy_source_path"
@@ -69,29 +71,50 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   static final int DUMMY_TEST_CLASS_END = 19
   static final Collection<String> DUMMY_CODE_OWNERS = ["owner1", "owner2"]
 
-  private static Path agentKeyFile
+  static final AGENT_KEY_FILE = Files.createTempFile("TestFrameworkTest", "dummy_agent_key")
 
-  private static final List<TestIdentifier> skippableTests = new ArrayList<>()
-  private static final List<TestFQN> flakyTests = new ArrayList<>()
-  private static final List<TestFQN> knownTests = new ArrayList<>()
-  private static final List<TestFQN> quarantinedTests = new ArrayList<>()
-  private static final List<TestFQN> disabledTests = new ArrayList<>()
-  private static final List<TestFQN> attemptToFixTests = new ArrayList<>()
-  private static volatile Diff diff = LineDiff.EMPTY
+  def cleanupSpec() {
+    Files.deleteIfExists(AGENT_KEY_FILE)
+  }
 
-  private static volatile boolean itrEnabled = false
-  private static volatile boolean flakyRetryEnabled = false
-  private static volatile boolean earlyFlakinessDetectionEnabled = false
-  private static volatile boolean impactedTestsDetectionEnabled = false
-  private static volatile boolean testManagementEnabled = false
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
 
-  public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
-  public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
+    Files.write(AGENT_KEY_FILE, "dummy".getBytes())
 
-  def setupSpec() {
-    def currentPath = Paths.get("").toAbsolutePath()
-    def rootPath = currentPath.parent
-    dummyModule = rootPath.relativize(currentPath)
+    injectSysConfig(GeneralConfig.API_KEY_FILE, AGENT_KEY_FILE.toString())
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
+  }
+
+  private static final class Settings {
+    private volatile List<TestIdentifier> skippableTests = []
+    private volatile List<TestFQN> flakyTests
+    private volatile List<TestFQN> knownTests
+    private volatile List<TestFQN> quarantinedTests = []
+    private volatile List<TestFQN> disabledTests = []
+    private volatile List<TestFQN> attemptToFixTests = []
+    private volatile Diff diff = LineDiff.EMPTY
+
+    private volatile boolean itrEnabled
+    private volatile boolean flakyRetryEnabled
+    private volatile boolean earlyFlakinessDetectionEnabled
+    private volatile boolean impactedTestsDetectionEnabled
+    private volatile boolean testManagementEnabled
+  }
+
+  private final Settings settings = new Settings()
+
+  @Override
+  def setup() {
+    TEST_WRITER.setFilter(spanFilter)
 
     def ciProvider = Provider.GITHUBACTIONS
 
@@ -110,44 +133,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     linesResolver.getMethodLines(_ as Method) >> new LinesResolver.Lines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
     linesResolver.getClassLines(_ as Class<?>) >> new LinesResolver.Lines(DUMMY_TEST_CLASS_START, DUMMY_TEST_CLASS_END)
 
-    def executionSettingsFactory = new ExecutionSettingsFactory() {
-      @Override
-      ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
-        def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
-        ? new EarlyFlakeDetectionSettings(true, [
-          new ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-          new ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
-        ], 0)
-        : EarlyFlakeDetectionSettings.DEFAULT
-
-        def testManagementSettings = testManagementEnabled
-        ? new TestManagementSettings(true, 5)
-        : TestManagementSettings.DEFAULT
-
-        Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
-        for (TestIdentifier skippableTest : skippableTests) {
-          skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
-        }
-
-        return new ExecutionSettings(
-        itrEnabled,
-        false,
-        itrEnabled,
-        flakyRetryEnabled,
-        impactedTestsDetectionEnabled,
-        earlyFlakinessDetectionSettings,
-        testManagementSettings,
-        itrEnabled ? "itrCorrelationId" : null,
-        skippableTestsWithMetadata,
-        [:],
-        flakyTests,
-        earlyFlakinessDetectionEnabled || CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(Config.get().ciVisibilityTestOrder) ? knownTests : null,
-        quarantinedTests,
-        disabledTests,
-        attemptToFixTests,
-        diff)
-      }
-    }
+    def executionSettingsFactory = new MockExecutionSettingsFactory(settings)
 
     def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
@@ -173,7 +159,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       )
     }
 
-    InstrumentationBridge.registerTestEventsHandlerFactory(new TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector))
+    def currentPath = Paths.get("").toAbsolutePath()
+    def rootPath = currentPath.parent
+    def moduleName = rootPath.relativize(currentPath)
+    InstrumentationBridge.registerTestEventsHandlerFactory(new MockTestEventHandlerFactory(testFrameworkSessionFactory, metricCollector, moduleName))
 
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def config = Config.get()
@@ -208,19 +197,66 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     CoveragePerTestBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
-  private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
+  private static final class MockExecutionSettingsFactory implements ExecutionSettingsFactory {
+    private final Settings settings
+
+    MockExecutionSettingsFactory(Settings settings) {
+      this.settings = settings
+    }
+
+    @Override
+    ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
+      def earlyFlakinessDetectionSettings = settings.earlyFlakinessDetectionEnabled
+      ? new EarlyFlakeDetectionSettings(true, [
+        new ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+        new ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+      ], 0)
+      : EarlyFlakeDetectionSettings.DEFAULT
+
+      def testManagementSettings = settings.testManagementEnabled
+      ? new TestManagementSettings(true, 5)
+      : TestManagementSettings.DEFAULT
+
+      Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
+      for (TestIdentifier skippableTest : settings.skippableTests) {
+        skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
+      }
+
+      return new ExecutionSettings(
+      settings.itrEnabled,
+      false,
+      settings.itrEnabled,
+      settings.flakyRetryEnabled,
+      settings.impactedTestsDetectionEnabled,
+      earlyFlakinessDetectionSettings,
+      testManagementSettings,
+      settings.itrEnabled ? "itrCorrelationId" : null,
+      skippableTestsWithMetadata,
+      [:],
+      settings.flakyTests,
+      settings.knownTests,
+      settings.quarantinedTests,
+      settings.disabledTests,
+      settings.attemptToFixTests,
+      settings.diff)
+    }
+  }
+
+  private static final class MockTestEventHandlerFactory implements TestEventsHandler.Factory {
     private final TestFrameworkSession.Factory testFrameworkSessionFactory
     private final CiVisibilityMetricCollector metricCollector
+    private final String moduleName
 
-    TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector) {
+    MockTestEventHandlerFactory(testFrameworkSessionFactory, metricCollector, moduleName) {
       this.testFrameworkSessionFactory = testFrameworkSessionFactory
       this.metricCollector = metricCollector
+      this.moduleName = moduleName
     }
 
     @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
-      TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null)
+      TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
       new TestEventsHandlerImpl(metricCollector, testSession, testModule,
       suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
       testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
@@ -261,91 +297,48 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Override
-  void setup() {
-    skippableTests.clear()
-    flakyTests.clear()
-    knownTests.clear()
-    quarantinedTests.clear()
-    disabledTests.clear()
-    attemptToFixTests.clear()
-    diff = LineDiff.EMPTY
-    itrEnabled = false
-    flakyRetryEnabled = false
-    earlyFlakinessDetectionEnabled = false
-    impactedTestsDetectionEnabled = false
-    testManagementEnabled = false
-
-    TEST_WRITER.setFilter(spanFilter)
-  }
-
   def givenSkippableTests(List<TestIdentifier> tests) {
-    skippableTests.addAll(tests)
-    itrEnabled = true
+    settings.skippableTests = new ArrayList<>(tests)
+    settings.itrEnabled = true
   }
 
   def givenFlakyTests(List<TestFQN> tests) {
-    flakyTests.addAll(tests)
+    settings.flakyTests = new ArrayList<>(tests)
   }
 
   def givenKnownTests(List<TestFQN> tests) {
-    knownTests.addAll(tests)
+    settings.knownTests = new ArrayList<>(tests)
   }
 
   def givenQuarantinedTests(List<TestFQN> tests) {
-    quarantinedTests.addAll(tests)
-    testManagementEnabled = true
+    settings.quarantinedTests = new ArrayList<>(tests)
+    settings.testManagementEnabled = true
   }
 
   def givenDisabledTests(List<TestFQN> tests) {
-    disabledTests.addAll(tests)
-    testManagementEnabled = true
+    settings.disabledTests = new ArrayList<>(tests)
+    settings.testManagementEnabled = true
   }
 
   def givenAttemptToFixTests(List<TestFQN> tests) {
-    attemptToFixTests.addAll(tests)
-    testManagementEnabled = true
+    settings.attemptToFixTests = new ArrayList<>(tests)
+    settings.testManagementEnabled = true
   }
 
   def givenDiff(Diff diff) {
-    this.diff = diff
+    settings.diff = diff
   }
 
   def givenFlakyRetryEnabled(boolean flakyRetryEnabled) {
-    this.flakyRetryEnabled = flakyRetryEnabled
+    settings.flakyRetryEnabled = flakyRetryEnabled
   }
 
   def givenEarlyFlakinessDetectionEnabled(boolean earlyFlakinessDetectionEnabled) {
-    this.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
+    settings.earlyFlakinessDetectionEnabled = earlyFlakinessDetectionEnabled
   }
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
-    this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  def givenTestsOrder(String testsOrder) {
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testsOrder)
-  }
-
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    agentKeyFile = Files.createTempFile("TestFrameworkTest", "dummy_agent_key")
-    Files.write(agentKeyFile, "dummy".getBytes())
-
-    injectSysConfig(GeneralConfig.API_KEY_FILE, agentKeyFile.toString())
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
-    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
-  }
-
-  def cleanupSpec() {
-    Files.deleteIfExists(agentKeyFile)
+    settings.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
   }
 
   def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
