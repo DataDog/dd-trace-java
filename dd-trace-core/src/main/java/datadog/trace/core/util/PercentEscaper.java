@@ -20,7 +20,6 @@
 
 package datadog.trace.core.util;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.CheckForNull;
 
 /**
@@ -108,23 +107,23 @@ public final class PercentEscaper {
     return octets;
   }
 
-  public String escapeKey(String s, AtomicInteger size) {
+  public String escapeKey(String s, int[] size) {
     return escape(s, size, unsafeKeyOctets);
   }
 
-  public String escapeValue(String s, AtomicInteger size) {
+  public String escapeValue(String s, int[] size) {
     return escape(s, size, unsafeKeyOctets);
   }
 
   /** Escape the provided String, using percent-style URL Encoding. */
-  public String escape(String s, AtomicInteger size, boolean[] unsafeOctets) {
+  public String escape(String s, int[] size, boolean[] unsafeOctets) {
     int slen = s.length();
     for (int index = 0; index < slen; index++) {
       char c = s.charAt(index);
       if (c > '~' || c <= ' ' || c <= unsafeOctets.length && unsafeOctets[c]) {
         return escapeSlow(s, index, size, unsafeOctets);
       }
-      size.incrementAndGet();
+      size[0]++;
     }
     return s;
   }
@@ -148,8 +147,7 @@ public final class PercentEscaper {
    * @throws NullPointerException if {@code string} is null
    * @throws IllegalArgumentException if invalid surrogate characters are encountered
    */
-  private static String escapeSlow(
-      String s, int index, AtomicInteger size, boolean[] unsafeOctets) {
+  private static String escapeSlow(String s, int index, int[] size, boolean[] unsafeOctets) {
     int end = s.length();
 
     // Get a destination buffer and setup some loop variables.
@@ -219,7 +217,7 @@ public final class PercentEscaper {
   /** Escapes the given Unicode code point in UTF-8. */
   @CheckForNull
   @SuppressWarnings("UngroupedOverloads")
-  private static char[] escape(int cp, AtomicInteger size, boolean[] unsafeOctets) {
+  private static char[] escape(int cp, int[] size, boolean[] unsafeOctets) {
     // We should never get negative values here but if we do it will throw an
     // IndexOutOfBoundsException, so at least it will get spotted.
     if (cp < unsafeOctets.length && !unsafeOctets[cp]) {
@@ -231,7 +229,7 @@ public final class PercentEscaper {
       dest[0] = '%';
       dest[2] = UPPER_HEX_DIGITS[cp & 0xF];
       dest[1] = UPPER_HEX_DIGITS[cp >>> 4];
-      size.incrementAndGet();
+      size[0]++;
       return dest;
     } else if (cp <= 0x7ff) {
       // Two byte UTF-8 characters [cp >= 0x80 && cp <= 0x7ff]
@@ -246,7 +244,7 @@ public final class PercentEscaper {
       dest[2] = UPPER_HEX_DIGITS[cp & 0xF];
       cp >>>= 4;
       dest[1] = UPPER_HEX_DIGITS[0xC | cp];
-      size.addAndGet(2);
+      size[0] += 2;
       return dest;
     } else if (cp <= 0xffff) {
       // Three byte UTF-8 characters [cp >= 0x800 && cp <= 0xffff]
@@ -265,7 +263,7 @@ public final class PercentEscaper {
       dest[4] = UPPER_HEX_DIGITS[0x8 | (cp & 0x3)];
       cp >>>= 2;
       dest[2] = UPPER_HEX_DIGITS[cp];
-      size.addAndGet(3);
+      size[0] += 3;
       return dest;
     } else if (cp <= 0x10ffff) {
       char[] dest = new char[12];
@@ -289,7 +287,7 @@ public final class PercentEscaper {
       dest[4] = UPPER_HEX_DIGITS[0x8 | (cp & 0x3)];
       cp >>>= 2;
       dest[2] = UPPER_HEX_DIGITS[cp & 0x7];
-      size.addAndGet(4);
+      size[0] += 4;
       return dest;
     } else {
       // If this ever happens it is due to bug in UnicodeEscaper, not bad input.

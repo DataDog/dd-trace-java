@@ -12,7 +12,6 @@ import java.net.URLDecoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
@@ -70,11 +69,11 @@ public class BaggagePropagator implements Propagator {
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
     for (final Map.Entry<String, String> entry : baggageContext.asMap().entrySet()) {
-      AtomicInteger pairSize = new AtomicInteger(1);
+      int[] pairSize = {1};
       // if there are already baggage items processed, add and allocate bytes for a comma
       if (processedBaggage != 0) {
         baggageText.append(',');
-        pairSize.incrementAndGet();
+        pairSize[0]++;
       }
 
       baggageText.append(UTF_ESCAPER.escapeKey(entry.getKey(), pairSize));
@@ -87,11 +86,11 @@ public class BaggagePropagator implements Propagator {
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
-      if (currentBytes + pairSize.get() > maxBytes) {
+      if (currentBytes + pairSize[0] > maxBytes) {
         baggageText.setLength(currentBytes);
         break;
       }
-      currentBytes += pairSize.get();
+      currentBytes += pairSize[0];
     }
 
     String baggageString = baggageText.toString();
