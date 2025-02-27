@@ -14,7 +14,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test file doesn't exist"() {
     setup:
-    StableConfigSource config = new StableConfigSource(StableConfigSource.USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG)
+    StableConfigSource config = new StableConfigSource(StableConfigSource.LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     expect:
     config.getKeys().size() == 0
@@ -27,7 +27,7 @@ class StableConfigSourceTest extends DDSpecification {
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
-    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
     config.getKeys().size() == 0
@@ -49,7 +49,7 @@ class StableConfigSourceTest extends DDSpecification {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
-    StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+    StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
     cfg.get("service") == "svc"
@@ -74,7 +74,7 @@ class StableConfigSourceTest extends DDSpecification {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
-    StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+    StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
     stableCfg.getConfigId() == null
@@ -100,7 +100,7 @@ class StableConfigSourceTest extends DDSpecification {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
 
-    StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.USER_STABLE_CONFIG)
+    StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
     for (key in configs.keySet()) {
