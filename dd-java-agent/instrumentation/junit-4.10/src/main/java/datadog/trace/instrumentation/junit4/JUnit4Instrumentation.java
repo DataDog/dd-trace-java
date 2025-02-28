@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -113,6 +114,8 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
           return;
         }
       }
+
+      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4);
 
       final TracingListener tracingListener =
           new JUnit4TracingListener(

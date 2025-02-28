@@ -36,7 +36,10 @@ public class SpockUtils {
       METHOD_HANDLES.method("org.spockframework.runtime.model.TestTag", "getValue");
 
   static {
-    TestDataFactory.register("spock", SpockUtils::toTestIdentifier, SpockUtils::toTestSourceData);
+    TestDataFactory.register(
+        JUnitPlatformUtils.ENGINE_ID_SPOCK,
+        SpockUtils::toTestIdentifier,
+        SpockUtils::toTestSourceData);
   }
 
   /*

@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.CucumberUtils;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
@@ -97,8 +98,9 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-              testIdentifier, TestSourceData.UNKNOWN);
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.CUCUMBER)
+              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
