@@ -48,6 +48,7 @@ public abstract class TestNGUtils {
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
 
   private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
+  private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
 
   private static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -269,6 +270,10 @@ public abstract class TestNGUtils {
     return testNGv75.compareTo(new ComparableVersion(version)) <= 0;
   }
 
+  public static boolean isTestOrderingSupported(String version) {
+    return testNGv70.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
   public static List<LibraryCapability> availableCapabilities(String version) {
     List<LibraryCapability> baseCapabilities =
         new ArrayList<>(
@@ -286,6 +291,9 @@ public abstract class TestNGUtils {
     }
     if (isExceptionSuppressionSupported && isEFDSupported) {
       baseCapabilities.add(LibraryCapability.ATTEMPT_TO_FIX);
+    }
+    if (isTestOrderingSupported(version)) {
+      baseCapabilities.add(LibraryCapability.FAIL_FAST);
     }
 
     return baseCapabilities;

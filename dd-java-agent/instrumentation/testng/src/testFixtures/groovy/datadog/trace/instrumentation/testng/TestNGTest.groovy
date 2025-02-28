@@ -10,7 +10,6 @@ import datadog.trace.civisibility.CiVisibilityTestUtils
 import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
-import org.apache.maven.artifact.versioning.ComparableVersion
 import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.testng.TestNG
@@ -22,7 +21,6 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   static testOutputDir = "build/tmp/test-output"
 
   static currentTestNGVersion = TestNGUtils.getTestNGVersion()
-  static ComparableVersion testNGv70 = new ComparableVersion("7.0")
 
   def "test #testcaseName"() {
     runTests(tests, null, success)
@@ -246,9 +244,9 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
-  
+
   def "test known tests ordering #testcaseName"() {
-    Assumptions.assumeTrue(isTestOrderingSupported())
+    Assumptions.assumeTrue(TestNGUtils.isTestOrderingSupported(currentTestNGVersion))
 
     givenKnownTests(knownTestsList)
 
@@ -300,33 +298,23 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
       DDTags.LIBRARY_CAPABILITIES_TIA,
       DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
       DDTags.LIBRARY_CAPABILITIES_DISABLED
-    ]                                                                                                           | (!TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
-    "test-capabilities-efd"                 | [
+    ]                                                                                                           | (!TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && !TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-ordering"                | [
       DDTags.LIBRARY_CAPABILITIES_TIA,
       DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
       DDTags.LIBRARY_CAPABILITIES_DISABLED,
-      DDTags.LIBRARY_CAPABILITIES_EFD
-    ]                                                                          | (TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
-    "test-capabilities-suppression"         | [
+      DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER
+    ]                                                                                                           | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && !TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-ordering-efd-suppression" | [
       DDTags.LIBRARY_CAPABILITIES_TIA,
       DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
       DDTags.LIBRARY_CAPABILITIES_DISABLED,
-      DDTags.LIBRARY_CAPABILITIES_ATR,
-      DDTags.LIBRARY_CAPABILITIES_QUARANTINE
-    ]                                  | (!TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
-    "test-capabilities-efd-and-suppression" | [
-      DDTags.LIBRARY_CAPABILITIES_TIA,
-      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
-      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER,
       DDTags.LIBRARY_CAPABILITIES_EFD,
       DDTags.LIBRARY_CAPABILITIES_ATR,
       DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
       DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
-    ] | (TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
-  }
-
-  private static boolean isTestOrderingSupported() {
-    currentTestNGVersion >= testNGv70
+    ] | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
   }
 
   protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true) {
