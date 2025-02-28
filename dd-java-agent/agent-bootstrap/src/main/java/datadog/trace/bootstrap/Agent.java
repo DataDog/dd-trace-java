@@ -1155,17 +1155,13 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    String simpleLoggerJsonInSystemPropertySetByUser =
-        System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
-
-    if ((simpleLoggerJsonInSystemPropertySetByUser != null
-        && simpleLoggerJsonInSystemPropertySetByUser.equalsIgnoreCase("true"))) {
+    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
-      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
     }
 
     String logLevel;
