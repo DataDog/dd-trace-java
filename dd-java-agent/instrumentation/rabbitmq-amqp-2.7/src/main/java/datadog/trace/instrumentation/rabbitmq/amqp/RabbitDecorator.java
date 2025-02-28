@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_EXCHANGE;
@@ -205,7 +206,9 @@ public class RabbitDecorator extends MessagingClientDecorator {
     final Map<String, Object> headers =
         propagate && null != properties ? properties.getHeaders() : null;
     AgentSpanContext parentContext =
-        null != headers ? propagate().extract(headers, ContextVisitors.objectValuesMap()) : null;
+        null != headers
+            ? extractContextAndGetSpanContext(headers, ContextVisitors.objectValuesMap())
+            : null;
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
 
@@ -253,7 +256,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       sortedTags.put(TYPE_TAG, "rabbitmq");
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setCheckpoint(span, sortedTags, produceMillis, 0);
+          .setCheckpoint(span, create(sortedTags, produceMillis, 0));
     }
 
     CONSUMER_DECORATE.afterStart(span);

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.apache.pekko.http.javadsl.model.headers.RawHeader;
@@ -33,7 +33,7 @@ public final class PekkoHttpClientHelpers {
     }
   }
 
-  public static class PekkoHttpHeaders implements AgentPropagation.Setter<HttpRequest> {
+  public static class PekkoHttpHeaders implements CarrierSetter<HttpRequest> {
     private HttpRequest request;
     // Did this request have a span when the PekkoHttpHeaders object was created?
     private final boolean hadSpan;

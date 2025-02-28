@@ -7,7 +7,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.core.DDTraceCoreInfo
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl

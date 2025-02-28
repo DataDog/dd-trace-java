@@ -25,9 +25,9 @@ public interface TestFrameworkModule {
    * @return {@code true} if the test is new, {@code false} if it is an existing test <b>or if the
    *     list of known tests is not available</b>.
    */
-  boolean isNew(TestIdentifier test);
+  boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(TestIdentifier test);
+  boolean isFlaky(@Nonnull TestIdentifier test);
 
   boolean isModified(TestSourceData testSourceData);
 

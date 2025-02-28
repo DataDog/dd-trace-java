@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.jaxrs;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.ws.rs.core.MultivaluedMap;
 
 @ParametersAreNonnullByDefault
-public final class InjectAdapter
-    implements AgentPropagation.Setter<MultivaluedMap<String, Object>> {
+public final class InjectAdapter implements CarrierSetter<MultivaluedMap<String, Object>> {
 
   public static final InjectAdapter SETTER = new InjectAdapter();
 
