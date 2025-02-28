@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -252,6 +253,28 @@ public final class ConfigProvider {
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      if (!parsedMap.isEmpty()) {
+        origin = sources[i].origin();
+      }
+      merged.putAll(parsedMap);
+    }
+    if (collectConfig) {
+      ConfigCollector.get().put(key, merged, origin);
+    }
+    return merged;
+  }
+
+  public Map<String, String> getMergedTagsMap(String key, String... aliases) {
+    Map<String, String> merged = new HashMap<>();
+    ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    // System properties take precedence over env
+    // prior art:
+    // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
+    // We reverse iterate to allow overrides
+    for (int i = sources.length - 1; 0 <= i; i--) {
+      String value = sources[i].get(key, aliases);
+      Map<String, String> parsedMap =
+          ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
       }
