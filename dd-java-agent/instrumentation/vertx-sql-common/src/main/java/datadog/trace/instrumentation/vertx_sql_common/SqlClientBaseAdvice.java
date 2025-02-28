@@ -4,7 +4,6 @@ import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
@@ -23,11 +22,6 @@ public class SqlClientBaseAdvice {
               DBQueryInfo.ofStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
-
-    // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.ping();
-    }
   }
 
   public static class PreparedQuery {
@@ -41,11 +35,6 @@ public class SqlClientBaseAdvice {
               InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
               DBQueryInfo.ofPreparedStatement(sql));
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
-    }
-
-    // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
-    private static void muzzleCheck(MySQLConnection connection) {
-      connection.ping();
     }
   }
 }
