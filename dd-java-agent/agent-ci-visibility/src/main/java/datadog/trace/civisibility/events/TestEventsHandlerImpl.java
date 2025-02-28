@@ -300,6 +300,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return testModule.executionPriority(test, testSource);
+  }
+
+  @Override
   public boolean isNew(@Nonnull TestIdentifier test) {
     return testModule.isNew(test);
   }
