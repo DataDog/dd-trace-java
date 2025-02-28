@@ -1,56 +1,187 @@
 package com.datadog.appsec.api.security;
 
+import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
-import java.util.concurrent.atomic.AtomicLong;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
+import java.util.Deque;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Semaphore;
+import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ApiSecurityRequestSampler {
 
-  private volatile int sampling;
-  private final AtomicLong cumulativeCounter = new AtomicLong();
+  private static final Logger log = LoggerFactory.getLogger(ApiSecurityRequestSampler.class);
 
-  public ApiSecurityRequestSampler(final Config config) {
-    sampling = computeSamplingParameter(config.getApiSecurityRequestSampleRate());
+  /**
+   * A maximum number of request contexts we'll keep open past the end of request at any given time.
+   * This will avoid excessive memory usage in case of a high number of concurrent requests, and
+   * should also prevent memory leaks.
+   */
+  private static final int MAX_POST_PROCESSING_TASKS = 4;
+  /** Maximum number of entries in the access map. */
+  private static final int MAX_SIZE = 4096;
+  /** Mapping from endpoint hash to last access timestamp in millis. */
+  private final ConcurrentHashMap<Long, Long> accessMap;
+  /** Deque of endpoint hashes ordered by access time. Oldest is always first. */
+  private final Deque<Long> accessDeque;
+
+  private final long expirationTimeInMs;
+  private final int capacity;
+  private final TimeSource timeSource;
+  private final Semaphore counter = new Semaphore(MAX_POST_PROCESSING_TASKS);
+
+  public ApiSecurityRequestSampler() {
+    this(
+        MAX_SIZE,
+        (long) (Config.get().getApiSecuritySampleDelay() * 1_000),
+        SystemTimeSource.INSTANCE);
+  }
+
+  public ApiSecurityRequestSampler(
+      int capacity, long expirationTimeInMs, @Nonnull TimeSource timeSource) {
+    this.capacity = capacity;
+    this.expirationTimeInMs = expirationTimeInMs;
+    this.accessMap = new ConcurrentHashMap<>();
+    this.accessDeque = new ConcurrentLinkedDeque<>();
+    this.timeSource = timeSource;
   }
 
   /**
-   * Sets the new sampling parameter
-   *
-   * @return {@code true} if the value changed
+   * Prepare a request context for later sampling decision. This method should be called at request
+   * end, and is thread-safe. If a request can potentially be sampled, this method will call {@link
+   * AppSecRequestContext#setKeepOpenForApiSecurityPostProcessing(boolean)}.
    */
-  public boolean setSampling(final float newSamplingFloat) {
-    int newSampling = computeSamplingParameter(newSamplingFloat);
-    if (newSampling != sampling) {
-      sampling = newSampling;
-      cumulativeCounter.set(0); // Reset current sampling counter
-      return true;
+  public void preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
+    final String route = ctx.getRoute();
+    if (route == null) {
+      log.debug("Route is null, skipping API security sampling");
+      return;
     }
-    return false;
+    final String method = ctx.getMethod();
+    if (method == null) {
+      log.debug("Method is null, skipping API security sampling");
+      return;
+    }
+    final int statusCode = ctx.getResponseStatus();
+    if (statusCode == 0) {
+      log.debug("Status code is 0, skipping API security sampling");
+      return;
+    }
+    long hash = computeApiHash(route, method, statusCode);
+    ctx.setApiSecurityEndpointHash(hash);
+    if (!isApiAccessExpired(hash)) {
+      log.debug("API security sampling is not required for this request");
+      return;
+    }
+    if (counter.tryAcquire()) {
+      log.debug("API security sampling is required for this request (presampled)");
+      ctx.setKeepOpenForApiSecurityPostProcessing(true);
+    }
   }
 
-  public int getSampling() {
-    return sampling;
+  /** Get the final sampling decision. This method is NOT thread-safe. */
+  public boolean sampleRequest(AppSecRequestContext ctx) {
+    if (ctx == null) {
+      return false;
+    }
+    final Long hash = ctx.getApiSecurityEndpointHash();
+    if (hash == null) {
+      // This should never happen, it should have been short-circuited before.
+      return false;
+    }
+    return updateApiAccessIfExpired(hash);
   }
 
-  public boolean sampleRequest() {
-    long prevValue = cumulativeCounter.getAndAdd(sampling);
-    long newValue = prevValue + sampling;
-    if (newValue / 100 == prevValue / 100 + 1) {
-      // Sample request
-      return true;
-    }
-    // Skipped by sampling
-    return false;
+  /** Release one permit for the sampler. This must be called after processing a span. */
+  void releaseOne() {
+    counter.release();
   }
 
-  static int computeSamplingParameter(final float pct) {
-    if (pct >= 1) {
-      return 100;
+  private boolean updateApiAccessIfExpired(final long hash) {
+    final long currentTime = timeSource.getCurrentTimeMillis();
+
+    Long lastAccess = accessMap.get(hash);
+    if (lastAccess != null && currentTime - lastAccess < expirationTimeInMs) {
+      return false;
     }
-    if (pct < 0) {
-      // Api security can only be disabled by setting the sampling to zero, so we set it to 100%.
-      // TODO: We probably want a warning here.
-      return 100;
+
+    if (accessMap.put(hash, currentTime) == null) {
+      accessDeque.addLast(hash);
+      // If we added a new entry, we perform purging.
+      cleanupExpiredEntries(currentTime);
+    } else {
+      // This is now the most recently accessed entry.
+      accessDeque.remove(hash);
+      accessDeque.addLast(hash);
     }
-    return (int) (pct * 100);
+
+    return true;
+  }
+
+  private boolean isApiAccessExpired(final long hash) {
+    final long currentTime = timeSource.getCurrentTimeMillis();
+    final Long lastAccess = accessMap.get(hash);
+    return lastAccess == null || currentTime - lastAccess >= expirationTimeInMs;
+  }
+
+  private void cleanupExpiredEntries(final long currentTime) {
+    // Purge all expired entries.
+    while (!accessDeque.isEmpty()) {
+      final Long oldestHash = accessDeque.peekFirst();
+      if (oldestHash == null) {
+        // Should never happen
+        continue;
+      }
+
+      final Long lastAccessTime = accessMap.get(oldestHash);
+      if (lastAccessTime == null) {
+        // Should never  happen
+        continue;
+      }
+
+      if (currentTime - lastAccessTime < expirationTimeInMs) {
+        // The oldest hash is up-to-date, so stop here.
+        break;
+      }
+
+      accessDeque.pollFirst();
+      accessMap.remove(oldestHash);
+    }
+
+    // If we went over capacity, remove the oldest entries until we are within the limit.
+    // This should never be more than 1.
+    final int toRemove = accessMap.size() - this.capacity;
+    for (int i = 0; i < toRemove; i++) {
+      Long oldestHash = accessDeque.pollFirst();
+      if (oldestHash != null) {
+        accessMap.remove(oldestHash);
+      }
+    }
+  }
+
+  private long computeApiHash(final String route, final String method, final int statusCode) {
+    long result = 17;
+    result = 31 * result + route.hashCode();
+    result = 31 * result + method.hashCode();
+    result = 31 * result + statusCode;
+    return result;
+  }
+
+  public static final class NoOp extends ApiSecurityRequestSampler {
+    public NoOp() {
+      super(0, 0, SystemTimeSource.INSTANCE);
+    }
+
+    @Override
+    public void preSampleRequest(@Nonnull AppSecRequestContext ctx) {}
+
+    @Override
+    public boolean sampleRequest(AppSecRequestContext ctx) {
+      return false;
+    }
   }
 }
