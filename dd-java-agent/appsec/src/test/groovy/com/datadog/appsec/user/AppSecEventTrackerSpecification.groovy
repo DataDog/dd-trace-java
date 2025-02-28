@@ -3,6 +3,7 @@ package com.datadog.appsec.user
 import com.datadog.appsec.gateway.NoopFlow
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingException
+import datadog.appsec.api.user.User
 import datadog.trace.api.EventTracker
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.ProductTraceSource
@@ -31,6 +32,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS
 import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP
+import static datadog.appsec.api.user.User.setUser
 
 class AppSecEventTrackerSpecification extends DDSpecification {
 
@@ -72,6 +74,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
         }
       }
     GlobalTracer.setEventTracker(tracker)
+    User.setUserService(tracker)
     ActiveSubsystems.APPSEC_ACTIVE = true
   }
 
@@ -128,6 +131,30 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     0 * _
   }
 
+  def 'test track user (SDK)'() {
+    when:
+    setUser(USER_ID, ['key1': 'value1', 'key2': 'value2'], propagated)
+
+    then:
+    1 * traceSegment.setTagTop('usr.id', USER_ID)
+    1 * traceSegment.setTagTop('usr', ['key1':'value1', 'key2':'value2'])
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', SDK.fullName())
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
+    if (propagated) {
+      1 * traceSegment.setTagTop('_dd.p.usr.id', USER_ID.bytes.encodeBase64().toString())
+    } else {
+      0 * traceSegment.setTagTop('_dd.p.usr.id', _)
+    }
+    1 * user.apply(_ as RequestContext, USER_ID) >> NoopFlow.INSTANCE
+    0 * _
+
+    where:
+    propagated | _
+    true       | _
+    false      | _
+  }
+
   def 'test wrong event argument validation (SDK)'() {
     when:
     GlobalTracer.getEventTracker().trackLoginSuccessEvent(null, null)
@@ -161,6 +188,12 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
     when:
     GlobalTracer.getEventTracker().trackCustomEvent('', null)
+
+    then:
+    thrown IllegalArgumentException
+
+    when:
+    setUser(null, null)
 
     then:
     thrown IllegalArgumentException
