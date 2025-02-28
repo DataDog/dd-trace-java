@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5.order;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import java.util.Comparator;
@@ -15,41 +16,44 @@ public class FailFastClassOrderer implements ClassOrderer {
 
   private final TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler;
   private final @Nullable ClassOrderer delegate;
-  private final Comparator<ClassDescriptor> knownTestSuitesComparator;
+  private final Comparator<ClassDescriptor> executionOrderComparator;
 
   public FailFastClassOrderer(
       TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler,
       @Nullable ClassOrderer delegate) {
     this.testEventsHandler = testEventsHandler;
     this.delegate = delegate;
-    this.knownTestSuitesComparator = Comparator.comparing(this::knownAndStableTestsPercentage);
+    this.executionOrderComparator = Comparator.comparing(this::classExecutionPriority).reversed();
   }
 
-  private int knownAndStableTestsPercentage(ClassDescriptor classDescriptor) {
+  private int classExecutionPriority(ClassDescriptor classDescriptor) {
     TestDescriptor testDescriptor = JUnit5OrderUtils.getTestDescriptor(classDescriptor);
-    return 100 - unknownAndFlakyTestsPercentage(testDescriptor);
+    return executionPriority(testDescriptor);
   }
 
-  private int unknownAndFlakyTestsPercentage(TestDescriptor testDescriptor) {
+  private int executionPriority(TestDescriptor testDescriptor) {
     if (testDescriptor == null) {
       return 0;
     }
+
     if (testDescriptor.isTest() || JUnitPlatformUtils.isParameterizedTest(testDescriptor)) {
       TestIdentifier testIdentifier = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
-      return testEventsHandler.isNew(testIdentifier) || testEventsHandler.isFlaky(testIdentifier)
-          ? 100
-          : 0;
+      TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
+      return testEventsHandler.executionPriority(testIdentifier, testSourceData);
     }
+
     Set<? extends TestDescriptor> children = testDescriptor.getChildren();
     if (children.isEmpty()) {
       return 0;
     }
 
-    int uknownTestsPercentage = 0;
+    // there's no specific meaning to the average of children priorities,
+    // it is just a heuristic to try to favor classes with higher percentage of failure-prone tests
+    int childrenPrioritySum = 0;
     for (TestDescriptor child : children) {
-      uknownTestsPercentage += unknownAndFlakyTestsPercentage(child);
+      childrenPrioritySum += executionPriority(child);
     }
-    return uknownTestsPercentage / children.size();
+    return childrenPrioritySum / children.size();
   }
 
   @Override
@@ -60,6 +64,6 @@ public class FailFastClassOrderer implements ClassOrderer {
     }
     // then apply our ordering (since sorting is stable, delegate's ordering will be preserved for
     // classes with the same "known/stable" status)
-    classOrdererContext.getClassDescriptors().sort(knownTestSuitesComparator);
+    classOrdererContext.getClassDescriptors().sort(executionOrderComparator);
   }
 }

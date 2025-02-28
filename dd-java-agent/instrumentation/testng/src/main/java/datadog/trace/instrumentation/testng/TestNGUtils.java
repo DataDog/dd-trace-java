@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.IClass;
@@ -234,6 +235,7 @@ public abstract class TestNGUtils {
     }
   }
 
+  @Nonnull
   public static TestIdentifier toTestIdentifier(
       Method method, Object instance, Object[] parameters) {
     Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
@@ -243,6 +245,7 @@ public abstract class TestNGUtils {
     return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
+  @Nonnull
   public static TestIdentifier toTestIdentifier(ITestResult result) {
     String testSuiteName = result.getInstanceName();
     String testName =
@@ -251,6 +254,7 @@ public abstract class TestNGUtils {
     return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
+  @Nonnull
   public static TestSuiteDescriptor toSuiteDescriptor(ITestClass testClass) {
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();

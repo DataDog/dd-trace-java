@@ -29,7 +29,7 @@ public interface TestFrameworkModule {
 
   boolean isFlaky(@Nonnull TestIdentifier test);
 
-  boolean isModified(TestSourceData testSourceData);
+  boolean isModified(@Nonnull TestSourceData testSourceData);
 
   boolean isQuarantined(TestIdentifier test);
 
@@ -48,6 +48,12 @@ public interface TestFrameworkModule {
 
   @Nonnull
   TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource);
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource);
 
   void end(Long startTime);
 }
