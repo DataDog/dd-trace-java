@@ -59,7 +59,7 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
         if (superClass != null) {
           // bindService() would be the only method in this case and it's irrelevant
           if (superClass.getDeclaredMethods().length == 1) {
-            for (Class<?> i : serviceClass.getInterfaces()) {
+            for (Class<?> i : superClass.getInterfaces()) {
               if (i.getSimpleName().equals("AsyncService")) {
                 superClass = i;
                 break;
