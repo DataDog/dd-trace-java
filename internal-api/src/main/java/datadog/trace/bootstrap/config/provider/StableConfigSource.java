@@ -12,15 +12,15 @@ import org.slf4j.LoggerFactory;
 public final class StableConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
-  public static final String USER_STABLE_CONFIG_PATH =
+  public static final String LOCAL_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/application_monitoring.yaml";
-  public static final String MANAGED_STABLE_CONFIG_PATH =
+  public static final String FLEET_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml";
-  public static final StableConfigSource USER =
-      new StableConfigSource(USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG);
-  public static final StableConfigSource MANAGED =
+  public static final StableConfigSource LOCAL =
+      new StableConfigSource(LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
+  public static final StableConfigSource FLEET =
       new StableConfigSource(
-          StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG);
+          StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
 
   private final ConfigOrigin fileOrigin;
 

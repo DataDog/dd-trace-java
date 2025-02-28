@@ -356,19 +356,19 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -382,20 +382,20 @@ public final class ConfigProvider {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -411,21 +411,21 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           providedConfigSource,
           new OtelEnvironmentConfigSource(),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           providedConfigSource,
           new SystemPropertiesConfigSource(),
-          StableConfigSource.MANAGED,
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSource.USER,
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }

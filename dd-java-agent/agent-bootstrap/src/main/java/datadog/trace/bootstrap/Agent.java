@@ -1213,13 +1213,13 @@ public class Agent {
     final String featureSystemProp = feature.getSystemProp();
     String featureEnabled = System.getProperty(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureConfigKey);
+      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.USER, featureConfigKey);
+      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1243,13 +1243,13 @@ public class Agent {
     final String featureSystemProp = feature.getSystemProp();
     String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.MANAGED, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
     }
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
     }
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.USER, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
     }
 
     // defaults to inactive
