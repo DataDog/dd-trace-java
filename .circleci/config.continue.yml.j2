@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 315bc8a32cc888834726397f088336ba8038277f
+default_system_tests_commit: &default_system_tests_commit 0509dbd094c9cbf15f58db96f62276a0adff7efa
 
 parameters:
   nightly:
@@ -696,6 +696,8 @@ jobs:
     <<: *tests
 
     resource_class: medium
+    environment:
+      - CI_AGENT_HOST=localhost
 
     docker:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}8

@@ -46,6 +46,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,6 +191,7 @@ public class TestImpl implements DDTest {
     }
   }
 
+  @Nonnull
   public TestIdentifier getIdentifier() {
     return identifier;
   }

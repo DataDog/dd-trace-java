@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -138,6 +139,8 @@ public class ServerDebuggerTestApplication {
       tracedMethodWithException(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else if ("deepOops".equals(arg)) {
       tracedMethodWithDeepException1(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    } else if ("lambdaOops".equals(arg)) {
+      tracedMethodWithLambdaException(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else {
       tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
     }
@@ -213,6 +216,19 @@ public class ServerDebuggerTestApplication {
   private static void tracedMethodWithDeepException5(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     tracedMethodWithException(argInt, argStr, argDouble, argMap, argVar);
+  }
+
+  private static void tracedMethodWithLambdaException(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    throw toRuntimeException("lambdaOops");
+  }
+
+  private static RuntimeException toRuntimeException(String msg) {
+    return toException(RuntimeException::new, msg);
+  }
+
+  private static <S extends Throwable> S toException(Function<String, S> constructor, String msg) {
+    return constructor.apply(msg);
   }
 
   private static class AppDispatcher extends Dispatcher {

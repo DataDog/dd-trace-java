@@ -99,9 +99,9 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   @Nullable
   SkipReason skipReason(TestIdentifier test);
 
-  boolean isNew(TestIdentifier test);
+  boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(TestIdentifier test);
+  boolean isFlaky(@Nonnull TestIdentifier test);
 
   @Override
   void close();

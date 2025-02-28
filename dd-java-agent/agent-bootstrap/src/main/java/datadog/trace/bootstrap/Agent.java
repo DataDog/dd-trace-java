@@ -87,41 +87,37 @@ public class Agent {
   private static final Logger log;
 
   private enum AgentFeature {
-    TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
-    JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(
-        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
-        DEFAULT_STARTUP_LOGS_ENABLED),
-    PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
-    APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
-    IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
-    DEPRECATED_REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
-    CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
-    CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
-    CIVISIBILITY_AGENTLESS(
-        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
-    USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
-    TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(
-        propertyNameToSystemPropertyName(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), false),
-    EXCEPTION_DEBUGGING(
-        propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
-    SPAN_ORIGIN(
-        propertyNameToSystemPropertyName(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED),
-        false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
-    AGENTLESS_LOG_SUBMISSION(
-        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
+    TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
+    JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
+    STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
+    APPSEC(AppSecConfig.APPSEC_ENABLED, false),
+    IAST(IastConfig.IAST_ENABLED, false),
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    CWS(CwsConfig.CWS_ENABLED, false),
+    CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
+    CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
+    USM(UsmConfig.USM_ENABLED, false),
+    TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
+    DEBUGGER(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
+    EXCEPTION_DEBUGGING(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
+    SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
+    private final String configKey;
     private final String systemProp;
     private final boolean enabledByDefault;
 
-    AgentFeature(final String systemProp, final boolean enabledByDefault) {
-      this.systemProp = systemProp;
+    AgentFeature(final String configKey, final boolean enabledByDefault) {
+      this.configKey = configKey;
+      this.systemProp = propertyNameToSystemPropertyName(configKey);
       this.enabledByDefault = enabledByDefault;
+    }
+
+    public String getConfigKey() {
+      return configKey;
     }
 
     public String getSystemProp() {
@@ -1223,16 +1219,17 @@ public class Agent {
   /** @return {@code true} if the agent feature is enabled */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureEnabledSysprop);
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String featureEnabled = System.getProperty(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
-      featureEnabled = ddGetEnv(featureEnabledSysprop);
+      featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.USER, featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1252,11 +1249,17 @@ public class Agent {
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
     }
 
     // defaults to inactive

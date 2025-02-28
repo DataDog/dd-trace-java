@@ -1,5 +1,6 @@
 package datadog.trace.lambda;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -84,15 +85,13 @@ public class LambdaHandler {
             .execute()) {
       if (response.isSuccessful()) {
 
-        return tracer
-            .propagate()
-            .extract(
-                response.headers(),
-                (carrier, classifier) -> {
-                  for (String headerName : carrier.names()) {
-                    classifier.accept(headerName, carrier.get(headerName));
-                  }
-                });
+        return extractContextAndGetSpanContext(
+            response.headers(),
+            (carrier, classifier) -> {
+              for (String headerName : carrier.names()) {
+                classifier.accept(headerName, carrier.get(headerName));
+              }
+            });
       }
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
