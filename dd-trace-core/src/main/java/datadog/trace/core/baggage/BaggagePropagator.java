@@ -6,6 +6,7 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.BaggageContext;
+import datadog.trace.core.util.EscapedData;
 import datadog.trace.core.util.PercentEscaper;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -69,16 +70,19 @@ public class BaggagePropagator implements Propagator {
     int currentBytes = 0;
     StringBuilder baggageText = new StringBuilder();
     for (final Map.Entry<String, String> entry : baggageContext.asMap().entrySet()) {
-      int[] pairSize = {1};
       // if there are already baggage items processed, add and allocate bytes for a comma
+      int extraBytes = 1;
       if (processedBaggage != 0) {
         baggageText.append(',');
-        pairSize[0]++;
+        extraBytes++;
       }
 
-      baggageText.append(UTF_ESCAPER.escapeKey(entry.getKey(), pairSize));
+      EscapedData escapedKey = UTF_ESCAPER.escapeKey(entry.getKey());
+      EscapedData escapedVal = UTF_ESCAPER.escapeValue(entry.getValue());
+
+      baggageText.append(escapedKey.getData());
       baggageText.append('=');
-      baggageText.append(UTF_ESCAPER.escapeValue(entry.getValue(), pairSize));
+      baggageText.append(escapedVal.getData());
 
       processedBaggage++;
       // reached the max number of baggage items allowed
@@ -86,11 +90,11 @@ public class BaggagePropagator implements Propagator {
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
-      if (currentBytes + pairSize[0] > maxBytes) {
+      if (currentBytes + escapedKey.getSize() + escapedVal.getSize() + extraBytes > maxBytes) {
         baggageText.setLength(currentBytes);
         break;
       }
-      currentBytes += pairSize[0];
+      currentBytes += escapedKey.getSize() + escapedVal.getSize() + extraBytes;
     }
 
     String baggageString = baggageText.toString();
