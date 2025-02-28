@@ -46,16 +46,18 @@ public class MUnitTracingListener extends TracingListener {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = description.getClassName();
     List<String> categories = getCategories(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        testClass,
-        categories,
-        false,
-        TestFrameworkInstrumentation.MUNIT,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testClass,
+            categories,
+            false,
+            TestFrameworkInstrumentation.MUNIT,
+            null);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -67,7 +69,9 @@ public class MUnitTracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -76,25 +80,28 @@ public class MUnitTracingListener extends TracingListener {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        null,
-        categories,
-        JUnit4Utils.toTestSourceData(description),
-        null,
-        executionHistories.get(description));
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .onTestStart(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            null,
+            categories,
+            JUnit4Utils.toTestSourceData(description),
+            null,
+            executionHistories.get(description));
   }
 
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     TestExecutionHistory executionHistory = executionHistories.get(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionHistory);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -106,10 +113,14 @@ public class MUnitTracingListener extends TracingListener {
     String testName = description.getMethodName();
     if (Strings.isNotBlank(testName)) {
       TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestFailure(testDescriptor, throwable);
     } else {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestSuiteFailure(suiteDescriptor, throwable);
     }
   }
 
@@ -129,11 +140,15 @@ public class MUnitTracingListener extends TracingListener {
 
     if (Strings.isNotBlank(testName)) {
       TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestSkip(testDescriptor, reason);
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestSuiteSkip(suiteDescriptor, reason);
       for (Description child : description.getChildren()) {
         testCaseIgnored(child);
       }
@@ -152,20 +167,26 @@ public class MUnitTracingListener extends TracingListener {
         // while newer versions don't
         TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
         List<String> categories = getCategories(description);
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-            suiteDescriptor,
-            testDescriptor,
-            testName,
-            FRAMEWORK_NAME,
-            FRAMEWORK_VERSION,
-            null,
-            categories,
-            JUnit4Utils.toTestSourceData(description),
-            null,
-            null);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.MUNIT)
+            .onTestStart(
+                suiteDescriptor,
+                testDescriptor,
+                testName,
+                FRAMEWORK_NAME,
+                FRAMEWORK_VERSION,
+                null,
+                categories,
+                JUnit4Utils.toTestSourceData(description),
+                null,
+                null);
       }
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestSkip(testDescriptor, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestFinish(testDescriptor, null, null);
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -175,25 +196,31 @@ public class MUnitTracingListener extends TracingListener {
         // there is a bug in MUnit 1.0.1+: start/finish events are not fired for skipped suites
         String testSuiteName = description.getClassName();
         List<String> categories = getCategories(description);
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-            suiteDescriptor,
-            testSuiteName,
-            FRAMEWORK_NAME,
-            FRAMEWORK_VERSION,
-            testClass,
-            categories,
-            false,
-            TestFrameworkInstrumentation.MUNIT,
-            null);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.MUNIT)
+            .onTestSuiteStart(
+                suiteDescriptor,
+                testSuiteName,
+                FRAMEWORK_NAME,
+                FRAMEWORK_VERSION,
+                testClass,
+                categories,
+                false,
+                TestFrameworkInstrumentation.MUNIT,
+                null);
       }
 
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.MUNIT)
+          .onTestSuiteSkip(suiteDescriptor, null);
       for (Description child : description.getChildren()) {
         testCaseIgnored(child);
       }
 
       if (!suiteStarted) {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.MUNIT)
+            .onTestSuiteFinish(suiteDescriptor, null);
       }
     }
   }
@@ -213,16 +240,18 @@ public class MUnitTracingListener extends TracingListener {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        null,
-        categories,
-        JUnit4Utils.toTestSourceData(description),
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .onTestIgnore(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            null,
+            categories,
+            JUnit4Utils.toTestSourceData(description),
+            null);
   }
 
   private static boolean isSuiteContainingChildren(final Description description) {

@@ -30,6 +30,7 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.api.telemetry.WafTruncatedType;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -445,6 +446,7 @@ public class PowerWAFModule implements AppSecModule {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
         }
+        WafMetricCollector.get().wafRequestError();
         return;
       } catch (AbstractPowerwafException e) {
         if (gwCtx.isRasp) {
@@ -459,6 +461,27 @@ public class PowerWAFModule implements AppSecModule {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
+        }
+        if (!gwCtx.isRasp) {
+          PowerwafMetrics wafMetrics = reqCtx.getWafMetrics();
+          if (wafMetrics != null) {
+            final long stringTooLong = wafMetrics.getTruncatedStringTooLongCount();
+            final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
+            final long objectTooDeep = wafMetrics.getTruncatedObjectTooDeepCount();
+
+            if (stringTooLong > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, stringTooLong);
+            }
+            if (listMapTooLarge > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
+            }
+            if (objectTooDeep > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+            }
+          }
         }
       }
 
@@ -495,29 +518,35 @@ public class PowerWAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
+            WafMetricCollector.get().wafRequestBlockFailure();
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
 
-        if (!events.isEmpty() && !reqCtx.isThrottled(rateLimiter)) {
-          AgentSpan activeSpan = AgentTracer.get().activeSpan();
-          if (activeSpan != null) {
-            log.debug("Setting force-keep tag on the current span");
-            // Keep event related span, because it could be ignored in case of
-            // reduced datadog sampling rate.
-            activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
-            // If APM is disabled, inform downstream services that the current
-            // distributed trace contains at least one ASM event and must inherit
-            // the given force-keep priority
-            activeSpan
-                .getLocalRootSpan()
-                .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        if (!events.isEmpty()) {
+          if (!reqCtx.isThrottled(rateLimiter)) {
+            AgentSpan activeSpan = AgentTracer.get().activeSpan();
+            if (activeSpan != null) {
+              log.debug("Setting force-keep tag on the current span");
+              // Keep event related span, because it could be ignored in case of
+              // reduced datadog sampling rate.
+              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+              // If APM is disabled, inform downstream services that the current
+              // distributed trace contains at least one ASM event and must inherit
+              // the given force-keep priority
+              activeSpan
+                  .getLocalRootSpan()
+                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+            } else {
+              // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
+              // when the request ends
+              log.debug("There is no active span available");
+            }
+            reqCtx.reportEvents(events);
           } else {
-            // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
-            // when the request ends
-            log.debug("There is no active span available");
+            log.debug("Rate limited WAF events");
+            WafMetricCollector.get().wafRequestRateLimited();
           }
-          reqCtx.reportEvents(events);
         }
 
         if (flow.isBlocking()) {
@@ -551,6 +580,7 @@ public class PowerWAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }
@@ -576,6 +606,7 @@ public class PowerWAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }

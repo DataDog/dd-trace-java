@@ -4,6 +4,7 @@ import static datadog.json.JsonMapper.toJson;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -12,12 +13,14 @@ import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.ListIterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
@@ -37,6 +40,9 @@ public abstract class JUnitPlatformUtils {
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
+
+  public static final String ENGINE_ID_CUCUMBER = "cucumber";
+  public static final String ENGINE_ID_SPOCK = "spock";
 
   private JUnitPlatformUtils() {}
 
@@ -204,5 +210,39 @@ public abstract class JUnitPlatformUtils {
       testDescriptor = testDescriptor.getParent().orElse(null);
     }
     return testDescriptor;
+  }
+
+  public static TestFrameworkInstrumentation engineToFramework(TestEngine testEngine) {
+    String testEngineClassName = testEngine.getClass().getName();
+    if (testEngineClassName.startsWith("io.cucumber")) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (testEngineClassName.startsWith("org.spockframework")) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT5;
+    }
+  }
+
+  public static String getEngineId(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    ListIterator<UniqueId.Segment> it = segments.listIterator(segments.size());
+    while (it.hasPrevious()) {
+      UniqueId.Segment segment = it.previous();
+      if ("engine".equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
+  }
+
+  public static TestFrameworkInstrumentation engineIdToFramework(String engineId) {
+    if (ENGINE_ID_CUCUMBER.equals(engineId)) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (ENGINE_ID_SPOCK.equals(engineId)) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT5;
+    }
   }
 }

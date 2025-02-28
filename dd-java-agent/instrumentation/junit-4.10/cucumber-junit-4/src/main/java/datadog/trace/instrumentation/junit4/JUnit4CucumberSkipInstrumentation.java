@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
@@ -83,7 +84,10 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Argument(0) RunNotifier notifier) {
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      SkipReason skipReason =
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.CUCUMBER)
+              .skipReason(test);
       if (skipReason == null) {
         return null;
       }

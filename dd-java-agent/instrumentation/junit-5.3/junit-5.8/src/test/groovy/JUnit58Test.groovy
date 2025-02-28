@@ -22,12 +22,6 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit58Test extends CiVisibilityInstrumentationTest {
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    givenTestsOrder(CIConstants.FAIL_FAST_TEST_ORDER)
-  }
-
   def "test #testcaseName"() {
     runTests(tests, success)
 
@@ -89,8 +83,6 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
-
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])

@@ -78,7 +78,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
@@ -147,6 +146,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.Config",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
   "datadog.trace.api.ConfigCollector",
@@ -166,6 +166,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.ConcurrentEnumMap",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
@@ -209,7 +210,6 @@ excludedClassesCoverage += [
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
-  'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
@@ -235,6 +235,7 @@ dependencies {
   testImplementation libs.commons.math
   testImplementation libs.bundles.mockito
   testImplementation libs.truth
+  testImplementation 'org.yaml:snakeyaml:2.0'
 }
 
 jmh {

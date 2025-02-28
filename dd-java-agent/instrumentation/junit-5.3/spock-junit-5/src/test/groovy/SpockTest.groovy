@@ -211,8 +211,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
-
     DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
     for (i in 0..<classes.size()) {
       selectors[i] = selectClass(classes[i])

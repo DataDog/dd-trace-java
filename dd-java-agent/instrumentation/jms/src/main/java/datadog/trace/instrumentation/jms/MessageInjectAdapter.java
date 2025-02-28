@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_BATCH_ID_KEY;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCED_KEY;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -12,7 +12,7 @@ import javax.jms.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
+public class MessageInjectAdapter implements CarrierSetter<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageInjectAdapter.class);
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();

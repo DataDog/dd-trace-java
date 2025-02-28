@@ -47,7 +47,7 @@ public class XRayPropagator implements Propagator {
     if (spanContext instanceof DDSpanContext) {
       DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
       ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
-      this.injector.inject(ddSpanContext, carrier, setter::set);
+      this.injector.inject(ddSpanContext, carrier, setter);
     }
   }
 

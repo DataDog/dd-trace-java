@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
@@ -206,7 +207,7 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)
@@ -220,7 +221,7 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
     }
   }
 
