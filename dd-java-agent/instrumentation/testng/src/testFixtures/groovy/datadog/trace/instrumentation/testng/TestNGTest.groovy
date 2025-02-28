@@ -1,9 +1,13 @@
 package datadog.trace.instrumentation.testng
 
-
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import org.apache.maven.artifact.versioning.ComparableVersion
@@ -17,8 +21,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
   static testOutputDir = "build/tmp/test-output"
 
-  static ComparableVersion currentTestNGVersion = new ComparableVersion(TracingListener.FRAMEWORK_VERSION)
-  static ComparableVersion testNGv75 = new ComparableVersion("7.5")
+  static currentTestNGVersion = TestNGUtils.getTestNGVersion()
   static ComparableVersion testNGv70 = new ComparableVersion("7.0")
 
   def "test #testcaseName"() {
@@ -97,7 +100,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
@@ -116,7 +119,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
-    Assumptions.assumeTrue(isEFDSupported())
+    Assumptions.assumeTrue(TestNGUtils.isEFDSupported(currentTestNGVersion))
 
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
@@ -158,7 +161,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -173,7 +176,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -191,7 +194,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -223,7 +226,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test attempt to fix #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    Assumptions.assumeTrue(TestNGUtils.isEFDSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
     givenDisabledTests(disabled)
@@ -242,7 +246,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
-
+  
   def "test known tests ordering #testcaseName"() {
     Assumptions.assumeTrue(isTestOrderingSupported())
 
@@ -270,12 +274,55 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
-  private static boolean isEFDSupported() {
-    currentTestNGVersion >= testNGv75
-  }
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
 
-  private static boolean isExceptionSuppressionSupported() {
-    currentTestNGVersion >= testNGv75
+    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
+    notPresentTags.removeAll(presentTags)
+
+    runTests([TestSucceed], null, true)
+
+    ListWriterAssert.assertTraces(TEST_WRITER, 4, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST_SESSION_END
+          tags(false) {
+            arePresent(presentTags)
+            areNotPresent(notPresentTags)
+          }
+        }
+      }
+    })
+
+    where:
+    testcaseName                            | presentTags                                                                                                                                                                                                                   | assumption
+    "test-capabilities-base"                | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED
+    ]                                                                                                           | (!TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-efd"                 | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_EFD
+    ]                                                                          | (TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-suppression"         | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE
+    ]                                  | (!TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-efd-and-suppression" | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
+    ] | (TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
   }
 
   private static boolean isTestOrderingSupported() {
