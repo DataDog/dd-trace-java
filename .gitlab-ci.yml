@@ -117,10 +117,6 @@ test_published_artifacts:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
   stage: tests
   needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
   variables:
     BUILD_CACHE_TYPE: lib
   script:
@@ -145,10 +141,6 @@ muzzle:
   needs: [ build ]
   stage: tests
   parallel: 8
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
   variables:
     BUILD_CACHE_TYPE: test
   script:
