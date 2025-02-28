@@ -53,12 +53,12 @@ public class ExecutionStrategy {
     return executionSettings;
   }
 
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return executionSettings.isKnownTestsDataAvailable()
         && !executionSettings.isKnown(test.toFQN());
   }
 
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return executionSettings.isFlaky(test.toFQN());
   }
 
@@ -163,7 +163,7 @@ public class ExecutionStrategy {
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }
 
-  private boolean isEFDApplicable(TestIdentifier test, TestSourceData testSource) {
+  private boolean isEFDApplicable(@Nonnull TestIdentifier test, TestSourceData testSource) {
     EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
     return efdSettings.isEnabled()
         && !isEFDLimitReached()
