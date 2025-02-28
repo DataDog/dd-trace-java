@@ -3,6 +3,7 @@ package datadog.opentelemetry.shim.context.propagation;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.opentelemetry.shim.trace.OtelSpanContext.fromRemote;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
@@ -11,7 +12,6 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
 import io.opentelemetry.api.trace.Span;
@@ -47,14 +47,13 @@ public class AgentTextMapPropagator implements TextMapPropagator {
       return context;
     }
     Extracted extracted =
-        AgentTracer.propagate()
-            .extract(
-                carrier,
-                (carrier1, classifier) -> {
-                  for (String key : getter.keys(carrier1)) {
-                    classifier.accept(key, getter.get(carrier1, key));
-                  }
-                });
+        extractContextAndGetSpanContext(
+            carrier,
+            (carrier1, classifier) -> {
+              for (String key : getter.keys(carrier1)) {
+                classifier.accept(key, getter.get(carrier1, key));
+              }
+            });
     if (extracted == null) {
       return context;
     } else {

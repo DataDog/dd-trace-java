@@ -7,6 +7,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
@@ -16,7 +17,6 @@ import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -52,7 +52,7 @@ import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
-    implements AgentPropagation.Setter<SdkHttpRequest.Builder> {
+    implements CarrierSetter<SdkHttpRequest.Builder> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
   private static final DDCache<String, CharSequence> CACHE =
       DDCaches.newFixedSizeCache(128); // cloud services can have high cardinality
