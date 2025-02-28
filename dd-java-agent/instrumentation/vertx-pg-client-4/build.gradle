@@ -5,7 +5,9 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-pg-client'
-    versions = '[4.0.0,5)'
+    // 4.1.1 is the first version where PgConnectionFactory is public
+    // see https://github.com/eclipse-vertx/vertx-sql-client/pull/986
+    versions = '[4.1.1,5)'
     assertInverse = true
   }
 }
@@ -20,9 +22,9 @@ latestDepTest {
 }
 
 dependencies {
-  compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.0.0'
+  compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
 
-  testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.0.0'
+  testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
   testImplementation project(':dd-java-agent:instrumentation:vertx-sql-common')
 
   // This is needed for the test container to start

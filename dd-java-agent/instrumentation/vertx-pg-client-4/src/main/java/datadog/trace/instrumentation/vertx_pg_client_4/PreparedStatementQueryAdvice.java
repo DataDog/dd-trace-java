@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.vertx_pg_client_4;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
+import io.vertx.core.Context;
+import io.vertx.pgclient.impl.PgConnectionFactory;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.Query;
 import net.bytebuddy.asm.Advice;
@@ -12,5 +14,9 @@ public class PreparedStatementQueryAdvice {
       @Advice.This final PreparedStatement zis, @Advice.Return final Query query) {
     InstrumentationContext.get(Query.class, Pair.class)
         .put(query, InstrumentationContext.get(PreparedStatement.class, Pair.class).get(zis));
+  }
+
+  private static void muzzleCheck(PgConnectionFactory f) {
+    f.connect((Context) null);
   }
 }
