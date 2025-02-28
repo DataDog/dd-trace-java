@@ -77,6 +77,7 @@ public class GatewayBridge {
   static {
     EVENT_MAPPINGS.put(LoginEvent.LOGIN_SUCCESS, KnownAddresses.LOGIN_SUCCESS);
     EVENT_MAPPINGS.put(LoginEvent.LOGIN_FAILURE, KnownAddresses.LOGIN_FAILURE);
+    EVENT_MAPPINGS.put(LoginEvent.SIGN_UP, KnownAddresses.SIGN_UP);
   }
 
   private static final String METASTRUCT_EXPLOIT = "exploit";
