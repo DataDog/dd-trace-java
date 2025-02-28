@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.vertx_pg_client_4_2_0.VertxSqlClientDecorator.DECORATE;
+
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -11,9 +14,6 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.vertx_pg_client_4_2_0.VertxSqlClientDecorator.DECORATE;
 
 public class CursorReadAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)

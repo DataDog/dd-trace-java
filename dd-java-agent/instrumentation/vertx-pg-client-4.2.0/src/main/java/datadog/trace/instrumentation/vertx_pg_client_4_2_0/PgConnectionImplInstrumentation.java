@@ -1,16 +1,15 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-
 import java.util.HashMap;
 import java.util.Map;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(InstrumenterModule.class)
 public class PgConnectionImplInstrumentation extends InstrumenterModule.Tracing
@@ -35,8 +34,7 @@ public class PgConnectionImplInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("io.vertx.pgclient.impl.PgConnectionFactory"))),
+        isConstructor().and(takesArgument(0, named("io.vertx.pgclient.impl.PgConnectionFactory"))),
         packageName + ".PgConnectionImplConstructorAdvice");
   }
 }
