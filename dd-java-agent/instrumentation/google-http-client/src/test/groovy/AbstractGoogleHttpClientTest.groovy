@@ -12,11 +12,11 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
   def requestFactory = new NetHttpTransport().createRequestFactory()
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     doRequest(method, uri, headers, callback, false)
   }
 
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback, boolean throwExceptionOnError) {
+  int doRequest(String method, URI uri, List<List<String>> headers, Closure callback, boolean throwExceptionOnError) {
     GenericUrl genericUrl = new GenericUrl(uri)
 
     HttpRequest request = requestFactory.buildRequest(method, genericUrl, null)
@@ -26,8 +26,8 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
     // GenericData::putAll method converts all known http headers to List<String>
     // and lowercase all other headers
     def ci = request.getHeaders().getClassInfo()
-    request.getHeaders().putAll(headers.collectEntries { name, value ->
-      [(name): (ci.getFieldInfo(name) != null ? [value]: value.toLowerCase())]
+    request.getHeaders().putAll(headers.collectEntries { header ->
+      [(header[0]): (ci.getFieldInfo(header[0]) != null ? [header[1]]: header[1].toLowerCase())]
     })
 
     request.setThrowExceptionOnExecuteError(throwExceptionOnError)

@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequests
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 import static org.apache.hc.core5.reactor.IOReactorConfig.custom
 
-abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest {
+abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpClientTest2 {
 
   @Shared
   def ioReactorConfig = custom()
@@ -45,10 +45,10 @@ abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpCli
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = SimpleHttpRequests.create(method, uri)
     request.setConfig(RequestConfig.custom().setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS).build())
-    headers.each { request.addHeader(it.key, it.value) }
+    headers.each { request.addHeader(it[0], it[1]) }
 
     def future = client.execute(request, null)
     def response = future.get(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
