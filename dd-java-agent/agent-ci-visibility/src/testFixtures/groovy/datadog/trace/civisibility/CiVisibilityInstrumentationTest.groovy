@@ -357,15 +357,15 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     ] + replacements
 
     // uncomment to generate expected data templates
-    //          def clazz = this.getClass()
-    //          def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
-    //          def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
-    //          def searchIndex = classfilePath.indexOf("/build/classes/groovy")
-    //          def modulePath = classfilePath.substring(0, searchIndex)
-    //          def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
-    //          def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-    //          CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-    //          return [:]
+              def clazz = this.getClass()
+              def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
+              def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+              def searchIndex = classfilePath.indexOf("/build/classes/groovy")
+              def modulePath = classfilePath.substring(0, searchIndex)
+              def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
+              def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
+              CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+              return [:]
 
     return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }

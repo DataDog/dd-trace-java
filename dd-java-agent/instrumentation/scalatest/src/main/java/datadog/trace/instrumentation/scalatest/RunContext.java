@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -10,6 +11,8 @@ import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -34,8 +37,19 @@ public class RunContext {
   }
 
   private final int runStamp;
+
+  private final List<LibraryCapability> availableCapabilities =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.EFD,
+          LibraryCapability.ATR,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
-      InstrumentationBridge.createTestEventsHandler("scalatest", null, null);
+      InstrumentationBridge.createTestEventsHandler("scalatest", null, null, availableCapabilities);
+
   private final java.util.Map<TestIdentifier, SkipReason> skipReasonByTest =
       new ConcurrentHashMap<>();
   private final java.util.Set<TestIdentifier> itrUnskippableTests = ConcurrentHashMap.newKeySet();
