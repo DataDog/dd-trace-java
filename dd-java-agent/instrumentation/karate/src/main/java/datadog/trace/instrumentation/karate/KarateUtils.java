@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.karate;
 
 import static datadog.json.JsonMapper.toJson;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
@@ -136,6 +137,10 @@ public abstract class KarateUtils {
 
   public static void setResult(ScenarioRuntime runtime, ScenarioResult result) {
     METHOD_HANDLES.invoke(SCENARIO_RUNTIME_RESULT_SETTER, runtime, result);
+  }
+
+  public static String getKarateVersion() {
+    return FileUtils.KARATE_VERSION;
   }
 
   public static boolean isSkippingSupported(String frameworkVersion) {

@@ -39,7 +39,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testcaseName            | success | tests                          | assumption
     "test-succeed"          | true    | [TestSucceedKarate]            | true
     "test-succeed-parallel" | true    | [TestSucceedParallelKarate]    | true
-    "test-with-setup"       | true    | [TestWithSetupKarate]          | KarateUtils.isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-with-setup"       | true    | [TestWithSetupKarate]          | KarateUtils.isSetupTagSupported(KarateUtils.getKarateVersion())
     "test-parameterized"    | true    | [TestParameterizedKarate]      | true
     "test-failed"           | false   | [TestFailedKarate]             | true
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]     | true
@@ -47,7 +47,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion()))
 
     givenSkippableTests(skippedTests)
 
@@ -148,7 +148,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test disabled #testcaseName"() {
-    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion()))
 
     givenDisabledTests(disabled)
 
@@ -207,7 +207,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
       DDTags.LIBRARY_CAPABILITIES_EFD,
       DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
       DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
-    ]                                                                        | !KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION)
+    ]                                                                        | !KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
     "test-capabilities-skipping" | [
       DDTags.LIBRARY_CAPABILITIES_ATR,
       DDTags.LIBRARY_CAPABILITIES_EFD,
@@ -215,7 +215,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
       DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX,
       DDTags.LIBRARY_CAPABILITIES_TIA,
       DDTags.LIBRARY_CAPABILITIES_DISABLED
-    ] | KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION)
+    ] | KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
@@ -264,7 +264,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    return FileUtils.KARATE_VERSION
+    return KarateUtils.getKarateVersion()
   }
 
   private static final class TestResultListener implements TestExecutionListener {

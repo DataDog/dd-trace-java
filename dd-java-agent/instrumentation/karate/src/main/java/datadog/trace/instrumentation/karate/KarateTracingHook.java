@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.karate;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.Suite;
@@ -33,7 +32,7 @@ import java.util.List;
 public class KarateTracingHook implements RuntimeHook {
 
   private static final String FRAMEWORK_NAME = "karate";
-  public static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
+  public static final String FRAMEWORK_VERSION = KarateUtils.getKarateVersion();
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
