@@ -411,10 +411,6 @@ jobs:
           cacheType: << parameters.cacheType >>
 
       - run:
-          name: Print some vars
-          command: echo "-PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}"
-          
-      - run:
           name: Check Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
@@ -1105,6 +1101,7 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
+      triggeredBy: *instrumentation_modules
 
   - check:
       requires:
