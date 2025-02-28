@@ -101,6 +101,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
+  static final boolean DEFAULT_BREAKING_CHANGES_ENABLED = true;
+
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
