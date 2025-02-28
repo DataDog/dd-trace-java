@@ -818,8 +818,12 @@ public class Agent {
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
 
-    // event tracking SDK must be available for customers even if AppSec is fully disabled
-    AppSecEventTracker.install();
+    try {
+      // event tracking SDK must be available for customers even if AppSec is fully disabled
+      AppSecEventTracker.install();
+    } catch (final Exception e) {
+      log.debug("Error starting AppSec Event Tracker", e);
+    }
 
     if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
       return;
