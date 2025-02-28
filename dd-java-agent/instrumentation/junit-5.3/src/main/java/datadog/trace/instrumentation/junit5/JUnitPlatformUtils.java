@@ -5,7 +5,6 @@ import static datadog.json.JsonMapper.toJson;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -149,11 +148,7 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static boolean isTestInProgress() {
-    AgentScope activeScope = AgentTracer.activeScope();
-    if (activeScope == null) {
-      return false;
-    }
-    AgentSpan span = activeScope.span();
+    AgentSpan span = AgentTracer.activeSpan();
     if (span == null) {
       return false;
     }
