@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -9,9 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import javax.annotation.Nonnull;
@@ -43,6 +47,8 @@ public abstract class JUnitPlatformUtils {
 
   public static final String ENGINE_ID_CUCUMBER = "cucumber";
   public static final String ENGINE_ID_SPOCK = "spock";
+
+  public static final ComparableVersion junitV58 = new ComparableVersion("5.8");
 
   private JUnitPlatformUtils() {}
 
@@ -243,6 +249,67 @@ public abstract class JUnitPlatformUtils {
       return TestFrameworkInstrumentation.SPOCK;
     } else {
       return TestFrameworkInstrumentation.JUNIT5;
+    }
+  }
+
+  // only used in junit5 and spock, cucumber has its own utils method
+  @Nullable
+  public static String getFrameworkVersion(TestEngine testEngine) {
+    return testEngine.getVersion().orElse(null);
+  }
+
+  public static boolean isJunitTestOrderingSupported(String version) {
+    return version != null && junitV58.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  private static List<LibraryCapability> junitCapabilities(String version) {
+    List<LibraryCapability> baseCapabilities =
+        new ArrayList<>(
+            Arrays.asList(
+                LibraryCapability.TIA,
+                LibraryCapability.ATR,
+                LibraryCapability.EFD,
+                LibraryCapability.IMPACTED,
+                LibraryCapability.QUARANTINE,
+                LibraryCapability.DISABLED,
+                LibraryCapability.ATTEMPT_TO_FIX));
+
+    if (isJunitTestOrderingSupported(version)) {
+      baseCapabilities.add(LibraryCapability.FAIL_FAST);
+    }
+
+    return baseCapabilities;
+  }
+
+  private static List<LibraryCapability> spockCapabilities() {
+    return Arrays.asList(
+        LibraryCapability.TIA,
+        LibraryCapability.ATR,
+        LibraryCapability.EFD,
+        LibraryCapability.IMPACTED,
+        LibraryCapability.QUARANTINE,
+        LibraryCapability.DISABLED,
+        LibraryCapability.ATTEMPT_TO_FIX);
+  }
+
+  private static List<LibraryCapability> cucumberCapabilities() {
+    return Arrays.asList(
+        LibraryCapability.TIA,
+        LibraryCapability.ATR,
+        LibraryCapability.EFD,
+        LibraryCapability.QUARANTINE,
+        LibraryCapability.DISABLED,
+        LibraryCapability.ATTEMPT_TO_FIX);
+  }
+
+  public static List<LibraryCapability> availableCapabilities(TestEngine testEngine) {
+    TestFrameworkInstrumentation framework = engineToFramework(testEngine);
+    if (framework.equals(TestFrameworkInstrumentation.CUCUMBER)) {
+      return cucumberCapabilities();
+    } else if (framework.equals(TestFrameworkInstrumentation.SPOCK)) {
+      return spockCapabilities();
+    } else {
+      return junitCapabilities(getFrameworkVersion(testEngine));
     }
   }
 }

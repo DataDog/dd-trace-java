@@ -63,7 +63,10 @@ public abstract class TestEventsHandlerHolder {
     if (handler == null) {
       handler =
           InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(), suiteStore, testStore);
+              framework.name().toLowerCase(),
+              suiteStore,
+              testStore,
+              JUnitPlatformUtils.availableCapabilities(testEngine));
       HANDLERS.put(framework, handler);
     }
   }

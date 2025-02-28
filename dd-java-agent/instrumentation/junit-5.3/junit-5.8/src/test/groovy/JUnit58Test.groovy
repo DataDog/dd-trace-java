@@ -1,8 +1,15 @@
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.civisibility.config.LibraryCapabilityUtils
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.*
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.ClassOrderer
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.engine.Constants
@@ -80,6 +87,31 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
       test("org.example.TestSucceed", "test_succeed_1"),
       test("org.example.TestSucceed", "test_succeed_2")
     ]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
+    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
+    notPresentTags.removeAll(presentTags)
+
+    runTests([TestSucceed], true)
+
+    ListWriterAssert.assertTraces(TEST_WRITER, 5, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST_SESSION_END
+          tags(false) {
+            arePresent(presentTags)
+            areNotPresent(notPresentTags)
+          }
+        }
+      }
+    })
+
+    where:
+    testcaseName                 | presentTags                                                                                                                                                                                                                                                                                                                 | assumption
+    "test-capabilities-ordering" | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX, DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER] | JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
   }
 
   private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

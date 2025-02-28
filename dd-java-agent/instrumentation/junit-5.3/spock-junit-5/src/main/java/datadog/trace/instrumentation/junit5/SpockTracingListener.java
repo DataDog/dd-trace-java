@@ -22,7 +22,7 @@ public class SpockTracingListener implements EngineExecutionListener {
 
   public SpockTracingListener(TestEngine testEngine) {
     testFramework = testEngine.getId();
-    testFrameworkVersion = testEngine.getVersion().orElse(null);
+    testFrameworkVersion = JUnitPlatformUtils.getFrameworkVersion(testEngine);
   }
 
   @Override

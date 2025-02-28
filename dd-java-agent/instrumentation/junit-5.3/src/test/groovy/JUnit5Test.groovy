@@ -1,9 +1,15 @@
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -35,6 +41,7 @@ import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
@@ -241,6 +248,31 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
+    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
+    notPresentTags.removeAll(presentTags)
+
+    runTests([TestSucceed], true)
+
+    ListWriterAssert.assertTraces(TEST_WRITER, 4, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST_SESSION_END
+          tags(false) {
+            arePresent(presentTags)
+            areNotPresent(notPresentTags)
+          }
+        }
+      }
+    })
+
+    where:
+    testcaseName                 | presentTags                                                                                                                                                                                                                                                                | assumption
+    "test-capabilities-base"     | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]  | !JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
