@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
+package datadog.trace.instrumentation.vertx_sql_common;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
