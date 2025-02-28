@@ -11,8 +11,6 @@ public class PgConnectionImplConstructorAdvice {
   public static void afterConstructor(
       @Advice.This final SqlClient zis, @Advice.Argument(0) final PgConnectionFactory factory) {
     InstrumentationContext.get(SqlClient.class, DBInfo.class)
-        .put(
-            zis,
-            InstrumentationContext.get(PgConnectionFactory.class, DBInfo.class).get(factory));
+        .put(zis, InstrumentationContext.get(PgConnectionFactory.class, DBInfo.class).get(factory));
   }
 }

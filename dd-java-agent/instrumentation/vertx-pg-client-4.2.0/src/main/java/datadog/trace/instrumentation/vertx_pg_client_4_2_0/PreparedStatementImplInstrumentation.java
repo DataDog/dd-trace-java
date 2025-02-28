@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.*;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-
 import java.util.HashMap;
 import java.util.Map;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(InstrumenterModule.class)
 public class PreparedStatementImplInstrumentation extends InstrumenterModule.Tracing
