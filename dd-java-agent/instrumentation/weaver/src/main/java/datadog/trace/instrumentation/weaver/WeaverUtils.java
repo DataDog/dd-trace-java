@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.weaver;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -48,5 +51,9 @@ public abstract class WeaverUtils {
       log.debug("Could not load class {}", className, e);
       return null;
     }
+  }
+
+  public static List<LibraryCapability> availableCapabilities() {
+    return Collections.emptyList();
   }
 }
