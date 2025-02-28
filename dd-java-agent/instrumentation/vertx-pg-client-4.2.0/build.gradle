@@ -5,7 +5,7 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-pg-client'
-    versions = '[4.2.0)'
+    versions = '[4.2.0,5)'
     assertInverse = true
   }
 }
@@ -29,7 +29,7 @@ dependencies {
   testImplementation group: 'org.postgresql', name: 'postgresql', version: '42.7.4'
   testImplementation group: 'org.testcontainers', name: 'postgresql', version: libs.versions.testcontainers.get()
 
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.+'
 }
 
 tasks.withType(Test).configureEach {
