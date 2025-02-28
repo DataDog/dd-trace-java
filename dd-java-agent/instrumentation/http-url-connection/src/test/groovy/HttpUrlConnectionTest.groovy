@@ -10,7 +10,7 @@ import sun.net.www.protocol.https.HttpsURLConnectionImpl
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
 abstract class HttpUrlConnectionTest extends HttpClientTest {
@@ -28,7 +28,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
       connection.useCaches = true
       connection.connectTimeout = CONNECT_TIMEOUT_MS
       connection.readTimeout = READ_TIMEOUT_MS
-      def parentSpan = activeScope()
+      def parentSpan = activeSpan()
       def stream
       try {
         stream = connection.inputStream
@@ -36,7 +36,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
         stream = connection.errorStream
         ex.printStackTrace()
       }
-      assert activeScope() == parentSpan
+      assert activeSpan() == parentSpan
       stream?.readLines()
       stream?.close()
       callback?.call()
@@ -66,7 +66,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
     runUnderTrace("someTrace") {
       HttpURLConnection connection = url.openConnection()
       connection.useCaches = useCaches
-      assert activeScope() != null
+      assert activeSpan() != null
       def stream = connection.inputStream
       def lines = stream.readLines()
       stream.close()
@@ -76,7 +76,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
       // call again to ensure the cycling is ok
       connection = url.openConnection()
       connection.useCaches = useCaches
-      assert activeScope() != null
+      assert activeSpan() != null
       assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
       connection.inputStream
       stream = connection.inputStream // one more to ensure state is working
@@ -157,7 +157,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
       HttpURLConnection connection = url.openConnection()
       connection.useCaches = useCaches
       connection.addRequestProperty("is-dd-server", "false")
-      assert activeScope() != null
+      assert activeSpan() != null
       def stream = connection.inputStream
       connection.inputStream // one more to ensure state is working
       def lines = stream.readLines()
@@ -169,7 +169,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
       connection = url.openConnection()
       connection.useCaches = useCaches
       connection.addRequestProperty("is-dd-server", "false")
-      assert activeScope() != null
+      assert activeSpan() != null
       assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
       stream = connection.inputStream
       lines = stream.readLines()
@@ -247,7 +247,7 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
       HttpURLConnection connection = url.openConnection()
       connection.setRequestProperty("Connection", "close")
       connection.addRequestProperty("is-dd-server", "false")
-      assert activeScope() != null
+      assert activeSpan() != null
       assert connection.getResponseCode() == STATUS
       return connection
     }
