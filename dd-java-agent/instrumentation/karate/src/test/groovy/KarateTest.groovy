@@ -1,8 +1,14 @@
 import com.intuit.karate.FileUtils
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
+import datadog.trace.civisibility.config.LibraryCapabilityUtils
+import datadog.trace.instrumentation.karate.KarateUtils
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.Assumptions
@@ -33,7 +39,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testcaseName            | success | tests                          | assumption
     "test-succeed"          | true    | [TestSucceedKarate]            | true
     "test-succeed-parallel" | true    | [TestSucceedParallelKarate]    | true
-    "test-with-setup"       | true    | [TestWithSetupKarate]          | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-with-setup"       | true    | [TestWithSetupKarate]          | KarateUtils.isSetupTagSupported(FileUtils.KARATE_VERSION)
     "test-parameterized"    | true    | [TestParameterizedKarate]      | true
     "test-failed"           | false   | [TestFailedKarate]             | true
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]     | true
@@ -41,7 +47,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION))
 
     givenSkippableTests(skippedTests)
 
@@ -142,7 +148,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test disabled #testcaseName"() {
-    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION))
 
     givenDisabledTests(disabled)
 
@@ -172,6 +178,44 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedKarate]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | []                                                                         | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []                                                                         | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
+    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
+    notPresentTags.removeAll(presentTags)
+
+    runTests([TestSucceedOneCaseKarate], true)
+
+    ListWriterAssert.assertTraces(TEST_WRITER, 5, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST_SESSION_END
+          tags(false) {
+            arePresent(presentTags)
+            areNotPresent(notPresentTags)
+          }
+        }
+      }
+    })
+
+    where:
+    testcaseName                 | presentTags                                                                                                                                                                                                                   | assumption
+    "test-capabilities-base"     | [
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
+    ]                                                                        | !KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION)
+    "test-capabilities-skipping" | [
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX,
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED
+    ] | KarateUtils.isSkippingSupported(FileUtils.KARATE_VERSION)
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
@@ -221,15 +265,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   @Override
   String instrumentedLibraryVersion() {
     return FileUtils.KARATE_VERSION
-  }
-
-  boolean isSkippingSupported(String frameworkVersion) {
-    // earlier Karate version contain a bug that does not allow skipping scenarios
-    frameworkVersion >= "1.2.0"
-  }
-
-  boolean isSetupTagSupported(String frameworkVersion) {
-    frameworkVersion >= "1.3.0"
   }
 
   private static final class TestResultListener implements TestExecutionListener {

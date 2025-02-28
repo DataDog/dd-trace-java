@@ -33,8 +33,8 @@ import java.util.List;
 public class KarateTracingHook implements RuntimeHook {
 
   private static final String FRAMEWORK_NAME = "karate";
-  private static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
-  private static final String KARATE_STEP_SPAN_NAME = "karate.step";
+  public static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
+  public static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
 
