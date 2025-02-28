@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
@@ -21,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 
 public abstract class KarateUtils {
 

@@ -14,7 +14,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import org.apache.maven.artifact.versioning.ComparableVersion;
+
+import datadog.trace.util.ComparableVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.IClass;
