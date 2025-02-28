@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 
+import static datadog.appsec.api.user.User.setUser
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SUCCESS
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.SDK
@@ -48,9 +49,22 @@ class UserController {
 
   @PostMapping("/sdk")
   @ResponseBody
-  String sdk(@RequestParam("sdkUser") String sdkUser) {
+  String sdk(@RequestParam(name = "sdkEvent", defaultValue = "login.success") String event, @RequestParam(name = "sdkUser", required = false) String sdkUser) {
     SpringBootBasedTest.controller(SDK) {
-      GlobalTracer.getEventTracker().trackLoginSuccessEvent(sdkUser, emptyMap())
+      switch (event) {
+        case "login.success":
+          GlobalTracer.getEventTracker().trackLoginSuccessEvent(sdkUser, emptyMap())
+          break
+        case "login.failure":
+          GlobalTracer.getEventTracker().trackLoginFailureEvent(sdkUser, false, emptyMap())
+          break
+        case "setUser":
+          setUser(sdkUser, emptyMap())
+          break
+        default:
+          GlobalTracer.getEventTracker().trackCustomEvent(event, emptyMap())
+          break
+      }
       return "OK"
     }
   }
