@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.ExecutionSettings
+import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.config.TestManagementSettings
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.domain.SpanWriterTest
@@ -43,8 +44,12 @@ class HeadlessTestSessionTest extends SpanWriterTest {
             "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
             "$DDTags.LIBRARY_CAPABILITIES_TIA" false
             "$DDTags.LIBRARY_CAPABILITIES_EFD" false
+            "$DDTags.LIBRARY_CAPABILITIES_ATR" false
+            "$DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS" false
+            "$DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER" false
             "$DDTags.LIBRARY_CAPABILITIES_QUARANTINE" true
-            isNotPresent("$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX")
+            "$DDTags.LIBRARY_CAPABILITIES_DISABLED" true
+            "$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX" true
           }
         }
         span(1) {
@@ -70,7 +75,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
 
     def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
-    def availableCapabilities = [LibraryCapability.TIA, LibraryCapability.EFD, LibraryCapability.QUARANTINE]
+    def availableCapabilities = Arrays.asList(LibraryCapability.values())
 
     new HeadlessTestSession(
       "project-name",
