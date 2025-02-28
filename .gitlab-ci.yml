@@ -42,6 +42,13 @@ default:
   - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
   - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
 
+# CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
+.normalize_node_index: &normalize_node_index
+  - echo "CI_NODE_TOTAL=$CI_NODE_TOTAL , CI_NODE_INDEX=$CI_NODE_INDEX"
+  - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
+  - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((CI_NODE_INDEX - 1))
+  - echo "NORMALIZED_NODE_TOTAL=$NORMALIZED_NODE_TOTAL , NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
+
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
@@ -68,6 +75,7 @@ default:
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
@@ -195,13 +203,10 @@ muzzle:
     BUILD_CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
-    - echo CI_NODE_INDEX=$CI_NODE_INDEX
-    - echo CI_NODE_TOTAL=CI_NODE_TOTAL
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
     - sort workspace/build/muzzleTasks > sortedMuzzleTasks
-    - split --number=l/$CI_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - export NODE_ZERO_INDEX=$((CI_NODE_INDEX - 1))
-    - ./gradlew `cat muzzleSplit${NODE_ZERO_INDEX} | xargs` $GRADLE_ARGS
+    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
+    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh
   artifacts:
