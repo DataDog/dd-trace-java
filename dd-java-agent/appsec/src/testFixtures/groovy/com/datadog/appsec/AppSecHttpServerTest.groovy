@@ -26,8 +26,7 @@ abstract class AppSecHttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     sco.createRemaining(config)
     assert sco.configurationPoller(config) == null
     assert sco.monitoring instanceof Monitoring.DisabledMonitoring
-
-    GlobalTracer.setEventTracker(new AppSecEventTracker())
+    AppSecEventTracker.install()
 
     AppSecSystem.start(ss, sco)
   }
