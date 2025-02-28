@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
+package datadog.trace.instrumentation.vertx_pg_client_4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
@@ -11,31 +11,28 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public class PgPoolImplInstrumentation extends InstrumenterModule.Tracing
+public class PgConnectionFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PgPoolImplInstrumentation() {
+  public PgConnectionFactoryInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+    return singletonMap("io.vertx.pgclient.impl.PgConnectionFactory", DBInfo.class.getName());
   }
 
   @Override
   public String instrumentedType() {
-    return "io.vertx.pgclient.impl.PgPoolImpl";
+    return "io.vertx.pgclient.impl.PgConnectionFactory";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isStatic()
-            .and(isPublic())
-            .and(isMethod())
-            .and(named("create"))
-            .and(takesArguments(4))
-            .and(takesArgument(2, named("io.vertx.pgclient.PgConnectOptions"))),
-        packageName + ".PgPoolImplAdvice");
+        isConstructor()
+            .and(takesArguments(2))
+            .and(takesArgument(1, named("io.vertx.pgclient.PgConnectOptions"))),
+        packageName + ".PgConnectionFactoryConstructorAdvice");
   }
 }
