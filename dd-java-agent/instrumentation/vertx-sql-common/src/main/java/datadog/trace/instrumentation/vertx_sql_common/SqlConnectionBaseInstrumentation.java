@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_sql_client_4;
+package datadog.trace.instrumentation.vertx_sql_common;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;

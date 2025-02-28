@@ -1,36 +1,41 @@
-package datadog.trace.instrumentation.vertx_sql_client_4;
+package datadog.trace.instrumentation.vertx_sql_common;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.isVirtual;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public class SqlClientBaseInstrumentation extends InstrumenterModule.Tracing
+public class QueryImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SqlClientBaseInstrumentation() {
+  public QueryImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-    contextStores.put("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
-    return contextStores;
+    return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".QueryResultHandlerWrapper", packageName + ".VertxSqlClientDecorator",
+    };
   }
 
   @Override
   public String instrumentedType() {
-    return "io.vertx.sqlclient.impl.SqlClientBase";
+    return "io.vertx.sqlclient.impl.SqlClientBase$QueryImpl";
   }
 
   @Override
@@ -38,16 +43,15 @@ public class SqlClientBaseInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(named("query"))
+            .and(named("execute"))
             .and(takesArguments(1))
-            .and(takesArgument(0, named("java.lang.String"))),
-        packageName + ".SqlClientBaseAdvice$NormalQuery");
+            .and(takesArgument(0, named("io.vertx.core.Handler"))),
+        packageName + ".QueryAdvice$Execute");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("preparedQuery"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("java.lang.String"))),
-        packageName + ".SqlClientBaseAdvice$PreparedQuery");
+            .and(isVirtual())
+            .and(named("copy"))
+            .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
+        packageName + ".QueryAdvice$Copy");
   }
 }

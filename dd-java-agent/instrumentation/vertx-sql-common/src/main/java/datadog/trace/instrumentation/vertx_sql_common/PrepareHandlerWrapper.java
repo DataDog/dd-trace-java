@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_sql_client_4;
+package datadog.trace.instrumentation.vertx_sql_common;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;

@@ -1,7 +1,9 @@
-package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
+package datadog.trace.instrumentation.vertx_sql_common;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.vertx_pg_client_4_2_0.VertxSqlClientDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.instrumentation.vertx_sql_common.VertxSqlClientDecorator.DECORATE;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
