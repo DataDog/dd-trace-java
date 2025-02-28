@@ -1,0 +1,40 @@
+plugins {
+  id 'java'
+  id 'application'
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Concurrent Integration Tests.'
+
+application {
+  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+}
+
+dependencies {
+  implementation('io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:2.13.1')
+  implementation project(':dd-trace-api')
+  testImplementation project(':dd-smoke-tests')
+
+  testImplementation platform('org.junit:junit-bom:5.10.0')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+  useJUnitPlatform()
+}
+
+jar {
+  manifest {
+    attributes(
+      'Main-Class': 'datadog.smoketest.concurrent.ConcurrentApp'
+      )
+  }
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
