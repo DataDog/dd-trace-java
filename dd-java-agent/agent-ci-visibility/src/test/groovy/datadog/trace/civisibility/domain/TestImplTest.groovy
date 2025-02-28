@@ -126,6 +126,7 @@ class TestImplTest extends SpanWriterTest {
       codeowners,
       coverageStoreFactory,
       executionResults,
+      [:],
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )
   }

@@ -1,11 +1,13 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.LibraryCapabilityUtils;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
@@ -14,6 +16,8 @@ import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionStrategy;
+import java.util.Collection;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -34,6 +38,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final SignalClient.Factory signalClientFactory;
   private final ExecutionStrategy executionStrategy;
+  private final Map<LibraryCapability, Boolean> libraryCapabilities;
 
   public ProxyTestSession(
       AgentSpanContext parentProcessModuleContext,
@@ -46,7 +51,8 @@ public class ProxyTestSession implements TestFrameworkSession {
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory,
-      ExecutionStrategy executionStrategy) {
+      ExecutionStrategy executionStrategy,
+      Collection<LibraryCapability> availableCapabilities) {
     this.parentProcessModuleContext = parentProcessModuleContext;
     this.config = config;
     this.metricCollector = metricCollector;
@@ -58,6 +64,9 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.signalClientFactory = signalClientFactory;
     this.executionStrategy = executionStrategy;
+    this.libraryCapabilities =
+        LibraryCapabilityUtils.filterCapabilities(
+            availableCapabilities, executionStrategy.getCapabilitiesStatus());
   }
 
   @Override
@@ -82,6 +91,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         linesResolver,
         coverageStoreFactory,
         childProcessCoverageReporter,
-        signalClientFactory);
+        signalClientFactory,
+        libraryCapabilities);
   }
 }

@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.test;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -18,6 +20,7 @@ import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -218,5 +221,29 @@ public class ExecutionStrategy {
     } else {
       return linesResolver.getMethodLines(testMethod);
     }
+  }
+
+  public Map<LibraryCapability, Boolean> getCapabilitiesStatus() {
+    Map<LibraryCapability, Boolean> capabilities = new EnumMap<>(LibraryCapability.class);
+
+    capabilities.put(LibraryCapability.TIA, executionSettings.isTestSkippingEnabled());
+
+    EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
+    capabilities.put(LibraryCapability.EFD, efdSettings.isEnabled());
+
+    capabilities.put(LibraryCapability.ATR, executionSettings.isFlakyTestRetriesEnabled());
+    capabilities.put(
+        LibraryCapability.IMPACTED, executionSettings.isImpactedTestsDetectionEnabled());
+
+    String testOrder = Config.get().getCiVisibilityTestOrder();
+    capabilities.put(
+        LibraryCapability.FAIL_FAST, CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder));
+
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    capabilities.put(LibraryCapability.QUARANTINE, testManagementSettings.isEnabled());
+    capabilities.put(LibraryCapability.DISABLED, testManagementSettings.isEnabled());
+    capabilities.put(LibraryCapability.ATTEMPT_TO_FIX, testManagementSettings.isEnabled());
+
+    return capabilities;
   }
 }

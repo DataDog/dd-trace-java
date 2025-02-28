@@ -56,6 +56,21 @@ class TagsAssert {
     tag(name, { it != null })
   }
 
+  def arePresent(Collection<String> tags) {
+    for (String name : tags) {
+      tag(name, { it != null })
+    }
+  }
+
+  def isNotPresent(String name) {
+    tag(name, { it == null })
+  }
+
+  def areNotPresent(Collection<String> tags) {
+    for (String name : tags) {
+      tag(name, { it == null })
+    }
+  }
 
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered 'root' for current service

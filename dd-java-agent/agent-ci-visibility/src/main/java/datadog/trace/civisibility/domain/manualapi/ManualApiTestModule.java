@@ -79,6 +79,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        null,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
@@ -136,7 +137,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def executionSettingsFactory = new MockExecutionSettingsFactory(settings)
 
     def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
-    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
+    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime, Collection<LibraryCapability> availableCapabilities) -> {
       def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
@@ -155,7 +156,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       config,
       executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
       sourcePathResolver,
-      linesResolver)
+      linesResolver),
+      availableCapabilities
       )
     }
 
@@ -254,8 +256,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null)
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> availableCapabilities) {
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, availableCapabilities)
       TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
       new TestEventsHandlerImpl(metricCollector, testSession, testModule,
       suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),

@@ -7,17 +7,23 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.civisibility.ci.CIProviderInfoFactory
 import datadog.trace.civisibility.ci.GitLabInfo
 import datadog.trace.civisibility.ci.GithubActionsInfo
 import datadog.trace.civisibility.ci.env.CiEnvironment
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import groovy.transform.stc.ClosureParams
+import groovy.transform.stc.SimpleType
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
 
@@ -127,6 +133,31 @@ abstract class CiVisibilityTestUtils {
     }
 
     return replacementMap
+  }
+
+  // Will sort traces in the following order: SESSION -> MODULE -> SUITE -> TEST
+  static class SortTracesByType implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Integer.compare(rootSpanTypeToVal(o1), rootSpanTypeToVal(o2))
+    }
+
+    int rootSpanTypeToVal(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def spanType = trace.get(0).getSpanType()
+      switch (spanType) {
+        case DDSpanTypes.TEST_SESSION_END:
+        return 0
+        case DDSpanTypes.TEST_MODULE_END:
+        return 1
+        case DDSpanTypes.TEST_SUITE_END:
+        return 2
+        case DDSpanTypes.TEST:
+        return 3
+        default:
+        return 4
+      }
+    }
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -26,6 +27,7 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -52,6 +54,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
+  private final Map<LibraryCapability, Boolean> libraryCapabilities;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
@@ -72,6 +75,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      Map<LibraryCapability, Boolean> libraryCapabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
@@ -88,6 +92,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
+    this.libraryCapabilities = libraryCapabilities;
     this.onSpanFinish = onSpanFinish;
 
     AgentTracer.SpanBuilder spanBuilder =
@@ -259,6 +264,12 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        libraryCapabilities,
+        this::propagateTestTags);
+  }
+
+  private void propagateTestTags(AgentSpan testSpan) {
+    SpanUtils.propagateCiVisibilityTags(span, testSpan);
+    SpanUtils.propagateLibraryCapabilities(span, testSpan);
   }
 }
