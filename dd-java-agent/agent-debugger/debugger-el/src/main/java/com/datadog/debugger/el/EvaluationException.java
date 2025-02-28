@@ -26,12 +26,14 @@ public class EvaluationException extends RuntimeException {
     }
 
     EvaluationException that = (EvaluationException) o;
-    return Objects.equals(getMessage(), that.getMessage())
-        && Objects.equals(getExpr(), that.getExpr());
+    return Objects.equals(getExpr(), that.getExpr())
+        && Objects.equals(getMessage(), that.getMessage());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(getExpr());
+    int result = Objects.hashCode(getExpr());
+    result = 31 * result + Objects.hashCode(getMessage());
+    return result;
   }
 }

@@ -234,4 +234,27 @@ public class TriggerProbeTest extends CapturingTestBase {
       ProbeRateLimiter.setSamplerSupplier(null);
     }
   }
+
+  @Test
+  public void noSampling() throws IOException, URISyntaxException {
+    try {
+      MockSampler sampler = new MockSampler();
+      ProbeRateLimiter.setSamplerSupplier(value -> sampler);
+
+      final String className = "com.datadog.debugger.TriggerProbe01";
+      TriggerProbe probe1 =
+          createTriggerProbe(
+              TRIGGER_PROBE_ID1, TRIGGER_PROBE_SESSION_ID, className, "entry", "()", null, null);
+      Configuration config = Configuration.builder().setService(SERVICE_NAME).add(probe1).build();
+      installProbes(config);
+      Class<?> testClass = compileAndLoadClass(className);
+      for (int i = 0; i < 100; i++) {
+        Reflect.onClass(testClass).call("main", "").get();
+      }
+
+      assertTrue(sampler.getCallCount() != 0);
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
 }
