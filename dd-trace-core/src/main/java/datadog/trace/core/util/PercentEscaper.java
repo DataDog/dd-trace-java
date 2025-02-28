@@ -202,7 +202,7 @@ public final class PercentEscaper {
       s.getChars(unescapedChunkStart, end, dest, destIndex);
       destIndex = endIndex;
     }
-    data.addSize(charsSkipped); //Adding characters in-between characters that want to be encoded
+    data.addSize(charsSkipped); // Adding characters in-between characters that want to be encoded
 
     data.setData(new String(dest, 0, destIndex));
     return data;
