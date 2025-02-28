@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
+package datadog.trace.instrumentation.vertx_pg_client_4;
 
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
