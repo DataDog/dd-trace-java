@@ -122,6 +122,14 @@ public class AgentTracer {
   }
 
   /**
+   * Closes the scope for the currently active span. Prefer closing the scope returned by {@link
+   * #activateSpan} when available.
+   */
+  public static void closeActiveSpan() {
+    get().closeActiveSpan();
+  }
+
+  /**
    * Closes the immediately previous iteration scope. Should be called before creating a new span
    * for {@link #activateNext(AgentSpan)}.
    */
@@ -318,6 +326,8 @@ public class AgentTracer {
 
     AgentScope activeScope();
 
+    void closeActiveSpan();
+
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
       return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
@@ -480,6 +490,9 @@ public class AgentTracer {
     public AgentScope activeScope() {
       return null;
     }
+
+    @Override
+    public void closeActiveSpan() {}
 
     @Override
     public AgentSpan blackholeSpan() {
