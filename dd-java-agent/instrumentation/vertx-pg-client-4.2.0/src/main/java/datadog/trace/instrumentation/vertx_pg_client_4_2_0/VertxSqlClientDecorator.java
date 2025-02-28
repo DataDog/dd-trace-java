@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-
 import datadog.trace.api.Pair;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
@@ -14,12 +11,15 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+
 public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final VertxSqlClientDecorator DECORATE = new VertxSqlClientDecorator();
 
   private static final CharSequence VERTX_SQL = UTF8BytesString.create("vertx-sql");
-  private static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
+  private static final CharSequence DATABASE_QUERY = UTF8BytesString.create("handler");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
   private static final UTF8BytesString VERTX_STATEMENT =
       UTF8BytesString.create("vertx-sql-statement");
@@ -106,7 +106,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected void postProcessServiceAndOperationName(
-      AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
+      AgentSpan span, NamingEntry namingEntry) {
     if (namingEntry.getService() != null) {
       span.setServiceName(namingEntry.getService());
     }

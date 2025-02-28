@@ -1,18 +1,15 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.isStatic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+
 import java.util.Map;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 @AutoService(InstrumenterModule.class)
 public class PgPoolImplInstrumentation extends InstrumenterModule.Tracing

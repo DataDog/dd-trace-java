@@ -1,22 +1,19 @@
 package datadog.trace.instrumentation.vertx_pg_client_4_2_0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-import static datadog.trace.instrumentation.vertx_pg_client_4_2_0.VertxSqlClientDecorator.DECORATE;
-
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.pgclient.PgConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.vertx_pg_client_4_2_0.VertxSqlClientDecorator.DECORATE;
 
 public class CursorReadAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -47,10 +44,5 @@ public class CursorReadAdvice {
     if (null != clientScope) {
       clientScope.close();
     }
-  }
-
-  // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
-  private static void muzzleCheck(PgConnection connection) {
-    connection.query("SELECT 1");
   }
 }
