@@ -2,16 +2,19 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.util.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -329,5 +332,45 @@ public abstract class JUnit4Utils {
   public static boolean isJUnitPlatformRunnerTest(Description description) {
     Object uniqueId = getUniqueId(description);
     return uniqueId != null && uniqueId.toString().contains("[engine:");
+  }
+  private static List<LibraryCapability> cucumberCapabilities() {
+    return Arrays.asList(
+        LibraryCapability.TIA,
+        LibraryCapability.ATR,
+        LibraryCapability.EFD,
+        LibraryCapability.QUARANTINE,
+        LibraryCapability.DISABLED,
+        LibraryCapability.ATTEMPT_TO_FIX);
+  }
+
+  private static List<LibraryCapability> munitCapabilities() {
+    return Arrays.asList(
+        LibraryCapability.ATR,
+        LibraryCapability.EFD,
+        LibraryCapability.IMPACTED,
+        LibraryCapability.QUARANTINE,
+        LibraryCapability.ATTEMPT_TO_FIX);
+  }
+
+  private static List<LibraryCapability> junitCapabilities() {
+    return Arrays.asList(
+        LibraryCapability.TIA,
+        LibraryCapability.ATR,
+        LibraryCapability.EFD,
+        LibraryCapability.IMPACTED,
+        LibraryCapability.QUARANTINE,
+        LibraryCapability.DISABLED,
+        LibraryCapability.ATTEMPT_TO_FIX);
+  }
+
+  public static List<LibraryCapability> availableCapabilities(
+      TestFrameworkInstrumentation framework) {
+    if (framework.equals(TestFrameworkInstrumentation.MUNIT)) {
+      return munitCapabilities();
+    } else if (framework.equals(TestFrameworkInstrumentation.CUCUMBER)) {
+      return cucumberCapabilities();
+    } else {
+      return junitCapabilities();
+    }
   }
 }
