@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -44,7 +43,7 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(2)),
-        MethodHandlersInstrumentation.class.getName() + "$BuildAdvice");
+        "datadog.trace.instrumentation.grpc.server.MethodHandlersInstrumentation$BuildAdvice");
   }
 
   public static class BuildAdvice {
@@ -58,17 +57,16 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
           superClass = superClass.getSuperclass();
         }
         if (superClass != null) {
-          Method[] declaredMethods = superClass.getDeclaredMethods();
           // bindService() would be the only method in this case and it's irrelevant
-          if (declaredMethods.length == 1) {
-            declaredMethods =
-                Arrays.stream(serviceClass.getInterfaces())
-                    .filter(i -> i.getSimpleName().equals("AsyncService"))
-                    .findFirst()
-                    .orElse(superClass)
-                    .getDeclaredMethods();
+          if (superClass.getDeclaredMethods().length == 1) {
+            for (Class<?> i : serviceClass.getInterfaces()) {
+              if (i.getSimpleName().equals("AsyncService")) {
+                superClass = i;
+                break;
+              }
+            }
           }
-          for (Method method : declaredMethods) {
+          for (Method method : superClass.getDeclaredMethods()) {
             try {
               entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
             } catch (Throwable e) {
