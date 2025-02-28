@@ -1,21 +1,17 @@
 package datadog.smoketest
 
-
 import datadog.trace.api.Config
 import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.util.Strings
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
-import org.gradle.wrapper.Download
-import org.gradle.wrapper.GradleUserHomeLookup
-import org.gradle.wrapper.Install
-import org.gradle.wrapper.PathAssembler
-import org.gradle.wrapper.WrapperConfiguration
+import org.gradle.wrapper.*
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
@@ -133,6 +129,16 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
+      /*
+     * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
+     * Gradle Test Kit needs to do a "chmod" when starting a Gradle Daemon.
+     * This "chmod" operation is traced by datadog.trace.instrumentation.java.lang.ProcessImplInstrumentation and is reported as a span.
+     * The problem is that the "chmod" only happens when running in CI (could be due to differences in OS or FS permissions),
+     * so when running the tests locally, the "chmod" span is not there.
+     * This causes the tests to fail because the number of reported traces is different.
+     * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
+     */
+      "${Strings.propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
 

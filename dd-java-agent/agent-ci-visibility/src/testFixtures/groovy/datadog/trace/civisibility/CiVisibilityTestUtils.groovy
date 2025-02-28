@@ -103,8 +103,12 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
     } catch (AssertionError e) {
-      println "Expected events: $expectedEvents" // TODO remove
-      println "Actual events: $actualEvents" // TODO remove
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected events: $expectedEvents"
+        println "Actual events: $actualEvents"
+      }
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
@@ -113,6 +117,12 @@ abstract class CiVisibilityTestUtils {
     try {
       JSONAssert.assertEquals(expectedCoverages, actualCoverages, comparisonMode)
     } catch (AssertionError e) {
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected coverages: $expectedCoverages"
+        println "Actual coverages: $actualCoverages"
+      }
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
 
