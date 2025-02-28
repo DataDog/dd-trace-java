@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.pgclient.PgConnection;
 import io.vertx.sqlclient.PreparedStatement;
 import io.vertx.sqlclient.SqlClient;
 import net.bytebuddy.asm.Advice;
@@ -26,10 +25,5 @@ public class SqlConnectionBasePrepareAdvice {
     handler =
         new PrepareHandlerWrapper(
             handler, InstrumentationContext.get(PreparedStatement.class, Pair.class), info);
-  }
-
-  // Limit ourselves to 4.x by checking for the ping() method that was added in 4.x
-  private static void muzzleCheck(PgConnection connection) {
-    connection.query("SELECT 1");
   }
 }

@@ -25,6 +25,8 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.0'
 
   // This is needed for the test container to start
+  testImplementation group: 'com.ongres.scram', name: 'client', version: '2.1'
+  testImplementation group: 'org.postgresql', name: 'postgresql', version: '42.7.4'
   testImplementation group: 'org.testcontainers', name: 'postgresql', version: libs.versions.testcontainers.get()
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.2.+'

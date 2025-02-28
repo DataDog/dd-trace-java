@@ -17,10 +17,8 @@ public class TestDatabases implements Closeable {
     pgsql =
         new PostgreSQLContainer("postgres:16-alpine")
             .withDatabaseName(dbName)
-            .withUsername("sa")
-            .withPassword("sa");
-    // https://github.com/testcontainers/testcontainers-java/issues/914
-    pgsql.addParameter("TC_MY_CNF", null);
+            .withUsername("postgres")
+            .withPassword("postgres");
     pgsql.start();
     TestDBInfo info =
         new TestDBInfo(
