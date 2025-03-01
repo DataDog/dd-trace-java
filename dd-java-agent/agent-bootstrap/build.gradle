@@ -6,7 +6,7 @@ plugins {
 
 ext {
   // need access to sun.* packages
-  skipSettingCompilerRelease = true
+  defaultJdkVersion = 8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -36,7 +36,7 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
+tasks.named("compileMain_java11Java", JavaCompile).configure {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
