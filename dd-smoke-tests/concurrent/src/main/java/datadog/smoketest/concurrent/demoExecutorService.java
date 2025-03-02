@@ -1,7 +1,6 @@
 package datadog.smoketest.concurrent;
 
-import java.util.ArrayList;
-import java.util.List;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -9,44 +8,46 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-// examples from https://www.baeldung.com/java-executor-service-tutorial
-public class demoExecutorService {
-  public static void main(String[] args) {
-    System.out.println("=====demoExecutorService start=====");
+public class demoExecutorService implements FibonacciCalculator {
+  private static ExecutorService executorService;
 
-    // instantiate executorService and result
-    ExecutorService executorService = Executors.newFixedThreadPool(10);
-    List<String> result = new ArrayList<>();
+  public demoExecutorService() {
+    executorService = Executors.newFixedThreadPool(10);
+  }
 
-    // create callable task
-    Callable<String> callableTask =
-        () -> {
-          TimeUnit.MILLISECONDS.sleep(300);
-          return "callableTask executed!";
-        };
+  @WithSpan
+  @Override
+  public long computeFibonacci(int n) throws ExecutionException, InterruptedException {
+    FibonacciTask task = new FibonacciTask(10);
+    Future<Integer> future = executorService.submit(task);
+    return future.get();
+  }
 
-    // invoke callable tasks three times
-    List<Callable<String>> callableTasks = new ArrayList<>();
-    callableTasks.add(callableTask);
-    callableTasks.add(callableTask);
-    callableTasks.add(callableTask);
-    List<Future<String>> futures;
-    try {
-      futures = executorService.invokeAll(callableTasks);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+  private static class FibonacciTask implements Callable<Integer> {
+    private int n;
+
+    public FibonacciTask(int n) {
+      this.n = n;
     }
 
-    // add futures result to 'result' var
-    for (Future<String> future : futures) {
-      try {
-        result.add(future.get());
-      } catch (InterruptedException | ExecutionException e) {
-        e.printStackTrace();
+    @WithSpan
+    @Override
+    public Integer call() {
+      if (n <= 1) {
+        return n;
       }
+      return fibonacci(n);
     }
 
-    // shutdown executorService
+    private int fibonacci(int n) {
+      if (n <= 1) {
+        return n;
+      }
+      return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+  }
+
+  public void shutdown() {
     executorService.shutdown();
     try {
       if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
@@ -55,9 +56,15 @@ public class demoExecutorService {
     } catch (InterruptedException e) {
       executorService.shutdownNow();
     }
+  }
 
-    // print result
-    System.out.println("ExecutorService result: " + result);
+  public static void main(String[] args) throws ExecutionException, InterruptedException {
+    System.out.println("=====demoExecutorService start=====");
+
+    demoExecutorService demoService = new demoExecutorService();
+    long result = demoService.computeFibonacci(10);
+    System.out.println("=====result: " + result + "=====");
+    demoService.shutdown();
 
     System.out.println("=====demoExecutorService finish=====");
   }

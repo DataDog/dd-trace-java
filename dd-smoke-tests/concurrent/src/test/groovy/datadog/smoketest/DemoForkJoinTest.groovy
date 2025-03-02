@@ -2,7 +2,7 @@ package datadog.smoketest
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class DemoExecutorServiceTest extends AbstractSmokeTest {
+class DemoForkJoinTest extends AbstractSmokeTest {
   public static final int TIMEOUT_SECS = 10
 
   @Override
@@ -12,7 +12,7 @@ class DemoExecutorServiceTest extends AbstractSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.trace.otel.enabled=true")
-    command.addAll(["-jar", jarPath, "executorService"])
+    command.addAll(["-jar", jarPath, "forkJoin"])
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -23,7 +23,7 @@ class DemoExecutorServiceTest extends AbstractSmokeTest {
     assert true == true
   }
 
-  def 'receive trace for ExecutorService'() {
+  def 'receive trace for ForkJoin'() {
     expect:
     waitForTraceCount(1) // one parent trace
 
