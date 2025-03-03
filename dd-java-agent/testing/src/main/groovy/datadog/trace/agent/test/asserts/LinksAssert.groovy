@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.asserts
 
-
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
@@ -31,9 +31,12 @@ class LinksAssert {
   }
 
   def link(DDSpan linked, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
+    link(linked.traceId, linked.spanId, flags, attributes, traceState)
+  }
+
+  def link(DDTraceId traceId, def spanId, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
     def found = links.find {
-      it.spanId() == linked.spanId &&
-        it.traceId() == linked.traceId
+      it.spanId() == spanId && it.traceId() == traceId
     }
     assert found != null
     assert found.traceFlags() == flags
