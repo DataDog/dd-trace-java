@@ -218,8 +218,8 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       trace(2) {
         basicSpan(it, "parent")
         span {
-          serviceName expectedService("SQS", "ReceiveMessage")
-          operationName expectedOperation("SQS", "ReceiveMessage")
+          serviceName expectedService("SQS", "SendMessage")
+          operationName expectedOperation("SQS", "SendMessage")
           resourceName "SQS.SendMessage"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
