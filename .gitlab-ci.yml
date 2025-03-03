@@ -29,6 +29,43 @@ variables:
     description: "Enable profiling of tests"
     value: "false"
 
+.test_matrix: &test_matrix
+  - testJvm: &test_jvms
+      - "8"
+      - "semeru11"
+      - "oracle8"
+      - "21"
+      - "ubuntu17"
+      - "zulu8"
+      - "semeru8"
+      - "ibm8"
+      - "zulu11"
+      - "11"
+      - "17"
+      - "semeru17"
+
+# Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+# These blocks emulate "parallel" by including it in the matrix
+.test_matrix_4: &test_matrix_4
+  - testJvm: *test_jvms
+    CI_NODE_INDEX: ["1", "2", "3", "4"]
+    CI_NODE_TOTAL: 4
+
+.test_matrix_6: &test_matrix_6
+  - testJvm: *test_jvms
+    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6"]
+    CI_NODE_TOTAL: 6
+
+.test_matrix_8: &test_matrix_8
+  - testJvm: *test_jvms
+    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6", "7", "8"]
+    CI_NODE_TOTAL: 8
+
+.test_matrix_12: &test_matrix_12
+  - testJvm: *test_jvms
+    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+    CI_NODE_TOTAL: 12
+
 default:
   tags: [ "arch:amd64" ]
 
@@ -44,10 +81,10 @@ default:
 
 # CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
 .normalize_node_index: &normalize_node_index
-  - echo "CI_NODE_TOTAL=$CI_NODE_TOTAL , CI_NODE_INDEX=$CI_NODE_INDEX"
+  - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
   - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
   - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
-  - echo "NORMALIZED_NODE_TOTAL=$NORMALIZED_NODE_TOTAL , NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
+  - echo "NORMALIZED_NODE_TOTAL=${NORMALIZED_NODE_TOTAL}, NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
 
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
@@ -252,11 +289,12 @@ muzzle-dep-report:
 .test_job:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
+  tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
   needs: [ build ]
   stage: tests
   variables:
     BUILD_CACHE_TYPE: lib
-    GRADLE_PARAMS: ""
+    GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
   script:
     - > 
@@ -283,6 +321,25 @@ muzzle-dep-report:
       - ./results
       - '.gradle/daemon/*/*.out.log'
 
+.test_job_with_test_agent:
+  extends: .test_job
+  variables:
+    CI_USE_TEST_AGENT: "true"
+    CI_AGENT_HOST: local-agent
+  services:
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
+      alias: local-agent
+      variables:
+        LOG_LEVEL: "DEBUG"
+        TRACE_LANGUAGE: "java"
+        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
+        DD_POOL_TRACE_CHECK_FAILURES: "true"
+        DD_DISABLE_ERROR_RESPONSES: "true"
+        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
+  script:
+    - !reference [.test_job, script]
+    - .gitlab/check_test_agent_results.sh
+
 agent_integration_tests:
   extends: .test_job
   variables:
@@ -296,6 +353,108 @@ agent_integration_tests:
         DD_APM_ENABLED: "true"
         DD_BIND_HOST: "0.0.0.0"
         DD_API_KEY: "invalid_key_but_this_is_fine"
+
+test_base:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":baseTest"
+  parallel:
+    matrix: *test_matrix_4
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
+    - !reference [.test_job, script]
+
+test_inst:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+  parallel:
+    matrix: *test_matrix_12
+
+test_inst_latest:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+  parallel:
+    matrix:
+      - testJvm: ["8", "17", "21" ]
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_NODE_INDEX: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" ]
+        CI_NODE_TOTAL: 12
+
+test_flaky:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  parallel:
+    matrix:
+      - GRADLE_TARGET: [":baseTest", ":instrumentationTest", ":smokeTest", ":debuggerTest"]
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_NODE_INDEX: [ "1", "2", "3", "4" ]
+        CI_NODE_TOTAL: 4
+
+test_flaky_inst:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  parallel:
+    matrix:
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+      - CI_NODE_INDEX: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" ]
+        CI_NODE_TOTAL: 12
+
+test_profiling:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":profilingTest"
+  parallel:
+    matrix: *test_matrix
+
+test_debugger:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":debuggerTest"
+  parallel:
+    matrix: *test_matrix
+
+test_smoke:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix: *test_matrix_4
+
+test_ssi_smoke:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix: *test_matrix_4
+
+test_smoke_graalvm:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+  parallel:
+    matrix:
+      - testJvm: ["graalvm17", "graalvm21"]
+
+test_smoke_semeru8_debugger:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+    testJvm: "semeru8"
 
 required:
   extends: .fan_in
