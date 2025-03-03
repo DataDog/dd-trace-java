@@ -84,7 +84,6 @@ public class TempLocationManagerTest {
     assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
   }
 
-  @Flaky("https://datadoghq.atlassian.net/browse/PROF-11290")
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testCleanup(String subPath) throws Exception {
@@ -188,6 +187,7 @@ public class TempLocationManagerTest {
     assertFalse(Files.exists(fakeTempDir));
   }
 
+  @Flaky("https://datadoghq.atlassian.net/browse/PROF-11290")
   @ParameterizedTest
   @MethodSource("timeoutTestArguments")
   void testCleanupWithTimeout(boolean selfCleanup, boolean shouldSucceed, String section)
