@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.BaggageContext;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
@@ -22,22 +23,29 @@ public class OtelContext implements Context {
 
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
+  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage";
 
   /** Keep track of propagated context that has not been captured on the scope stack. */
   private static final ThreadLocal<OtelContext> lastPropagated = new ThreadLocal<>();
 
   private final Span currentSpan;
   private final Span rootSpan;
+  private final BaggageContext baggageContext;
 
   private final Object[] entries;
 
   public OtelContext(Span currentSpan, Span rootSpan) {
-    this(currentSpan, rootSpan, NO_ENTRIES);
+    this(currentSpan, rootSpan, null, NO_ENTRIES);
   }
 
-  public OtelContext(Span currentSpan, Span rootSpan, Object[] entries) {
+  public OtelContext(Span currentSpan, Span rootSpan, BaggageContext baggageContext) {
+    this(currentSpan, rootSpan, baggageContext, NO_ENTRIES);
+  }
+
+  public OtelContext(Span currentSpan, Span rootSpan, BaggageContext baggageContext, Object[] entries) {
     this.currentSpan = currentSpan;
     this.rootSpan = rootSpan;
+    this.baggageContext = baggageContext;
     this.entries = entries;
   }
 
@@ -49,6 +57,8 @@ public class OtelContext implements Context {
       return (V) this.currentSpan;
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       return (V) this.rootSpan;
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())){
+      return (V) this.baggageContext;
     }
     for (int i = 0; i < this.entries.length; i += 2) {
       if (this.entries[i] == key) {
@@ -61,9 +71,11 @@ public class OtelContext implements Context {
   @Override
   public <V> Context with(ContextKey<V> key, V value) {
     if (OTEL_CONTEXT_SPAN_KEY.equals(key.toString())) {
-      return new OtelContext((Span) value, this.rootSpan, this.entries);
+      return new OtelContext((Span) value, this.rootSpan, null, this.entries);
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
-      return new OtelContext(this.currentSpan, (Span) value, this.entries);
+      return new OtelContext(this.currentSpan, (Span) value, null, this.entries);
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())){
+      return new OtelContext(null, null, this.baggageContext, this.entries);
     }
     Object[] newEntries = null;
     int oldEntriesLength = this.entries.length;
@@ -82,7 +94,7 @@ public class OtelContext implements Context {
       newEntries[oldEntriesLength] = key;
       newEntries[oldEntriesLength + 1] = value;
     }
-    return new OtelContext(this.currentSpan, this.rootSpan, newEntries);
+    return new OtelContext(this.currentSpan, this.rootSpan, null, newEntries);
   }
 
   @Override
@@ -149,13 +161,17 @@ public class OtelContext implements Context {
         contextEntries = ((OtelScope) wrapper).contextEntries();
       }
     }
-    return new OtelContext(otelCurrentSpan, otelRootSpan, contextEntries);
+    return new OtelContext(otelCurrentSpan, otelRootSpan, null, contextEntries);
   }
 
   /** Last propagated context not on the scope stack; {@code null} if there's no such context. */
   @Nullable
   public static Context lastPropagated() {
     return lastPropagated.get();
+  }
+
+  public static String getOtelContextBaggageKey(){
+    return OTEL_CONTEXT_BAGGAGE_KEY;
   }
 
   @Override
