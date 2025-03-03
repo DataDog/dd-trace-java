@@ -68,12 +68,19 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
-    return parseMap(str, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
+    return parseMap(
+        str,
+        settingName,
+        ':',
+        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
   }
 
   @Nonnull
   static Map<String, String> parseMap(
-      final String str, final String settingName, final char keyValueSeparator, final List<Character> argSeparators) {
+      final String str,
+      final String settingName,
+      final char keyValueSeparator,
+      final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = Strings.trim(str);
     if (trimmed.isEmpty()) {
@@ -122,7 +129,12 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new LinkedHashMap<>();
-    loadMap(map, trimmed, settingName, ':', Arrays.asList(',', ' ')); //is this the best place stylistically to put the list?
+    loadMap(
+        map,
+        trimmed,
+        settingName,
+        ':',
+        Arrays.asList(',', ' ')); // is this the best place stylistically to put the list?
     return map;
   }
 
@@ -133,14 +145,19 @@ final class ConfigConverter {
   }
 
   private static void loadMap(
-      Map<String, String> map, String str, String settingName, char keyValueSeparator, final List<Character> argSeparators) {
+      Map<String, String> map,
+      String str,
+      String settingName,
+      char keyValueSeparator,
+      final List<Character> argSeparators) {
     // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
     try {
       int start = 0;
       int splitter = str.indexOf(keyValueSeparator, start);
       char argSeparator = '\u0000';
       int argSeparatorInd = -1;
-      for (Character sep : argSeparators){ //find the first instance of the first possible separator
+      for (Character sep :
+          argSeparators) { // find the first instance of the first possible separator
         argSeparatorInd = str.indexOf(sep, splitter + 1);
         if (argSeparatorInd != -1) {
           argSeparator = sep;
@@ -148,35 +165,39 @@ final class ConfigConverter {
         }
       }
       while (splitter != -1 || start < str.length()) {
-        int nextSplitter = argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1);
-        int nextArgSeparator = argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
+        int nextSplitter =
+            argSeparatorInd == -1 ? -1 : str.indexOf(keyValueSeparator, argSeparatorInd + 1);
+        int nextArgSeparator =
+            argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
         int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
 
-        if(start >= end){ //the character is only the delimiter
+        if (start >= end) { // the character is only the delimiter
           start = end + 1;
           splitter = nextSplitter;
           argSeparatorInd = nextArgSeparator;
           continue;
         }
 
-        if(splitter >= end || splitter == -1){ //only key, no value
+        if (splitter >= end || splitter == -1) { // only key, no value
           String key = str.substring(start, end).trim();
-          if(!key.isEmpty()){
+          if (!key.isEmpty()) {
             map.put(key, "");
           }
-        }else{
+        } else {
           String key = str.substring(start, splitter).trim();
           if (key.indexOf(argSeparator) != -1) {
-            throw new BadFormatException("Illegal '" + argSeparator + "'  character in key '" + key + "'");
+            throw new BadFormatException(
+                "Illegal '" + argSeparator + "'  character in key '" + key + "'");
           }
           String value;
-          if (splitter + 1 >= end){ // no splitter in this string: only key, no value
+          if (splitter + 1 >= end) { // no splitter in this string: only key, no value
             value = "";
-          }else{
+          } else {
             value = str.substring(splitter + 1, end).trim();
           }
           if (value.indexOf(argSeparator) != -1) {
-            throw new BadFormatException("Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
+            throw new BadFormatException(
+                "Illegal '" + argSeparator + "'  character in value for key '" + key + "'");
           }
           if (!key.isEmpty()) {
             map.put(key, value);
