@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.MUnitUtils;
@@ -91,8 +92,9 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
 
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-              testIdentifier, testSourceData);
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.MUNIT)
+              .executionPolicy(testIdentifier, testSourceData);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

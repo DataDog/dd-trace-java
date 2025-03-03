@@ -4,6 +4,10 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_CUSTOM_TAGS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_HTTP_HEADER_TAGS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_LOGS_INJECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RATE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
@@ -24,6 +28,7 @@ import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.sampling.SamplingRule;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
@@ -65,7 +70,11 @@ final class TracingConfigPoller {
               | CAPABILITY_APM_HTTP_HEADER_TAGS
               | CAPABILITY_APM_CUSTOM_TAGS
               | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
-              | CAPABILITY_APM_TRACING_SAMPLE_RULES);
+              | CAPABILITY_APM_TRACING_SAMPLE_RULES
+              | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
+              | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
+              | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
+              | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING);
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -211,7 +220,11 @@ final class TracingConfigPoller {
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
-
+    DebuggerContext.updateConfig(
+        libConfig.dynamicInstrumentationEnabled,
+        libConfig.exceptionReplayEnabled,
+        libConfig.codeOriginEnabled,
+        libConfig.liveDebuggingEnabled);
     builder.apply();
   }
 
@@ -282,6 +295,18 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_sampling_rules")
     public TracingSamplingRules tracingSamplingRules;
+
+    @Json(name = "dynamic_instrumentation_enabled")
+    public Boolean dynamicInstrumentationEnabled;
+
+    @Json(name = "exception_replay_enabled")
+    public Boolean exceptionReplayEnabled;
+
+    @Json(name = "code_origin_enabled")
+    public Boolean codeOriginEnabled;
+
+    @Json(name = "live_debugging_enabled")
+    public Boolean liveDebuggingEnabled;
   }
 
   /** Holds the raw JSON string and the parsed rule data. */
