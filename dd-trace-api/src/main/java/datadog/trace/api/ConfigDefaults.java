@@ -99,7 +99,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
-  static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
+  static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
