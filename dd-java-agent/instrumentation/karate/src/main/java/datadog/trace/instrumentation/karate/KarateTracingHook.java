@@ -221,11 +221,7 @@ public class KarateTracingHook implements RuntimeHook {
       return;
     }
 
-    AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
+    AgentTracer.closeActive();
     span.finish();
   }
 
