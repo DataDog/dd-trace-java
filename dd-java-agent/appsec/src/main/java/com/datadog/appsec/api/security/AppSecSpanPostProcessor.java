@@ -21,11 +21,10 @@ import org.slf4j.LoggerFactory;
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSpanPostProcessor.class);
-  private final ApiSecurityRequestSampler sampler;
+  private final ApiSecuritySampler sampler;
   private final EventProducerService producerService;
 
-  public AppSecSpanPostProcessor(
-      ApiSecurityRequestSampler sampler, EventProducerService producerService) {
+  public AppSecSpanPostProcessor(ApiSecuritySampler sampler, EventProducerService producerService) {
     this.sampler = sampler;
     this.producerService = producerService;
   }

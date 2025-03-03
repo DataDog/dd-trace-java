@@ -1,6 +1,7 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.ApiSecuritySampler;
+import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
 import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
@@ -68,13 +69,14 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ApiSecurityRequestSampler requestSampler;
+    ApiSecuritySampler requestSampler;
     if (Config.get().isApiSecurityEnabled()) {
-      requestSampler = new ApiSecurityRequestSampler();
+      // TODO: Address support for 1-click enablement
+      requestSampler = new ApiSecuritySamplerImpl();
       SpanPostProcessor.Holder.INSTANCE =
           new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
     } else {
-      requestSampler = new ApiSecurityRequestSampler.NoOp();
+      requestSampler = new ApiSecuritySampler.NoOp();
     }
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
