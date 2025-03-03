@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
@@ -211,7 +212,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     .map(f -> "classpath:" + f).
     collect(Collectors.joining(",")))
 
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER)
     try {
       def result = runner.run(TestSucceedCucumber)
       if (expectSuccess) {
@@ -224,7 +225,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.CUCUMBER)
     }
   }
 

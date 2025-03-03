@@ -1,5 +1,6 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
@@ -144,7 +145,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)
@@ -158,7 +159,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.MUNIT)
     }
   }
 

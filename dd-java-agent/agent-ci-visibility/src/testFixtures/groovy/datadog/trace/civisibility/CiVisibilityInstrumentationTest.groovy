@@ -358,8 +358,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     //          def clazz = this.getClass()
     //          def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
     //          def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
-    //          def modulePath = classfilePath.substring(0, classfilePath.indexOf("/build/classes"))
-    //          def baseTemplatesPath = modulePath + "/src/test/resources/" + testcaseName
+    //          def searchIndex = classfilePath.indexOf("/build/classes/groovy")
+    //          def modulePath = classfilePath.substring(0, searchIndex)
+    //          def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
+    //          def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
     //          CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
     //          return [:]
 
