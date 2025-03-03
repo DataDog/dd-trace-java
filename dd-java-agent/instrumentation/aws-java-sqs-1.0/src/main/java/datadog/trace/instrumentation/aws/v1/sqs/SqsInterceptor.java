@@ -23,8 +23,10 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
@@ -71,7 +73,9 @@ public class SqsInterceptor extends RequestHandler2 {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;
       if (rmRequest.getMessageAttributeNames().size() < 10
           && !rmRequest.getMessageAttributeNames().contains(DATADOG_KEY)) {
-        rmRequest.getMessageAttributeNames().add(DATADOG_KEY);
+        List<String> attributeNames = new ArrayList<>(rmRequest.getMessageAttributeNames());
+        attributeNames.add(DATADOG_KEY);
+        rmRequest.setMessageAttributeNames(attributeNames);
       }
     }
     return request;
