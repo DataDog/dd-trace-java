@@ -13,7 +13,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'schema extracted on happy path'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
@@ -44,7 +44,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'no schema extracted if sampling is false'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
@@ -68,7 +68,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'permit is released even if request context close throws'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
@@ -95,7 +95,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'context is cleaned up on timeout'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
@@ -118,7 +118,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'process null request context does nothing'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
@@ -134,7 +134,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'process null appsec request context does nothing'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
@@ -152,7 +152,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'process already closed context does nothing'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
@@ -172,7 +172,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'process throws on null span'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def processor = new AppSecSpanPostProcessor(sampler, producer)
 
@@ -186,7 +186,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'empty event subscription does not break the process'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)
@@ -215,7 +215,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
 
   void 'expired event subscription does not break the process'() {
     given:
-    def sampler = Mock(ApiSecurityRequestSampler)
+    def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
     def span = Mock(AgentSpan)

@@ -4,12 +4,12 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.test.util.DDSpecification
 
-class ApiSecurityRequestSamplerTest extends DDSpecification {
+class ApiSecuritySamplerTest extends DDSpecification {
 
   void 'happy path with single request'() {
     given:
-    def ctx = createContext('route1', 'GET', 200)
-    def sampler = new ApiSecurityRequestSampler()
+    final ctx = createContext('route1', 'GET', 200)
+    final sampler = new ApiSecuritySamplerImpl()
 
     when:
     final preSampled = sampler.preSampleRequest(ctx)
@@ -29,7 +29,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     given:
     AppSecRequestContext ctx1 = createContext('route1', 'GET', 200)
     AppSecRequestContext ctx2 = createContext('route1', 'GET', 200)
-    def sampler = new ApiSecurityRequestSampler()
+    final sampler = new ApiSecuritySamplerImpl()
 
     when:
     final preSampled1 = sampler.preSampleRequest(ctx1)
@@ -52,7 +52,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     given:
     final ctx1 = Spy(createContext('route2', 'GET', 200))
     final ctx2 = Spy(createContext('route3', 'GET', 200))
-    final sampler = new ApiSecurityRequestSampler()
+    final sampler = new ApiSecuritySamplerImpl()
     assert sampler.MAX_POST_PROCESSING_TASKS > 0
 
     when: 'exhaust the maximum number of concurrent contexts'
@@ -82,7 +82,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
   void 'preSampleRequest with null route'() {
     given:
     def ctx = createContext(null, 'GET', 200)
-    def sampler = new ApiSecurityRequestSampler()
+    def sampler = new ApiSecuritySamplerImpl()
 
     when:
     def preSampled = sampler.preSampleRequest(ctx)
@@ -94,7 +94,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
   void 'preSampleRequest with null method'() {
     given:
     def ctx = createContext('route1', null, 200)
-    def sampler = new ApiSecurityRequestSampler()
+    def sampler = new ApiSecuritySamplerImpl()
 
     when:
     def preSampled = sampler.preSampleRequest(ctx)
@@ -106,7 +106,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
   void 'preSampleRequest with 0 status code'() {
     given:
     def ctx = createContext('route1', 'GET', 0)
-    def sampler = new ApiSecurityRequestSampler()
+    def sampler = new ApiSecuritySamplerImpl()
 
     when:
     def preSampled = sampler.preSampleRequest(ctx)
@@ -117,7 +117,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
 
   void 'sampleRequest with null context throws'() {
     given:
-    def sampler = new ApiSecurityRequestSampler()
+    def sampler = new ApiSecuritySamplerImpl()
 
     when:
     sampler.preSampleRequest(null)
@@ -128,7 +128,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
 
   void 'sampleRequest without prior preSampleRequest never works'() {
     given:
-    def sampler = new ApiSecurityRequestSampler()
+    def sampler = new ApiSecuritySamplerImpl()
     def ctx = createContext('route1', 'GET', 200)
 
     when:
@@ -147,7 +147,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     timeSource.set(0)
     final long expirationTimeInMs = 10L
     final long expirationTimeInNs = expirationTimeInMs * 1_000_000
-    def sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     when:
     def sampled = sampler.sampleRequest(ctx)
@@ -175,7 +175,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     timeSource.set(0)
     final long expirationTimeInMs = 10_000
     final int maxCapacity = 10
-    ApiSecurityRequestSampler sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+    ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     expect:
     for (int i = 0; i < maxCapacity * 10; i++) {
@@ -194,7 +194,7 @@ class ApiSecurityRequestSamplerTest extends DDSpecification {
     timeSource.set(0)
     final long expirationTimeInMs = 10_000
     final int maxCapacity = 10
-    ApiSecurityRequestSampler sampler = new ApiSecurityRequestSampler(10, expirationTimeInMs, timeSource)
+    ApiSecuritySamplerImpl sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
 
     expect:
     for (int i = 0; i < maxCapacity * 10; i++) {

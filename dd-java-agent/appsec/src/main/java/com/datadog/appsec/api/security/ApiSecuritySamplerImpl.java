@@ -12,9 +12,9 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ApiSecurityRequestSampler {
+public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(ApiSecurityRequestSampler.class);
+  private static final Logger log = LoggerFactory.getLogger(ApiSecuritySamplerImpl.class);
 
   /**
    * A maximum number of request contexts we'll keep open past the end of request at any given time.
@@ -34,14 +34,14 @@ public class ApiSecurityRequestSampler {
   private final TimeSource timeSource;
   private final Semaphore counter = new Semaphore(MAX_POST_PROCESSING_TASKS);
 
-  public ApiSecurityRequestSampler() {
+  public ApiSecuritySamplerImpl() {
     this(
         MAX_SIZE,
         (long) (Config.get().getApiSecuritySampleDelay() * 1_000),
         SystemTimeSource.INSTANCE);
   }
 
-  public ApiSecurityRequestSampler(
+  public ApiSecuritySamplerImpl(
       int capacity, long expirationTimeInMs, @Nonnull TimeSource timeSource) {
     this.capacity = capacity;
     this.expirationTimeInMs = expirationTimeInMs;
@@ -50,12 +50,7 @@ public class ApiSecurityRequestSampler {
     this.timeSource = timeSource;
   }
 
-  /**
-   * Prepare a request context for later sampling decision. This method should be called at request
-   * end, and is thread-safe. If a request can potentially be sampled, this method will return true.
-   * If this method returns true, the caller MUST call {@link #releaseOne()} once the context is not
-   * needed anymore.
-   */
+  @Override
   public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
     final String route = ctx.getRoute();
     if (route == null) {
@@ -87,6 +82,7 @@ public class ApiSecurityRequestSampler {
   }
 
   /** Get the final sampling decision. This method is NOT thread-safe. */
+  @Override
   public boolean sampleRequest(AppSecRequestContext ctx) {
     if (ctx == null) {
       return false;
@@ -99,7 +95,7 @@ public class ApiSecurityRequestSampler {
     return updateApiAccessIfExpired(hash);
   }
 
-  /** Release one permit for the sampler. This must be called after processing a span. */
+  @Override
   public void releaseOne() {
     counter.release();
   }
@@ -172,21 +168,5 @@ public class ApiSecurityRequestSampler {
     result = 31 * result + method.hashCode();
     result = 31 * result + statusCode;
     return result;
-  }
-
-  public static final class NoOp extends ApiSecurityRequestSampler {
-    public NoOp() {
-      super(0, 0, SystemTimeSource.INSTANCE);
-    }
-
-    @Override
-    public boolean preSampleRequest(@Nonnull AppSecRequestContext ctx) {
-      return false;
-    }
-
-    @Override
-    public boolean sampleRequest(AppSecRequestContext ctx) {
-      return false;
-    }
   }
 }
