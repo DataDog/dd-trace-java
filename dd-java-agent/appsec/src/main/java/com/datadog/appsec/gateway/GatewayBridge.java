@@ -7,7 +7,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_AL
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -83,7 +83,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecurityRequestSampler requestSampler;
+  private final ApiSecuritySampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -109,7 +109,7 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecurityRequestSampler requestSampler,
+      ApiSecuritySampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
