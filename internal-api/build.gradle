@@ -206,8 +206,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.iast.VulnerabilityMarks',
   'datadog.trace.api.iast.securitycontrol.SecurityControlHelper',
   'datadog.trace.api.iast.securitycontrol.SecurityControl',
-  // Otel encoder class tested in BaggagePropagatorTest
-  'datadog.trace.core.util.PercentEscaper'
+  // BaggageContext class tested in BaggagePropagatorTest in dd-trace-core
+  'datadog.trace.core.util.BaggageContext'
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
