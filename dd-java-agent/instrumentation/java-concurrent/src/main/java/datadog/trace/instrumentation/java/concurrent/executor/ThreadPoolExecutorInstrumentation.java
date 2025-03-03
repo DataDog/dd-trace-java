@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent.executor;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
@@ -129,11 +131,17 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return Collections.singletonMap(
+    Map<ExcludeFilter.ExcludeType, List<String>> map = new HashMap<>(2);
+    map.put(
         RUNNABLE,
         Arrays.asList(
             "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
             "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
+    map.put(
+        EXECUTOR,
+        Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor"));
+
+    return Collections.unmodifiableMap(map);
   }
 
   public static final class Init {
@@ -162,22 +170,24 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
           // queue time needs to be handled separately because there are RunnableFutures which are
           // excluded as
           // Runnables but it is not until now that they will be put on the executor's queue
-          if (!exclude(RUNNABLE, task)) {
-            Queue<?> queue = tpe.getQueue();
-            QueueTimerHelper.startQueuingTimer(
-                InstrumentationContext.get(Runnable.class, State.class),
-                tpe.getClass(),
-                queue.getClass(),
-                queue.size(),
-                task);
-          } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
-            Queue<?> queue = tpe.getQueue();
-            QueueTimerHelper.startQueuingTimer(
-                InstrumentationContext.get(RunnableFuture.class, State.class),
-                tpe.getClass(),
-                queue.getClass(),
-                queue.size(),
-                (RunnableFuture<?>) task);
+          if (!exclude(EXECUTOR, tpe)) {
+            if (!exclude(RUNNABLE, task)) {
+              Queue<?> queue = tpe.getQueue();
+              QueueTimerHelper.startQueuingTimer(
+                  InstrumentationContext.get(Runnable.class, State.class),
+                  tpe.getClass(),
+                  queue.getClass(),
+                  queue.size(),
+                  task);
+            } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
+              Queue<?> queue = tpe.getQueue();
+              QueueTimerHelper.startQueuingTimer(
+                  InstrumentationContext.get(RunnableFuture.class, State.class),
+                  tpe.getClass(),
+                  queue.getClass(),
+                  queue.size(),
+                  (RunnableFuture<?>) task);
+            }
           }
         }
       }

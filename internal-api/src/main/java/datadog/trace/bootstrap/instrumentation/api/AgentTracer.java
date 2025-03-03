@@ -7,8 +7,9 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
-import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
@@ -20,10 +21,8 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
 public class AgentTracer {
@@ -178,10 +177,6 @@ public class AgentTracer {
     get().setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
-  public static AgentPropagation propagate() {
-    return get().propagate();
-  }
-
   /**
    * Returns the noop span instance.
    *
@@ -322,8 +317,6 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
-
-    AgentPropagation propagate();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -489,11 +482,6 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentPropagation propagate() {
-      return NoopAgentPropagation.INSTANCE;
-    }
-
-    @Override
     public AgentSpan blackholeSpan() {
       return NoopSpan.INSTANCE; // no-op tracer stays no-op
     }
@@ -602,7 +590,7 @@ public class AgentTracer {
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
-      return NoopAgentDataStreamsMonitoring.INSTANCE;
+      return NoopDataStreamsMonitoring.INSTANCE;
     }
 
     @Override
@@ -621,27 +609,6 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentPropagation implements AgentPropagation {
-    static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span,
-        C carrier,
-        Setter<C> setter,
-        LinkedHashMap<String, String> sortedTags,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public <C> void injectPathwayContextWithoutSendingStats(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-  }
-
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
@@ -650,105 +617,6 @@ public class AgentTracer {
 
     @Override
     public void cancelContinuation(final AgentScope.Continuation continuation) {}
-  }
-
-  public static class NoopAgentDataStreamsMonitoring implements AgentDataStreamsMonitoring {
-    public static final NoopAgentDataStreamsMonitoring INSTANCE =
-        new NoopAgentDataStreamsMonitoring();
-
-    @Override
-    public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
-
-    @Override
-    public void setCheckpoint(
-        AgentSpan span,
-        LinkedHashMap<String, String> sortedTags,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public PathwayContext newPathwayContext() {
-      return NoopPathwayContext.INSTANCE;
-    }
-
-    @Override
-    public void add(StatsPoint statsPoint) {}
-
-    @Override
-    public int trySampleSchema(String topic) {
-      return 0;
-    }
-
-    @Override
-    public boolean canSampleSchema(String topic) {
-      return false;
-    }
-
-    @Override
-    public Schema getSchema(String schemaName, SchemaIterator iterator) {
-      return null;
-    }
-
-    @Override
-    public void setProduceCheckpoint(String type, String target) {}
-
-    @Override
-    public void setThreadServiceName(String serviceName) {}
-
-    @Override
-    public void clearThreadServiceName() {}
-
-    @Override
-    public void setConsumeCheckpoint(
-        String type, String source, DataStreamsContextCarrier carrier) {}
-
-    @Override
-    public void setProduceCheckpoint(
-        String type, String target, DataStreamsContextCarrier carrier) {}
-  }
-
-  public static class NoopPathwayContext implements PathwayContext {
-    public static final NoopPathwayContext INSTANCE = new NoopPathwayContext();
-
-    @Override
-    public boolean isStarted() {
-      return false;
-    }
-
-    @Override
-    public long getHash() {
-      return 0L;
-    }
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags,
-        Consumer<StatsPoint> pointConsumer,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags,
-        Consumer<StatsPoint> pointConsumer,
-        long defaultTimestamp) {}
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
-
-    @Override
-    public void saveStats(StatsPoint point) {}
-
-    @Override
-    public StatsPoint getSavedStats() {
-      return null;
-    }
-
-    @Override
-    public String encode() {
-      return null;
-    }
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

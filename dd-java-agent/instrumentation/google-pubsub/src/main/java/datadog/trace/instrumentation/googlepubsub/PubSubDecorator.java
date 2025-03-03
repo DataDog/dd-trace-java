@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.googlepubsub;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -13,6 +13,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -128,7 +129,8 @@ public class PubSubDecorator extends MessagingClientDecorator {
   }
 
   public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
-    final AgentSpanContext spanContext = propagate().extract(message, TextMapExtractAdapter.GETTER);
+    final AgentSpanContext spanContext =
+        extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
@@ -141,9 +143,10 @@ public class PubSubDecorator extends MessagingClientDecorator {
         .getDataStreamsMonitoring()
         .setCheckpoint(
             span,
-            sortedTags,
-            publishTime.getSeconds() * 1_000 + publishTime.getNanos() / (int) 1e6,
-            message.getSerializedSize());
+            DataStreamsContext.create(
+                sortedTags,
+                publishTime.getSeconds() * 1_000 + publishTime.getNanos() / (int) 1e6,
+                message.getSerializedSize()));
     afterStart(span);
     span.setResourceName(
         CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(parsedSubscription, CONSUMER_PREFIX));

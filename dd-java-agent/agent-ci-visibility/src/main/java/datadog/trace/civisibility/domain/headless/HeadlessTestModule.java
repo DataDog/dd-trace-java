@@ -75,12 +75,12 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return executionStrategy.isNew(test);
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return executionStrategy.isFlaky(test);
   }
 
