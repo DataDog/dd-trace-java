@@ -3,16 +3,19 @@ package datadog.opentelemetry.shim.context.propagation;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
+import datadog.context.propagation.Propagators;
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
+import datadog.trace.bootstrap.instrumentation.api.BaggageContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextKey;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.context.propagation.TextMapSetter;
@@ -61,7 +64,8 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     }
     // Otherwise, fallback to extracting limited tracing context and recreating an OTel context from
     AgentSpanContext extract = OtelExtractedContext.extract(context);
-    return AgentSpan.fromSpanContext(extract);
+    AgentSpan agentSpan = AgentSpan.fromSpanContext(extract);
+    return agentSpan.with(BaggageContext.getContextKey(), context.get(ContextKey.named(OtelContext.getOtelContextBaggageKey())));
   }
 
   /**
