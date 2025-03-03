@@ -158,7 +158,7 @@ test_published_artifacts:
   variables:
     BUILD_CACHE_TYPE: lib
   script:
-    - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$CI_NODE_TOTAL -PtaskPartition=$CI_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh --destination ./check_reports --move
   artifacts:
