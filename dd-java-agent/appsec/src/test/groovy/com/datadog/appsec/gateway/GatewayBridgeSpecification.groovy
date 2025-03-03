@@ -1,7 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler
+import com.datadog.appsec.api.security.ApiSecuritySamplerImpl
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -29,7 +29,6 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
-import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 
@@ -81,7 +80,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  ApiSecurityRequestSampler requestSampler = Mock(ApiSecurityRequestSampler)
+  ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
