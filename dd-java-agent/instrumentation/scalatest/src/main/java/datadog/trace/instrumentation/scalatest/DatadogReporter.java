@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.scalatest;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -140,7 +140,7 @@ public class DatadogReporter {
     Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
     if (context.itrUnskippable(testIdentifier)) {
-      categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
+      categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
     }

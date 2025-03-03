@@ -100,7 +100,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @NotNull
   @Override
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source) {
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags) {
     return Regular.INSTANCE;
   }
 
