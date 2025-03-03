@@ -62,7 +62,10 @@ public class SqsInterceptor extends RequestHandler2 {
       Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
-        dsmPropagator.inject(context, entry.getMessageAttributes(), SETTER);
+        Map<String, MessageAttributeValue> messageAttributes =
+            new HashMap<>(entry.getMessageAttributes());
+        dsmPropagator.inject(context, messageAttributes, SETTER);
+        entry.setMessageAttributes(messageAttributes);
       }
     } else if (request instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;
