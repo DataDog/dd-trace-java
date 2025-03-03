@@ -127,6 +127,8 @@
 1 com.safelayer.*
 1 com.solarmetric.*
 1 com.squareup.*
+# APPSEC-56641
+1 com.stripe.net.HttpURLConnectionClient
 # Required for propagation purposes
 2 com.squareup.okhttp.Request
 2 com.squareup.okhttp.Request$*
