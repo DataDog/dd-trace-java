@@ -186,7 +186,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
         (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
-    if (moduleLayout.getSourceSets().isEmpty()
+    if ((moduleLayout == null || moduleLayout.getSourceSets().isEmpty())
         && project.getExtensions().findByName("android") != null) {
       moduleLayout = AndroidGradleUtils.getAndroidModuleLayout(project, task);
     }
