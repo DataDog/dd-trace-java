@@ -31,7 +31,7 @@ public final class DynamoDbClientInstrumentation extends InstrumenterModule.Trac
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".DynamoDbInterceptor"};
+    return new String[] {packageName + ".DynamoDbInterceptor", packageName + ".DynamoDbUtil"};
   }
 
   public static class AwsDynamoDbBuilderAdvice {
