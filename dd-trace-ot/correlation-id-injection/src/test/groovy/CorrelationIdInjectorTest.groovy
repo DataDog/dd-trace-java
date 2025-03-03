@@ -8,6 +8,7 @@ abstract class CorrelationIdInjectorTest extends DDSpecification {
 
   def "test correlation id injection"() {
     setup:
+    injectSysConfig("logs.injection.enabled", "true")
     def tracer = buildTracer()
     def journal = buildJournal()
     def logger = buildLogger()

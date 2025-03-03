@@ -46,6 +46,10 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
   abstract String helloEndpointName()
 
   abstract String resourceName()
+//
+//  def setup() {
+//    injectSysConfig("logs.injection.enabled", "true")
+//  }
 
   def "get welcome endpoint in parallel"() {
     expect:
