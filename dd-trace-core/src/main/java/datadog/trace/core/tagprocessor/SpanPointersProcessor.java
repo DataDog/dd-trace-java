@@ -30,10 +30,10 @@ public class SpanPointersProcessor implements TagsPostProcessor {
 
   // The pointer direction will always be down. The serverless agent handles cases where the
   // direction is up.
-  static final String DOWN_DIRECTION = "d";
-  static final String DYNAMODB_PTR_KIND = "aws.dynamodb.item";
-  static final String S3_PTR_KIND = "aws.s3.object";
-  static final String LINK_KIND = "span-pointer";
+  public static final String DOWN_DIRECTION = "d";
+  public static final String DYNAMODB_PTR_KIND = "aws.dynamodb.item";
+  public static final String S3_PTR_KIND = "aws.s3.object";
+  public static final String LINK_KIND = "span-pointer";
 
   @Override
   public Map<String, Object> processTags(

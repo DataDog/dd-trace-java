@@ -31,9 +31,12 @@ class JettyServer implements WebsocketServer {
   JettyServer(ServletContextHandler handler) {
     server.handler = handler
     server.addBean(errorHandler)
-    JakartaWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
-      container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
-    })
+    try {
+      JakartaWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
+        container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
+      })
+    } catch (Throwable ignored) {
+    }
   }
 
   @Override
