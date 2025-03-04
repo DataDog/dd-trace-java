@@ -36,6 +36,11 @@ public class WsHandshakeRequestInstrumentation extends InstrumenterModule.Tracin
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureHandshakeSpanAdvice");
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "tomcat-websocket";
+  }
+
   public static class CaptureHandshakeSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureHandshakeSpan(@Advice.This final WsHandshakeRequest self) {

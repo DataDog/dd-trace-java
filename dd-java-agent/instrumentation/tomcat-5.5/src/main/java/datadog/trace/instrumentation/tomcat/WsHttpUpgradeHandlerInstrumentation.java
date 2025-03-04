@@ -33,6 +33,11 @@ public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
+  public String muzzleDirective() {
+    return "tomcat-websocket";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(named("init"), getClass().getName() + "$CaptureHandshakeSpanAdvice");
   }
