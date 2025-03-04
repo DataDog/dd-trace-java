@@ -21,7 +21,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 // https://mvnrepository.com/artifact/org.springframework/spring-test-mvc?repo=springio-plugins-release
 // https://github.com/spring-attic/spring-test-mvc
 @ContextConfiguration(classes = TestConfiguration, loader = AnnotationConfigWebContextLoader)
-class HandlerMappingResourceNameFilterTest extends AgentTestRunner {
+class HandlerMappingResourceNameFilterForkedTest extends AgentTestRunner {
   @EnableWebMvc
   @Configuration
   @ComponentScan(basePackages = "datadog.trace.instrumentation.springweb")
