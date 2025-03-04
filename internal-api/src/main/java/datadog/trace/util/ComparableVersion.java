@@ -404,7 +404,9 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
   }
 
   private static class ListItem extends ArrayList<Item> implements Item {
-    private ListItem() {}
+    private ListItem() {
+      super();
+    }
 
     public int getType() {
       return 2;
@@ -483,7 +485,7 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
 
     private String toListString() {
       StringBuilder buffer = new StringBuilder();
-      buffer.append("[");
+      buffer.append('[');
 
       for (Item item : this) {
         if (buffer.length() > 1) {
@@ -497,7 +499,7 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
         }
       }
 
-      buffer.append("]");
+      buffer.append(']');
       return buffer.toString();
     }
   }
