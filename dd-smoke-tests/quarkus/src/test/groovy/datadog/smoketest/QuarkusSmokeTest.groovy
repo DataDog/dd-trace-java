@@ -19,6 +19,7 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "-Ddd.app.customlogmanager=true",
+      "-Ddd.logs.injection=true",
       "-Dquarkus.http.port=${httpPort}",
       "-jar",
       quarkusUberJar
@@ -46,10 +47,10 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
   abstract String helloEndpointName()
 
   abstract String resourceName()
-//
-//  def setup() {
-//    injectSysConfig("logs.injection.enabled", "true")
-//  }
+  //
+  //  def setup() {
+  //    injectSysConfig("logs.injection.enabled", "true")
+  //  }
 
   def "get welcome endpoint in parallel"() {
     expect:
