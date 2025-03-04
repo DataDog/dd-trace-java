@@ -52,12 +52,12 @@ import org.slf4j.LoggerFactory;
 public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
     extends ServerDecorator {
 
-  class MySpan implements AgentSpan {
-    private final AgentSpan apiGatewaySpan;
+  class InferredProxySpanGroup implements AgentSpan {
+    private final AgentSpan inferredProxySpan;
     private final AgentSpan serverSpan;
 
-    MySpan(AgentSpan apiGatewaySpan, AgentSpan serverSpan) {
-      this.apiGatewaySpan = apiGatewaySpan;
+    InferredProxySpanGroup(AgentSpan inferredProxySpan, AgentSpan serverSpan) {
+      this.inferredProxySpan = inferredProxySpan;
       this.serverSpan = serverSpan;
     }
 
@@ -213,24 +213,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     @Override
     public void finish() {
       serverSpan.finish();
-      if (apiGatewaySpan != null) {
-        apiGatewaySpan.finish();
+      if (inferredProxySpan != null) {
+        inferredProxySpan.finish();
       }
     }
 
     @Override
     public void finish(long finishMicros) {
       serverSpan.finish(finishMicros);
-      if (apiGatewaySpan != null) {
-        apiGatewaySpan.finish(finishMicros);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.finish(finishMicros);
       }
     }
 
     @Override
     public void finishWithDuration(long durationNanos) {
       serverSpan.finishWithDuration(durationNanos);
-      if (apiGatewaySpan != null) {
-        apiGatewaySpan.finishWithDuration(durationNanos);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.finishWithDuration(durationNanos);
       }
     }
 
@@ -242,16 +242,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     @Override
     public void finishWithEndToEnd() {
       serverSpan.finishWithEndToEnd();
-      if (apiGatewaySpan != null) {
-        apiGatewaySpan.finishWithEndToEnd();
+      if (inferredProxySpan != null) {
+        inferredProxySpan.finishWithEndToEnd();
       }
     }
 
     @Override
     public boolean phasedFinish() {
       final boolean ret = serverSpan.phasedFinish();
-      if (apiGatewaySpan != null) {
-        apiGatewaySpan.phasedFinish();
+      if (inferredProxySpan != null) {
+        inferredProxySpan.phasedFinish();
       }
       return ret;
     }
@@ -518,6 +518,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       apiGtwSpan =
           tracer().startSpan("inferred_proxy", "aws.apigateway", callIGCallbackStart(context));
 
+      // WILL NEED CONTEXT TRACKING API TO GET TAGS FROM CONTEXT
       // set tags from Context
       //      System.out.println("here");
       //      InferredProxyContext inferredProxyContext =
@@ -530,7 +531,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       //        apiGtwSpan.setAllTags(inferredProxyContext.getInferredProxyContext());
       //      }
 
-      // apiGtwSpan.setTag(DDTAGS.name, "aws.apigateway");
+      // mocking tags
       apiGtwSpan.setTag(Tags.COMPONENT, "aws.apigateway");
       apiGtwSpan.setTag(DDTags.RESOURCE_NAME, "GET /api/hello");
       apiGtwSpan.setTag(DDTags.TRACE_START_TIME, "123");
@@ -541,8 +542,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       apiGtwSpan.setHttpStatusCode(200);
       apiGtwSpan.setTag("stage", "dev");
       apiGtwSpan.setTag("_dd.inferred_span", "1");
-
-      // apiGtwSpan.setAllTags()
     }
     AgentSpan span =
         tracer()
@@ -560,7 +559,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
     System.out.println("starting http server span");
-    return new MySpan(apiGtwSpan, span);
+    return new InferredProxySpanGroup(apiGtwSpan, span);
   }
 
   public AgentSpan onRequest(
