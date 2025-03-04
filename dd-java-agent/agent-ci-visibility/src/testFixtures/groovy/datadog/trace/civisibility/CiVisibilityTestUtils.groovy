@@ -158,31 +158,7 @@ abstract class CiVisibilityTestUtils {
     return filteredEvents
   }
 
-  static List<String> buildTag(String tagString) {
-    // consider anything inside "[]" as a block and split by '.'
-    def tag = []
-
-    def part = ""
-    def block = false
-    for (int i = 0;  i < tagString.length(); ++i) {
-      def character = tagString.charAt(i)
-      if (character == '[' as char) {
-        block = true
-      } else if (character == ']' as char) {
-        block = false
-      } else if (character == '.' as char && !block) {
-        tag.add(part)
-        part = ""
-      } else {
-        part += character
-      }
-    }
-
-    tag.add(part)
-    return tag
-  }
-
-  // Will sort traces in the following order: SESSION -> MODULE -> SUITE -> TEST
+  // Will sort traces in the following order: TEST -> SUITE -> MODULE -> SESSION
   static class SortTracesByType implements Comparator<List<DDSpan>> {
     @Override
     int compare(List<DDSpan> o1, List<DDSpan> o2) {
@@ -193,13 +169,13 @@ abstract class CiVisibilityTestUtils {
       assert !trace.isEmpty()
       def spanType = trace.get(0).getSpanType()
       switch (spanType) {
-        case DDSpanTypes.TEST_SESSION_END:
-        return 0
-        case DDSpanTypes.TEST_MODULE_END:
-        return 1
-        case DDSpanTypes.TEST_SUITE_END:
-        return 2
         case DDSpanTypes.TEST:
+        return 0
+        case DDSpanTypes.TEST_SUITE_END:
+        return 1
+        case DDSpanTypes.TEST_MODULE_END:
+        return 2
+        case DDSpanTypes.TEST_SESSION_END:
         return 3
         default:
         return 4

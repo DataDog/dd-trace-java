@@ -90,7 +90,6 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   private void propagateModuleTags(AgentSpan moduleSpan) {
     SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
-    SpanUtils.propagateLibraryCapabilities(span, moduleSpan);
     SpanUtils.propagateTags(
         span,
         moduleSpan,

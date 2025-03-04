@@ -187,11 +187,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         coverageStoreFactory,
         executionResults,
         libraryCapabilities,
-        this::propagateSuiteTags);
-  }
-
-  private void propagateSuiteTags(AgentSpan suiteSpan) {
-    SpanUtils.propagateCiVisibilityTags(span, suiteSpan);
-    SpanUtils.propagateLibraryCapabilities(span, suiteSpan);
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -265,11 +265,6 @@ public class TestSuiteImpl implements DDTestSuite {
         coverageStoreFactory,
         executionResults,
         libraryCapabilities,
-        this::propagateTestTags);
-  }
-
-  private void propagateTestTags(AgentSpan testSpan) {
-    SpanUtils.propagateCiVisibilityTags(span, testSpan);
-    SpanUtils.propagateLibraryCapabilities(span, testSpan);
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -2,7 +2,6 @@ package datadog.trace.civisibility.utils;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.config.LibraryCapabilityUtils;
 import datadog.trace.civisibility.domain.TestStatus;
 import datadog.trace.civisibility.ipc.TestFramework;
 import java.util.ArrayList;
@@ -31,13 +30,6 @@ public class SpanUtils {
     Collection<TestFramework> spanFrameworks = getFrameworks(span);
     Collection<TestFramework> merged = merge(spanFrameworks, testFrameworks);
     setFrameworks(span, merged);
-  }
-
-  public static void propagateLibraryCapabilities(AgentSpan parentSpan, AgentSpan childSpan) {
-    propagateTags(
-        parentSpan,
-        childSpan,
-        LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values().toArray(new String[0]));
   }
 
   private static Collection<TestFramework> getFrameworks(AgentSpan span) {

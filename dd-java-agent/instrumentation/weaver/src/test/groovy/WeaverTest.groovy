@@ -46,7 +46,7 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
     ListWriterAssert.assertTraces(TEST_WRITER, 4, true, new CiVisibilityTestUtils.SortTracesByType(), {
       trace(1) {
         span(0) {
-          spanType DDSpanTypes.TEST_SESSION_END
+          spanType DDSpanTypes.TEST
           tags(false) {
             areNotPresent([
               DDTags.LIBRARY_CAPABILITIES_TIA,
