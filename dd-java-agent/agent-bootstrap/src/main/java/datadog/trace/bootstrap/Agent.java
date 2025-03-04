@@ -1121,6 +1121,14 @@ public class Agent {
         && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
       return;
     }
+    if (ciVisibilityEnabled
+        && !dynamicInstrumentationEnabled
+        && !exceptionReplayEnabled
+        && !codeOriginEnabled
+        && !distributedDebuggerEnabled) {
+      // if CI Visibility is enabled, debugger should be disabled by default
+      return;
+    }
     if (!remoteConfigEnabled) {
       log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
       return;
