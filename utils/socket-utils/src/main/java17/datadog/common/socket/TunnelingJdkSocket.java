@@ -123,10 +123,17 @@ final class TunnelingJdkSocket extends Socket {
       throw new SocketException("Socket input is shutdown");
     }
 
+    System.out.println("=====start=====");
+
     Selector selector = Selector.open();
+    System.out.println("=====1=====");
     unixSocketChannel.configureBlocking(false);
+    System.out.println("=====2=====");
     unixSocketChannel.register(selector, SelectionKey.OP_READ);
+    System.out.println("=====3=====");
     ByteBuffer buffer = ByteBuffer.allocate(256);
+
+    System.out.println("=====4=====");
 
     try {
       while (true) {
@@ -134,25 +141,37 @@ final class TunnelingJdkSocket extends Socket {
           System.out.println("Timeout (" + timeout + "ms) while waiting for data.");
           break;
         }
+        System.out.println("=====5=====");
         Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
+        System.out.println("=====6=====");
         while (keyIterator.hasNext()) {
+          System.out.println("=====7=====");
           SelectionKey key = keyIterator.next();
+          System.out.println("=====8=====");
           keyIterator.remove();
+          System.out.println("=====9=====");
           if (key.isReadable()) {
+            System.out.println("=====10=====");
             int r = unixSocketChannel.read(buffer);
+            System.out.println("=====11=====");
             if (r == -1) {
+              System.out.println("=====12=====");
               unixSocketChannel.close();
               System.out.println("Not accepting client messages anymore.");
               return InputStream.nullInputStream();
             }
           }
         }
+        System.out.println("=====13=====");
         buffer.flip();
         break;
       }
     } finally {
+      System.out.println("=====14=====");
       selector.close();
     }
+
+    System.out.println("=====15=====");
 
     return new InputStream() {
       @Override
@@ -162,11 +181,15 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public int read(byte[] bytes, int off, int len) {
+        System.out.println("=====16=====");
         if (!buffer.hasRemaining()) {
+          System.out.println("=====17=====");
           return -1;
         }
         len = Math.min(len, buffer.remaining());
+        System.out.println("=====18=====");
         buffer.get(bytes, off, len);
+        System.out.println("=====19=====");
         return len;
       }
     };
