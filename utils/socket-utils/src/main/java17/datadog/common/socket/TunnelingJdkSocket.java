@@ -166,6 +166,8 @@ final class TunnelingJdkSocket extends Socket {
         buffer.flip();
         break;
       }
+    } catch (Exception e) {
+      System.out.println("=====Error while reading from client: " + e + "=====");
     } finally {
       System.out.println("=====14=====");
       selector.close();
