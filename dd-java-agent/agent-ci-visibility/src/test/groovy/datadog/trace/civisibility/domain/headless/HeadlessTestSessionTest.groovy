@@ -12,7 +12,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.config.TestManagementSettings
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.domain.SpanWriterTest

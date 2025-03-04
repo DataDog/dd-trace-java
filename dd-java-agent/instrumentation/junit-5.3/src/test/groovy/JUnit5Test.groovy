@@ -272,7 +272,15 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                 | presentTags                                                                                                                                                                                                                                                                | assumption
-    "test-capabilities-base"     | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]  | !JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
+    "test-capabilities-base"     | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
+    ]  | !JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

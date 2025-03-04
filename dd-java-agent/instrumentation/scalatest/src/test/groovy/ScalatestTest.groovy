@@ -22,7 +22,6 @@ import org.example.TestSucceedMoreCases
 import org.example.TestSucceedParameterized
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
-import org.junit.jupiter.api.Assumptions
 import org.scalatest.tools.Runner
 
 class ScalatestTest extends CiVisibilityInstrumentationTest {
@@ -204,7 +203,15 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                 | presentTags
-    "test-capabilities-base"     | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]
+    "test-capabilities-base"     | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
+    ]
   }
 
   @Override

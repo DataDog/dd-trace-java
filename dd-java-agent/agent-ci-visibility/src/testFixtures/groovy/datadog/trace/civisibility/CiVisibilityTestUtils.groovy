@@ -10,6 +10,7 @@ import com.jayway.jsonpath.WriteContext
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.civisibility.ci.CIProviderInfoFactory
 import datadog.trace.civisibility.ci.GitLabInfo
 import datadog.trace.civisibility.ci.GithubActionsInfo
@@ -61,6 +62,18 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.stack']", false),
   ]
 
+  // ignored tags on assertion and fixture build
+  static final List<String> IGNORED_TAGS = [
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_TIA]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_EFD]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_ATR]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_QUARANTINE]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_DISABLED]",
+    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]",
+  ]
+
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
   private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
@@ -74,7 +87,10 @@ abstract class CiVisibilityTestUtils {
   /**
    * Use this method to generate expected data templates
    */
-  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags = []) {
+    if (!ignoredTags.empty) {
+      removeTags(events, ignoredTags)
+    }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def templateGenerator = new TemplateGenerator(new LabelGenerator())
@@ -85,7 +101,7 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
@@ -99,12 +115,16 @@ abstract class CiVisibilityTestUtils {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
+    // ignore provided tags
+    removeTags(events, ignoredTags)
+
     def environment = System.getenv()
     def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
     def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
 
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
+
 
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
@@ -133,6 +153,55 @@ abstract class CiVisibilityTestUtils {
     }
 
     return replacementMap
+  }
+
+  static void removeTags(List<Map<?, ?>> events, List<String> tags) {
+    def ignoredTags = []
+    for (String tagString : tags) {
+      ignoredTags.push(buildTag(tagString))
+    }
+
+    for (Map<String, Object> event : (events as List<Map<String, Object>>)) {
+      Map<String, Object> map = event
+      for (List<String> tag : ignoredTags) {
+        for (int i = 0; i < tag.size() - 1; ++i) {
+          Object currentValue = map.get(tag[i])
+
+          if (currentValue instanceof Map) {
+            map = (Map<String, Object>) currentValue
+          } else {
+            break
+          }
+        }
+        if (map instanceof Map) {
+          map.remove(tag[tag.size() - 1])
+        }
+      }
+    }
+  }
+
+  static List<String> buildTag(String tagString) {
+    // consider anything inside "[]" as a block and split by '.'
+    def tag = []
+
+    def part = ""
+    def block = false
+    for (int i = 0;  i < tagString.length(); ++i) {
+      def character = tagString.charAt(i)
+      if (character == '[' as char) {
+        block = true
+      } else if (character == ']' as char) {
+        block = false
+      } else if (character == '.' as char && !block) {
+        tag.add(part)
+        part = ""
+      } else {
+        part += character
+      }
+    }
+
+    tag.add(part)
+    return tag
   }
 
   // Will sort traces in the following order: SESSION -> MODULE -> SUITE -> TEST

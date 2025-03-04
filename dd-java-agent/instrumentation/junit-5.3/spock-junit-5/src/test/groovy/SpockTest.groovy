@@ -237,7 +237,15 @@ class SpockTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                 | presentTags
-    "test-capabilities-base"     | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]
+    "test-capabilities-base"     | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
+    ]
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {

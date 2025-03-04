@@ -343,7 +343,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     settings.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
   }
 
-  def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:], List<String> ignoredTags = []) {
     Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
     spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
 
@@ -356,18 +356,20 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
     ] + replacements
 
-    // uncomment to generate expected data templates
-              def clazz = this.getClass()
-              def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
-              def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
-              def searchIndex = classfilePath.indexOf("/build/classes/groovy")
-              def modulePath = classfilePath.substring(0, searchIndex)
-              def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
-              def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-              CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
-              return [:]
+    def additionalIgnoredTags = CiVisibilityTestUtils.IGNORED_TAGS + ignoredTags
 
-    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
+    // uncomment to generate expected data templates
+    //      def clazz = this.getClass()
+    //      def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
+    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    //      def searchIndex = classfilePath.indexOf("/build/classes/groovy")
+    //      def modulePath = classfilePath.substring(0, searchIndex)
+    //      def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
+    //      def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
+    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements, CiVisibilityTestUtils.IGNORED_TAGS)
+    //      return [:]
+
+    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
   }
 
   def assertTestsOrder(List<TestFQN> expectedOrder) {

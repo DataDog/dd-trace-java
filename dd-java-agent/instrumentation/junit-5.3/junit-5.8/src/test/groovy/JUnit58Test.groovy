@@ -111,7 +111,16 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                 | presentTags                                                                                                                                                                                                                                                                                                                 | assumption
-    "test-capabilities-ordering" | [DDTags.LIBRARY_CAPABILITIES_TIA, DDTags.LIBRARY_CAPABILITIES_ATR, DDTags.LIBRARY_CAPABILITIES_EFD, DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS, DDTags.LIBRARY_CAPABILITIES_QUARANTINE, DDTags.LIBRARY_CAPABILITIES_DISABLED, DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX, DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER] | JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
+    "test-capabilities-ordering" | [
+      DDTags.LIBRARY_CAPABILITIES_TIA,
+      DDTags.LIBRARY_CAPABILITIES_ATR,
+      DDTags.LIBRARY_CAPABILITIES_EFD,
+      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
+      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
+      DDTags.LIBRARY_CAPABILITIES_DISABLED,
+      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX,
+      DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER
+    ] | JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
   }
 
   private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

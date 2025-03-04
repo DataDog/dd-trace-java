@@ -333,6 +333,7 @@ public abstract class JUnit4Utils {
     Object uniqueId = getUniqueId(description);
     return uniqueId != null && uniqueId.toString().contains("[engine:");
   }
+
   private static List<LibraryCapability> cucumberCapabilities() {
     return Arrays.asList(
         LibraryCapability.TIA,
