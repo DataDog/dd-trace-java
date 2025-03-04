@@ -25,7 +25,7 @@ class DemoMixedConcurrencyTest extends AbstractSmokeTest {
 
   def 'receive trace for ExecutorService and ForkJoin'() {
     expect:
-    waitForTraceCount(1) // one parent trace
+    waitForTraceCount(3) // one parent trace
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0

@@ -25,7 +25,7 @@ class DemoForkJoinTest extends AbstractSmokeTest {
 
   def 'receive trace for ForkJoin'() {
     expect:
-    waitForTraceCount(1) // one parent trace
+    waitForTraceCount(2) // one parent trace
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0
