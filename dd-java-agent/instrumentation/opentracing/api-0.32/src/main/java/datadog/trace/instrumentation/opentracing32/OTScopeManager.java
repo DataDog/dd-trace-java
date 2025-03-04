@@ -109,9 +109,9 @@ public class OTScopeManager implements ScopeManager {
       if (agentSpan == tracer.activeSpan()) {
         tracer.closeActive();
       } else if (Config.get().isScopeStrictMode()) {
-        throw new RuntimeException("Tried to close scope when not on top");
+        throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
       } else {
-        log.warn("Tried to close scope when not on top");
+        log.warn("Tried to close {} scope when not on top", agentSpan);
       }
     }
   }
