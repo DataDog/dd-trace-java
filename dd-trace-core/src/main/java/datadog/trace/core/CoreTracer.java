@@ -978,7 +978,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void closeActiveSpan() {
+  public void closeActive() {
     AgentScope activeScope = this.scopeManager.active();
     if (activeScope != null) {
       activeScope.close();

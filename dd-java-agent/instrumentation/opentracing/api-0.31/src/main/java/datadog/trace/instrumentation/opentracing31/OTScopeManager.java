@@ -97,7 +97,7 @@ public class OTScopeManager implements ScopeManager {
     @Override
     public void close() {
       if (agentSpan == tracer.activeSpan()) {
-        tracer.closeActiveSpan();
+        tracer.closeActive();
       } else if (Config.get().isScopeStrictMode()) {
         throw new RuntimeException("Tried to close scope when not on top");
       } else {

@@ -122,11 +122,13 @@ public class AgentTracer {
   }
 
   /**
-   * Closes the scope for the currently active span. Prefer closing the scope returned by {@link
-   * #activateSpan} when available.
+   * Closes the scope for the currently active span.
+   *
+   * @deprecated Prefer closing the scope returned by {@link #activateSpan} when available.
    */
-  public static void closeActiveSpan() {
-    get().closeActiveSpan();
+  @Deprecated
+  public static void closeActive() {
+    get().closeActive();
   }
 
   /**
@@ -318,6 +320,8 @@ public class AgentTracer {
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    void closeActive();
+
     void closePrevious(boolean finishSpan);
 
     AgentScope activateNext(AgentSpan span);
@@ -325,8 +329,6 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
-
-    void closeActiveSpan();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -474,6 +476,9 @@ public class AgentTracer {
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
+    public void closeActive() {}
+
+    @Override
     public void closePrevious(final boolean finishSpan) {}
 
     @Override
@@ -490,9 +495,6 @@ public class AgentTracer {
     public AgentScope activeScope() {
       return null;
     }
-
-    @Override
-    public void closeActiveSpan() {}
 
     @Override
     public AgentSpan blackholeSpan() {
