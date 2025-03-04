@@ -4,6 +4,8 @@ import datadog.trace.core.tagprocessor.SpanPointersProcessor
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeAction
@@ -45,6 +47,7 @@ class DynamoDbClientTest extends AgentTestRunner {
     dynamoDbClient = DynamoDbClient.builder()
       .endpointOverride(URI.create(endPoint))
       .region(Region.US_EAST_1)
+      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
 
     // Create test tables
