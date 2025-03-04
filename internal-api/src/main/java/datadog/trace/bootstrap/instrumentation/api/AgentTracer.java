@@ -122,9 +122,34 @@ public class AgentTracer {
   }
 
   /**
+   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
+   * outstanding scopes up to but not including the most recent checkpointed scope.
+   *
+   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void checkpointActiveForRollback() {
+    get().checkpointActiveForRollback();
+  }
+
+  /**
+   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
+   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
+   *
+   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void rollbackActiveToCheckpoint() {
+    get().rollbackActiveToCheckpoint();
+  }
+
+  /**
    * Closes the scope for the currently active span.
    *
-   * @deprecated Prefer closing the scope returned by {@link #activateSpan} when available.
+   * @deprecated This should only be used when an instrumentation does not have access to the
+   *     original scope returned by {@link #activateSpan}.
    */
   @Deprecated
   public static void closeActive() {
@@ -322,6 +347,10 @@ public class AgentTracer {
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    void checkpointActiveForRollback();
+
+    void rollbackActiveToCheckpoint();
+
     void closeActive();
 
     void closePrevious(boolean finishSpan);
@@ -476,6 +505,12 @@ public class AgentTracer {
 
     @Override
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+
+    @Override
+    public void checkpointActiveForRollback() {}
+
+    @Override
+    public void rollbackActiveToCheckpoint() {}
 
     @Override
     public void closeActive() {}
