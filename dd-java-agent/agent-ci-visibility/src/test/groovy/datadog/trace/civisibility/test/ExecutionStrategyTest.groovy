@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.test
 
 import datadog.trace.api.Config
-import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
@@ -119,6 +118,6 @@ class ExecutionStrategyTest extends Specification {
       executionSettings,
       resolver,
       linesResolver
-    )
+      )
   }
 }
