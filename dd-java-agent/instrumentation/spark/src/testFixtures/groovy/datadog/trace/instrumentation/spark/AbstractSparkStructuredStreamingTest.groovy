@@ -6,11 +6,10 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
-import datadog.trace.core.DDSpan
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import scala.Option
 import scala.collection.JavaConverters
