@@ -321,7 +321,6 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     if (trace128bits) {
       assert traceId.matches("[0-9a-z]{32}")
     } else {
-      System.out.println(traceId)
       assert traceId.matches("\\d+")
     }
   }
