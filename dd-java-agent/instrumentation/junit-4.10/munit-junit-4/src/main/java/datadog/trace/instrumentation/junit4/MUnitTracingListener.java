@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -226,12 +225,11 @@ public class MUnitTracingListener extends TracingListener {
   }
 
   private static boolean isSpanInProgress(UTF8BytesString type) {
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope == null) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (span == null) {
       return false;
     }
-    AgentSpan scopeSpan = scope.span();
-    String spanType = scopeSpan.getSpanType();
+    String spanType = span.getSpanType();
     return spanType != null && spanType.contentEquals(type);
   }
 

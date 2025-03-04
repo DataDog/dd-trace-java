@@ -190,7 +190,7 @@ public class ExecutionStrategy {
     return detectionsUsed > threshold;
   }
 
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     Class<?> testClass = testSourceData.getTestClass();
     if (testClass == null) {
       return false;
@@ -245,5 +245,29 @@ public class ExecutionStrategy {
     capabilities.put(LibraryCapability.ATTEMPT_TO_FIX, testManagementSettings.isEnabled());
 
     return capabilities;
+  }
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    if (test == null) {
+      return 0;
+    }
+    if (isNew(test)) {
+      // execute new tests first
+      return 300;
+    }
+    if (isModified(testSource)) {
+      // then modified tests
+      return 200;
+    }
+    if (isFlaky(test)) {
+      // then tests known to be flaky
+      return 100;
+    }
+    // then the rest
+    return 0;
   }
 }

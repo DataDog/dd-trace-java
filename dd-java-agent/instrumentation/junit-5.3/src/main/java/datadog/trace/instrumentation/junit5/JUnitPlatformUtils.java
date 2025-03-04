@@ -155,11 +155,7 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static boolean isTestInProgress() {
-    AgentScope activeScope = AgentTracer.activeScope();
-    if (activeScope == null) {
-      return false;
-    }
-    AgentSpan span = activeScope.span();
+    AgentSpan span = AgentTracer.activeSpan();
     if (span == null) {
       return false;
     }

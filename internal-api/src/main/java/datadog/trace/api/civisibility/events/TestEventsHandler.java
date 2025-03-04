@@ -92,6 +92,12 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
 
   /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData);
+
+  /**
    * Returns the reason for skipping a test IF it can be skipped.
    *
    * @param test Test to be checked

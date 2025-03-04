@@ -116,6 +116,12 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
+  public int executionPriority(
+      @Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData) {
+    return 0;
+  }
+
+  @Override
   public void close() {
     // do nothing
   }
