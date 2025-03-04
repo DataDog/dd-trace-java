@@ -35,6 +35,14 @@ muzzle {
     extraDependency 'tomcat:tomcat-util:5.5.23'
     assertInverse = true
   }
+  pass {
+    name = "tomcat-websocket"
+    group = "org.apache.tomcat"
+    module = 'tomcat-websocket'
+    versions = "[8.0.1,]"
+    extraDependency 'org.apache.tomcat:tomcat-catalina-ha:8.0.1'
+    assertInverse = true
+  }
   // org.apache.catalina.connector.CoyoteAdapter introduced in Catalina 5.5
 }
 
