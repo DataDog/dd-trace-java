@@ -33,6 +33,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
@@ -218,6 +219,9 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       return "404"
     } else if (endpoint.hasPathParam) {
       return "$method ${testPathParam()}"
+    } else if (endpoint == WEBSOCKET) {
+      // the route is not set on websocket handlers
+      return "$method ${endpoint.resolve(address).path}"
     }
     def base = endpoint == LOGIN ? address : address.resolve("/")
     return "$method ${endpoint.resolve(base).path}"
@@ -267,6 +271,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     switch (endpoint) {
       case LOGIN:
       case NOT_FOUND:
+      case WEBSOCKET:
       return null
       case PATH_PARAM:
       return testPathParam()

@@ -4,6 +4,8 @@ import javax.websocket.OnOpen
 import javax.websocket.Session
 import javax.websocket.server.ServerEndpoint
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 @ServerEndpoint("/websocket")
 class TestEndpoint {
   static volatile Session activeSession
@@ -23,11 +25,11 @@ class TestEndpoint {
 
   @OnMessage
   void onMessage(String s, boolean last) {
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("onRead", {})
+    runUnderTrace("onRead", {})
   }
 
   @OnMessage
   void onMessage(byte[] b, boolean last) {
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("onRead", {})
+    runUnderTrace("onRead", {})
   }
 }
