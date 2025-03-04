@@ -106,6 +106,7 @@ import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
@@ -220,6 +221,8 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
     prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, "250")
 
+    prop.setProperty(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "DD_TAGS, DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING")
+
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
@@ -311,6 +314,8 @@ class ConfigTest extends DDSpecification {
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 250
 
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"]
+
     config.profilingEnabled == true
     config.profilingUrl == "new url"
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
@@ -400,6 +405,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_RATE_LIMIT, "200")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "333")
+
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, "DD_TAGS, DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -491,6 +498,8 @@ class ConfigTest extends DDSpecification {
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 333
     config.traceRateLimit == 200
+
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"]
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"

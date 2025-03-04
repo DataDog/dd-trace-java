@@ -72,6 +72,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     command.addAll(defaultJavaProperties)
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
     // causing random test failures (we are not testing these features here so they don't need to be on)
+    command.add("-Ddd.logs.injection=true")
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.removeAll { it.startsWith("-Ddd.profiling")}
     command.add("-Ddd.profiling.enabled=false")
@@ -321,6 +322,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     if (trace128bits) {
       assert traceId.matches("[0-9a-z]{32}")
     } else {
+      System.out.println(traceId)
       assert traceId.matches("\\d+")
     }
   }
