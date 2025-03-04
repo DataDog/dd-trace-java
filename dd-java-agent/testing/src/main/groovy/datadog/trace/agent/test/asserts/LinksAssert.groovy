@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.asserts
 
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
@@ -31,7 +32,11 @@ class LinksAssert {
   }
 
   def link(DDSpan linked, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
-    link(linked.traceId, linked.spanId, flags, attributes, traceState)
+    link(linked.context(), flags, attributes, traceState)
+  }
+
+  def link(AgentSpanContext context, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
+    link(context.traceId, context.spanId, flags, attributes, traceState)
   }
 
   def link(DDTraceId traceId, def spanId, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
