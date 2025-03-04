@@ -58,7 +58,7 @@ class TagsAssert {
 
   def arePresent(Collection<String> tags) {
     for (String name : tags) {
-      tag(name, { it != null })
+      isPresent(name)
     }
   }
 
@@ -68,7 +68,7 @@ class TagsAssert {
 
   def areNotPresent(Collection<String> tags) {
     for (String name : tags) {
-      tag(name, { it == null })
+      isNotPresent(name)
     }
   }
 
