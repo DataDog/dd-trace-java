@@ -18,6 +18,6 @@ public interface CIConstants {
   /** Tags that change the behaviour of CI Vis features when applied to a test case. */
   interface Tags {
     String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
-    String SKIP_EFD_TAG = "datadog_skip_efd";
+    String EFD_DISABLE_TAG = "datadog_efd_disable";
   }
 }

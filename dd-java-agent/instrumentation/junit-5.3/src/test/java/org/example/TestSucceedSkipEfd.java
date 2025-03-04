@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 public class TestSucceedSkipEfd {
 
   @Test
-  @Tags({@Tag(CIConstants.Tags.SKIP_EFD_TAG)})
+  @Tags({@Tag(CIConstants.Tags.EFD_DISABLE_TAG)})
   public void test_succeed() {
     assertTrue(true);
   }

@@ -76,7 +76,7 @@
       "test.name" : "first scenario",
       "test.status" : "pass",
       "test.suite" : "[org/example/test_succeed_skip_efd] test succeed",
-      "test.traits" : "{\"category\":[\"datadog_skip_efd\",\"foo\"]}",
+      "test.traits" : "{\"category\":[\"datadog_efd_disable\",\"foo\"]}",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

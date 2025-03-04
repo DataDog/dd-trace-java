@@ -125,7 +125,7 @@
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedMUnitSkipEfd",
-      "test.traits" : "{\"category\":[\"datadog_skip_efd\"]}",
+      "test.traits" : "{\"category\":[\"datadog_efd_disable\"]}",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

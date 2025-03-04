@@ -1,6 +1,6 @@
 @foo
 Feature: test succeed
 
-  @datadog_skip_efd
+  @datadog_efd_disable
   Scenario: first scenario
     * print 'first'

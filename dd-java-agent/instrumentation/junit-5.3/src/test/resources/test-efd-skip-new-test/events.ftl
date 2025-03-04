@@ -126,7 +126,7 @@
       "test.source.method" : "test_succeed()V",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedSkipEfd",
-      "test.traits" : "{\"category\":[\"datadog_skip_efd\"]}",
+      "test.traits" : "{\"category\":[\"datadog_efd_disable\"]}",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

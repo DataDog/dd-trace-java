@@ -7,11 +7,11 @@ import org.junit.experimental.categories.Category;
 
 public class TestSucceedSkipEfd {
 
-  @Category(datadog_skip_efd.class)
+  @Category(datadog_efd_disable.class)
   @Test
   public void test_succeed() {
     assertTrue(true);
   }
 
-  public interface datadog_skip_efd {}
+  public interface datadog_efd_disable {}
 }

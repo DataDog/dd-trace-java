@@ -7,7 +7,7 @@ import org.testng.annotations.Test;
 
 public class TestSucceedSkipEfd {
 
-  @Test(groups = CIConstants.Tags.SKIP_EFD_TAG)
+  @Test(groups = CIConstants.Tags.EFD_DISABLE_TAG)
   public void test_succeed() {
     assertTrue(true);
   }

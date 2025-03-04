@@ -6,7 +6,7 @@ import spock.lang.Tag
 
 class TestSucceedSpockSkipEfd extends Specification {
 
-  @Tag(CIConstants.Tags.SKIP_EFD_TAG)
+  @Tag(CIConstants.Tags.EFD_DISABLE_TAG)
   def "test success"() {
     expect:
     1 == 1

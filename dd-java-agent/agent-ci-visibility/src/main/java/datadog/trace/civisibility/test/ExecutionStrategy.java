@@ -173,7 +173,7 @@ public class ExecutionStrategy {
         && !isEFDLimitReached()
         && (isNew(test) || isModified(testSource))
         // endsWith matching is needed for JUnit4-based frameworks, where tags are classes
-        && testTags.stream().noneMatch(t -> t.endsWith(CIConstants.Tags.SKIP_EFD_TAG));
+        && testTags.stream().noneMatch(t -> t.endsWith(CIConstants.Tags.EFD_DISABLE_TAG));
   }
 
   public boolean isEFDLimitReached() {
