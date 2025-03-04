@@ -65,7 +65,11 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     // Otherwise, fallback to extracting limited tracing context and recreating an OTel context from
     AgentSpanContext extract = OtelExtractedContext.extract(context);
     AgentSpan agentSpan = AgentSpan.fromSpanContext(extract);
-    return agentSpan.with(BaggageContext.getContextKey(), context.get(ContextKey.named(OtelContext.getOtelContextBaggageKey())));
+    datadog.context.Context c =
+        agentSpan.with(
+            BaggageContext.getContextKey(),
+            context.get(ContextKey.named(OtelContext.getOtelContextBaggageKey())));
+    return c;
   }
 
   /**

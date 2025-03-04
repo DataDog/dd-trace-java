@@ -20,7 +20,7 @@ public class OtelContext implements Context {
 
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
-  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage";
+  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage-key";
 
   /** Records the keys needed to access the delegate context, mapped by key name. */
   private static final Map<ContextKey<?>, datadog.context.ContextKey<?>> DELEGATE_KEYS =
@@ -85,7 +85,7 @@ public class OtelContext implements Context {
     return delegate.hashCode();
   }
 
-  public static String getOtelContextBaggageKey(){
+  public static String getOtelContextBaggageKey() {
     return OTEL_CONTEXT_BAGGAGE_KEY;
   }
 
