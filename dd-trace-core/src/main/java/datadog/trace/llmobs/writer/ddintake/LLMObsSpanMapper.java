@@ -63,6 +63,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] METRICS = "metrics".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TAGS = "tags".getBytes(StandardCharsets.UTF_8);
 
+  // TODO is there a better place for this?
+  private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
+
   private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
   private final int size;
 
@@ -101,8 +104,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 3
       writable.writeUTF8(PARENT_ID);
-      // TODO fix after parent ID tracking is in place
-      writable.writeString("undefined", null);
+      writable.writeString(span.getTag(PARENT_ID_TAG_INTERNAL_FULL), null);
+      span.removeTag(PARENT_ID_TAG_INTERNAL_FULL);
 
       // 4
       writable.writeUTF8(NAME);
