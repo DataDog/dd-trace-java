@@ -7,7 +7,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.beans.factory.support.GenericBeanDefinition
 import test.boot.TestProvider
 
-class ResteasySpringBeanProcessorTest extends AgentTestRunner {
+class ResteasySpringBeanProcessorForkedTest extends AgentTestRunner {
 
   interface TestBeanFactory extends ConfigurableListableBeanFactory, BeanDefinitionRegistry {}
 
