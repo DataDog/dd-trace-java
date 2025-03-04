@@ -354,7 +354,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
     ] + replacements
 
-    if (System.getenv().get("DD_GENERATE_TEST_FIXTURES") != null) {
+    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
       return generateTestFixtures(testcaseName, events, coverages, additionalReplacements)
     } else {
       return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
