@@ -1,8 +1,5 @@
 package datadog.trace.agent.test.asserts
 
-import static TagsAssert.assertTags
-import static datadog.trace.agent.test.asserts.LinksAssert.assertLinks
-
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.core.DDSpan
@@ -11,6 +8,7 @@ import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
+import static datadog.trace.agent.test.asserts.LinksAssert.assertLinks
 import static datadog.trace.agent.test.asserts.TagsAssert.assertTags
 
 class SpanAssert {
