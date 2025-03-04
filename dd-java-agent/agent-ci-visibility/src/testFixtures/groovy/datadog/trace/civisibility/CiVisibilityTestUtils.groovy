@@ -7,24 +7,14 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
-import datadog.trace.civisibility.ci.CIProviderInfoFactory
-import datadog.trace.civisibility.ci.GitLabInfo
-import datadog.trace.civisibility.ci.GithubActionsInfo
-import datadog.trace.civisibility.ci.env.CiEnvironment
-import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
-import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
 
@@ -64,14 +54,14 @@ abstract class CiVisibilityTestUtils {
 
   // ignored tags on assertion and fixture build
   static final List<String> IGNORED_TAGS = [
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_TIA]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_EFD]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_ATR]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_QUARANTINE]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_DISABLED]",
-    "content.meta.[$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX]",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_TIA']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_EFD']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_ATR']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_QUARANTINE']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_DISABLED']",
+    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX']",
   ]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
@@ -89,7 +79,7 @@ abstract class CiVisibilityTestUtils {
    */
   static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags = []) {
     if (!ignoredTags.empty) {
-      removeTags(events, ignoredTags)
+      events = removeTags(events, ignoredTags)
     }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
@@ -116,7 +106,7 @@ abstract class CiVisibilityTestUtils {
     }
 
     // ignore provided tags
-    removeTags(events, ignoredTags)
+    events = removeTags(events, ignoredTags)
 
     def environment = System.getenv()
     def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
@@ -124,7 +114,6 @@ abstract class CiVisibilityTestUtils {
 
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
-
 
     try {
       JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
@@ -155,29 +144,18 @@ abstract class CiVisibilityTestUtils {
     return replacementMap
   }
 
-  static void removeTags(List<Map<?, ?>> events, List<String> tags) {
-    def ignoredTags = []
-    for (String tagString : tags) {
-      ignoredTags.push(buildTag(tagString))
-    }
+  static List<Map<?, ?>> removeTags(List<Map<?, ?>> events, List<String> tags) {
+    def filteredEvents = []
 
-    for (Map<String, Object> event : (events as List<Map<String, Object>>)) {
-      Map<String, Object> map = event
-      for (List<String> tag : ignoredTags) {
-        for (int i = 0; i < tag.size() - 1; ++i) {
-          Object currentValue = map.get(tag[i])
-
-          if (currentValue instanceof Map) {
-            map = (Map<String, Object>) currentValue
-          } else {
-            break
-          }
-        }
-        if (map instanceof Map) {
-          map.remove(tag[tag.size() - 1])
-        }
+    for (Map<?, ?> event : events) {
+      ReadContext ctx = JsonPath.parse(event, JSON_PATH_CONFIG)
+      for (String tag : tags) {
+        ctx.delete(path(tag).path)
       }
+      filteredEvents.add(ctx.json())
     }
+
+    return filteredEvents
   }
 
   static List<String> buildTag(String tagString) {
