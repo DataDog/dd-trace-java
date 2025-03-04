@@ -267,15 +267,15 @@ public abstract class TestNGUtils {
   }
 
   public static boolean isEFDSupported(String version) {
-    return testNGv75.compareTo(new ComparableVersion(version)) <= 0;
+    return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
   }
 
   public static boolean isExceptionSuppressionSupported(String version) {
-    return testNGv75.compareTo(new ComparableVersion(version)) <= 0;
+    return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
   }
 
   public static boolean isTestOrderingSupported(String version) {
-    return testNGv70.compareTo(new ComparableVersion(version)) <= 0;
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) <= 0;
   }
 
   public static List<LibraryCapability> availableCapabilities(String version) {

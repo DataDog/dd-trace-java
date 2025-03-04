@@ -143,12 +143,12 @@ public abstract class KarateUtils {
     return FileUtils.KARATE_VERSION;
   }
 
-  public static boolean isSkippingSupported(String frameworkVersion) {
-    return karateV12.compareTo(new ComparableVersion(frameworkVersion)) <= 0;
+  public static boolean isSkippingSupported(String version) {
+    return version != null && karateV12.compareTo(new ComparableVersion(version)) <= 0;
   }
 
-  public static boolean isSetupTagSupported(String frameworkVersion) {
-    return karateV13.compareTo(new ComparableVersion(frameworkVersion)) <= 0;
+  public static boolean isSetupTagSupported(String version) {
+    return version != null && karateV13.compareTo(new ComparableVersion(version)) <= 0;
   }
 
   public static List<LibraryCapability> availableCapabilities(String frameworkVersion) {
