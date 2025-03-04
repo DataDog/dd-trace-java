@@ -2,9 +2,9 @@ package datadog.trace.civisibility.events;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -206,7 +206,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
 
       for (String category : categories) {
-        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+        if (category.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
@@ -295,8 +295,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return testModule.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return testModule.executionPolicy(test, testSource, testTags);
   }
 
   @Override
