@@ -88,7 +88,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String reason);
 
   @Nonnull
-  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags);
 
   /**
    * Returns the priority of the test execution that can be used for ordering tests. The higher the

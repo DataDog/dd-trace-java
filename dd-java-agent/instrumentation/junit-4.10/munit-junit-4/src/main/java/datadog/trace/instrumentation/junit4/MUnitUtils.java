@@ -3,8 +3,12 @@ package datadog.trace.instrumentation.junit4;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
+import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
+import java.util.ArrayList;
+import java.util.List;
 import munit.MUnitRunner;
+import munit.Tag;
 import org.junit.runner.Description;
 
 public abstract class MUnitUtils {
@@ -33,5 +37,16 @@ public abstract class MUnitUtils {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = description.getClassName();
     return new TestSuiteDescriptor(testSuiteName, testClass);
+  }
+
+  public static List<String> getCategories(Description description) {
+    List<String> categories = new ArrayList<>();
+    for (Annotation annotation : description.getAnnotations()) {
+      if (annotation.annotationType() == Tag.class) {
+        Tag tag = (Tag) annotation;
+        categories.add(tag.value());
+      }
+    }
+    return categories;
   }
 }

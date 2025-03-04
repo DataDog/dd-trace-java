@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
@@ -114,7 +114,7 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
       if (skipReason == SkipReason.ITR) {
         Collection<TestTag> tags = testDescriptor.getTags();
         for (TestTag tag : tags) {
-          if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+          if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
             return;
           }
         }
