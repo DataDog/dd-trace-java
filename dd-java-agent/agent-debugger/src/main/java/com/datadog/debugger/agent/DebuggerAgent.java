@@ -57,7 +57,7 @@ public class DebuggerAgent {
   private static DebuggerSink sink;
   private static String agentVersion;
   private static JsonSnapshotSerializer snapshotSerializer;
-  private static ClassNameFilter classNameFilter;
+  private static volatile ClassNameFilter classNameFilter;
   private static SymDBEnablement symDBEnablement;
   private static volatile ConfigurationUpdater configurationUpdater;
   private static volatile DefaultExceptionDebugger exceptionDebugger;
@@ -83,7 +83,6 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = createDebuggerSink(config, probeStatusSink);
     debuggerSink.start();
-    classNameFilter = new ClassNameFiltering(config);
     configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -101,7 +100,6 @@ public class DebuggerAgent {
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
-    DebuggerContext.initClassNameFilter(classNameFilter);
     if (config.isDebuggerExceptionEnabled()) {
       startExceptionReplay();
     }
@@ -128,6 +126,12 @@ public class DebuggerAgent {
     TracerFlare.addReporter(DebuggerAgent::addReportToFlare);
   }
 
+  private static void initClassNameFilter() {
+    if (classNameFilter == null) {
+      classNameFilter = new ClassNameFiltering(Config.get());
+    }
+  }
+
   public static void startDynamicInstrumentation() {
     if (!dynamicInstrumentationEnabled.compareAndSet(false, true)) {
       return;
@@ -143,6 +147,7 @@ public class DebuggerAgent {
     }
     if (configurationPoller != null) {
       if (config.isSymbolDatabaseEnabled()) {
+        initClassNameFilter();
         SymbolAggregator symbolAggregator =
             new SymbolAggregator(
                 classNameFilter, sink.getSymbolSink(), config.getSymbolDatabaseFlushThreshold());
@@ -179,6 +184,7 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.info("Starting Exception Replay");
+    initClassNameFilter();
     Config config = Config.get();
     exceptionDebugger =
         new DefaultExceptionDebugger(
@@ -207,6 +213,8 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.info("Starting Code Origin for spans");
+    initClassNameFilter();
+    DebuggerContext.initClassNameFilter(classNameFilter);
     DebuggerContext.initCodeOrigin(
         new DefaultCodeOriginRecorder(Config.get(), configurationUpdater));
   }
