@@ -62,7 +62,6 @@ public class InferredProxyPropagator implements Propagator {
     private Map<String, String> parseInferredProxyHeaders(String input) {
       Map<String, String> parsedHeaders = new HashMap<>();
       System.out.println("parsing input: " + input);
-      // parsedHeaders.put(input);
       return parsedHeaders;
     }
 
@@ -76,13 +75,14 @@ public class InferredProxyPropagator implements Propagator {
     public void accept(String key, String value) {
       System.out.println("hello: " + key);
       System.out.println(value);
-      if (key == null || key.isEmpty() || !key.equalsIgnoreCase(INFERRED_PROXY_KEY)) {
+      if (key == null || key.isEmpty() || !key.startsWith(INFERRED_PROXY_KEY)) {
         return;
       }
       Map<String, String> inferredProxyMap = parseInferredProxyHeaders(value);
       if (extractedContext == null) {
-        extractedContext = new InferredProxyContext(parseInferredProxyHeaders(value));
+        extractedContext = new InferredProxyContext();
       }
+      extractedContext.putInferredProxyInfo(key, value);
     }
   }
 }
