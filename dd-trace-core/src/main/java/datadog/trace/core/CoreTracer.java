@@ -33,6 +33,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.OpenLineageEmitter;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.InstrumentationGateway;
@@ -85,6 +86,7 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.openlineage.DefaultOpenLineage;
 import datadog.trace.core.propagation.CorePropagation;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -203,6 +205,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
   private final DataStreamsMonitoring dataStreamsMonitoring;
+  private final OpenLineageEmitter openLineageEmitter;
   private final ExternalAgentLauncher externalAgentLauncher;
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
@@ -321,6 +324,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private InstrumentationGateway instrumentationGateway;
     private TimeSource timeSource;
     private DataStreamsMonitoring dataStreamsMonitoring;
+    private OpenLineageEmitter openLineageEmitter;
     private ProfilingContextIntegration profilingContextIntegration =
         ProfilingContextIntegration.NoOp.INSTANCE;
     private boolean pollForTracerFlareRequests;
@@ -434,6 +438,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder openLineageEmitter(OpenLineageEmitter openLineageEmitter) {
+      this.openLineageEmitter = openLineageEmitter;
+      return this;
+    }
+
     public CoreTracerBuilder profilingContextIntegration(
         ProfilingContextIntegration profilingContextIntegration) {
       this.profilingContextIntegration = profilingContextIntegration;
@@ -517,6 +526,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           instrumentationGateway,
           timeSource,
           dataStreamsMonitoring,
+          openLineageEmitter,
           profilingContextIntegration,
           pollForTracerFlareRequests,
           pollForTracingConfiguration,
@@ -548,6 +558,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final InstrumentationGateway instrumentationGateway,
       final TimeSource timeSource,
       final DataStreamsMonitoring dataStreamsMonitoring,
+      final OpenLineageEmitter openLineageEmitter,
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
@@ -707,6 +718,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
+    }
+
+    if (openLineageEmitter == null) {
+      this.openLineageEmitter = new DefaultOpenLineage(config, sharedCommunicationObjects);
+    } else {
+      this.openLineageEmitter = openLineageEmitter;
     }
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
@@ -985,6 +1002,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
     return dataStreamsMonitoring;
+  }
+
+  @Override
+  public OpenLineageEmitter getOpenLineage() {
+    return openLineageEmitter;
   }
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);

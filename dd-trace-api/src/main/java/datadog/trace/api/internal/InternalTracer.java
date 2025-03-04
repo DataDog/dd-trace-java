@@ -1,6 +1,7 @@
 package datadog.trace.api.internal;
 
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.OpenLineageEmitter;
 import datadog.trace.api.profiling.Profiling;
 
 /**
@@ -30,4 +31,11 @@ public interface InternalTracer {
    * @return DataStreamsCheckpointer instance.
    */
   DataStreamsCheckpointer getDataStreamsCheckpointer();
+
+  /**
+   * Return the global instance of the DataStreams checkpointer.
+   *
+   * @return DataStreamsCheckpointer instance.
+   */
+  OpenLineageEmitter getOpenLineage();
 }

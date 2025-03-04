@@ -41,6 +41,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
+  public static final String V1_OPENLINEAGE_ENDPOINT = "openlineage/api/v1/lineage";
+
   public static final String V2_EVP_PROXY_ENDPOINT = "evp_proxy/v2/";
   public static final String V4_EVP_PROXY_ENDPOINT = "evp_proxy/v4/";
 
@@ -61,6 +63,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
+  private final String[] openLineageEndpoints = {V1_OPENLINEAGE_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
   // available
   private final String[] evpProxyEndpoints = {V4_EVP_PROXY_ENDPOINT, V2_EVP_PROXY_ENDPOINT};
@@ -69,6 +72,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile String dataStreamsEndpoint;
+  private volatile String openLineageEndpoint;
   private volatile boolean supportsLongRunning;
   private volatile boolean supportsDropping;
   private volatile String state;
@@ -107,6 +111,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     debuggerEndpoint = null;
     debuggerDiagnosticsEndpoint = null;
     dataStreamsEndpoint = null;
+    openLineageEndpoint = null;
     evpProxyEndpoint = null;
     version = null;
     lastTimeDiscovered = 0;
@@ -173,12 +178,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, openLineageEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           traceEndpoint,
           metricsEndpoint,
           supportsDropping,
           supportsLongRunning,
           dataStreamsEndpoint,
+          openLineageEndpoint,
           configEndpoint,
           evpProxyEndpoint,
           telemetryProxyEndpoint);
@@ -251,6 +257,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       for (String endpoint : dataStreamsEndpoints) {
         if (containsEndpoint(endpoints, endpoint)) {
           dataStreamsEndpoint = endpoint;
+          break;
+        }
+      }
+
+      for (String endpoint : openLineageEndpoints) {
+        if (containsEndpoint(endpoints, endpoint)) {
+          openLineageEndpoint = endpoint;
           break;
         }
       }
@@ -344,6 +357,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String getDataStreamsEndpoint() {
     return dataStreamsEndpoint;
+  }
+
+  public String getOpenLineageEndpoint() {
+    return openLineageEndpoint;
   }
 
   public String getEvpProxyEndpoint() {

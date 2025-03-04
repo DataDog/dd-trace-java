@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
+import datadog.trace.api.experimental.OpenLineageEmitter;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
@@ -449,6 +450,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public DataStreamsCheckpointer getDataStreamsCheckpointer() {
     return tracer.getDataStreamsCheckpointer();
+  }
+
+  @Override
+  public OpenLineageEmitter getOpenLineage() {
+    return null;
   }
 
   @Override

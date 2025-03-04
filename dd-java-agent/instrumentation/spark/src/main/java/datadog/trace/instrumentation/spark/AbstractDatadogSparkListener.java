@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.experimental.OpenLineageEmitter;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -161,13 +162,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       sparkConf.set("spark.openlineage.transport.type", "composite");
       sparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
       sparkConf.set("spark.openlineage.transport.transports.internal.type", "datadog");
-      sparkConf.set("spark.openlineage.transport.transports.datadog.type", "http");
-      sparkConf.set(
-          "spark.openlineage.transport.transports.datadog.url",
-          "https://data-obs-intake.datad0g.com");
-      sparkConf.set("spark.openlineage.transport.transports.datadog.auth.type", "api_key");
-      sparkConf.set("spark.openlineage.transport.transports.datadog.auth.apiKey", "<FAKE>");
-      sparkConf.set("spark.openlineage.transport.transports.datadog.compression", "gzip");
       sparkConf.set(
           "spark.openlineage.run.tags",
           "_dd.trace_id:" + applicationSpan.context().getTraceId().toString());
@@ -326,6 +320,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         }
         String json = (String) MethodUtils.invokeStaticMethod(utils.get(), "toJson", event);
         log.error("Got OL run event: {}", json);
+        OpenLineageEmitter.get().emitOpenLineage(json);
       } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
         throw new RuntimeException(e);
       }

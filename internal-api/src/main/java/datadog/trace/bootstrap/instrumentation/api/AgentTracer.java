@@ -10,6 +10,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
+import datadog.trace.api.experimental.OpenLineageEmitter;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
@@ -325,6 +326,8 @@ public class AgentTracer {
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
+    OpenLineageEmitter getOpenLineage();
+
     String getTraceId(AgentSpan span);
 
     String getSpanId(AgentSpan span);
@@ -564,6 +567,11 @@ public class AgentTracer {
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
       return NoopAgentDataStreamsMonitoring.INSTANCE;
+    }
+
+    @Override
+    public OpenLineageEmitter getOpenLineage() {
+      return OpenLineageEmitter.NoOp.INSTANCE;
     }
 
     @Override
