@@ -23,7 +23,7 @@ public class OtelContext implements Context {
 
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
-  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage";
+  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage-key";
 
   /** Keep track of propagated context that has not been captured on the scope stack. */
   private static final ThreadLocal<OtelContext> lastPropagated = new ThreadLocal<>();
@@ -42,7 +42,8 @@ public class OtelContext implements Context {
     this(currentSpan, rootSpan, baggageContext, NO_ENTRIES);
   }
 
-  public OtelContext(Span currentSpan, Span rootSpan, BaggageContext baggageContext, Object[] entries) {
+  public OtelContext(
+      Span currentSpan, Span rootSpan, BaggageContext baggageContext, Object[] entries) {
     this.currentSpan = currentSpan;
     this.rootSpan = rootSpan;
     this.baggageContext = baggageContext;
@@ -57,7 +58,7 @@ public class OtelContext implements Context {
       return (V) this.currentSpan;
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       return (V) this.rootSpan;
-    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())){
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())) {
       return (V) this.baggageContext;
     }
     for (int i = 0; i < this.entries.length; i += 2) {
@@ -74,7 +75,7 @@ public class OtelContext implements Context {
       return new OtelContext((Span) value, this.rootSpan, null, this.entries);
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       return new OtelContext(this.currentSpan, (Span) value, null, this.entries);
-    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())){
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())) {
       return new OtelContext(null, null, this.baggageContext, this.entries);
     }
     Object[] newEntries = null;
@@ -170,7 +171,7 @@ public class OtelContext implements Context {
     return lastPropagated.get();
   }
 
-  public static String getOtelContextBaggageKey(){
+  public static String getOtelContextBaggageKey() {
     return OTEL_CONTEXT_BAGGAGE_KEY;
   }
 
