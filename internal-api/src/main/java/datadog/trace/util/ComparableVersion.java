@@ -336,6 +336,9 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
             break;
           case 'm':
             value = "milestone";
+            break;
+          default:
+            break;
         }
       }
 
