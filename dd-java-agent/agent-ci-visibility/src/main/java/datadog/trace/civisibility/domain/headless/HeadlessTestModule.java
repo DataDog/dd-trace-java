@@ -85,7 +85,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }
 
@@ -114,6 +114,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Nonnull
   public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
     return executionStrategy.executionPolicy(test, testSource);
+  }
+
+  @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return executionStrategy.executionPriority(test, testSource);
   }
 
   @Override
