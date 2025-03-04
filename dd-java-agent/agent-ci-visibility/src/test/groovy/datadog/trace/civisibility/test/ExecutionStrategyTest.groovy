@@ -109,7 +109,7 @@ class ExecutionStrategyTest extends Specification {
     policy.currentExecutionRetryReason() == RetryReason.attemptToFix
   }
 
-  def "test capabilities status: #testcaseName"() {
+  def "test capabilities status"() {
     setup:
     def testManagementSettings = Stub(TestManagementSettings)
     testManagementSettings.isEnabled() >> false
