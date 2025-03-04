@@ -22,6 +22,7 @@ import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -142,10 +143,11 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
+      Collection<String> testTags = JUnitPlatformUtils.getTags(testDescriptor);
       TestExecutionPolicy executionPolicy =
           TestEventsHandlerHolder.HANDLERS
               .get(framework)
-              .executionPolicy(testIdentifier, testSource);
+              .executionPolicy(testIdentifier, testSource, testTags);
       if (!executionPolicy.applicable()) {
         return null;
       }

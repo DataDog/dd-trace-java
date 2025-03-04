@@ -75,7 +75,7 @@ class ExecutionStrategyTest extends Specification {
     def strategy = givenAnExecutionStrategy(executionSettings)
 
     expect:
-    strategy.executionPolicy(testID, TestSourceData.UNKNOWN).class == RunNTimes
+    strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == RunNTimes
   }
 
   def "test attempt to fix + efd"() {
@@ -98,7 +98,7 @@ class ExecutionStrategyTest extends Specification {
     executionSettings.isKnown(testFQN) >> false
 
     def strategy = givenAnExecutionStrategy(executionSettings)
-    def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN)
+    def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN, [])
 
     // retry once to get the retry reason
     policy.retry(true, 0)
