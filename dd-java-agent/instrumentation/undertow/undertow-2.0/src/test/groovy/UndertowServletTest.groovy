@@ -323,22 +323,12 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 }
 
 class UndertowServletV0Test extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
-  @Override
-  boolean testWebsockets() {
-    false
-  }
 }
 
 class UndertowServletNoHttpRouteForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   def generateHttpRoute() {
     false
-  }
-
-  @Override
-  boolean testWebsockets() {
-    // only test websocket in this test class not to have the same done too many times
-    true
   }
 
   @Override
