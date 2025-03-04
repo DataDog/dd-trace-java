@@ -20,6 +20,11 @@ class JettyAsyncHandlerTest extends Jetty11Test implements TestingGenericHttpNam
     false // continuation test handler not working with sessions
   }
 
+  @Override
+  boolean testWebsockets() {
+    false
+  }
+
   static class ContinuationTestHandler implements Handler {
     @Delegate
     private final Handler delegate

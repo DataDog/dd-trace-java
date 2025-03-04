@@ -13,6 +13,7 @@ import jakarta.websocket.EndpointConfig
 import jakarta.websocket.MessageHandler
 import jakarta.websocket.Session
 import jakarta.websocket.server.ServerEndpointConfig
+import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.server.session.SessionHandler
@@ -28,14 +29,16 @@ class JettyServer implements WebsocketServer {
   def port = 0
   final server = new Server(0) // select random open port
 
-  JettyServer(ServletContextHandler handler) {
+  JettyServer(Handler handler) {
     server.handler = handler
     server.addBean(errorHandler)
-    try {
-      JakartaWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
-        container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
-      })
-    } catch (Throwable ignored) {
+    if (handler instanceof ServletContextHandler) {
+      try {
+        JakartaWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
+          container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
+        })
+      } catch (Throwable ignored) {
+      }
     }
   }
 
