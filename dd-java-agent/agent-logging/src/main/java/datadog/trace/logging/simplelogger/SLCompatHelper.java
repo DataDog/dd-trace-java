@@ -3,9 +3,6 @@ package datadog.trace.logging.simplelogger;
 import datadog.json.JsonWriter;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 import org.slf4j.Marker;
 
 /**
@@ -192,16 +189,13 @@ class SLCompatHelper extends LoggerHelper {
     writer.beginObject();
     writer.name("message").value(t.getMessage());
     if (t.getStackTrace().length > 0) {
-      List<StackTraceElement> stackTraceElementList = Arrays.asList(t.getStackTrace());
-      Iterator<StackTraceElement> it = stackTraceElementList.iterator();
       writer.name("stackTrace");
       writer.beginArray();
-      while (it.hasNext()) {
-        StackTraceElement element = it.next();
+      for (StackTraceElement element : t.getStackTrace()) {
         writer.value(element.toString());
       }
       writer.endArray();
-      writer.endObject();
     }
+    writer.endObject();
   }
 }
