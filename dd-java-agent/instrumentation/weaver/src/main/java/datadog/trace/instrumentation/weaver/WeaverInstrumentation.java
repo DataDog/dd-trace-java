@@ -26,9 +26,9 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".WeaverUtils",
       packageName + ".DatadogWeaverReporter",
       packageName + ".TaskDefAwareQueueProxy",
-      packageName + ".WeaverUtils",
     };
   }
 

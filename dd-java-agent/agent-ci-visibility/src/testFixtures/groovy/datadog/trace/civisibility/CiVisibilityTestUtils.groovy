@@ -7,12 +7,9 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
-import datadog.trace.api.Config
-import datadog.trace.civisibility.ci.CIProviderInfoFactory
-import datadog.trace.civisibility.ci.GitLabInfo
-import datadog.trace.civisibility.ci.GithubActionsInfo
-import datadog.trace.civisibility.ci.env.CiEnvironment
-import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.civisibility.config.LibraryCapability
+import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
@@ -24,6 +21,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.regex.Pattern
+import java.util.stream.Collectors
 
 abstract class CiVisibilityTestUtils {
 
@@ -55,6 +53,9 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.stack']", false),
   ]
 
+  // ignored tags on assertion and fixture build
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList())
+
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
   private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
@@ -68,7 +69,10 @@ abstract class CiVisibilityTestUtils {
   /**
    * Use this method to generate expected data templates
    */
-  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags = []) {
+    if (!ignoredTags.empty) {
+      events = removeTags(events, ignoredTags)
+    }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def templateGenerator = new TemplateGenerator(new LabelGenerator())
@@ -79,7 +83,7 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
@@ -92,6 +96,9 @@ abstract class CiVisibilityTestUtils {
     for (Map.Entry<String, String> e : additionalReplacements.entrySet()) {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
+
+    // ignore provided tags
+    events = removeTags(events, ignoredTags)
 
     def environment = System.getenv()
     def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
@@ -127,6 +134,45 @@ abstract class CiVisibilityTestUtils {
     }
 
     return replacementMap
+  }
+
+  static List<Map<?, ?>> removeTags(List<Map<?, ?>> events, List<String> tags) {
+    def filteredEvents = []
+
+    for (Map<?, ?> event : events) {
+      ReadContext ctx = JsonPath.parse(event, JSON_PATH_CONFIG)
+      for (String tag : tags) {
+        ctx.delete(path(tag).path)
+      }
+      filteredEvents.add(ctx.json())
+    }
+
+    return filteredEvents
+  }
+
+  // Will sort traces in the following order: TEST -> SUITE -> MODULE -> SESSION
+  static class SortTracesByType implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Integer.compare(rootSpanTypeToVal(o1), rootSpanTypeToVal(o2))
+    }
+
+    int rootSpanTypeToVal(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def spanType = trace.get(0).getSpanType()
+      switch (spanType) {
+        case DDSpanTypes.TEST:
+        return 0
+        case DDSpanTypes.TEST_SUITE_END:
+        return 1
+        case DDSpanTypes.TEST_MODULE_END:
+        return 2
+        case DDSpanTypes.TEST_SESSION_END:
+        return 3
+        default:
+        return 4
+      }
+    }
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()

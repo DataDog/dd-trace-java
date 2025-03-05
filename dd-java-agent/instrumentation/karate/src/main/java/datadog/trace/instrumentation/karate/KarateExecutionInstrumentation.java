@@ -47,8 +47,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
       packageName + ".KarateUtils",
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".KarateTracingHook",
       packageName + ".ExecutionContext"
     };

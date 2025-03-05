@@ -51,7 +51,8 @@ class ProxyTestModuleTest extends DDSpecification {
       Stub(LinesResolver),
       Stub(CoverageStore.Factory),
       Stub(ChildProcessCoverageReporter),
-      GroovyMock(SignalClient.Factory)
+      GroovyMock(SignalClient.Factory),
+      [:]
       )
 
     when:

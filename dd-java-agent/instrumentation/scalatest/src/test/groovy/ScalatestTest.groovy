@@ -180,6 +180,14 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
   }
 
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(ScalatestUtils.CAPABILITIES, 4)
+  }
+
   @Override
   String instrumentedLibraryName() {
     return "scalatest"

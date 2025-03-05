@@ -9,6 +9,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -44,6 +45,7 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -85,6 +87,7 @@ public class TestImpl implements DDTest {
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      @Nonnull Map<LibraryCapability, Boolean> libraryCapabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
@@ -141,6 +144,10 @@ public class TestImpl implements DDTest {
 
     if (itrCorrelationId != null) {
       span.setTag(Tags.ITR_CORRELATION_ID, itrCorrelationId);
+    }
+
+    for (Map.Entry<LibraryCapability, Boolean> entry : libraryCapabilities.entrySet()) {
+      span.setTag(entry.getKey().asTag(), entry.getValue());
     }
 
     testDecorator.afterStart(span);

@@ -34,6 +34,14 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
     "test-succeed-global-resource" | [TestSucceedGlobalResource]
   }
 
+  def "test capabilities tagging"() {
+    setup:
+    runTests([TestSucceed])
+
+    expect:
+    assertCapabilities(WeaverUtils.CAPABILITIES, 4)
+  }
+
   @Override
   String instrumentedLibraryName() {
     return "weaver"

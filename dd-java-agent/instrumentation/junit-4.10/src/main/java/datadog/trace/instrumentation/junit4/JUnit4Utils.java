@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -12,6 +13,7 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -50,6 +52,16 @@ public abstract class JUnit4Utils {
       accessListenerFieldInSynchronizedListener();
   private static final MethodHandle DESCRIPTION_UNIQUE_ID =
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
+
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private static MethodHandle accessListenersFieldInRunNotifier() {
     MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");

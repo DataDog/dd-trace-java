@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -21,6 +22,8 @@ import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -34,6 +37,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
+  private final Map<LibraryCapability, Boolean> libraryCapabilities;
 
   public HeadlessTestSession(
       String projectName,
@@ -46,7 +50,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       Codeowners codeowners,
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
-      ExecutionStrategy executionStrategy) {
+      ExecutionStrategy executionStrategy,
+      @Nonnull Collection<LibraryCapability> capabilities) {
     super(
         projectName,
         startTime,
@@ -60,6 +65,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver);
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
+    this.libraryCapabilities =
+        executionStrategy.getExecutionSettings().getCapabilitiesStatus(capabilities);
   }
 
   @Override
@@ -76,6 +83,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver,
         coverageStoreFactory,
         executionStrategy,
+        libraryCapabilities,
         this::propagateModuleTags);
   }
 

@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import munit.MUnitRunner;
 import munit.Tag;
@@ -19,6 +21,14 @@ public abstract class MUnitUtils {
       METHOD_HANDLES.method(
           MUnitRunner.class,
           m -> "createTestDescription".equals(m.getName()) && m.getParameterCount() == 1);
+
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private MUnitUtils() {}
 

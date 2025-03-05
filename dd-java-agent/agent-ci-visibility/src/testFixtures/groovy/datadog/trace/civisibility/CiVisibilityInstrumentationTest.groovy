@@ -4,11 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
@@ -56,6 +59,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import java.util.function.Predicate
+import java.util.stream.Collectors
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
@@ -136,7 +140,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def executionSettingsFactory = new MockExecutionSettingsFactory(settings)
 
     def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
-    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
+    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime, Collection<LibraryCapability> capabilities) -> {
       def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
@@ -155,7 +159,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       config,
       executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
       sourcePathResolver,
-      linesResolver)
+      linesResolver),
+      capabilities
       )
     }
 
@@ -254,8 +259,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null)
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> capabilities) {
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities)
       TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
       new TestEventsHandlerImpl(metricCollector, testSession, testModule,
       suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
@@ -341,7 +346,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     settings.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
   }
 
-  def assertSpansData(String testcaseName, Map<String, String> replacements = [:]) {
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:], List<String> ignoredTags = []) {
     Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
     spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
 
@@ -354,14 +359,16 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
     ] + replacements
 
+    def additionalIgnoredTags = CiVisibilityTestUtils.IGNORED_TAGS + ignoredTags
+
     if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
-      return generateTestFixtures(testcaseName, events, coverages, additionalReplacements)
+      return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
     } else {
-      return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
+      return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
     }
   }
 
-  def generateTestFixtures(testcaseName, events, coverages, additionalReplacements) {
+  def generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags) {
     def clazz = this.getClass()
     def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
     def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
@@ -373,7 +380,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       submoduleName = "test"
     }
     def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements, additionalIgnoredTags)
     return [:]
   }
 
@@ -385,6 +392,22 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     if (identifiers != expectedOrder) {
       throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
     }
+    return true
+  }
+
+  def assertCapabilities(Collection<LibraryCapability> capabilities, int expectedTraceCount) {
+    ListWriterAssert.assertTraces(TEST_WRITER, expectedTraceCount, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST
+          tags(false) {
+            arePresent(capabilities.stream().map(LibraryCapability::asTag).collect(Collectors.toList()))
+            areNotPresent(LibraryCapability.values().stream().filter(capability -> !capabilities.contains(capability)).map(LibraryCapability::asTag).collect(Collectors.toList()))
+          }
+        }
+      }
+    })
+
     return true
   }
 

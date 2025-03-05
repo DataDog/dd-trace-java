@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -28,6 +29,7 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,6 +46,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
+  private final Map<LibraryCapability, Boolean> libraryCapabilities;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -57,6 +60,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
+      Map<LibraryCapability, Boolean> libraryCapabilities,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -73,6 +77,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
+    this.libraryCapabilities = libraryCapabilities;
   }
 
   @Override
@@ -183,6 +188,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        libraryCapabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

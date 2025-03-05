@@ -2,6 +2,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
@@ -209,6 +210,14 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]                                                                                                                                          | []          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runFeatures(["org/example/cucumber/calculator/basic_arithmetic.feature"], false, true)
+
+    expect:
+    assertCapabilities(JUnitPlatformUtils.CUCUMBER_CAPABILITIES, 4)
   }
 
   private String parameterizedTestNameSuffix() {

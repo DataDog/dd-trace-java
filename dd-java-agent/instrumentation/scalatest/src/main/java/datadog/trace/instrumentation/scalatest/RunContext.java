@@ -37,8 +37,11 @@ public class RunContext {
   }
 
   private final int runStamp;
+
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
-      InstrumentationBridge.createTestEventsHandler("scalatest", null, null);
+      InstrumentationBridge.createTestEventsHandler(
+          "scalatest", null, null, ScalatestUtils.CAPABILITIES);
+
   private final java.util.Map<TestIdentifier, SkipReason> skipReasonByTest =
       new ConcurrentHashMap<>();
   private final java.util.Map<TestIdentifier, Collection<String>> tagsByTest =

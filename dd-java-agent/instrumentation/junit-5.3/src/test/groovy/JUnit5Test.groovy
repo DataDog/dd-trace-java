@@ -1,9 +1,14 @@
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -36,6 +41,7 @@ import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
@@ -46,6 +52,7 @@ import org.junit.platform.launcher.core.LauncherFactory
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.stream.Collectors
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -243,6 +250,15 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    Assumptions.assumeTrue(!JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion()))
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(JUnitPlatformUtils.JUNIT_CAPABILITIES_BASE, 4)
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

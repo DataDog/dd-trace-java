@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import junit.runner.Version
 import org.example.TestFailedAfter
@@ -38,7 +39,7 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4)
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.CAPABILITIES)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)
