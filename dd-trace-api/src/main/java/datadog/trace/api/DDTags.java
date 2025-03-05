@@ -76,4 +76,7 @@ public class DDTags {
   public static final String BASE_SERVICE = "_dd.base_service";
   public static final String PARENT_ID = "_dd.parent_id";
   public static final String APM_ENABLED = "_dd.apm.enabled";
+  public static final String DECISION_MAKER_INHERITED = "_dd.dm.inherited";
+  public static final String DECISION_MAKER_SERVICE = "_dd.dm.service";
+  public static final String DECISION_MAKER_RESOURCE = "_dd.dm.resource";
 }

@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.spark
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import scala.Option
 import scala.collection.JavaConverters
@@ -300,8 +301,9 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           resourceName "test-query"
           spanType "spark"
           parent()
-          assert span.tags.containsKey(DDTags.SPAN_LINKS)
-          assert span.tags[DDTags.SPAN_LINKS] != null
+          links({
+            link(DDTraceId.from((long)12052652441736835200), (long)-6394091631972716416)
+          })
         }
         span {
           operationName "spark.sql"
