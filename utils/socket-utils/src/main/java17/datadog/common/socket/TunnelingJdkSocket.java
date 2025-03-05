@@ -10,12 +10,12 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * Subtype UNIX socket for a higher-fidelity impersonation of TCP sockets. This is named "tunneling"
@@ -123,76 +123,53 @@ final class TunnelingJdkSocket extends Socket {
       throw new SocketException("Socket input is shutdown");
     }
 
-    System.out.println("=====start=====");
+    return new InputStream() {
+      private final ByteBuffer buffer = ByteBuffer.allocate(256);
+      private final Selector selector = Selector.open();
 
-    Selector selector = Selector.open();
-    System.out.println("=====1=====");
-    unixSocketChannel.configureBlocking(false);
-    System.out.println("=====2=====");
-    unixSocketChannel.register(selector, SelectionKey.OP_READ);
-    System.out.println("=====3=====");
-    ByteBuffer buffer = ByteBuffer.allocate(256);
+      {
+        unixSocketChannel.configureBlocking(false);
+        unixSocketChannel.register(selector, SelectionKey.OP_READ);
+      }
 
-    System.out.println("=====4=====");
+      @Override
+      public int read() throws IOException {
+        byte[] nextByte = new byte[1];
+        return (read(nextByte, 0, 1) == -1) ? -1 : (nextByte[0] & 0xFF);
+      }
 
-    try {
-      while (true) {
-        if (selector.select(timeout) == 0) {
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
+        buffer.clear();
+
+        int readyChannels = selector.select(timeout);
+        if (readyChannels == 0) {
           System.out.println("Timeout (" + timeout + "ms) while waiting for data.");
-          break;
+          return 0;
         }
-        System.out.println("=====5=====");
-        Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
-        System.out.println("=====6=====");
+
+        Set<SelectionKey> selectedKeys = selector.selectedKeys();
+        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
         while (keyIterator.hasNext()) {
-          System.out.println("=====7=====");
           SelectionKey key = keyIterator.next();
-          System.out.println("=====8=====");
           keyIterator.remove();
-          System.out.println("=====9=====");
           if (key.isReadable()) {
-            System.out.println("=====10=====");
             int r = unixSocketChannel.read(buffer);
-            System.out.println("=====11=====");
             if (r == -1) {
-              System.out.println("=====12=====");
-              unixSocketChannel.close();
-              System.out.println("Not accepting client messages anymore.");
-              return InputStream.nullInputStream();
+              return -1;
             }
+            buffer.flip();
+            len = Math.min(r, len);
+            buffer.get(b, off, len);
+            return len;
           }
         }
-        System.out.println("=====13=====");
-        buffer.flip();
-        break;
-      }
-    } catch (Exception e) {
-      System.out.println("=====Error while reading from client: " + e + "=====");
-    } finally {
-      System.out.println("=====14=====");
-      selector.close();
-    }
-
-    System.out.println("=====15=====");
-
-    return new InputStream() {
-      @Override
-      public int read() {
-        return buffer.hasRemaining() ? (buffer.get() & 0xFF) : -1;
+        return 0;
       }
 
       @Override
-      public int read(byte[] bytes, int off, int len) {
-        System.out.println("=====16=====");
-        if (!buffer.hasRemaining()) {
-          System.out.println("=====17=====");
-          return -1;
-        }
-        len = Math.min(len, buffer.remaining());
-        System.out.println("=====18=====");
-        buffer.get(bytes, off, len);
-        System.out.println("=====19=====");
-        return len;
+      public void close() throws IOException {
+        selector.close();
       }
     };
   }
@@ -208,7 +185,23 @@ final class TunnelingJdkSocket extends Socket {
     if (isInputShutdown()) {
       throw new SocketException("Socket output is shutdown");
     }
-    return Channels.newOutputStream(unixSocketChannel);
+
+    return new OutputStream() {
+      @Override
+      public void write(int b) throws IOException {
+        byte[] array = ByteBuffer.allocate(4).putInt(b).array();
+        write(array, 0, 4);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap(b, off, len);
+
+        while (buffer.hasRemaining()) {
+          unixSocketChannel.write(buffer);
+        }
+      }
+    };
   }
 
   @Override
