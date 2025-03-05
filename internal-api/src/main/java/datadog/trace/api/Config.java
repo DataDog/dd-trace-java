@@ -483,6 +483,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean logs128bTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -559,6 +560,7 @@ public class Config {
   private final long dependecyResolutionPeriodMillis;
 
   private final boolean apmTracingEnabled;
+  private final List<String> experimentalFeaturesEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -624,6 +626,9 @@ public class Config {
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
+    experimentalFeaturesEnabled =
+        configProvider.getList(TRACE_EXPERIMENTAL_FEATURES_ENABLED, new ArrayList<>());
+
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
@@ -655,6 +660,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+
+    logs128bTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
@@ -2000,6 +2010,10 @@ public class Config {
 
   public String getRootContextServiceName() {
     return rootContextServiceName;
+  }
+
+  public List<String> getExperimentalFeaturesEnabled() {
+    return experimentalFeaturesEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -3430,6 +3444,10 @@ public class Config {
     return trace128bitTraceIdGenerationEnabled;
   }
 
+  public boolean isLogs128bTraceIdEnabled() {
+    return logs128bTraceIdEnabled;
+  }
+
   public Set<String> getGrpcIgnoredInboundMethods() {
     return grpcIgnoredInboundMethods;
   }
@@ -4662,6 +4680,8 @@ public class Config {
         + idGenerationStrategy
         + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
+        + ", logs128bTraceIdEnabled="
+        + logs128bTraceIdEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
