@@ -7,7 +7,6 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +26,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestHelper.getFixtureContent;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
