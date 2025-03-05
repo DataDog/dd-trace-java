@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
@@ -24,6 +25,7 @@ import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -309,5 +311,8 @@ public abstract class JUnitPlatformUtils {
         return JUNIT_CAPABILITIES_BASE;
       }
     }
+
+  public static List<String> getTags(TestDescriptor testDescriptor) {
+    return testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
   }
 }

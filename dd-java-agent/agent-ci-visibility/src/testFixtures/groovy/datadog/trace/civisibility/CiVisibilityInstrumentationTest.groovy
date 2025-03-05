@@ -361,18 +361,27 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
     def additionalIgnoredTags = CiVisibilityTestUtils.IGNORED_TAGS + ignoredTags
 
-    // uncomment to generate expected data templates
-    //      def clazz = this.getClass()
-    //      def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
-    //      def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
-    //      def searchIndex = classfilePath.indexOf("/build/classes/groovy")
-    //      def modulePath = classfilePath.substring(0, searchIndex)
-    //      def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
-    //      def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-    //      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements, CiVisibilityTestUtils.IGNORED_TAGS)
-    //      return [:]
+    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
+      return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
+    } else {
+      return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
+    }
+  }
 
-    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
+  def generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags) {
+    def clazz = this.getClass()
+    def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
+    def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
+    def searchIndex = classfilePath.indexOf("/build/classes/groovy")
+    def modulePath = classfilePath.substring(0, searchIndex)
+    def submoduleName = classfilePath.substring(searchIndex + "/build/classes/groovy".length()).split("/")[1]
+    if (!Files.exists(Paths.get(modulePath + "/src/" + submoduleName + "/resources/"))) {
+      // probably running a "latestDepTest" that uses fixtures from "test"
+      submoduleName = "test"
+    }
+    def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
+    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements, additionalIgnoredTags)
+    return [:]
   }
 
   def assertTestsOrder(List<TestFQN> expectedOrder) {

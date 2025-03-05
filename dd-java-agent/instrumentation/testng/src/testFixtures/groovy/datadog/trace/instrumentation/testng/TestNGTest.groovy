@@ -135,6 +135,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -251,8 +252,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     assertTestsOrder(expectedOrder)
 
     where:
-    testcaseName       | tests                                      | knownTestsList | expectedOrder
-    "ordering-methods" | [TestSucceedAndSkipped]                    | [test("org.example.TestSucceedAndSkipped", "test_skipped")]                                                                                | [
+    testcaseName       | tests                                      | knownTestsList                                              | expectedOrder
+    "ordering-methods" | [TestSucceedAndSkipped]                    | [test("org.example.TestSucceedAndSkipped", "test_skipped")] | [
       test("org.example.TestSucceedAndSkipped", "test_succeed"),
       test("org.example.TestSucceedAndSkipped", "test_skipped")
     ]
@@ -260,7 +261,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
       test('org.example.TestSucceedAndSkipped', 'test_succeed'),
       test('org.example.TestSucceedAndSkipped', 'test_skipped'),
       test('org.example.TestSucceedNested$NestedSuite', 'test_succeed_nested'),
-    ]                                                                                | [
+    ]                                                                                                                             | [
       test('org.example.TestSucceedNested', 'test_succeed'),
       test('org.example.TestSucceedAndSkipped', 'test_skipped'),
       test('org.example.TestSucceedAndSkipped', 'test_succeed'),

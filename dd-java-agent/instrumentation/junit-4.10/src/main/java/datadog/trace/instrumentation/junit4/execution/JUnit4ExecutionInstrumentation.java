@@ -19,6 +19,7 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -101,10 +102,12 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
       TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+      Collection<String> testTags =
+          JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
       TestExecutionPolicy executionPolicy =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.JUNIT4)
-              .executionPolicy(testIdentifier, testSourceData);
+              .executionPolicy(testIdentifier, testSourceData, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

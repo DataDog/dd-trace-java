@@ -13,7 +13,7 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -120,7 +120,7 @@ public class KarateTracingHook implements RuntimeHook {
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
-              && categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG))) {
+              && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,

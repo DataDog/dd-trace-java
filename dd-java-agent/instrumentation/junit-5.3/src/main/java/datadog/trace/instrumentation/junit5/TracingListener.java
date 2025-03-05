@@ -120,8 +120,7 @@ public class TracingListener implements EngineExecutionListener {
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
     TestEventsHandlerHolder.HANDLERS

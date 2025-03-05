@@ -97,17 +97,6 @@ public class ServerDebuggerTestApplication {
     }
   }
 
-  protected void waitForSpecificLine(String line) {
-    System.out.println("waitForSpecificLine...");
-    try {
-      lastMatchedLine =
-          TestApplicationHelper.waitForSpecificLine(LOG_FILENAME, line, lastMatchedLine);
-      System.out.println("line found!");
-    } catch (IOException ex) {
-      ex.printStackTrace();
-    }
-  }
-
   protected void execute(String methodName, String arg) {
     Consumer<String> method = methodsByName.get(methodName);
     if (method == null) {
@@ -263,12 +252,6 @@ public class ServerDebuggerTestApplication {
           {
             String className = request.getRequestUrl().queryParameter("classname");
             app.waitForReTransformation(className);
-            break;
-          }
-        case "/app/waitForSpecificLine":
-          {
-            String feature = request.getRequestUrl().queryParameter("line");
-            app.waitForSpecificLine(feature);
             break;
           }
         case "/app/execute":

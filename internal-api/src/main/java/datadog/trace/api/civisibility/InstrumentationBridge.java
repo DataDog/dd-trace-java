@@ -10,8 +10,6 @@ import java.util.Collection;
 
 public abstract class InstrumentationBridge {
 
-  public static final String ITR_UNSKIPPABLE_TAG = "datadog_itr_unskippable";
-
   private static volatile TestEventsHandler.Factory TEST_EVENTS_HANDLER_FACTORY;
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CiVisibilityMetricCollector METRIC_COLLECTOR =

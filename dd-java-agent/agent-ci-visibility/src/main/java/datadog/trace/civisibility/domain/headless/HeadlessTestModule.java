@@ -29,6 +29,7 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Map;
+import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -117,8 +118,9 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return executionStrategy.executionPolicy(test, testSource, testTags);
   }
 
   @Override
