@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.NotSampledSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -163,7 +164,13 @@ public class WebsocketDecorator extends BaseDecorator {
         // the link is not added if the user wants to have receive frames on the same trace as the
         // handshake
         wsSpan.addLink(
-            SpanLink.from(handshakeSpan.context(), (byte) 0, "", linkAttributes, inheritSampling));
+            SpanLink.from(
+                inheritSampling
+                    ? handshakeSpan.context()
+                    : new NotSampledSpanContext(handshakeSpan.context()),
+                SpanLink.DEFAULT_FLAGS,
+                "",
+                linkAttributes));
       }
     }
     return wsSpan;
