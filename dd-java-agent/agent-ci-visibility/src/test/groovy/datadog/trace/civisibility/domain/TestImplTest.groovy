@@ -35,11 +35,11 @@ class TestImplTest extends SpanWriterTest {
           parent()
           spanType DDSpanTypes.TEST
           tags(false) {
-            "$LibraryCapability.TIA.asTag()" true
-            "$LibraryCapability.EFD.asTag()" false
-            "$LibraryCapability.QUARANTINE.asTag()" true
-            "$LibraryCapability.DISABLED.asTag()" false
-            "$LibraryCapability.ATTEMPT_TO_FIX.asTag()" true
+            "${LibraryCapability.TIA.asTag()}" true
+            "${LibraryCapability.EFD.asTag()}" false
+            "${LibraryCapability.QUARANTINE.asTag()}" true
+            "${LibraryCapability.DISABLED.asTag()}" false
+            "${LibraryCapability.ATTEMPT_TO_FIX.asTag()}" true
           }
         }
       }
