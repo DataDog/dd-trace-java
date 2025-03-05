@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator
 import org.apache.http.HttpHost
@@ -13,7 +13,7 @@ import org.apache.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
 
-abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest2 implements TestingGenericHttpNamingConventions.ClientV0 {
   @Shared
   def client = new DefaultHttpClient()
 
@@ -29,11 +29,9 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = createRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     def response = executeRequest(request, uri)
     callback?.call()

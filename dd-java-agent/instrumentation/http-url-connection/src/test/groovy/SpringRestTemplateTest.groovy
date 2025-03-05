@@ -27,9 +27,9 @@ abstract class SpringRestTemplateTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def httpHeaders = new HttpHeaders()
-    headers.each { httpHeaders.put(it.key, [it.value]) }
+    headers.each { httpHeaders.put(it[0], [it[1]]) }
     def request = new HttpEntity<String>(httpHeaders)
     try {
       ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.resolve(method), request, String)
