@@ -67,6 +67,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
   private static final AtomicLongArray missingUserIdQueue =
       new AtomicLongArray(LoginFramework.getNumValues());
+  private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -101,6 +102,14 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void wafRequest() {
     wafRequestCounter.increment();
+  }
+
+  public void wafConfigError() {
+    wafConfigErrorCounter.incrementAndGet();
+  }
+
+  public void addWafConfigError(int nbErrors) {
+    wafConfigErrorCounter.addAndGet(nbErrors);
   }
 
   public void wafRequestTriggered() {
@@ -347,6 +356,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         }
       }
     }
+
+    // WAF config errors
+    int configErrors = wafConfigErrorCounter.getAndSet(0);
+    if (configErrors > 0
+        && !rawMetricsQueue.offer(
+            new WafConfigError(
+                configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {}
   }
 
   public abstract static class WafMetric extends MetricCollector.Metric {
@@ -432,6 +448,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "block_failure:" + blockFailure,
           "rate_limited:" + rateLimited,
           "input_truncated:" + inputTruncated);
+    }
+  }
+
+  public static class WafConfigError extends WafMetric {
+    public WafConfigError(final long counter, final String wafVersion, final String rulesVersion) {
+      super(
+          "waf.config_errors",
+          counter,
+          "waf_version:" + wafVersion,
+          "event_rules_version:" + rulesVersion);
     }
   }
 
