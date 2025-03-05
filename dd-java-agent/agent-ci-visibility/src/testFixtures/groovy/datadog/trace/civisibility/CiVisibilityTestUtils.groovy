@@ -8,7 +8,7 @@ import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
+import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
@@ -21,6 +21,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.regex.Pattern
+import java.util.stream.Collectors
 
 abstract class CiVisibilityTestUtils {
 
@@ -53,16 +54,7 @@ abstract class CiVisibilityTestUtils {
   ]
 
   // ignored tags on assertion and fixture build
-  static final List<String> IGNORED_TAGS = [
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_TIA']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_EFD']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_ATR']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_QUARANTINE']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_DISABLED']",
-    "content.meta.['$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX']",
-  ]
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList())
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 

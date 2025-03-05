@@ -12,7 +12,6 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.LibraryCapabilityUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -24,6 +23,7 @@ import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -51,7 +51,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
-      Collection<LibraryCapability> availableCapabilities) {
+      @Nonnull Collection<LibraryCapability> capabilities) {
     super(
         projectName,
         startTime,
@@ -66,8 +66,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
     this.libraryCapabilities =
-        LibraryCapabilityUtils.filterCapabilities(
-            availableCapabilities, executionStrategy.getCapabilitiesStatus());
+        executionStrategy.getExecutionSettings().getCapabilitiesStatus(capabilities);
   }
 
   @Override

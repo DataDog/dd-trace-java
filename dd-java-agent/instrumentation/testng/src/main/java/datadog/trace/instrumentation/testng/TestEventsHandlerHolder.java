@@ -32,10 +32,7 @@ public abstract class TestEventsHandlerHolder {
   public static void start() {
     TEST_EVENTS_HANDLER =
         InstrumentationBridge.createTestEventsHandler(
-            "testng",
-            null,
-            TEST_STORE,
-            TestNGUtils.availableCapabilities(TestNGUtils.getTestNGVersion()));
+            "testng", null, TEST_STORE, TestNGUtils.capabilities(TestNGUtils.getTestNGVersion()));
   }
 
   public static void stop() {

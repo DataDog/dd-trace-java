@@ -1,15 +1,11 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.CiVisibilityTestUtils
-import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import junit.runner.Version
 import org.example.*
@@ -212,38 +208,15 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   }
 
   def "test capabilities tagging #testcaseName"() {
-    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
-    notPresentTags.removeAll(presentTags)
-
+    setup:
     runTests([TestSucceed], true)
 
-    ListWriterAssert.assertTraces(TEST_WRITER, 4, true, new CiVisibilityTestUtils.SortTracesByType(), {
-      trace(1) {
-        span(0) {
-          spanType DDSpanTypes.TEST
-          tags(false) {
-            arePresent(presentTags)
-            areNotPresent(notPresentTags)
-          }
-        }
-      }
-    })
-
-    where:
-    testcaseName                 | presentTags
-    "test-capabilities-base"     | [
-      DDTags.LIBRARY_CAPABILITIES_TIA,
-      DDTags.LIBRARY_CAPABILITIES_ATR,
-      DDTags.LIBRARY_CAPABILITIES_EFD,
-      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
-      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
-      DDTags.LIBRARY_CAPABILITIES_DISABLED,
-      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
-    ]
+    expect:
+    assertCapabilities(JUnit4Utils.CAPABILITIES, 4)
   }
 
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4)
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.CAPABILITIES)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)

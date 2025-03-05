@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
-import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.util.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -53,6 +52,16 @@ public abstract class JUnit4Utils {
       accessListenerFieldInSynchronizedListener();
   private static final MethodHandle DESCRIPTION_UNIQUE_ID =
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
+
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private static MethodHandle accessListenersFieldInRunNotifier() {
     MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");
@@ -332,46 +341,5 @@ public abstract class JUnit4Utils {
   public static boolean isJUnitPlatformRunnerTest(Description description) {
     Object uniqueId = getUniqueId(description);
     return uniqueId != null && uniqueId.toString().contains("[engine:");
-  }
-
-  private static List<LibraryCapability> cucumberCapabilities() {
-    return Arrays.asList(
-        LibraryCapability.TIA,
-        LibraryCapability.ATR,
-        LibraryCapability.EFD,
-        LibraryCapability.QUARANTINE,
-        LibraryCapability.DISABLED,
-        LibraryCapability.ATTEMPT_TO_FIX);
-  }
-
-  private static List<LibraryCapability> munitCapabilities() {
-    return Arrays.asList(
-        LibraryCapability.ATR,
-        LibraryCapability.EFD,
-        LibraryCapability.IMPACTED,
-        LibraryCapability.QUARANTINE,
-        LibraryCapability.ATTEMPT_TO_FIX);
-  }
-
-  private static List<LibraryCapability> junitCapabilities() {
-    return Arrays.asList(
-        LibraryCapability.TIA,
-        LibraryCapability.ATR,
-        LibraryCapability.EFD,
-        LibraryCapability.IMPACTED,
-        LibraryCapability.QUARANTINE,
-        LibraryCapability.DISABLED,
-        LibraryCapability.ATTEMPT_TO_FIX);
-  }
-
-  public static List<LibraryCapability> availableCapabilities(
-      TestFrameworkInstrumentation framework) {
-    if (framework.equals(TestFrameworkInstrumentation.MUNIT)) {
-      return munitCapabilities();
-    } else if (framework.equals(TestFrameworkInstrumentation.CUCUMBER)) {
-      return cucumberCapabilities();
-    } else {
-      return junitCapabilities();
-    }
   }
 }

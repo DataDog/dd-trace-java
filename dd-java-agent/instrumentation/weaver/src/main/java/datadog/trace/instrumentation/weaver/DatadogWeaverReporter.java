@@ -40,7 +40,7 @@ public class DatadogWeaverReporter {
     if (TEST_EVENTS_HANDLER == null) {
       TEST_EVENTS_HANDLER =
           InstrumentationBridge.createTestEventsHandler(
-              "weaver", null, null, WeaverUtils.availableCapabilities());
+              "weaver", null, null, WeaverUtils.CAPABILITIES);
     }
   }
 

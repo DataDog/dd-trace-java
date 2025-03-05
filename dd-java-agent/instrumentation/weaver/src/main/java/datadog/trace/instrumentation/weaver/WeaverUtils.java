@@ -17,6 +17,8 @@ public abstract class WeaverUtils {
 
   private static final ClassLoader CLASS_LOADER = SbtTask.class.getClassLoader();
 
+  public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
+
   private WeaverUtils() {}
 
   public static @Nullable String getWeaverVersion() {
@@ -51,9 +53,5 @@ public abstract class WeaverUtils {
       log.debug("Could not load class {}", className, e);
       return null;
     }
-  }
-
-  public static List<LibraryCapability> availableCapabilities() {
-    return Collections.emptyList();
   }
 }

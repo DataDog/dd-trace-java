@@ -118,6 +118,6 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
         @Nullable ContextStore<TestKey, DDTest> testStore,
-        Collection<LibraryCapability> availableCapabilities);
+        Collection<LibraryCapability> capabilities);
   }
 }

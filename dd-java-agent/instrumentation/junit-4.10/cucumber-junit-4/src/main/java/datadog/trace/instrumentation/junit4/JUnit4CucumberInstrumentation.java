@@ -83,7 +83,8 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
         }
       }
 
-      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER);
+      TestEventsHandlerHolder.start(
+          TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES);
 
       replacedNotifier.addListener(
           new CucumberTracingListener(

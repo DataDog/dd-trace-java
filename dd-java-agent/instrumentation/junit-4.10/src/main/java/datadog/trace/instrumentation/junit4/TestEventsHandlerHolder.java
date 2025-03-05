@@ -1,12 +1,14 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.ConcurrentEnumMap;
+import java.util.Collection;
 import java.util.Map;
 
 public abstract class TestEventsHandlerHolder {
@@ -25,16 +27,14 @@ public abstract class TestEventsHandlerHolder {
                 false));
   }
 
-  public static synchronized void start(TestFrameworkInstrumentation framework) {
+  public static synchronized void start(
+      TestFrameworkInstrumentation framework, Collection<LibraryCapability> capabilities) {
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
     if (handler == null) {
       HANDLERS.put(
           framework,
           InstrumentationBridge.createTestEventsHandler(
-              framework.name().toLowerCase(),
-              null,
-              null,
-              JUnit4Utils.availableCapabilities(framework)));
+              framework.name().toLowerCase(), null, null, capabilities));
     }
   }
 

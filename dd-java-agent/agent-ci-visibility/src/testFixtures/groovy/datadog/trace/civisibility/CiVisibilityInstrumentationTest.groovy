@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
@@ -57,6 +59,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import java.util.function.Predicate
+import java.util.stream.Collectors
 
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
@@ -137,7 +140,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def executionSettingsFactory = new MockExecutionSettingsFactory(settings)
 
     def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
-    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime, Collection<LibraryCapability> availableCapabilities) -> {
+    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime, Collection<LibraryCapability> capabilities) -> {
       def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
@@ -157,7 +160,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
       sourcePathResolver,
       linesResolver),
-      availableCapabilities
+      capabilities
       )
     }
 
@@ -256,8 +259,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> availableCapabilities) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, availableCapabilities)
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> capabilities) {
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities)
       TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
       new TestEventsHandlerImpl(metricCollector, testSession, testModule,
       suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
@@ -380,6 +383,22 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     if (identifiers != expectedOrder) {
       throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
     }
+    return true
+  }
+
+  def assertCapabilities(Collection<LibraryCapability> capabilities, int expectedTraceCount) {
+    ListWriterAssert.assertTraces(TEST_WRITER, expectedTraceCount, true, new CiVisibilityTestUtils.SortTracesByType(), {
+      trace(1) {
+        span(0) {
+          spanType DDSpanTypes.TEST
+          tags(false) {
+            arePresent(capabilities.stream().map(LibraryCapability::asTag).collect(Collectors.toList()))
+            areNotPresent(LibraryCapability.values().stream().filter(capability -> !capabilities.contains(capability)).map(LibraryCapability::asTag).collect(Collectors.toList()))
+          }
+        }
+      }
+    })
+
     return true
   }
 

@@ -15,6 +15,6 @@ public interface TestFrameworkSession {
         String projectName,
         String component,
         Long startTime,
-        Collection<LibraryCapability> availableCapabilities);
+        Collection<LibraryCapability> capabilities);
   }
 }

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -12,6 +13,7 @@ import io.cucumber.core.resource.ClassLoaders;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,12 +57,21 @@ public abstract class CucumberUtils {
   private static final MethodHandle PICKLE_RUNNER_GET_DESCRIPTION =
       REFLECTION.method("io.cucumber.junit.PickleRunners$PickleRunner", "getDescription");
 
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
   private CucumberUtils() {}
 
   public static Map<Object, Pickle> getPicklesById(List<ParentRunner<?>> featureRunners) {
     Map<Object, Pickle> pickleById = new HashMap<>();
     for (ParentRunner<?> featureRunner : featureRunners) {
-      Feature feature = (Feature) REFLECTION.invoke(FEATURE_GETTER, featureRunner);
+      Feature feature = REFLECTION.invoke(FEATURE_GETTER, featureRunner);
       for (Pickle pickle : feature.getPickles()) {
         Object pickleId = REFLECTION.invoke(PICKLE_ID_CONSTRUCTOR, pickle);
         pickleById.put(pickleId, pickle);
@@ -118,7 +129,7 @@ public abstract class CucumberUtils {
 
     Integer pickleLine = getPickleLine(scenarioDescription);
     if (pickleLine != null) {
-      return "LINE:" + pickleLine + "";
+      return "LINE:" + pickleLine;
     }
 
     return "EMPTY_NAME";

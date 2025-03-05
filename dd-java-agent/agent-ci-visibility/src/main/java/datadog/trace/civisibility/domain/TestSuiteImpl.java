@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +76,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
-      Map<LibraryCapability, Boolean> libraryCapabilities,
+      @Nonnull Map<LibraryCapability, Boolean> libraryCapabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;

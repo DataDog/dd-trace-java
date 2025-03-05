@@ -278,7 +278,7 @@ public abstract class TestNGUtils {
     return version != null && testNGv70.compareTo(new ComparableVersion(version)) <= 0;
   }
 
-  public static List<LibraryCapability> availableCapabilities(String version) {
+  public static List<LibraryCapability> capabilities(String version) {
     List<LibraryCapability> baseCapabilities =
         new ArrayList<>(
             Arrays.asList(

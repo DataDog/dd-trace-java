@@ -170,10 +170,9 @@ public class CiVisibilitySystem {
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
         @Nullable ContextStore<TestKey, DDTest> testStore,
-        Collection<LibraryCapability> availableCapabilities) {
+        Collection<LibraryCapability> capabilities) {
       TestFrameworkSession testSession =
-          sessionFactory.startSession(
-              repoServices.moduleName, component, null, availableCapabilities);
+          sessionFactory.startSession(repoServices.moduleName, component, null, capabilities);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
       return new TestEventsHandlerImpl<>(
           services.metricCollector,
@@ -238,7 +237,7 @@ public class CiVisibilitySystem {
     return (String projectName,
         String component,
         Long startTime,
-        Collection<LibraryCapability> availableCapabilities) -> {
+        Collection<LibraryCapability> capabilities) -> {
       String sessionName = services.config.getCiVisibilitySessionName();
       String testCommand = services.config.getCiVisibilityTestCommand();
       TestDecorator testDecorator =
@@ -263,7 +262,7 @@ public class CiVisibilitySystem {
           coverageServices.coverageReporter,
           services.signalClientFactory,
           executionStrategy,
-          availableCapabilities);
+          capabilities);
     };
   }
 
@@ -275,7 +274,7 @@ public class CiVisibilitySystem {
     return (String projectName,
         String component,
         Long startTime,
-        Collection<LibraryCapability> availableCapabilities) -> {
+        Collection<LibraryCapability> capabilities) -> {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       String sessionName = services.config.getCiVisibilitySessionName();
@@ -300,7 +299,7 @@ public class CiVisibilitySystem {
           services.linesResolver,
           coverageServices.coverageStoreFactory,
           executionStrategy,
-          availableCapabilities);
+          capabilities);
     };
   }
 

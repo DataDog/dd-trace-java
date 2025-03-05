@@ -132,7 +132,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
         @Nullable ContextStore<TestKey, DDTest> testStore,
-        Collection<LibraryCapability> availableCapabilities) {
+        Collection<LibraryCapability> capabilities) {
       return new NoOpTestEventsHandler<>();
     }
   }

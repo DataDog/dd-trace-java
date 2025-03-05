@@ -90,37 +90,12 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
   }
 
   def "test capabilities tagging #testcaseName"() {
-    Assumptions.assumeTrue(assumption)
-
-    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
-    notPresentTags.removeAll(presentTags)
-
+    setup:
+    Assumptions.assumeTrue(JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion()))
     runTests([TestSucceed], true)
 
-    ListWriterAssert.assertTraces(TEST_WRITER, 5, true, new CiVisibilityTestUtils.SortTracesByType(), {
-      trace(1) {
-        span(0) {
-          spanType DDSpanTypes.TEST
-          tags(false) {
-            arePresent(presentTags)
-            areNotPresent(notPresentTags)
-          }
-        }
-      }
-    })
-
-    where:
-    testcaseName                 | presentTags                                                                                                                                                                                                                                                                                                                 | assumption
-    "test-capabilities-ordering" | [
-      DDTags.LIBRARY_CAPABILITIES_TIA,
-      DDTags.LIBRARY_CAPABILITIES_ATR,
-      DDTags.LIBRARY_CAPABILITIES_EFD,
-      DDTags.LIBRARY_CAPABILITIES_IMPACTED_TESTS,
-      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
-      DDTags.LIBRARY_CAPABILITIES_DISABLED,
-      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX,
-      DDTags.LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER
-    ] | JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion())
+    expect:
+    assertCapabilities(JUnitPlatformUtils.JUNIT_CAPABILITIES_ORDERING, 5)
   }
 
   private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

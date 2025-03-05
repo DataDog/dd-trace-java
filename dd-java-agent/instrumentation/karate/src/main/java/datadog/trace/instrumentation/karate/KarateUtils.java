@@ -52,6 +52,22 @@ public abstract class KarateUtils {
   private static final ComparableVersion karateV12 = new ComparableVersion("1.2.0");
   private static final ComparableVersion karateV13 = new ComparableVersion("1.3.0");
 
+  public static final List<LibraryCapability> CAPABILITIES_BASE =
+      Arrays.asList(
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> CAPABILITIES_SKIPPING =
+      Arrays.asList(
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.ATTEMPT_TO_FIX,
+          LibraryCapability.TIA,
+          LibraryCapability.DISABLED);
+
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {
       Object featureCall =
@@ -151,20 +167,11 @@ public abstract class KarateUtils {
     return version != null && karateV13.compareTo(new ComparableVersion(version)) <= 0;
   }
 
-  public static List<LibraryCapability> availableCapabilities(String frameworkVersion) {
-    List<LibraryCapability> baseCapabilities =
-        new ArrayList<>(
-            Arrays.asList(
-                LibraryCapability.ATR,
-                LibraryCapability.EFD,
-                LibraryCapability.QUARANTINE,
-                LibraryCapability.ATTEMPT_TO_FIX));
-
+  public static List<LibraryCapability> capabilities(String frameworkVersion) {
     if (isSkippingSupported(frameworkVersion)) {
-      baseCapabilities.add(LibraryCapability.TIA);
-      baseCapabilities.add(LibraryCapability.DISABLED);
+      return CAPABILITIES_SKIPPING;
     }
 
-    return baseCapabilities;
+    return CAPABILITIES_BASE;
   }
 }

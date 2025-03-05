@@ -26,9 +26,8 @@ public abstract class InstrumentationBridge {
       String component,
       ContextStore<SuiteKey, DDTestSuite> suiteStore,
       ContextStore<TestKey, DDTest> testStore,
-      Collection<LibraryCapability> availableCapabilities) {
-    return TEST_EVENTS_HANDLER_FACTORY.create(
-        component, suiteStore, testStore, availableCapabilities);
+      Collection<LibraryCapability> capabilities) {
+    return TEST_EVENTS_HANDLER_FACTORY.create(component, suiteStore, testStore, capabilities);
   }
 
   public static void registerBuildEventsHandlerFactory(

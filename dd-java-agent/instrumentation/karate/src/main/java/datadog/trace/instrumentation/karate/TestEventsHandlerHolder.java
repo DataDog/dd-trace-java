@@ -23,10 +23,7 @@ public abstract class TestEventsHandlerHolder {
   public static void start() {
     TEST_EVENTS_HANDLER =
         InstrumentationBridge.createTestEventsHandler(
-            "karate",
-            null,
-            null,
-            KarateUtils.availableCapabilities(KarateTracingHook.FRAMEWORK_VERSION));
+            "karate", null, null, KarateUtils.capabilities(KarateTracingHook.FRAMEWORK_VERSION));
   }
 
   public static void stop() {

@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.test
 
 import datadog.trace.api.Config
-import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
@@ -107,37 +106,6 @@ class ExecutionStrategyTest extends Specification {
     expect:
     policy.class == RunNTimes
     policy.currentExecutionRetryReason() == RetryReason.attemptToFix
-  }
-
-  def "test capabilities status"() {
-    setup:
-    def testManagementSettings = Stub(TestManagementSettings)
-    testManagementSettings.isEnabled() >> false
-
-    def earlyFlakeDetectionSettings = Stub(EarlyFlakeDetectionSettings)
-    earlyFlakeDetectionSettings.isEnabled() >> true
-
-    def executionSettings = Stub(ExecutionSettings)
-    executionSettings.getTestManagementSettings() >> testManagementSettings
-    executionSettings.getEarlyFlakeDetectionSettings() >> earlyFlakeDetectionSettings
-    executionSettings.isFlakyTestRetriesEnabled() >> true
-    executionSettings.isImpactedTestsDetectionEnabled() >> true
-
-    def strategy = givenAnExecutionStrategy(executionSettings)
-    def capabilitiesStatus = strategy.getCapabilitiesStatus()
-
-    expect:
-    capabilitiesStatus.keySet() == new HashSet<>(LibraryCapability.values().toList())
-    capabilitiesStatus == [
-      (LibraryCapability.TIA)           : false,
-      (LibraryCapability.EFD)           : true,
-      (LibraryCapability.ATR)           : true,
-      (LibraryCapability.IMPACTED)      : true,
-      (LibraryCapability.FAIL_FAST)     : false,
-      (LibraryCapability.QUARANTINE)    : false,
-      (LibraryCapability.DISABLED)      : false,
-      (LibraryCapability.ATTEMPT_TO_FIX): false,
-    ]
   }
 
   private ExecutionStrategy givenAnExecutionStrategy(ExecutionSettings executionSettings = ExecutionSettings.EMPTY) {

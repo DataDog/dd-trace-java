@@ -1,13 +1,7 @@
-import com.intuit.karate.FileUtils
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.CiVisibilityTestUtils
-import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.instrumentation.karate.KarateUtils
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.*
@@ -183,39 +177,14 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   def "test capabilities tagging #testcaseName"() {
     Assumptions.assumeTrue(assumption)
 
-    def notPresentTags = new HashSet<>(LibraryCapabilityUtils.CAPABILITY_TAG_MAP.values())
-    notPresentTags.removeAll(presentTags)
-
     runTests([TestSucceedOneCaseKarate], true)
 
-    ListWriterAssert.assertTraces(TEST_WRITER, 5, true, new CiVisibilityTestUtils.SortTracesByType(), {
-      trace(1) {
-        span(0) {
-          spanType DDSpanTypes.TEST
-          tags(false) {
-            arePresent(presentTags)
-            areNotPresent(notPresentTags)
-          }
-        }
-      }
-    })
+    assertCapabilities(capabilities, 5)
 
     where:
-    testcaseName                 | presentTags                                                                                                                                                                                                                   | assumption
-    "test-capabilities-base"     | [
-      DDTags.LIBRARY_CAPABILITIES_ATR,
-      DDTags.LIBRARY_CAPABILITIES_EFD,
-      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
-      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX
-    ]                                                                        | !KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
-    "test-capabilities-skipping" | [
-      DDTags.LIBRARY_CAPABILITIES_ATR,
-      DDTags.LIBRARY_CAPABILITIES_EFD,
-      DDTags.LIBRARY_CAPABILITIES_QUARANTINE,
-      DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX,
-      DDTags.LIBRARY_CAPABILITIES_TIA,
-      DDTags.LIBRARY_CAPABILITIES_DISABLED
-    ] | KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
+    testcaseName                 | capabilities                      | assumption
+    "test-capabilities-base"     | KarateUtils.CAPABILITIES_BASE     | !KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
+    "test-capabilities-skipping" | KarateUtils.CAPABILITIES_SKIPPING | KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {

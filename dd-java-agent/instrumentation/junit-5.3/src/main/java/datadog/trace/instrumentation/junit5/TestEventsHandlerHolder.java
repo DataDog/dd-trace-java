@@ -66,7 +66,7 @@ public abstract class TestEventsHandlerHolder {
               framework.name().toLowerCase(),
               suiteStore,
               testStore,
-              JUnitPlatformUtils.availableCapabilities(testEngine));
+              JUnitPlatformUtils.capabilities(testEngine));
       HANDLERS.put(framework, handler);
     }
   }

@@ -60,22 +60,6 @@ public class DDTags {
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
   public static final String TEST_IS_USER_PROVIDED_SERVICE = "_dd.test.is_user_provided_service";
-  public static final String LIBRARY_CAPABILITIES_TIA =
-      "_dd.library_capabilities.test_impact_analysis";
-  public static final String LIBRARY_CAPABILITIES_EFD =
-      "_dd.library_capabilities.early_flake_detection";
-  public static final String LIBRARY_CAPABILITIES_ATR =
-      "_dd.library_capabilities.auto_test_retries";
-  public static final String LIBRARY_CAPABILITIES_IMPACTED_TESTS =
-      "_dd.library_capabilities.impacted_tests";
-  public static final String LIBRARY_CAPABILITIES_FAIL_FAST_TEST_ORDER =
-      "_dd.library_capabilities.fail_fast_test_order";
-  public static final String LIBRARY_CAPABILITIES_QUARANTINE =
-      "_dd.library_capabilities.test_management.quarantine";
-  public static final String LIBRARY_CAPABILITIES_DISABLED =
-      "_dd.library_capabilities.test_management.disable";
-  public static final String LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX =
-      "_dd.library_capabilities.test_management.attempt_to_fix";
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";

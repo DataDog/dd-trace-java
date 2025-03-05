@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -36,11 +35,11 @@ class TestImplTest extends SpanWriterTest {
           parent()
           spanType DDSpanTypes.TEST
           tags(false) {
-            "$DDTags.LIBRARY_CAPABILITIES_TIA" true
-            "$DDTags.LIBRARY_CAPABILITIES_EFD" false
-            "$DDTags.LIBRARY_CAPABILITIES_QUARANTINE" true
-            "$DDTags.LIBRARY_CAPABILITIES_DISABLED" false
-            "$DDTags.LIBRARY_CAPABILITIES_ATTEMPT_TO_FIX" true
+            "$LibraryCapability.TIA.asTag()" true
+            "$LibraryCapability.EFD.asTag()" false
+            "$LibraryCapability.QUARANTINE.asTag()" true
+            "$LibraryCapability.DISABLED.asTag()" false
+            "$LibraryCapability.ATTEMPT_TO_FIX.asTag()" true
           }
         }
       }

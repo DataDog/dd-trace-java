@@ -13,7 +13,6 @@ import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
@@ -48,6 +47,46 @@ public abstract class JUnitPlatformUtils {
   public static final String ENGINE_ID_SPOCK = "spock";
 
   public static final ComparableVersion junitV58 = new ComparableVersion("5.8");
+
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX,
+          LibraryCapability.FAIL_FAST);
+
+  public static final List<LibraryCapability> SPOCK_CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private JUnitPlatformUtils() {}
 
@@ -257,54 +296,18 @@ public abstract class JUnitPlatformUtils {
     return version != null && junitV58.compareTo(new ComparableVersion(version)) <= 0;
   }
 
-  private static List<LibraryCapability> junitCapabilities(String version) {
-    List<LibraryCapability> baseCapabilities =
-        new ArrayList<>(
-            Arrays.asList(
-                LibraryCapability.TIA,
-                LibraryCapability.ATR,
-                LibraryCapability.EFD,
-                LibraryCapability.IMPACTED,
-                LibraryCapability.QUARANTINE,
-                LibraryCapability.DISABLED,
-                LibraryCapability.ATTEMPT_TO_FIX));
-
-    if (isJunitTestOrderingSupported(version)) {
-      baseCapabilities.add(LibraryCapability.FAIL_FAST);
-    }
-
-    return baseCapabilities;
-  }
-
-  private static List<LibraryCapability> spockCapabilities() {
-    return Arrays.asList(
-        LibraryCapability.TIA,
-        LibraryCapability.ATR,
-        LibraryCapability.EFD,
-        LibraryCapability.IMPACTED,
-        LibraryCapability.QUARANTINE,
-        LibraryCapability.DISABLED,
-        LibraryCapability.ATTEMPT_TO_FIX);
-  }
-
-  private static List<LibraryCapability> cucumberCapabilities() {
-    return Arrays.asList(
-        LibraryCapability.TIA,
-        LibraryCapability.ATR,
-        LibraryCapability.EFD,
-        LibraryCapability.QUARANTINE,
-        LibraryCapability.DISABLED,
-        LibraryCapability.ATTEMPT_TO_FIX);
-  }
-
-  public static List<LibraryCapability> availableCapabilities(TestEngine testEngine) {
+  public static List<LibraryCapability> capabilities(TestEngine testEngine) {
     TestFrameworkInstrumentation framework = engineToFramework(testEngine);
     if (framework.equals(TestFrameworkInstrumentation.CUCUMBER)) {
-      return cucumberCapabilities();
+      return CUCUMBER_CAPABILITIES;
     } else if (framework.equals(TestFrameworkInstrumentation.SPOCK)) {
-      return spockCapabilities();
+      return SPOCK_CAPABILITIES;
     } else {
-      return junitCapabilities(getFrameworkVersion(testEngine));
+      if (isJunitTestOrderingSupported(getFrameworkVersion(testEngine))) {
+        return JUNIT_CAPABILITIES_ORDERING;
+      } else {
+        return JUNIT_CAPABILITIES_BASE;
+      }
     }
   }
 }
