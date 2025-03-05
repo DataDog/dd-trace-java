@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.aws.v2.s3;
+package datadog.trace.instrumentation.aws.v2.dynamodb;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,10 +11,10 @@ import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
-public final class S3ClientInstrumentation extends InstrumenterModule.Tracing
+public final class DynamoDbClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public S3ClientInstrumentation() {
-    super("s3", "aws-s3");
+  public DynamoDbClientInstrumentation() {
+    super("dynamodb", "aws-dynamodb");
   }
 
   @Override
@@ -26,23 +26,23 @@ public final class S3ClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("resolveExecutionInterceptors")),
-        S3ClientInstrumentation.class.getName() + "$AwsS3BuilderAdvice");
+        DynamoDbClientInstrumentation.class.getName() + "$AwsDynamoDbBuilderAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".S3Interceptor"};
+    return new String[] {packageName + ".DynamoDbInterceptor", packageName + ".DynamoDbUtil"};
   }
 
-  public static class AwsS3BuilderAdvice {
+  public static class AwsDynamoDbBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
       for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof S3Interceptor) {
+        if (interceptor instanceof DynamoDbInterceptor) {
           return; // list already has our interceptor, return to builder
         }
       }
-      interceptors.add(new S3Interceptor());
+      interceptors.add(new DynamoDbInterceptor());
     }
   }
 }
