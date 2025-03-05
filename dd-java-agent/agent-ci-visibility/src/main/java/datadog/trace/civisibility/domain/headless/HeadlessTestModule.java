@@ -27,6 +27,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
+import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -85,7 +86,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }
 
@@ -112,8 +113,14 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return executionStrategy.executionPolicy(test, testSource, testTags);
+  }
+
+  @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return executionStrategy.executionPriority(test, testSource);
   }
 
   @Override
