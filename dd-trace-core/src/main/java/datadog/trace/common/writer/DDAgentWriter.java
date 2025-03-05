@@ -151,6 +151,7 @@ public class DDAgentWriter extends RemoteWriter {
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
+
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
       final TraceProcessingWorker traceProcessingWorker =
