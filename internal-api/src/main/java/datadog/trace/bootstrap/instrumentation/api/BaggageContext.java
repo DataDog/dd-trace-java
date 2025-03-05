@@ -63,6 +63,10 @@ public class BaggageContext implements ImplicitContextKeyed {
     return new HashMap<>(baggage);
   }
 
+  public static ContextKey<BaggageContext> getContextKey() {
+    return CONTEXT_KEY;
+  }
+
   public static BaggageContext fromContext(Context context) {
     return context.get(CONTEXT_KEY);
   }
