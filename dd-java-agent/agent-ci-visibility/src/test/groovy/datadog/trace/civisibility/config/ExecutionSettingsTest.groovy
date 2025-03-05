@@ -1,21 +1,19 @@
 package datadog.trace.civisibility.config
 
-import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
-import datadog.trace.civisibility.diff.Diff
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.diff.LineDiff
-import datadog.trace.civisibility.diff.LineDiffTest
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
 import java.util.stream.Collectors
 
 import static datadog.trace.civisibility.TestUtils.lines
 
-class ExecutionSettingsTest extends Specification {
+class ExecutionSettingsTest extends DDSpecification {
 
   def "test serialization: #settings"() {
     when:
@@ -130,6 +128,10 @@ class ExecutionSettingsTest extends Specification {
   }
 
   private ExecutionSettings givenExecutionSettings(boolean settingsEnabled) {
+    if (settingsEnabled) {
+      injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
+    }
+
     def testManagementSettings = Stub(TestManagementSettings)
     testManagementSettings.isEnabled() >> settingsEnabled
 
