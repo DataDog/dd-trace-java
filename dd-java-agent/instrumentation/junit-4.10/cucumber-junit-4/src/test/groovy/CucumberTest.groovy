@@ -1,13 +1,8 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.CiVisibilityTestUtils
-import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
 import datadog.trace.instrumentation.junit4.CucumberUtils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder

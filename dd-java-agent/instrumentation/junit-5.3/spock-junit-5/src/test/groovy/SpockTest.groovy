@@ -1,12 +1,7 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.CiVisibilityTestUtils
-import datadog.trace.civisibility.config.LibraryCapabilityUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
@@ -25,7 +20,6 @@ import org.example.TestSucceedSpockSlow
 import org.example.TestSucceedSpockUnskippable
 import org.example.TestSucceedSpockUnskippableSuite
 import org.example.TestSucceedSpockVerySlow
-import org.junit.jupiter.api.Assumptions
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.engine.TestExecutionResult
 import org.junit.platform.launcher.TestExecutionListener
