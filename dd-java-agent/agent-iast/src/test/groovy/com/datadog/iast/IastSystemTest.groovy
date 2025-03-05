@@ -21,6 +21,7 @@ import datadog.trace.api.iast.sink.StacktraceLeakModule
 import datadog.trace.api.iast.sink.XContentTypeModule
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.Agent
+import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
@@ -33,8 +34,13 @@ class IastSystemTest extends DDSpecification {
     InstrumentationBridge.clearIastModules()
   }
 
+  def cleanup() {
+    TestLogCollector.disable()
+  }
+
   void 'start'() {
     given:
+    TestLogCollector.enable()
     final ig = new InstrumentationGateway()
     final ss = Spy(ig.getSubscriptionService(RequestContextSlot.IAST))
     final cbp = ig.getCallbackProvider(RequestContextSlot.IAST)
@@ -47,7 +53,6 @@ class IastSystemTest extends DDSpecification {
     }
     final igSpanInfo = Mock(IGSpanInfo)
 
-
     when:
     IastSystem.start(ss)
 
@@ -57,6 +62,7 @@ class IastSystemTest extends DDSpecification {
     1 * ss.registerCallback(Events.get().requestHeader(), _)
     1 * ss.registerCallback(Events.get().grpcServerRequestMessage(), _)
     0 * _
+    TestLogCollector.drainCapturedLogs().any { it.message.contains('IAST is starting') }
 
     when:
     final startCallback = cbp.getCallback(Events.get().requestStarted())
