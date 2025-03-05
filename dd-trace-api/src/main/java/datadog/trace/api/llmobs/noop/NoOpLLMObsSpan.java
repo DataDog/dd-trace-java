@@ -1,5 +1,6 @@
 package datadog.trace.api.llmobs.noop;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import java.util.List;
@@ -58,4 +59,14 @@ public class NoOpLLMObsSpan implements LLMObsSpan {
 
   @Override
   public void finish() {}
+
+  @Override
+  public DDTraceId getTraceId() {
+    return DDTraceId.ZERO;
+  }
+
+  @Override
+  public long getSpanId() {
+    return 0;
+  }
 }

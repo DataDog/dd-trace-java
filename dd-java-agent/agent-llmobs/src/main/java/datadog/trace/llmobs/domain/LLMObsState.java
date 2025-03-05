@@ -34,5 +34,4 @@ public class LLMObsState {
       state.parentSpanID = llmObsParentContext;
     }
   }
-
 }

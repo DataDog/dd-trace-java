@@ -1,5 +1,6 @@
 package datadog.trace.api.llmobs;
 
+import datadog.trace.api.DDTraceId;
 import java.util.List;
 import java.util.Map;
 
@@ -142,4 +143,18 @@ public interface LLMObsSpan {
 
   /** Finishes (closes) a span */
   void finish();
+
+  /**
+   * Gets the TraceId of the span's trace.
+   *
+   * @return The TraceId of the span's trace, or {@link DDTraceId#ZERO} if not set.
+   */
+  DDTraceId getTraceId();
+
+  /**
+   * Gets the SpanId.
+   *
+   * @return The span identifier.
+   */
+  long getSpanId();
 }
