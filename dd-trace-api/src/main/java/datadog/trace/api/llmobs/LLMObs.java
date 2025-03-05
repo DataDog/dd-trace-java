@@ -1,10 +1,13 @@
 package datadog.trace.api.llmobs;
 
+import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public class LLMObs {
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
+  protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -40,6 +43,10 @@ public class LLMObs {
     return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionID);
   }
 
+  public static void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {}
+
+  public static void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, double numericalValue, Map<String, Object> tags) {}
+
   public interface LLMObsSpanFactory {
     LLMObsSpan startLLMSpan(
         String spanName,
@@ -56,5 +63,10 @@ public class LLMObs {
 
     LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionID);
+  }
+
+  public interface LLMObsEvalProcessor {
+    void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, double numericalValue, Map<String, Object> tags);
+    void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags);
   }
 }
