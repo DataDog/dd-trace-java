@@ -99,6 +99,9 @@ public class WebsocketDecorator extends BaseDecorator {
       return;
     }
     final AgentSpan wsSpan = handlerContext.getWebsocketSpan();
+    if (wsSpan == null) {
+      return;
+    }
     try {
       final long startTime = handlerContext.getFirstFrameTimestamp();
       if (startTime > 0) {

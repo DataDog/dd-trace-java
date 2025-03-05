@@ -2,8 +2,11 @@ package datadog.trace.bootstrap.instrumentation.websocket;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class HandlerContext {
+  final Logger LOGGER = LoggerFactory.getLogger(HandlerContext.class);
 
   private final AgentSpan handshakeSpan;
   private AgentSpan websocketSpan;
@@ -92,7 +95,11 @@ public abstract class HandlerContext {
           if (partialDelivery && sz == 0) {
             msgChunks--; // if we receive an empty frame with the fin bit don't count it as a chunk
           }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+          LOGGER.debug(
+              "Unable to calculate websocket message size for data type {}",
+              data.getClass().getName(),
+              t);
         }
       }
     }

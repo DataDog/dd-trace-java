@@ -99,7 +99,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
     transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
-    transformer.applyAdvice(named("onCompleted"), packageName + ".OnCompletedAdvice");
 
     if (appSecNotFullyDisabled) {
       transformer.applyAdvice(
