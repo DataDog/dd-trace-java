@@ -480,6 +480,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean logs128bTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -655,6 +656,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+
+    logs128bTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
@@ -3396,6 +3402,10 @@ public class Config {
 
   public boolean isTrace128bitTraceIdGenerationEnabled() {
     return trace128bitTraceIdGenerationEnabled;
+  }
+
+  public boolean isLogs128bTraceIdEnabled() {
+    return logs128bTraceIdEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
