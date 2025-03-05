@@ -46,7 +46,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private final LLMObsServices llmObsServices;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
 
   public DDLLMObsSpan(
       @Nonnull String kind,
@@ -296,5 +295,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
     this.span.finish();
     this.finished = true;
     this.llmObsServices.removeActiveSpanContext(traceId);
+  }
+
+  @Override
+  public DDTraceId getTraceId() {
+    return this.span.getTraceId();
+  }
+
+  @Override
+  public long getSpanId() {
+    return this.span.getSpanId();
   }
 }
