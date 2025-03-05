@@ -79,6 +79,7 @@ dependencies {
   compileOnly group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
   compileOnly group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-websocket', version: '8.0.1', transitive: false
+  compileOnly group: 'org.apache.tomcat', name: 'tomcat-websocket-api', version: '8.0.1'
 
 
   // Version that corresponds with Tomcat 5.5
