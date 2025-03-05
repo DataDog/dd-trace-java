@@ -39,7 +39,7 @@ class LinksAssert {
     link(context.traceId, context.spanId, flags, attributes, traceState)
   }
 
-  def link(DDTraceId traceId, def spanId, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
+  def link(DDTraceId traceId, long spanId, byte flags = SpanLink.DEFAULT_FLAGS, SpanAttributes attributes = SpanAttributes.EMPTY, String traceState = '') {
     def found = links.find {
       it.spanId() == spanId && it.traceId() == traceId
     }
