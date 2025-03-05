@@ -1,5 +1,5 @@
 plugins {
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.9.4'
 }
 
 muzzle {
@@ -14,12 +14,12 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
 // First version with Mac M1 support
-def grpcVersion = '1.42.2'
+def grpcVersion = '1.62.2'
 protobuf {
   protoc {
     // Download compiler rather than using locally installed version:
     // First version with Mac M1 support
-    artifact = 'com.google.protobuf:protoc:3.17.3'
+    artifact = 'com.google.protobuf:protoc:3.25.5'
   }
   plugins {
     // First version with aarch support
@@ -35,6 +35,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'io.grpc', name: 'grpc-core', version: grpcVersion
 
+  testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
+  testImplementation group: 'io.grpc', name: 'grpc-inprocess', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-netty', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-stub', version: grpcVersion
