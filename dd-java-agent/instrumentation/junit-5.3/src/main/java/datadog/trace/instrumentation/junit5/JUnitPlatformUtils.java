@@ -311,6 +311,7 @@ public abstract class JUnitPlatformUtils {
         return JUNIT_CAPABILITIES_BASE;
       }
     }
+  }
 
   public static List<String> getTags(TestDescriptor testDescriptor) {
     return testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
