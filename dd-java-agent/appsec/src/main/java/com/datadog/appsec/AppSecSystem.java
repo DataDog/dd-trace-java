@@ -71,8 +71,9 @@ public class AppSecSystem {
 
     ApiSecuritySampler requestSampler;
     if (Config.get().isApiSecurityEnabled()) {
-      // TODO: Address support for 1-click enablement
       requestSampler = new ApiSecuritySamplerImpl();
+      // When DD_API_SECURITY_ENABLED=true, ths post-processor is set even when AppSec is inactive. This should be
+      // low overhead since the post-processor exits early when there is no AppSec request context.
       SpanPostProcessor.Holder.INSTANCE =
           new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
     } else {
