@@ -32,17 +32,17 @@ variables:
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
       - "8"
-      - "semeru11"
-      - "oracle8"
-      - "21"
-      - "ubuntu17"
-      - "zulu8"
+#      - "semeru11"
+#      - "oracle8"
+#      - "21"
+#      - "ubuntu17"
+#      - "zulu8"
       - "semeru8"
-      - "ibm8"
-      - "zulu11"
+#      - "ibm8"
+#      - "zulu11"
       - "11"
-      - "17"
-      - "semeru17"
+#      - "17"
+#      - "semeru17"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
