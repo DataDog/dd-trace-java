@@ -32,6 +32,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.profiling.ProfilingContext',
   'datadog.trace.api.profiling.ProfilingContextAttribute.NoOp',
   'datadog.trace.api.llmobs.LLMObs',
+  'datadog.trace.api.llmobs.LLMObs.LLMMessage',
+  'datadog.trace.api.llmobs.LLMObs.ToolCall',
   'datadog.trace.api.llmobs.LLMObsSpan',
   'datadog.trace.api.llmobs.noop.NoOpLLMObsSpan',
   'datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory',

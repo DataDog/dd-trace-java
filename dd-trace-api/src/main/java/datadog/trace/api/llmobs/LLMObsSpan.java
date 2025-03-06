@@ -7,14 +7,12 @@ import java.util.Map;
 public interface LLMObsSpan {
 
   /**
-   * Annotate the span with inputs and outputs
+   * Annotate the span with inputs and outputs for LLM spans
    *
-   * @param inputData The input data of the span in the form of a list, for example a list of input
-   *     messages
-   * @param outputData The output data of the span in the form of a list, for example a list of
-   *     output messages
+   * @param inputMessages The input messages of the span in the form of a list
+   * @param outputMessages The output messages of the span in the form of a list
    */
-  void annotateIO(List<Map<String, Object>> inputData, List<Map<String, Object>> outputData);
+  void annotateIO(List<LLMObs.LLMMessage> inputMessages, List<LLMObs.LLMMessage> outputMessages);
 
   /**
    * Annotate the span with inputs and outputs
