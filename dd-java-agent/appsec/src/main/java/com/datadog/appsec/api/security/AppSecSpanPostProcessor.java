@@ -59,6 +59,10 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
       try {
+        // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting it
+        // detected as a
+        // missed request-ended event.
+        ctx.closeAdditive();
         ctx.close();
       } catch (Exception e) {
         log.debug("Error closing AppSecRequestContext", e);
