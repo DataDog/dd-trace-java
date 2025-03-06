@@ -1,5 +1,10 @@
 package datadog.smoketest
 
+import datadog.trace.test.agent.decoder.DecodedSpan
+import spock.util.concurrent.PollingConditions
+
+import java.util.function.Function
+
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DemoMixedConcurrencyTest extends AbstractSmokeTest {
@@ -23,9 +28,18 @@ class DemoMixedConcurrencyTest extends AbstractSmokeTest {
     assert true == true
   }
 
+  @Override
+  Closure decodedTracesCallback() {
+    return {} // force traces decoding
+  }
+
+  private static Function<DecodedSpan, Boolean> checkSpanName() {
+    return { span -> span.getName() == "ConcurrentApp.computeFibonacciHelper" }
+  }
+
   def 'receive trace for ExecutorService and ForkJoin'() {
     expect:
-    waitForTraceCount(1) // one parent trace
+    waitForSpan(new PollingConditions(timeout: TIMEOUT_SECS), checkSpanName())
     traceCount.get() == 1
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
