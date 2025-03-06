@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.springmessaging;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
@@ -64,7 +64,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         parentContext = parent.context();
       } else {
         // otherwise try to re-extract the message context to avoid disconnected trace
-        parentContext = propagate().extract(message, GETTER);
+        parentContext = extractContextAndGetSpanContext(message, GETTER);
       }
       AgentSpan span = startSpan(SPRING_INBOUND, parentContext);
       DECORATE.afterStart(span);

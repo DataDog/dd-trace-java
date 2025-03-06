@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.httpclient;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
 
-public class HttpHeadersInjectAdapter
-    implements AgentPropagation.Setter<Map<String, List<String>>> {
+public class HttpHeadersInjectAdapter implements CarrierSetter<Map<String, List<String>>> {
 
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
   public static final BiPredicate<String, String> KEEP = HttpHeadersInjectAdapter::keep;

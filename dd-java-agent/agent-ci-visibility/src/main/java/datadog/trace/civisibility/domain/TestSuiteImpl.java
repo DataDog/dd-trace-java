@@ -11,7 +11,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -193,26 +192,25 @@ public class TestSuiteImpl implements DDTestSuite {
   @Override
   public void end(@Nullable Long endTime) {
     if (!parallelized) {
-      final AgentScope scope = AgentTracer.activeScope();
-      if (scope == null) {
+      final AgentSpan activeSpan = AgentTracer.activeSpan();
+      if (activeSpan == null) {
         throw new IllegalStateException(
-            "No active scope present, it is possible that end() was called multiple times");
+            "No active span present, it is possible that end() was called multiple times");
       }
 
-      AgentSpan scopeSpan = scope.span();
-      if (scopeSpan != span) {
+      if (activeSpan != this.span) {
         throw new IllegalStateException(
-            "Active scope does not correspond to the finished suite, "
+            "Active span does not correspond to the finished suite, "
                 + "it is possible that end() was called multiple times "
                 + "or an operation that was started by the suite is still in progress; "
-                + "active scope span is: "
-                + scopeSpan
+                + "active span is: "
+                + activeSpan
                 + "; "
                 + "expected span is: "
-                + span);
+                + this.span);
       }
 
-      scope.close();
+      AgentTracer.closeActive();
     }
 
     onSpanFinish.accept(span);

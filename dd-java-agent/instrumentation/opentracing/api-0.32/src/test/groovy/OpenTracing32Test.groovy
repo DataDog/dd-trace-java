@@ -273,7 +273,7 @@ class OpenTracing32Test extends AgentTestRunner {
     firstScope.close()
 
     then:
-    tracer.scopeManager().active().delegate == secondScope.delegate
+    tracer.scopeManager().active().span() == secondScope.span()
     _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
 

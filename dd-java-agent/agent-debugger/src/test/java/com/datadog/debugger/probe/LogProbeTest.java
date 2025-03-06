@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -30,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.util.stream.Stream;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,6 +43,7 @@ public class LogProbeTest {
   private static final String LANGUAGE = "java";
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String DEBUG_SESSION_ID = "TestSession";
+  private static final int BUDGET_RUNS = 1100;
 
   @Test
   public void testCapture() {
@@ -81,65 +84,68 @@ public class LogProbeTest {
 
   @Test
   public void budgets() {
-    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-
-    TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
-    AgentTracer.registerIfAbsent(tracer);
-    int runs = 100;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, true);
-    }
-    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
-
-    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-    runs = 1010;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, false);
-    }
-    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
-  }
-
-  @Test
-  public void budgetsOnLineProbes() {
-    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-
-    TracerAPI tracer =
-        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
-    AgentTracer.registerIfAbsent(tracer);
-    int runs = 100;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, true, 100);
-    }
-    assertEquals(runs * LogProbe.CAPTURING_PROBE_BUDGET, sink.captures);
-
-    sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(sink);
-    runs = 1010;
-    for (int i = 0; i < runs; i++) {
-      runTrace(tracer, false, 100);
-    }
-    assertEquals(runs * LogProbe.NON_CAPTURING_PROBE_BUDGET, sink.highRate);
-  }
-
-  private void runTrace(TracerAPI tracer, boolean captureSnapshot) {
-    runTrace(tracer, captureSnapshot, null);
-  }
-
-  private void runTrace(TracerAPI tracer, boolean captureSnapshot, Integer line) {
-    AgentSpan span = tracer.startSpan("budget testing", "test span");
-    span.setTag(Tags.PROPAGATED_DEBUG, "12345:1");
-    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
-
-      LogProbe logProbe =
-          createLog("I'm in a debug session")
-              .probeId(ProbeId.newId())
-              .tags("session_id:12345")
-              .captureSnapshot(captureSnapshot)
+    try {
+      ProbeRateLimiter.setGlobalSnapshotRate(-1);
+      TracerAPI tracer =
+          CoreTracer.builder()
+              .idGenerationStrategy(IdGenerationStrategy.fromName("random"))
               .build();
+      AgentTracer.registerIfAbsent(tracer);
+      String sessionId = "12345";
+
+      Result result = getResult(tracer, sessionId, true, null);
+      assertEquals(BUDGET_RUNS * LogProbe.CAPTURING_PROBE_BUDGET, result.sink.captures);
+
+      result = getResult(tracer, sessionId, false, null);
+      assertEquals(BUDGET_RUNS * LogProbe.NON_CAPTURING_PROBE_BUDGET, result.sink.highRate);
+
+      // run without a session
+      result = getResult(tracer, null, true, 100);
+      assertEquals(result.count, result.sink.captures);
+
+      result = getResult(tracer, null, false, 100);
+      assertEquals(result.count, result.sink.highRate);
+    } finally {
+      ProbeRateLimiter.resetGlobalRate();
+    }
+  }
+
+  @NotNull
+  private Result getResult(
+      TracerAPI tracer, String sessionId, boolean captureSnapshot, Integer line) {
+    BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
+    DebuggerAgentHelper.injectSink(sink);
+    int count = 0;
+    for (int i = 0; i < BUDGET_RUNS; i++) {
+      count += runTrace(tracer, captureSnapshot, line, sessionId);
+    }
+    return new Result(sink, count);
+  }
+
+  private static class Result {
+    final int count;
+    final BudgetSink sink;
+
+    private Result(BudgetSink sink, int count) {
+      this.sink = sink;
+      this.count = count;
+    }
+  }
+
+  private int runTrace(TracerAPI tracer, boolean captureSnapshot, Integer line, String sessionId) {
+    AgentSpan span = tracer.startSpan("budget testing", "test span");
+    if (sessionId != null) {
+      span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
+    }
+    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+      Builder builder =
+          createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
+      if (sessionId != null) {
+        builder.tags("session_id:" + sessionId);
+      }
+      LogProbe logProbe = builder.build();
+      ProbeRateLimiter.setRate(logProbe.id, -1, captureSnapshot);
+
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
@@ -158,7 +164,11 @@ public class LogProbeTest {
           logProbe.commit(entryContext, line);
         }
       }
-      assertEquals(runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
+      if (sessionId != null) {
+        assertEquals(
+            runs, span.getLocalRootSpan().getTag(format("_dd.ld.probe_id.%s", logProbe.id)));
+      }
+      return runs;
     }
   }
 
@@ -343,6 +353,7 @@ public class LogProbeTest {
   private static class BudgetSink extends DebuggerSink {
 
     public int captures;
+
     public int highRate;
 
     public BudgetSink(Config config, ProbeStatusSink probeStatusSink) {

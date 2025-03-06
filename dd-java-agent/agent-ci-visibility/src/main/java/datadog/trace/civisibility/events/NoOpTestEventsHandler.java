@@ -100,18 +100,25 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @NotNull
   @Override
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source) {
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags) {
     return Regular.INSTANCE;
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return false;
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return false;
+  }
+
+  @Override
+  public int executionPriority(
+      @Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData) {
+    return 0;
   }
 
   @Override

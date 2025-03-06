@@ -190,6 +190,8 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final boolean tracePropagationExtractFirst;
+  private final int traceBaggageMaxItems;
+  private final int traceBaggageMaxBytes;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -422,6 +424,7 @@ public class Config {
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
+  private final boolean distributedDebuggerEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -511,6 +514,7 @@ public class Config {
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
+  private final boolean azureFunctions;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -795,6 +799,9 @@ public class Config {
 
     baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
+    azureFunctions =
+        getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
+
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
     // following two only used in v0.
@@ -991,6 +998,12 @@ public class Config {
       tracePropagationStylesToExtract =
           extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
+
+      traceBaggageMaxItems =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+      traceBaggageMaxBytes =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
       propagationStylesToExtract =
@@ -1559,6 +1572,9 @@ public class Config {
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    distributedDebuggerEnabled =
+        configProvider.getBoolean(
+            DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
     dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
@@ -2246,6 +2262,26 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isBaggageExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggageInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggagePropagationEnabled() {
+    return isBaggageInject() || isBaggageExtract();
+  }
+
+  public int getTraceBaggageMaxItems() {
+    return traceBaggageMaxItems;
+  }
+
+  public int getTraceBaggageMaxBytes() {
+    return traceBaggageMaxBytes;
   }
 
   public int getClockSyncPeriod() {
@@ -3171,6 +3207,10 @@ public class Config {
     return debuggerCodeOriginMaxUserFrames;
   }
 
+  public boolean isDistributedDebuggerEnabled() {
+    return distributedDebuggerEnabled;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
@@ -3741,8 +3781,14 @@ public class Config {
   }
 
   private int schemaVersionFromConfig() {
-    String versionStr =
-        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    String defaultVersion;
+    // use v1 so Azure Functions operation name is consistent with that of other tracers
+    if (azureFunctions) {
+      defaultVersion = "v1";
+    } else {
+      defaultVersion = "v" + SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    String versionStr = configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, defaultVersion);
     Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
     int parsedVersion = -1;
     if (matcher.matches()) {
@@ -4412,6 +4458,8 @@ public class Config {
         + dbClientSplitByHost
         + ", DBMPropagationMode="
         + DBMPropagationMode
+        + ", DBMTracePreparedStatements="
+        + DBMTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="

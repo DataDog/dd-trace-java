@@ -88,7 +88,14 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String reason);
 
   @Nonnull
-  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags);
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData);
 
   /**
    * Returns the reason for skipping a test IF it can be skipped.
@@ -99,9 +106,9 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   @Nullable
   SkipReason skipReason(TestIdentifier test);
 
-  boolean isNew(TestIdentifier test);
+  boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(TestIdentifier test);
+  boolean isFlaky(@Nonnull TestIdentifier test);
 
   @Override
   void close();
