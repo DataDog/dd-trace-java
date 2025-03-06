@@ -57,7 +57,9 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     RETRANSFORMER("dd-retransformer"),
 
-    LOGS_INTAKE("dd-logs-intake");
+    LOGS_INTAKE("dd-logs-intake"),
+
+    LLMOBS_EVALS_PROCESSOR("dd-llmobs-evals-processor");
 
     public final String threadName;
 
