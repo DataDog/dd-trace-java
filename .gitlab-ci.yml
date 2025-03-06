@@ -467,6 +467,16 @@ required:
       optional: true
     - job: agent_integration_tests
       optional: true
+    - job: check_base
+      optional: true
+    - job: check_inst
+      optional: true
+    - job: check_smoke
+      optional: true
+    - job: check_profiling
+      optional: true
+    - job: check_debugger
+      optional: true
 
 deploy_to_profiling_backend:
   stage: publish

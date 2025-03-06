@@ -767,6 +767,7 @@ public class GatewayBridge {
     if (ctx == null) {
       return NoopFlow.INSTANCE;
     }
+    ctx.setRequestEndCalled();
 
     maybeExtractSchemas(ctx);
 

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5.order;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import java.util.Comparator;
@@ -14,23 +15,24 @@ public class FailFastMethodOrderer implements MethodOrderer {
 
   private final TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler;
   private final @Nullable MethodOrderer delegate;
-  private final Comparator<MethodDescriptor> knownTestMethodsComparator;
+  private final Comparator<MethodDescriptor> executionOrderComparator;
 
   public FailFastMethodOrderer(
       TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler,
       @Nullable MethodOrderer delegate) {
     this.testEventsHandler = testEventsHandler;
     this.delegate = delegate;
-    this.knownTestMethodsComparator = Comparator.comparing(this::isKnownAndStable);
+    this.executionOrderComparator = Comparator.comparing(this::executionPriority).reversed();
   }
 
-  private boolean isKnownAndStable(MethodDescriptor methodDescriptor) {
+  private int executionPriority(MethodDescriptor methodDescriptor) {
     TestDescriptor testDescriptor = JUnit5OrderUtils.getTestDescriptor(methodDescriptor);
     if (testDescriptor == null) {
-      return true;
+      return 0;
     }
     TestIdentifier testIdentifier = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
-    return !testEventsHandler.isNew(testIdentifier) && !testEventsHandler.isFlaky(testIdentifier);
+    TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
+    return testEventsHandler.executionPriority(testIdentifier, testSourceData);
   }
 
   @Override
@@ -41,6 +43,6 @@ public class FailFastMethodOrderer implements MethodOrderer {
     }
     // then apply our ordering (since sorting is stable, delegate's ordering will be preserved for
     // methods with the same "known/stable" status)
-    methodOrdererContext.getMethodDescriptors().sort(knownTestMethodsComparator);
+    methodOrdererContext.getMethodDescriptors().sort(executionOrderComparator);
   }
 }

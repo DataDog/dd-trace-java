@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -71,12 +72,10 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       // a span
       // this because undertow will just write down a http 400 raw response over the net channel.
       // Here we try to create a span to record this
-      AgentScope scope = activeScope();
-      AgentSpan span = null;
+      AgentSpan span = activeSpan();
+      AgentScope scope = null;
       try {
-        if (scope != null) {
-          span = scope.span();
-        } else {
+        if (span == null) {
           final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
           span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
           scope = activateSpan(span);
@@ -90,9 +89,11 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       } finally {
         if (span != null) {
           span.finish();
-        }
-        if (scope != null) {
-          scope.close();
+          if (scope != null) {
+            scope.close();
+          } else {
+            closeActive();
+          }
         }
       }
     }

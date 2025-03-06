@@ -63,7 +63,6 @@ class OT33ApiTest extends DDSpecification {
 
     then:
     tracer.activeSpan().delegate == span.delegate
-    coreTracer.activeScope().span() == span.delegate
     coreTracer.activeSpan() == span.delegate
 
     cleanup:
