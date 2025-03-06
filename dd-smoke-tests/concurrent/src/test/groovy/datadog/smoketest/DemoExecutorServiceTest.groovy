@@ -25,7 +25,8 @@ class DemoExecutorServiceTest extends AbstractSmokeTest {
 
   def 'receive trace for ExecutorService'() {
     expect:
-    waitForTraceCount(2) // one parent trace
+    waitForTraceCount(1) // one parent trace
+    traceCount.get() == 1
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0
