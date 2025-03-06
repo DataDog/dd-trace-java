@@ -1,5 +1,6 @@
 package datadog.trace.api.llmobs.noop;
 
+import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import java.util.List;
 import java.util.Map;
@@ -8,8 +9,7 @@ public class NoOpLLMObsSpan implements LLMObsSpan {
   public static final LLMObsSpan INSTANCE = new NoOpLLMObsSpan();
 
   @Override
-  public void annotateIO(
-      List<Map<String, Object>> inputData, List<Map<String, Object>> outputData) {}
+  public void annotateIO(List<LLMObs.LLMMessage> inputData, List<LLMObs.LLMMessage> outputData) {}
 
   @Override
   public void annotateIO(String inputData, String outputData) {}
