@@ -121,8 +121,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
     String testName = names.getRight();
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.CUCUMBER)
         .onTestStart(

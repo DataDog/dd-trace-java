@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -47,7 +48,8 @@ public interface TestFrameworkModule {
   SkipReason skipReason(TestIdentifier test);
 
   @Nonnull
-  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags);
 
   /**
    * Returns the priority of the test execution that can be used for ordering tests. The higher the

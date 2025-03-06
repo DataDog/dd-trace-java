@@ -29,7 +29,6 @@ import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -230,23 +229,22 @@ public class TestImpl implements DDTest {
   public void end(@Nullable Long endTime) {
     closeOutstandingSpans();
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope == null) {
+    final AgentSpan activeSpan = AgentTracer.activeSpan();
+    if (activeSpan == null) {
       throw new IllegalStateException(
-          "No active scope present, it is possible that end() was called multiple times");
+          "No active span present, it is possible that end() was called multiple times");
     }
 
-    AgentSpan scopeSpan = scope.span();
-    if (scopeSpan != span) {
+    if (activeSpan != this.span) {
       throw new IllegalStateException(
-          "Active scope does not correspond to the finished test, "
+          "Active span does not correspond to the finished test, "
               + "it is possible that end() was called multiple times "
               + "or an operation that was started by the test is still in progress; "
-              + "active scope span is: "
-              + scopeSpan
+              + "active span is: "
+              + activeSpan
               + "; "
               + "expected span is: "
-              + span);
+              + this.span);
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
@@ -263,7 +261,7 @@ public class TestImpl implements DDTest {
       }
     }
 
-    scope.close();
+    AgentTracer.closeActive();
 
     onSpanFinish.accept(span);
 
@@ -310,18 +308,17 @@ public class TestImpl implements DDTest {
    * spans stack until it encounters a CI Visibility span or the stack is empty.
    */
   private void closeOutstandingSpans() {
-    AgentScope scope;
-    while ((scope = AgentTracer.activeScope()) != null) {
-      AgentSpan span = scope.span();
+    AgentSpan activeSpan;
+    while ((activeSpan = AgentTracer.activeSpan()) != null) {
 
-      if (span == this.span || span.getTag(Tags.TEST_SESSION_ID) != null) {
+      if (activeSpan == this.span || activeSpan.getTag(Tags.TEST_SESSION_ID) != null) {
         // encountered this span or another CI Visibility span (test, suite, module, session)
         break;
       }
 
-      log.debug("Closing outstanding span: {}", span);
-      scope.close();
-      span.finish();
+      log.debug("Closing outstanding span: {}", activeSpan);
+      AgentTracer.closeActive();
+      activeSpan.finish();
     }
   }
 }

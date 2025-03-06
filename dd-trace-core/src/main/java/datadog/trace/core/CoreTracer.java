@@ -978,6 +978,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void closeActive() {
+    AgentScope activeScope = this.scopeManager.active();
+    if (activeScope != null) {
+      activeScope.close();
+    }
+  }
+
+  @Override
   public AgentSpanContext notifyExtensionStart(Object event) {
     return LambdaHandler.notifyStartInvocation(this, event);
   }

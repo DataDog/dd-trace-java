@@ -122,6 +122,16 @@ public class AgentTracer {
   }
 
   /**
+   * Closes the scope for the currently active span.
+   *
+   * @deprecated Prefer closing the scope returned by {@link #activateSpan} when available.
+   */
+  @Deprecated
+  public static void closeActive() {
+    get().closeActive();
+  }
+
+  /**
    * Closes the immediately previous iteration scope. Should be called before creating a new span
    * for {@link #activateNext(AgentSpan)}.
    */
@@ -310,6 +320,8 @@ public class AgentTracer {
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    void closeActive();
+
     void closePrevious(boolean finishSpan);
 
     AgentScope activateNext(AgentSpan span);
@@ -462,6 +474,9 @@ public class AgentTracer {
 
     @Override
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+
+    @Override
+    public void closeActive() {}
 
     @Override
     public void closePrevious(final boolean finishSpan) {}
