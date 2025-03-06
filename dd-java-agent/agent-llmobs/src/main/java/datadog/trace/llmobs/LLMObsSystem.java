@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsInternal;
 import java.lang.instrument.Instrumentation;
+import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,21 @@ public class LLMObsSystem {
     LLMObsInternal.setLLMObsSpanFactory(
         new LLMObsManualSpanFactory(
             config.getLlmObsMlApp(), config.getServiceName(), llmObsServices));
+
+    LLMObsInternal.setLLMObsEvalProcessor();
+  }
+
+  private static class LLMObsCustomEvalProcessor implements LLMObs.LLMObsEvalProcessor {
+
+    @Override
+    public void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, double numericalValue, Map<String, Object> tags) {
+      
+    }
+
+    @Override
+    public void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+
+    }
   }
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
