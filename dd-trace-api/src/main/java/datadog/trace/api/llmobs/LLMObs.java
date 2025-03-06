@@ -52,7 +52,11 @@ public class LLMObs {
   }
 
   public static void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, String categoricalValue, String mlApp, Map<String, Object> tags) {
+      LLMObsSpan llmObsSpan,
+      String label,
+      String categoricalValue,
+      String mlApp,
+      Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, mlApp, tags);
   }
 
@@ -62,7 +66,11 @@ public class LLMObs {
   }
 
   public static void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, double scoreValue, String mlApp, Map<String, Object> tags) {
+      LLMObsSpan llmObsSpan,
+      String label,
+      double scoreValue,
+      String mlApp,
+      Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, scoreValue, mlApp, tags);
   }
 
