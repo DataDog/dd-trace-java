@@ -57,15 +57,15 @@ public class LLMObsSystem {
 
     @Override
     public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, double numericalValue, Map<String, Object> tags) {
-      SubmitEvaluation(llmObsSpan, label, numericalValue, defaultMLApp, tags);
+        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+      SubmitEvaluation(llmObsSpan, label, scoreValue, defaultMLApp, tags);
     }
 
     @Override
     public void SubmitEvaluation(
         LLMObsSpan llmObsSpan,
         String label,
-        double numericalValue,
+        double scoreValue,
         String mlApp,
         Map<String, Object> tags) {
       if (llmObsSpan == null) {
@@ -75,7 +75,7 @@ public class LLMObsSystem {
       long spanID = llmObsSpan.getSpanId();
       LLMObsEval.Score score =
           new LLMObsEval.Score(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, numericalValue);
+              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
       if (!this.evalProcessingWorker.addToQueue(score)) {
         LOGGER.warn(
             "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
