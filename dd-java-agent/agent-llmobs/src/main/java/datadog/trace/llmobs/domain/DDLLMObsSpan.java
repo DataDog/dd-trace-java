@@ -1,34 +1,22 @@
 package datadog.trace.llmobs.domain;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DDLLMObsSpan implements LLMObsSpan {
-
-  private enum State {
-    VALID,
-    INVALID_IO_MESSAGE_KEY
-  }
-
-  private static final String MESSAGE_KEY_ROLE = "role";
-  private static final String MESSAGE_KEY_CONTENT = "content";
-
-  private static final Set<String> VALID_MESSAGE_KEYS =
-      new HashSet<>(Arrays.asList(MESSAGE_KEY_ROLE, MESSAGE_KEY_CONTENT));
+  private static final String LLM_MESSAGE_UNKNOWN_ROLE = "unknown";
 
   // Well known tags for LLM obs will be prefixed with _ml_obs_(tags|metrics).
   // Prefix for tags
@@ -92,35 +80,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
         + this.span.getTag(SPAN_KIND);
   }
 
-  private static State validateIOMessages(List<Map<String, Object>> messages) {
-    for (Map<String, Object> message : messages) {
-      for (String key : message.keySet()) {
-        if (!VALID_MESSAGE_KEYS.contains(key)) {
-          return State.INVALID_IO_MESSAGE_KEY;
-        }
-      }
-    }
-    return State.VALID;
-  }
-
   @Override
-  public void annotateIO(
-      List<Map<String, Object>> inputData, List<Map<String, Object>> outputData) {
+  public void annotateIO(List<LLMObs.LLMMessage> inputData, List<LLMObs.LLMMessage> outputData) {
     if (finished) {
       return;
     }
     if (inputData != null && !inputData.isEmpty()) {
-      State inputState = validateIOMessages(inputData);
-      if (validateIOMessages(inputData) != State.VALID) {
-        LOGGER.debug("malformed/unexpected input message, state={}", inputState);
-      }
       this.span.setTag(INPUT, inputData);
     }
     if (outputData != null && !outputData.isEmpty()) {
-      State outputState = validateIOMessages(outputData);
-      if (validateIOMessages(outputData) != State.VALID) {
-        LOGGER.debug("malformed/unexpected output message, state={}", outputState);
-      }
       this.span.setTag(OUTPUT, outputData);
     }
   }
@@ -130,10 +98,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
+    boolean wrongSpanKind = false;
     if (inputData != null && !inputData.isEmpty()) {
       if (Tags.LLMOBS_LLM_SPAN_KIND.equals(this.spanKind)) {
+        wrongSpanKind = true;
         annotateIO(
-            Collections.singletonList(Collections.singletonMap(MESSAGE_KEY_CONTENT, inputData)),
+            Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData)),
             null);
       } else {
         this.span.setTag(INPUT, inputData);
@@ -141,12 +111,18 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     if (outputData != null && !outputData.isEmpty()) {
       if (Tags.LLMOBS_LLM_SPAN_KIND.equals(this.spanKind)) {
+        wrongSpanKind = true;
         annotateIO(
             null,
-            Collections.singletonList(Collections.singletonMap(MESSAGE_KEY_CONTENT, outputData)));
+            Collections.singletonList(
+                LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData)));
       } else {
         this.span.setTag(OUTPUT, outputData);
       }
+    }
+    if (wrongSpanKind) {
+      LOGGER.warn(
+          "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
     }
   }
 

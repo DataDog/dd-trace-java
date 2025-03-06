@@ -3,6 +3,7 @@ package datadog.trace.llmobs.domain
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.api.llmobs.LLMObsSpan
 import datadog.trace.api.llmobs.LLMObsTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -199,11 +200,65 @@ class DDLLMObsSpanTest  extends DDSpecification{
     assert Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
 
     assert null == innerSpan.getTag("input")
-    def expectedInput = Arrays.asList(Maps.of("content", input))
-    assert expectedInput.equals(innerSpan.getTag(INPUT))
+    def spanInput = innerSpan.getTag(INPUT)
+    assert spanInput instanceof List
+    assert ((List)spanInput).size() == 1
+    assert spanInput.get(0) instanceof LLMObs.LLMMessage
+    def expectedInputMsg = LLMObs.LLMMessage.from("unknown", input)
+    assert expectedInputMsg.getContent().equals(input)
+    assert expectedInputMsg.getRole().equals("unknown")
+    assert expectedInputMsg.getToolCalls().equals(null)
+
     assert null == innerSpan.getTag("output")
-    def expectedOutput = Arrays.asList(Maps.of("content", output))
-    assert expectedOutput.equals(innerSpan.getTag(OUTPUT))
+    def spanOutput = innerSpan.getTag(OUTPUT)
+    assert spanOutput instanceof List
+    assert ((List)spanOutput).size() == 1
+    assert spanOutput.get(0) instanceof LLMObs.LLMMessage
+    def expectedOutputMsg = LLMObs.LLMMessage.from("unknown", output)
+    assert expectedOutputMsg.getContent().equals(output)
+    assert expectedOutputMsg.getRole().equals("unknown")
+    assert expectedOutputMsg.getToolCalls().equals(null)
+  }
+
+  def "test llm span with messages"() {
+    setup:
+    def test = givenALLMObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    def inputMsg =  LLMObs.LLMMessage.from("user", "input")
+    def outputMsg = LLMObs.LLMMessage.from("assistant", "output", Arrays.asList(LLMObs.ToolCall.from("weather-tool", "function", "6176241000", Maps.of("location", "paris"))))
+    // initial set
+    test.annotateIO(Arrays.asList(inputMsg), Arrays.asList(outputMsg))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    assert Tags.LLMOBS_LLM_SPAN_KIND.equals(innerSpan.getTag(LLMOBS_TAG_PREFIX + "span.kind"))
+
+    assert null == innerSpan.getTag("input")
+    def spanInput = innerSpan.getTag(INPUT)
+    assert spanInput instanceof List
+    assert ((List)spanInput).size() == 1
+    def spanInputMsg = spanInput.get(0)
+    assert spanInputMsg instanceof LLMObs.LLMMessage
+    assert spanInputMsg.getContent().equals(inputMsg.getContent())
+    assert spanInputMsg.getRole().equals("user")
+    assert spanInputMsg.getToolCalls().equals(null)
+
+    assert null == innerSpan.getTag("output")
+    def spanOutput = innerSpan.getTag(OUTPUT)
+    assert spanOutput instanceof List
+    assert ((List)spanOutput).size() == 1
+    def spanOutputMsg = spanOutput.get(0)
+    assert spanOutputMsg instanceof LLMObs.LLMMessage
+    assert spanOutputMsg.getContent().equals(outputMsg.getContent())
+    assert spanOutputMsg.getRole().equals("assistant")
+    assert spanOutputMsg.getToolCalls().size() == 1
+    def toolCall = spanOutputMsg.getToolCalls().get(0)
+    assert toolCall.getName().equals("weather-tool")
+    assert toolCall.getType().equals("function")
+    assert toolCall.getToolID().equals("6176241000")
+    def expectedToolArgs = Maps.of("location", "paris")
+    assert toolCall.getArguments().equals(expectedToolArgs)
   }
 
   private LLMObsSpan givenALLMObsSpan(String kind, name){
