@@ -5,6 +5,7 @@ import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf
 import datadog.communication.serialization.Writable;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -62,6 +63,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METRICS = "metrics".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TAGS = "tags".getBytes(StandardCharsets.UTF_8);
+
+  private static final byte[] LLM_MESSAGE_ROLE = "role".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_MESSAGE_CONTENT = "content".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_MESSAGE_TOOL_CALLS =
+      "tool_calls".getBytes(StandardCharsets.UTF_8);
+
+  private static final byte[] LLM_TOOL_CALL_NAME = "name".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_TOOL_CALL_TYPE = "type".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_TOOL_CALL_TOOL_ID = "tool_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_TOOL_CALL_ARGUMENTS =
+      "arguments".getBytes(StandardCharsets.UTF_8);
 
   private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -242,8 +254,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();
-        if (!tagsToRemapToMeta.containsKey(key)
-            && key.startsWith(LLMOBS_TAG_PREFIX)) {
+        if (!tagsToRemapToMeta.containsKey(key) && key.startsWith(LLMOBS_TAG_PREFIX)) {
           writable.writeObject(key.substring(LLMOBS_TAG_PREFIX.length()) + ":" + value, null);
         }
       }
@@ -266,8 +277,52 @@ public class LLMObsSpanMapper implements RemoteMapper {
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
           if (!spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             key += ".value";
+            writable.writeString(key, null);
+            writable.writeObject(val, null);
           } else {
+            if (!(val instanceof List)) {
+              LOGGER.warn(
+                  "unexpectedly found incorrect type for LLM span IO {}, expecting list",
+                  val.getClass().getName());
+              continue;
+            }
+            // llm span kind must have llm objects
+            List<LLMObs.LLMMessage> messages = (List<LLMObs.LLMMessage>) val;
             key += ".messages";
+            writable.writeString(key, null);
+            writable.startArray(messages.size());
+            for (LLMObs.LLMMessage message : messages) {
+              List<LLMObs.ToolCall> toolCalls = message.getToolCalls();
+              boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
+              writable.startMap(hasToolCalls ? 3 : 2);
+              writable.writeUTF8(LLM_MESSAGE_ROLE);
+              writable.writeString(message.getRole(), null);
+              writable.writeUTF8(LLM_MESSAGE_CONTENT);
+              writable.writeString(message.getContent(), null);
+              if (hasToolCalls) {
+                writable.writeUTF8(LLM_MESSAGE_TOOL_CALLS);
+                writable.startArray(toolCalls.size());
+                for (LLMObs.ToolCall toolCall : toolCalls) {
+                  Map<String, Object> arguments = toolCall.getArguments();
+                  boolean hasArguments = null != arguments && !arguments.isEmpty();
+                  writable.startMap(hasArguments ? 4 : 3);
+                  writable.writeUTF8(LLM_TOOL_CALL_NAME);
+                  writable.writeString(toolCall.getName(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TYPE);
+                  writable.writeString(toolCall.getType(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
+                  writable.writeString(toolCall.getToolID(), null);
+                  if (hasArguments) {
+                    writable.writeUTF8(LLM_TOOL_CALL_ARGUMENTS);
+                    writable.startMap(arguments.size());
+                    for (Map.Entry<String, Object> argument : arguments.entrySet()) {
+                      writable.writeString(argument.getKey(), null);
+                      writable.writeObject(argument.getValue(), null);
+                    }
+                  }
+                }
+              }
+            }
           }
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;
@@ -277,10 +332,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
             writable.writeString(entry.getKey(), null);
             writable.writeObject(entry.getValue(), null);
           }
-          continue;
+        } else {
+          writable.writeString(key, null);
+          writable.writeObject(val, null);
         }
-        writable.writeString(key, null);
-        writable.writeObject(val, null);
       }
     }
   }
