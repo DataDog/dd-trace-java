@@ -187,7 +187,4 @@ public abstract class ImmutableSpan implements AgentSpan {
 
   @Override
   public void setRequestBlockingAction(RequestBlockingAction rba) {}
-
-  @Override
-  public void setRequiresPostProcessing(boolean requiresPostProcessing) {}
 }
