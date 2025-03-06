@@ -160,6 +160,8 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
+  /** @deprecated To be removed, do not use. */
+  @Deprecated
   public static AgentScope activeScope() {
     return get().activeScope();
   }
