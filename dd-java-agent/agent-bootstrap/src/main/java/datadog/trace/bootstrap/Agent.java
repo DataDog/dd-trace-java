@@ -103,9 +103,8 @@ public class Agent {
     SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
-    LLMOBS(propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_ENABLED), false),
-    LLMOBS_AGENTLESS(
-        propertyNameToSystemPropertyName(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED), false);
+    LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
