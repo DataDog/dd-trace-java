@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
@@ -77,6 +78,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.flare.TracerFlarePoller;
@@ -719,6 +721,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (config.isDataStreamsEnabled()) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
+    if (config.isBaggagePropagationEnabled()) {
+      Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
+    }
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
@@ -970,6 +975,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public void closeActive() {
+    AgentScope activeScope = this.scopeManager.active();
+    if (activeScope != null) {
+      activeScope.close();
+    }
   }
 
   @Override

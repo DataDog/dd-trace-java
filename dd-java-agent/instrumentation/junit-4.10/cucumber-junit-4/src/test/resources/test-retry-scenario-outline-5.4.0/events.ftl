@@ -4,7 +4,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -20,7 +20,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
-    "name" : "junit.test_suite",
+    "name" : "cucumber.test_suite",
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start},
@@ -37,7 +37,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -60,7 +60,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -80,7 +80,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -103,7 +103,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -123,7 +123,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -149,7 +149,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -169,7 +169,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -197,7 +197,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -217,7 +217,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -245,7 +245,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -265,7 +265,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -293,7 +293,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -313,7 +313,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -342,7 +342,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -362,7 +362,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -385,7 +385,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples.Many additions",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -406,7 +406,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -426,7 +426,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test_session",
+    "name" : "cucumber.test_session",
     "resource" : "cucumber-junit-4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_10},
@@ -440,7 +440,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -455,7 +455,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_11}
     },
-    "name" : "junit.test_module",
+    "name" : "cucumber.test_module",
     "resource" : "cucumber-junit-4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_11},

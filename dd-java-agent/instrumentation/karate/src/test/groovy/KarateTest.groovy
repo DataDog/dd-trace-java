@@ -94,6 +94,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
     "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
+    "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []
   }
 
   def "test quarantined #testcaseName"() {

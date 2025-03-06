@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
+import java.util.Collection;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
@@ -23,9 +24,10 @@ public class RetryAnalyzer implements IRetryAnalyzer {
         if (executionPolicy == null) {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
           TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
+          Collection<String> testTags = TestNGUtils.getGroups(result);
           executionPolicy =
               TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-                  testIdentifier, testSourceData);
+                  testIdentifier, testSourceData, testTags);
         }
       }
     }

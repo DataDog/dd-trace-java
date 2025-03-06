@@ -166,6 +166,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.ConcurrentEnumMap",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
@@ -180,6 +181,8 @@ excludedClassesCoverage += [
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
+  // BaggageContext class tested in BaggagePropagatorTest in dd-trace-core
+  'datadog.trace.bootstrap.instrumentation.api.BaggageContext',
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",

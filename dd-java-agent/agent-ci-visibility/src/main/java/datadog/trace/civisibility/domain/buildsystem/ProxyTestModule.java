@@ -100,7 +100,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }
 
@@ -127,8 +127,14 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return executionStrategy.executionPolicy(test, testSource, testTags);
+  }
+
+  @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return executionStrategy.executionPriority(test, testSource);
   }
 
   @Override

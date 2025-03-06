@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,16 +43,18 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          suiteDescriptor,
-          testSuiteName,
-          FRAMEWORK_NAME,
-          FRAMEWORK_VERSION,
-          null,
-          Collections.emptyList(),
-          false,
-          TestFrameworkInstrumentation.CUCUMBER,
-          null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteStart(
+              suiteDescriptor,
+              testSuiteName,
+              FRAMEWORK_NAME,
+              FRAMEWORK_VERSION,
+              null,
+              Collections.emptyList(),
+              false,
+              TestFrameworkInstrumentation.CUCUMBER,
+              null);
     }
   }
 
@@ -61,7 +62,9 @@ public class CucumberTracingListener extends TracingListener {
   public void testSuiteFinished(final Description description) {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 
@@ -71,17 +74,19 @@ public class CucumberTracingListener extends TracingListener {
     String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        new TestSuiteDescriptor(testSuiteName, null),
-        CucumberUtils.toTestDescriptor(description),
-        testName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        null,
-        categories,
-        TestSourceData.UNKNOWN,
-        null,
-        executionHistories.get(description));
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestStart(
+            new TestSuiteDescriptor(testSuiteName, null),
+            CucumberUtils.toTestDescriptor(description),
+            testName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            null,
+            categories,
+            TestSourceData.UNKNOWN,
+            null,
+            executionHistories.get(description));
 
     recordFeatureFileCodeCoverage(description);
   }
@@ -100,8 +105,9 @@ public class CucumberTracingListener extends TracingListener {
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
     TestExecutionHistory executionHistory = executionHistories.get(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionHistory);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -111,11 +117,15 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
       Throwable throwable = failure.getException();
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteFailure(suiteDescriptor, throwable);
     } else {
       TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
       Throwable throwable = failure.getException();
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestFailure(testDescriptor, throwable);
     }
   }
 
@@ -132,10 +142,14 @@ public class CucumberTracingListener extends TracingListener {
     Description description = failure.getDescription();
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteSkip(suiteDescriptor, reason);
     } else {
       TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSkip(testDescriptor, reason);
     }
   }
 
@@ -147,32 +161,40 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       TestSuiteDescriptor suiteDescriptor = CucumberUtils.toSuiteDescriptor(description);
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          suiteDescriptor,
-          testSuiteName,
-          FRAMEWORK_NAME,
-          FRAMEWORK_VERSION,
-          null,
-          Collections.emptyList(),
-          false,
-          TestFrameworkInstrumentation.CUCUMBER,
-          null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteStart(
+              suiteDescriptor,
+              testSuiteName,
+              FRAMEWORK_NAME,
+              FRAMEWORK_VERSION,
+              null,
+              Collections.emptyList(),
+              false,
+              TestFrameworkInstrumentation.CUCUMBER,
+              null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteSkip(suiteDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteFinish(suiteDescriptor, null);
     } else {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
       String testName = CucumberUtils.getTestNameForScenario(description);
       List<String> categories = getCategories(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-          new TestSuiteDescriptor(testSuiteName, null),
-          CucumberUtils.toTestDescriptor(description),
-          testName,
-          FRAMEWORK_NAME,
-          FRAMEWORK_VERSION,
-          null,
-          categories,
-          TestSourceData.UNKNOWN,
-          reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestIgnore(
+              new TestSuiteDescriptor(testSuiteName, null),
+              CucumberUtils.toTestDescriptor(description),
+              testName,
+              FRAMEWORK_NAME,
+              FRAMEWORK_VERSION,
+              null,
+              categories,
+              TestSourceData.UNKNOWN,
+              reason);
     }
   }
 
@@ -183,11 +205,6 @@ public class CucumberTracingListener extends TracingListener {
 
   private List<String> getCategories(Description description) {
     Pickle pickle = pickleById.get(JUnit4Utils.getUniqueId(description));
-    List<String> pickleTags = pickle.getTags();
-    List<String> categories = new ArrayList<>(pickleTags.size());
-    for (String tag : pickleTags) {
-      categories.add(tag.substring(1)); // remove leading "@"
-    }
-    return categories;
+    return CucumberUtils.getCategories(pickle);
   }
 }
