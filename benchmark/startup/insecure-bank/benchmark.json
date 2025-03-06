@@ -1,7 +1,7 @@
 {
   "name": "startup_insecure-bank",
   "setup": "bash -c \"mkdir -p ${OUTPUT_DIR}/${VARIANT}\"",
-  "service": "bash -c \"${UTILS_DIR}/run-on-server-ready.sh http://localhost:8080/login 'pkill java'\"",
+  "service": "bash -c \"${UTILS_DIR}/fast-wait-for.sh 127.0.0.1 8080 java\"",
   "run": "bash -c \"java -javaagent:${TRACER} -Ddd.benchmark.enabled=true -Ddd.benchmark.output.dir=${OUTPUT_DIR}/${VARIANT} ${JAVA_OPTS} -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log\"",
   "iterations": 10,
   "timeout": 60,
