@@ -28,6 +28,7 @@ import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedNested
+import org.example.TestSucceedSkipEfd
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
@@ -146,6 +147,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -244,8 +246,6 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
-
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])

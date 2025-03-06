@@ -143,6 +143,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
 
+  // Used to detect missing request-end event at close.
+  private volatile boolean requestEndCalled;
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -584,12 +587,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /* Should be accessible from the modules */
 
   public void close(boolean requiresPostProcessing) {
-    if (additive != null || derivatives != null) {
+    if (!requestEndCalled) {
+      log.debug(SEND_TELEMETRY, "Request end event was not called before close");
+    }
+    if (additive != null) {
       log.debug(
           SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
-      derivatives = null;
     }
+    derivatives = null;
 
     // check if we might need to further post process data related to the span in order to not free
     // related data
@@ -698,5 +704,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isAdditiveClosed() {
     return additiveClosed;
+  }
+
+  /** Must be called during request end event processing. */
+  void setRequestEndCalled() {
+    requestEndCalled = true;
   }
 }

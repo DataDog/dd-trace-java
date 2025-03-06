@@ -24,6 +24,10 @@ variables:
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
+  REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
+  PROFILE_TESTS:
+    description: "Enable profiling of tests"
+    value: "false"
 
 default:
   tags: [ "arch:amd64" ]
@@ -33,6 +37,17 @@ default:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204-slim:release
   script:
     - echo "done"
+
+.set_datadog_api_keys: &set_datadog_api_keys
+  - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
+  - export DATADOG_API_KEY_DDSTAGING=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.dd_api_key --with-decryption --query "Parameter.Value" --out text)
+
+# CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
+.normalize_node_index: &normalize_node_index
+  - echo "CI_NODE_TOTAL=$CI_NODE_TOTAL , CI_NODE_INDEX=$CI_NODE_INDEX"
+  - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
+  - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
+  - echo "NORMALIZED_NODE_TOTAL=$NORMALIZED_NODE_TOTAL , NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
 
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
@@ -60,6 +75,7 @@ default:
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
@@ -116,10 +132,6 @@ test_published_artifacts:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
   stage: tests
   needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
   variables:
     BUILD_CACHE_TYPE: lib
   script:
@@ -139,26 +151,64 @@ test_published_artifacts:
     paths:
       - ./check_reports
 
+.check_job:
+  extends: .gradle_build
+  needs: [ build ]
+  stage: tests
+  variables:
+    BUILD_CACHE_TYPE: lib
+  script:
+    - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+  after_script:
+    - .circleci/collect_reports.sh --destination ./check_reports --move
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
+      - '.gradle/daemon/*/*.out.log'
+
+check_base:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":baseCheck"
+
+check_inst:
+  extends: .check_job
+  parallel: 4
+  variables:
+    GRADLE_TARGET: ":instrumentationCheck"
+
+check_smoke:
+  extends: .check_job
+  parallel: 4
+  variables:
+    GRADLE_TARGET: ":smokeCheck"
+
+check_profiling:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":profilingCheck"
+
+check_debugger:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":debuggerCheck"
+
 muzzle:
   extends: .gradle_build
   needs: [ build ]
   stage: tests
   parallel: 8
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
+    - when: never
   variables:
     BUILD_CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
-    - echo CI_NODE_INDEX=$CI_NODE_INDEX
-    - echo CI_NODE_TOTAL=CI_NODE_TOTAL
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
     - sort workspace/build/muzzleTasks > sortedMuzzleTasks
-    - split --number=l/$CI_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - export NODE_ZERO_INDEX=$((CI_NODE_INDEX - 1))
-    - ./gradlew `cat muzzleSplit${NODE_ZERO_INDEX} | xargs` $GRADLE_ARGS
+    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
+    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
   after_script:
     - .circleci/collect_reports.sh
   artifacts:
@@ -184,12 +234,90 @@ muzzle-dep-report:
       - ./reports
       - '.gradle/daemon/*/*.out.log'
 
+# In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
+# To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
+.prepare_test_env: &prepare_test_env
+  - export gitlabVariables=("DD_SERVICE" "DD_ENTITY_ID" "DD_SITE" "DD_ENV" "DD_DATACENTER" "DD_PARTITION" "DD_CLOUDPROVIDER")
+  - '[ ! -e pretest.env ] || rm pretest.env'
+  - |
+    for VARIABLE in "${gitlabVariables[@]}"
+    do
+      echo "export $VARIABLE=${!VARIABLE}" >> pretest.env
+      unset "$VARIABLE"
+    done
+
+.restore_pretest_env: &restore_pretest_env
+  - source pretest.env
+
+.test_job:
+  extends: .gradle_build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
+  needs: [ build ]
+  stage: tests
+  variables:
+    BUILD_CACHE_TYPE: lib
+    GRADLE_PARAMS: ""
+    CONTINUE_ON_FAILURE: "false"
+  script:
+    - > 
+      if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
+      then
+      export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
+      fi
+    - *prepare_test_env
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+  after_script:
+    - *restore_pretest_env
+    - *set_datadog_api_keys
+    - .circleci/collect_reports.sh
+    - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
+    - .circleci/collect_results.sh
+    - .circleci/upload_ciapp.sh tests $testJvm
+# TODO Get APM Test Agent Trace Check Results
+  artifacts:
+    when: always
+    paths:
+      - ./reports.tar
+      - ./profiles.tar
+      - ./results
+      - '.gradle/daemon/*/*.out.log'
+
+agent_integration_tests:
+  extends: .test_job
+  variables:
+    testJvm: "8"
+    CI_AGENT_HOST: local-agent
+    GRADLE_TARGET: "traceAgentTest"
+  services:
+    - name: datadog/agent:7.34.0
+      alias: local-agent
+      variables:
+        DD_APM_ENABLED: "true"
+        DD_BIND_HOST: "0.0.0.0"
+        DD_API_KEY: "invalid_key_but_this_is_fine"
+
 required:
   extends: .fan_in
   needs:
-    - spotless
-    - muzzle
-    - test_published_artifacts
+    - job: spotless
+      optional: true
+    - job: muzzle
+      optional: true
+    - job: test_published_artifacts
+      optional: true
+    - job: agent_integration_tests
+      optional: true
+    - job: check_base
+      optional: true
+    - job: check_inst
+      optional: true
+    - job: check_smoke
+      optional: true
+    - job: check_profiling
+      optional: true
+    - job: check_debugger
+      optional: true
 
 deploy_to_profiling_backend:
   stage: publish

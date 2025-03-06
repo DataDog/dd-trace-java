@@ -634,7 +634,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // Log and span decoration probe shared the same instrumentor: CaptureContextInstrumentor
       // and therefore need to be instrumented once
       // note: exception probes are log probes and are handled the same way
-      if (isCapturedContextProbe(definition)) {
+      if (!Config.get().isDistributedDebuggerEnabled() && definition instanceof TriggerProbe) {
+        log.debug(
+            "The distributed debugger feature is disabled. Trigger probes will not be installed.");
+      } else if (isCapturedContextProbe(definition)) {
         if (definition.isLineProbe()) {
           capturedContextLineProbes
               .computeIfAbsent(definition.getWhere(), key -> new ArrayList<>())

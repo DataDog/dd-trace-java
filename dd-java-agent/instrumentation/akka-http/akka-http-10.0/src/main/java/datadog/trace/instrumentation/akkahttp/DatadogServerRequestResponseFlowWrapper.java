@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -142,11 +142,11 @@ public class DatadogServerRequestResponseFlowWrapper
                     response = newResponse;
                   }
                   DatadogWrapperHelper.finishSpan(span, response);
-                  // Check if the active scope is still the scope from when the request came in,
+                  // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
-                  AgentScope activeScope = activeScope();
-                  if (activeScope == scope) {
+                  AgentSpan activeSpan = activeSpan();
+                  if (activeSpan == scope.span()) {
                     scope.close();
                   }
                 }

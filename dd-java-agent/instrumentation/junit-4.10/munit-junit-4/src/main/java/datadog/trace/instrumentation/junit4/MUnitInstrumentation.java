@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -72,6 +73,8 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
           }
         }
       }
+
+      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT);
 
       replacedNotifier.addListener(
           new MUnitTracingListener(

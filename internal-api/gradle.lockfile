@@ -135,5 +135,6 @@ org.spockframework:spock-junit4:2.2-groovy-3.0=jmhRuntimeClasspath,testCompileCl
 org.testng:testng:7.5=jmhRuntimeClasspath,testRuntimeClasspath
 org.webjars:jquery:3.5.1=jmhRuntimeClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:4.4.3=spotbugs
+org.yaml:snakeyaml:2.0=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 xml-apis:xml-apis:1.4.01=spotbugs
 empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins,testAnnotationProcessor

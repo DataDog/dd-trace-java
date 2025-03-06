@@ -92,4 +92,25 @@ class ClassNameFilteringTest {
         new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config));
     assertTrue(classNameFiltering.isExcluded(input));
   }
+
+  @Test
+  void lambdaProxyClasses() {
+    // jdk8:  at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$231/1770027171.apply(<Unknown>:1000008)
+    // jdk11: at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$262/0x0000000800467040.apply(Unknown Source)
+    // jdk17:	at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$303/0x00000008013dd1f8.apply(Unknown Source)
+    // jdk21: at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda/0x000000b801392c58.apply(Unknown Source)
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$231/1770027171"));
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$262/0x0000000800467040"));
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "at datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda/0x000000b801392c58"));
+  }
 }

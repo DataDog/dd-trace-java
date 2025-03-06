@@ -139,7 +139,6 @@ public abstract class JUnit4Utils {
       return testClass.getMethod(methodName);
     } catch (NoSuchMethodException e) {
       LOGGER.debug("Could not get method named {} in class {}", methodName, testClass, e);
-      LOGGER.warn("Could not get test method", e);
       return null;
     }
   }

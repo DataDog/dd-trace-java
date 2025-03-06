@@ -9,9 +9,13 @@ import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.ControllableSampler
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.ProductTraceSource.ASM
+import static datadog.trace.api.ProductTraceSource.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN
+import static datadog.trace.bootstrap.instrumentation.api.Tags.PROPAGATED_TRACE_SOURCE
+import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
 
 class TracingPropagatorTest extends DDCoreSpecification {
   HttpCodec.Injector injector
@@ -19,9 +23,9 @@ class TracingPropagatorTest extends DDCoreSpecification {
   TracingPropagator propagator
 
   def setup() {
-    injector = Mock(HttpCodec.Injector)
-    extractor = Mock(HttpCodec.Extractor)
-    this.propagator = new TracingPropagator(injector, extractor)
+    this.injector = Mock(HttpCodec.Injector)
+    this.extractor = Mock(HttpCodec.Extractor)
+    this.propagator = new TracingPropagator(true, injector, extractor)
   }
 
   def 'test tracing propagator context injection'() {
@@ -35,7 +39,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     this.propagator.inject(span, carrier, setter)
 
     then:
-    1 * injector.inject(span.context(), carrier, _)
+    1 * this.injector.inject(span.context(), carrier, _)
 
     cleanup:
     span.finish()
@@ -53,7 +57,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     this.propagator.extract(context, carrier, getter)
 
     then:
-    1 * extractor.extract(carrier, _)
+    1 * this.extractor.extract(carrier, _)
   }
 
   def 'span priority set when injecting'() {
@@ -71,7 +75,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     then:
     root.getSamplingPriority() == SAMPLER_KEEP as int
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
+    1 * setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
 
     cleanup:
     child.finish()
@@ -83,7 +87,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
+    def setter = Mock(CarrierSetter)
     def carrier = new Object()
 
     when:
@@ -94,7 +98,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     then:
     root.getSamplingPriority() == SAMPLER_KEEP as int
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
+    1 * setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
 
     when:
     sampler.nextSamplingPriority = PrioritySampling.SAMPLER_DROP as int
@@ -105,7 +109,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     root.getSamplingPriority() == SAMPLER_KEEP as int
     child.getSamplingPriority() == root.getSamplingPriority()
     child2.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
+    1 * setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(SAMPLER_KEEP))
 
     cleanup:
     child.finish()
@@ -118,7 +122,7 @@ class TracingPropagatorTest extends DDCoreSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def setter = Mock(AgentPropagation.Setter)
+    def setter = Mock(CarrierSetter)
     def carrier = new Object()
 
     when:
@@ -130,12 +134,40 @@ class TracingPropagatorTest extends DDCoreSpecification {
     then:
     root.getSamplingPriority() == USER_DROP as int
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(USER_DROP))
+    1 * setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(USER_DROP))
 
     cleanup:
     child.finish()
     root.finish()
     tracer.close()
+  }
+
+  def 'test propagation when tracing is disabled'() {
+    setup:
+    this.propagator = new TracingPropagator(tracingEnabled, injector, extractor)
+    def tracer = tracerBuilder().build()
+    def span = tracer.buildSpan('test', 'operation').start()
+    span.setTag(PROPAGATED_TRACE_SOURCE, product)
+    def setter = Mock(CarrierSetter)
+    def carrier = new Object()
+
+    when:
+    this.propagator.inject(span, carrier, setter)
+
+    then:
+    injected * this.injector.inject(span.context(), carrier, _)
+
+    cleanup:
+    span.finish()
+    tracer.close()
+
+    where:
+    tracingEnabled | product
+    true           | ASM
+    true           | UNSET
+    false          | ASM
+    false          | UNSET
+    injected = tracingEnabled || product != UNSET ? 1 : 0
   }
 
   def 'test AWS X-Ray propagator'() {

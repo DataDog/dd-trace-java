@@ -14,6 +14,7 @@ import org.example.TestParameterizedSpock
 import org.example.TestSucceedAndFailedSpock
 import org.example.TestSucceedSetupSpecSpock
 import org.example.TestSucceedSpock
+import org.example.TestSucceedSpockSkipEfd
 import org.example.TestSucceedSpockSlow
 import org.example.TestSucceedSpockUnskippable
 import org.example.TestSucceedSpockUnskippableSuite
@@ -113,6 +114,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | true    | [TestSucceedSpockSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedSpockVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestSucceedAndFailedSpock] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSpockSkipEfd] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -211,8 +213,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
-
     DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
     for (i in 0..<classes.size()) {
       selectors[i] = selectClass(classes[i])

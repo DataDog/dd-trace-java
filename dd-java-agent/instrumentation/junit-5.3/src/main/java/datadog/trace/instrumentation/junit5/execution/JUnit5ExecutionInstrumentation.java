@@ -14,6 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestDataFactory;
@@ -21,6 +22,7 @@ import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -112,10 +114,6 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean execute(@Advice.This HierarchicalTestExecutorService.TestTask testTask) {
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
-        // is possible when running tracer's instrumentation tests
-        return null;
-      }
 
       if (CallDepthThreadLocalMap.getCallDepth(HierarchicalTestExecutorService.TestTask.class)
           != 0) {
@@ -135,10 +133,21 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
+      String engineId = JUnitPlatformUtils.getEngineId(testDescriptor);
+      TestFrameworkInstrumentation framework = JUnitPlatformUtils.engineIdToFramework(engineId);
+
+      if (TestEventsHandlerHolder.HANDLERS.get(framework) == null) {
+        // is possible when running tracer's instrumentation tests
+        return null;
+      }
+
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
+      Collection<String> testTags = JUnitPlatformUtils.getTags(testDescriptor);
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(testIdentifier, testSource);
+          TestEventsHandlerHolder.HANDLERS
+              .get(framework)
+              .executionPolicy(testIdentifier, testSource, testTags);
       if (!executionPolicy.applicable()) {
         return null;
       }

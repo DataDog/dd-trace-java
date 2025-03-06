@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
@@ -78,9 +79,11 @@ public final class ConfigDefaults {
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final Set<TracePropagationStyle> DEFAULT_TRACE_PROPAGATION_STYLE =
-      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT));
+      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
+  static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
+  static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
@@ -196,6 +199,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
   static final int DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS = 60 * 60;
+  static final boolean DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;

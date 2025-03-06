@@ -87,7 +87,7 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
 
-_Trigger:_ Every week or manually.
+_Trigger:_ Every day or manually.
 
 _Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
 

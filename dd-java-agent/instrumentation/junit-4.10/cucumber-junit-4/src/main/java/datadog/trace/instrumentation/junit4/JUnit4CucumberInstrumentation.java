@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.List;
@@ -81,6 +82,8 @@ public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibili
           }
         }
       }
+
+      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER);
 
       replacedNotifier.addListener(
           new CucumberTracingListener(
