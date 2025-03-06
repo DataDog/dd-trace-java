@@ -24,7 +24,7 @@ public class demoExecutorService implements FibonacciCalculator {
   }
 
   private static class FibonacciTask implements Callable<Integer> {
-    private int n;
+    private final int n;
 
     public FibonacciTask(int n) {
       this.n = n;
@@ -59,13 +59,8 @@ public class demoExecutorService implements FibonacciCalculator {
   }
 
   public static void main(String[] args) throws ExecutionException, InterruptedException {
-    System.out.println("=====demoExecutorService start=====");
-
     demoExecutorService demoService = new demoExecutorService();
-    long result = demoService.computeFibonacci(10);
-    System.out.println("=====result: " + result + "=====");
+    demoService.computeFibonacci(10);
     demoService.shutdown();
-
-    System.out.println("=====demoExecutorService finish=====");
   }
 }

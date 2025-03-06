@@ -42,13 +42,8 @@ public class demoForkJoin implements FibonacciCalculator {
   }
 
   public static void main(String[] args) {
-    System.out.println("=====demoForkJoin start=====");
-
     demoForkJoin demoService = new demoForkJoin();
-    long result = demoService.computeFibonacci(10);
-    System.out.println("=====result: " + result + "=====");
+    demoService.computeFibonacci(10);
     demoForkJoin.shutdown();
-
-    System.out.println("=====demoForkJoin finish=====");
   }
 }
