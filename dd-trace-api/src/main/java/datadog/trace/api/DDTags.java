@@ -37,6 +37,7 @@ public class DDTags {
 
   /** Manually force tracer to keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";
+
   /** Manually force tracer to drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 

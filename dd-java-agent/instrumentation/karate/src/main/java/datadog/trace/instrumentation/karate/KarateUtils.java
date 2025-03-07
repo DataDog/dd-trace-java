@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.karate;
 
 import static datadog.json.JsonMapper.toJson;
 
+import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
@@ -9,13 +10,16 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Tag;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -44,6 +48,25 @@ public abstract class KarateUtils {
       METHOD_HANDLES.method(Result.class, "aborted", long.class, long.class);
   private static final MethodHandle SCENARIO_RUNTIME_RESULT_SETTER =
       METHOD_HANDLES.privateFieldSetter(ScenarioRuntime.class, "result");
+
+  private static final ComparableVersion karateV12 = new ComparableVersion("1.2.0");
+  private static final ComparableVersion karateV13 = new ComparableVersion("1.3.0");
+
+  public static final List<LibraryCapability> CAPABILITIES_BASE =
+      Arrays.asList(
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> CAPABILITIES_SKIPPING =
+      Arrays.asList(
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.ATTEMPT_TO_FIX,
+          LibraryCapability.TIA,
+          LibraryCapability.DISABLED);
 
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {
@@ -130,5 +153,25 @@ public abstract class KarateUtils {
 
   public static void setResult(ScenarioRuntime runtime, ScenarioResult result) {
     METHOD_HANDLES.invoke(SCENARIO_RUNTIME_RESULT_SETTER, runtime, result);
+  }
+
+  public static String getKarateVersion() {
+    return FileUtils.KARATE_VERSION;
+  }
+
+  public static boolean isSkippingSupported(String version) {
+    return version != null && karateV12.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static boolean isSetupTagSupported(String version) {
+    return version != null && karateV13.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static List<LibraryCapability> capabilities(String frameworkVersion) {
+    if (isSkippingSupported(frameworkVersion)) {
+      return CAPABILITIES_SKIPPING;
+    }
+
+    return CAPABILITIES_BASE;
   }
 }

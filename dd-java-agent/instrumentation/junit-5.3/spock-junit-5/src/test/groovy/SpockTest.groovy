@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestFailedParameterizedSpock
 import org.example.TestFailedSpock
@@ -210,6 +211,14 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | [new TestFQN("org.example.TestFailedSpock", "test failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | [new TestFQN("org.example.TestSucceedSpock", "test success")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceedSpock], true)
+
+    expect:
+    assertCapabilities(JUnitPlatformUtils.SPOCK_CAPABILITIES, 4)
   }
 
   private static void runTests(List<Class<?>> classes, boolean expectSuccess = true) {
