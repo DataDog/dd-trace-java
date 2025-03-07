@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  compileOnly group: 'io.vertx', name: 'vertx-sql-client', version: '3.9.0'
-}

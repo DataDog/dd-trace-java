@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.vertx_pg_client_4_4_2;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import io.vertx.core.Future;
-import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.pgclient.PgConnection;
 import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlConnectOptions;
 import io.vertx.sqlclient.impl.SingletonSupplier;
@@ -31,10 +29,5 @@ public class PgDriverAdvice {
               .build();
       InstrumentationContext.get(SqlClient.class, DBInfo.class).put(zis, info);
     }
-  }
-
-  // Limit ourselves to 4.4.2+ by using SingletonSupplier which was added in 4.4.2
-  private static void muzzleCheck(PgConnection connection) {
-    Supplier<Future<PgConnectOptions>> supplier = SingletonSupplier.wrap(new PgConnectOptions());
   }
 }
