@@ -17,6 +17,11 @@ public class DemoForkJoin implements FibonacciCalculator {
     return forkJoinPool.invoke(new FibonacciTask(n));
   }
 
+  @Override
+  public void close() {
+    shutdown();
+  }
+
   private static class FibonacciTask extends RecursiveTask<Long> {
     private final int n;
 

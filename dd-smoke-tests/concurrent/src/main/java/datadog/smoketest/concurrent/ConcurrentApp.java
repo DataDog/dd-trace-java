@@ -8,14 +8,18 @@ public class ConcurrentApp {
   @WithSpan
   static void spanWrapper(String[] args) throws ExecutionException, InterruptedException {
     // calculate fibonacci using concurrent strategies
-    FibonacciCalculator calc;
+    FibonacciCalculator calc = null;
     for (String arg : args) {
-      if (arg.equalsIgnoreCase("executorService")) {
-        calc = new DemoExecutorService();
-        calc.computeFibonacci(10);
-      } else if (arg.equalsIgnoreCase("forkJoin")) {
-        calc = new DemoForkJoin();
-        calc.computeFibonacci(10);
+      try {
+        if (arg.equalsIgnoreCase("executorService")) {
+          calc = new DemoExecutorService();
+          calc.computeFibonacci(10);
+        } else if (arg.equalsIgnoreCase("forkJoin")) {
+          calc = new DemoForkJoin();
+          calc.computeFibonacci(10);
+        }
+      } finally {
+        calc.close();
       }
     }
   }
@@ -23,7 +27,5 @@ public class ConcurrentApp {
   public static void main(String[] args) throws InterruptedException, ExecutionException {
     // wrap calculations in a span
     spanWrapper(args);
-
-    System.exit(0);
   }
 }
