@@ -61,16 +61,18 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   public static class StableConfig {
     public static final StableConfig EMPTY = new StableConfig(null, Collections.emptyMap());
-    private final Map<String, String> apmConfiguration;
+    private final Map<String, Object> apmConfiguration;
     private final String configId;
 
-    StableConfig(String configId, Map<String, String> configMap) {
+    public StableConfig(String configId, Map<String, Object> configMap) {
       this.configId = configId;
       this.apmConfiguration = configMap;
     }
 
     public String get(String key) {
-      return this.apmConfiguration.get(key);
+      Object value = this.apmConfiguration.get(key);
+      // TODO: Handle this more safely, e.g. for an array
+      return (value != null) ? value.toString() : null;
     }
 
     public Set<String> getKeys() {
