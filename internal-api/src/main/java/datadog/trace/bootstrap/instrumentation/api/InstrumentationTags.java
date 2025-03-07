@@ -36,7 +36,13 @@ public class InstrumentationTags {
   public static final String TABLE_NAME = "tablename";
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
+
+  // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
+  public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";
+  public static final String DYNAMO_PRIMARY_KEY_1_VALUE = "dynamodb.primary_key_1_value";
+  public static final String DYNAMO_PRIMARY_KEY_2 = "dynamodb.primary_key_2";
+  public static final String DYNAMO_PRIMARY_KEY_2_VALUE = "dynamodb.primary_key_2_value";
 
   public static final String BUCKET = "bucket";
   public static final String CASSANDRA_CONTACT_POINTS = "db.cassandra.contact.points";
