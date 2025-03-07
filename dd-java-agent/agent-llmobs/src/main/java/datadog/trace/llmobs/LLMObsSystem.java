@@ -55,7 +55,12 @@ public class LLMObsSystem {
 
       DDLLMObsSpan span =
           new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+              Tags.LLMOBS_LLM_SPAN_KIND,
+              spanName,
+              getMLApp(mlApp),
+              sessionID,
+              serviceName,
+              llmObsServices);
 
       span.setTag(LLMObsTags.MODEL_NAME, modelName);
       span.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
@@ -66,28 +71,48 @@ public class LLMObsSystem {
     public LLMObsSpan startAgentSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionID) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_AGENT_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_AGENT_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionID,
+          serviceName,
+          llmObsServices);
     }
 
     @Override
     public LLMObsSpan startToolSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionID) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_TOOL_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionID,
+          serviceName,
+          llmObsServices);
     }
 
     @Override
     public LLMObsSpan startTaskSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionID) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_TASK_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionID,
+          serviceName,
+          llmObsServices);
     }
 
     @Override
     public LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionID) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_WORKFLOW_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionID,
+          serviceName,
+          llmObsServices);
     }
 
     private String getMLApp(String mlApp) {
