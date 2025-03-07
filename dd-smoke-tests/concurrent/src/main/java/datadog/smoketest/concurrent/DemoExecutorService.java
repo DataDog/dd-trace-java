@@ -18,14 +18,8 @@ public class DemoExecutorService implements FibonacciCalculator {
   @WithSpan
   @Override
   public long computeFibonacci(int n) throws ExecutionException, InterruptedException {
-    FibonacciTask task = new FibonacciTask(n);
-    Future<Integer> future = executorService.submit(task);
+    Future<Integer> future = executorService.submit(new FibonacciTask(n));
     return future.get();
-  }
-
-  @Override
-  public void close() {
-    shutdown();
   }
 
   private static class FibonacciTask implements Callable<Integer> {
@@ -63,9 +57,8 @@ public class DemoExecutorService implements FibonacciCalculator {
     }
   }
 
-  public static void main(String[] args) throws ExecutionException, InterruptedException {
-    DemoExecutorService demoService = new DemoExecutorService();
-    demoService.computeFibonacci(10);
-    demoService.shutdown();
+  @Override
+  public void close() {
+    shutdown();
   }
 }

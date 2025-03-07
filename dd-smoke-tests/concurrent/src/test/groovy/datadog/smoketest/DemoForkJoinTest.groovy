@@ -1,6 +1,6 @@
 package datadog.smoketest
 
-import datadog.trace.test.agent.decoder.DecodedSpan
+import datadog.trace.test.agent.decoder.DecodedTrace
 import spock.util.concurrent.PollingConditions
 import java.util.function.Function
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -26,8 +26,22 @@ class DemoForkJoinTest extends AbstractSmokeTest {
     return {} // force traces decoding
   }
 
-  private static Function<DecodedSpan, Boolean> checkSpanName() {
-    return { span -> span.getName() == "ConcurrentApp.spanWrapper" }
+  private static Function<DecodedTrace, Boolean> checkTrace() {
+    return { trace ->
+      def parentSpanCount = 0
+      def parentSpanId = -1
+      def childSpanCount = 0
+
+      trace.spans.findAll {span -> (span.getName() == "ConcurrentApp.spanWrapper" || span.getParentId() == parentSpanId) }.each { innerSpan ->
+        if (innerSpan.getName() == "ConcurrentApp.spanWrapper") {
+          parentSpanCount++
+          parentSpanId = innerSpan.getParentId()
+        } else {
+          childSpanCount++
+        }
+      }
+      parentSpanCount == 1 && childSpanCount == 0
+    }
   }
 
   def 'receive one expected trace for ForkJoin'() {
@@ -38,7 +52,7 @@ class DemoForkJoinTest extends AbstractSmokeTest {
     waitForTraceCount(1)
 
     then:
-    waitForSpan(poll, checkSpanName())
+    waitForTrace(poll, checkTrace())
     traceCount.get() == 1
 
     and:
