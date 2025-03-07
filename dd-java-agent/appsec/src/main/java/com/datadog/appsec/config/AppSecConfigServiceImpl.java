@@ -24,11 +24,21 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
-import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
+import com.datadog.appsec.ddwaf.WAFInitializationResultReporter;
+import com.datadog.appsec.ddwaf.WAFStatsReporter;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafBuilder;
+import com.datadog.ddwaf.WafDiagnostics;
+import com.datadog.ddwaf.exception.InvalidRuleSetException;
+import com.datadog.ddwaf.exception.UnclassifiedWafException;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationEndListener;
+import datadog.remoteconfig.ConfigurationMapListener;
 import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
@@ -40,10 +50,13 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
+import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,19 +65,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private static final Logger log = LoggerFactory.getLogger(AppSecConfigServiceImpl.class);
 
   private static final String DEFAULT_CONFIG_LOCATION = "default_config.json";
-  private static AppSecConfig DEFAULT_WAF_CONFIG;
 
   private final ConfigurationPoller configurationPoller;
+  private final WafBuilder wafBuilder;
 
-  // the only thread modifying currentAppSecConfig is the RC thread
-  // However, the initial state is set up by another thread, and this needs to be visible to the RC
-  // thread
-  private CurrentAppSecConfig currentAppSecConfig;
   private MergedAsmFeatures mergedAsmFeatures;
   private volatile boolean initialized;
 
-  // for new subconfig subscribers
-  private final ConcurrentHashMap<String, Object> lastConfig = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
@@ -73,16 +80,35 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private final ConfigurationEndListener applyRemoteConfigListener =
       this::applyRemoteConfigListener;
+  private final WAFInitializationResultReporter initReporter =
+      new WAFInitializationResultReporter();
+  private final WAFStatsReporter statsReporter = new WAFStatsReporter();
+
+  private static final JsonAdapter<Map<String, Object>> ADAPTER =
+      new Moshi.Builder()
+          .build()
+          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   private boolean hasUserWafConfig;
+  private boolean defaultConfigActivated;
+  private final Set<String> usedDDWafConfigKeys = new HashSet<>();
+  private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
+  private final ConfigurationMapListener asmDDListener; // field created to be used in tests as well
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
       ConfigurationPoller configurationPoller,
-      AppSecModuleConfigurer.Reconfiguration reconfig) {
+      AppSecModuleConfigurer.Reconfiguration reconfig,
+      WafBuilder wafBuilder) {
     this.tracerConfig = tracerConfig;
     this.configurationPoller = configurationPoller;
     this.reconfiguration = reconfig;
+    traceSegmentPostProcessors.add(initReporter);
+    if (tracerConfig.isAppSecWafMetrics()) {
+      traceSegmentPostProcessors.add(statsReporter);
+    }
+    this.wafBuilder = wafBuilder;
+    asmDDListener = new AsmDDTypedListener();
   }
 
   private void subscribeConfigurationPoller() {
@@ -126,57 +152,77 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void subscribeRulesAndData() {
+    this.configurationPoller.addListener(Product.ASM_DD, asmDDListener);
     this.configurationPoller.addListener(
-        Product.ASM_DD,
-        AppSecConfigDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          // read initialized so that the state is currentAppSecConfig is visible
-          if (!initialized) {
-            throw new IllegalStateException();
-          }
-          if (newConfig == null) {
-            if (DEFAULT_WAF_CONFIG == null) {
-              throw new IllegalStateException("Expected default waf config to be available");
-            }
-            log.debug(
-                "AppSec config given by remote config was pulled. Restoring default WAF config");
-            newConfig = DEFAULT_WAF_CONFIG;
-          }
-          this.currentAppSecConfig.setDdConfig(newConfig);
-          // base rules can contain all rules/data/exclusions/etc
-          this.currentAppSecConfig.dirtyStatus.markAllDirty();
-        });
+        Product.ASM_DATA, new AppSecConfigConfigurationChangesTypedListener());
     this.configurationPoller.addListener(
-        Product.ASM_DATA,
-        AppSecDataDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          if (!initialized) {
-            throw new IllegalStateException();
-          }
-          if (newConfig == null) {
-            currentAppSecConfig.mergedAsmData.removeConfig(configKey);
-          } else {
-            currentAppSecConfig.mergedAsmData.addConfig(configKey, newConfig);
-          }
-          this.currentAppSecConfig.dirtyStatus.data = true;
-        });
-    this.configurationPoller.addListener(
-        Product.ASM,
-        AppSecUserConfigDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          if (!initialized) {
-            throw new IllegalStateException();
-          }
-          DirtyStatus dirtyStatus;
-          if (newConfig == null) {
-            dirtyStatus = currentAppSecConfig.userConfigs.removeConfig(configKey);
-          } else {
-            AppSecUserConfig userCfg = newConfig.build(configKey);
-            dirtyStatus = currentAppSecConfig.userConfigs.addConfig(userCfg);
-          }
+        Product.ASM, new AppSecConfigConfigurationChangesTypedListener());
+  }
 
-          this.currentAppSecConfig.dirtyStatus.mergeFrom(dirtyStatus);
-        });
+  private class AppSecConfigConfigurationChangesTypedListener implements ConfigurationMapListener {
+    @Override
+    public void accept(
+        String configKey,
+        @Nullable Map<String, Object> content,
+        PollingRateHinter pollingRateHinter) {
+      if (!initialized) {
+        throw new IllegalStateException();
+      }
+
+      if (content == null) {
+        wafBuilder.removeConfig(configKey);
+      } else {
+        handleWafUpdateResultReport(configKey, content);
+      }
+    }
+  }
+
+  private class AsmDDTypedListener implements ConfigurationMapListener {
+    @Override
+    public void accept(
+        String configKey,
+        @Nullable Map<String, Object> content,
+        PollingRateHinter pollingRateHinter) {
+      // read initialized so that the WAF is ready to accept
+      if (!initialized) {
+        throw new IllegalStateException();
+      }
+      if (content == null) {
+        log.debug("AppSec config given by remote config was pulled. Removing WAF config");
+        wafBuilder.removeConfig(configKey);
+        usedDDWafConfigKeys.remove(configKey);
+      } else {
+        if (defaultConfigActivated) {
+          log.debug("Removing default config");
+          wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
+          defaultConfigActivated = false;
+        }
+        handleWafUpdateResultReport(configKey, content);
+        usedDDWafConfigKeys.add(configKey);
+      }
+    }
+  }
+
+  private void handleWafUpdateResultReport(
+      String configKey, Map<String, Object> rawConfig, String... filename) {
+    try {
+      WafDiagnostics initReport = wafBuilder.addOrUpdateConfig(configKey, rawConfig);
+      if (log.isInfoEnabled() && filename.length > 0) {
+        StandardizedLogging.numLoadedRules(log, filename[0], countRules(rawConfig));
+      }
+      initReporter.setReportForPublication(initReport);
+      statsReporter.setRulesVersion(initReport.rulesetVersion);
+    } catch (InvalidRuleSetException e) {
+      log.debug(
+          "Invalid rule during waf config update for config key {}: {}",
+          configKey,
+          e.wafDiagnostics);
+      initReporter.setReportForPublication(e.wafDiagnostics);
+      throw new RuntimeException(e);
+    } catch (UnclassifiedWafException e) {
+      log.debug("Error during waf config update for config key {}: {}", configKey, e.getMessage());
+      throw new RuntimeException(e);
+    }
   }
 
   private void subscribeAsmFeatures() {
@@ -202,15 +248,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void distributeSubConfigurations(
-      Map<String, Object> newConfig, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
+      String key, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
-      String key = entry.getKey();
-      if (!newConfig.containsKey(key)) {
-        continue;
-      }
       SubconfigListener listener = entry.getValue();
       try {
-        listener.onNewSubconfig(newConfig.get(key), reconfiguration);
+        if (usedDDWafConfigKeys.isEmpty() && !defaultConfigActivated) {
+          // no config left in the WAF builder, add the default config
+          init();
+        }
+        listener.onNewSubconfig(key, reconfiguration);
+        reconfiguration.reloadSubscriptions();
       } catch (Exception rte) {
         log.warn("Error updating configuration of app sec module listening on key {}", key, rte);
       }
@@ -219,7 +266,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   @Override
   public void init() {
-    AppSecConfig wafConfig;
+    Map<String, Object> wafConfig;
     hasUserWafConfig = false;
     try {
       wafConfig = loadUserWafConfig(tracerConfig);
@@ -230,6 +277,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (wafConfig == null) {
       try {
         wafConfig = loadDefaultWafConfig();
+        defaultConfigActivated = true;
       } catch (IOException e) {
         log.error("Error loading default config", e);
         throw new AbortStartupException("Error loading default config", e);
@@ -237,11 +285,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       hasUserWafConfig = true;
     }
-    this.currentAppSecConfig = new CurrentAppSecConfig();
-    this.currentAppSecConfig.setDdConfig(wafConfig);
-    this.lastConfig.put("waf", this.currentAppSecConfig);
     this.mergedAsmFeatures = new MergedAsmFeatures();
     this.initialized = true;
+
+    if (wafConfig.isEmpty()) {
+      throw new IllegalStateException("Expected default waf config to be available");
+    }
+    handleWafUpdateResultReport(
+        DEFAULT_WAF_CONFIG_RULE,
+        wafConfig,
+        defaultConfigActivated ? DEFAULT_CONFIG_LOCATION : tracerConfig.getAppSecRulesFile());
   }
 
   public void maybeSubscribeConfigPolling() {
@@ -275,9 +328,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     private final List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
 
     @Override
-    public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
+    public void addSubConfigListener(String key, SubconfigListener listener) {
       listenerMap.put(key, listener);
-      return Optional.ofNullable(lastConfig.get(key));
     }
 
     @Override
@@ -296,7 +348,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return new TransactionalAppSecModuleConfigurerImpl();
   }
 
-  private static AppSecConfig loadDefaultWafConfig() throws IOException {
+  private static Map<String, Object> loadDefaultWafConfig() throws IOException {
+    log.info("Loading default waf config");
     try (InputStream is =
         AppSecConfigServiceImpl.class
             .getClassLoader()
@@ -305,25 +358,24 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
+      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
         StandardizedLogging.numLoadedRules(log, "<bundled config>", countRules(ret));
       }
-
-      DEFAULT_WAF_CONFIG = ret;
       return ret;
     }
   }
 
-  private static AppSecConfig loadUserWafConfig(Config tracerConfig) throws IOException {
+  private static Map<String, Object> loadUserWafConfig(Config tracerConfig) throws IOException {
+    log.info("Loading user waf config");
     String filename = tracerConfig.getAppSecRulesFile();
     if (filename == null) {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      AppSecConfig ret = AppSecConfigDeserializer.INSTANCE.deserialize(is);
+      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -340,8 +392,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private static int countRules(AppSecConfig config) {
-    return config.getNumberOfRules();
+  private static int countRules(Map<String, Object> config) {
+    return ((List<?>) config.getOrDefault("rules", Collections.emptyList())).size();
   }
 
   @Override
@@ -384,13 +436,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     setAppSecActivation(features.asm);
     setUserIdCollectionMode(features.autoUserInstrum);
 
-    if (!AppSecSystem.isActive() || !currentAppSecConfig.dirtyStatus.isAnyDirty()) {
-      return;
-    }
-
-    distributeSubConfigurations(
-        Collections.singletonMap("waf", currentAppSecConfig), reconfiguration);
-    currentAppSecConfig.dirtyStatus.clearDirty();
+    distributeSubConfigurations("waf", reconfiguration);
   }
 
   private void setAppSecActivation(final AppSecFeatures.Asm asm) {
@@ -403,11 +449,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
       AppSecSystem.setActive(newState);
-      if (AppSecSystem.isActive()) {
-        // On remote activation, we need to re-distribute the last known configuration.
-        // This may trigger initializations, including WAF if it was lazy loaded.
-        this.currentAppSecConfig.dirtyStatus.markAllDirty();
-      }
     }
   }
 

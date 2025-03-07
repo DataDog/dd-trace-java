@@ -1,14 +1,14 @@
 package com.datadog.appsec.config;
 
 import com.datadog.appsec.AppSecModule;
-import java.util.Optional;
+import com.datadog.ddwaf.exception.AbstractWafException;
 
 public interface AppSecModuleConfigurer {
-  Optional<Object> addSubConfigListener(String key, SubconfigListener listener);
+  void addSubConfigListener(String key, SubconfigListener listener);
 
   interface SubconfigListener {
     void onNewSubconfig(Object newConfig, Reconfiguration reconfiguration)
-        throws AppSecModule.AppSecModuleActivationException;
+        throws AppSecModule.AppSecModuleActivationException, AbstractWafException;
   }
 
   void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor);
