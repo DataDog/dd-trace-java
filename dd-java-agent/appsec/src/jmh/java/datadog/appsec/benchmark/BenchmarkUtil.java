@@ -1,9 +1,9 @@
 package datadog.appsec.benchmark;
 
 import ch.qos.logback.classic.Logger;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.exception.AbstractPowerwafException;
-import io.sqreen.powerwaf.exception.UnsupportedVMException;
+import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.exception.AbstractWafException;
+import com.datadog.ddwaf.exception.UnsupportedVMException;
 import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.LoggerFactory;
 
@@ -16,10 +16,10 @@ public class BenchmarkUtil {
     }
   }
 
-  public static void initializePowerwaf() {
+  public static void initializeWaf() {
     try {
-      Powerwaf.initialize(false);
-    } catch (AbstractPowerwafException e) {
+      Waf.initialize(false);
+    } catch (AbstractWafException e) {
       throw new UndeclaredThrowableException(e);
     } catch (UnsupportedVMException e) {
       throw new UndeclaredThrowableException(e);
