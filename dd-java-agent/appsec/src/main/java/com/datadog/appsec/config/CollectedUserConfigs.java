@@ -8,7 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
-class CollectedUserConfigs extends AbstractList<AppSecUserConfig> {
+public class CollectedUserConfigs extends AbstractList<AppSecUserConfig> {
   private final List<AppSecUserConfig> userConfigs = new LinkedList<>();
 
   public DirtyStatus addConfig(AppSecUserConfig newUserConfig) {

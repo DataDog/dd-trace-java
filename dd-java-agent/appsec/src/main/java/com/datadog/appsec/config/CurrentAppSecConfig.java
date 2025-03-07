@@ -18,16 +18,25 @@ import org.slf4j.LoggerFactory;
 
 public class CurrentAppSecConfig {
   private static final Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
+  public static final String DEFAULT_KEY = "default_java_config";
 
   private AppSecConfig ddConfig; // assume there's only one of these
-  CollectedUserConfigs userConfigs = new CollectedUserConfigs();
+  private final CollectedUserConfigs userConfigs = new CollectedUserConfigs();
+
+  public MergedAsmData getMergedAsmData() {
+    return mergedAsmData;
+  }
+
   MergedAsmData mergedAsmData = new MergedAsmData(new HashMap<>());
   public final DirtyStatus dirtyStatus = new DirtyStatus();
 
   @SuppressWarnings("unchecked")
   public void setDdConfig(AppSecConfig newConfig) {
     this.ddConfig = newConfig;
-
+    if (newConfig == null) {
+      mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_DATA);
+      return;
+    }
     final Map<String, Object> rawConfig = newConfig.getRawConfig();
     List<Map<String, Object>> rules = (List<Map<String, Object>>) rawConfig.get("rules_data");
     List<Map<String, Object>> exclusions =
@@ -40,6 +49,18 @@ public class CurrentAppSecConfig {
     } else {
       mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_DATA);
     }
+  }
+
+  public String getVersion() {
+    return ddConfig.getVersion();
+  }
+
+  public AppSecConfig getDdConfig() {
+    return ddConfig;
+  }
+
+  public CollectedUserConfigs getUserConfigs() {
+    return userConfigs;
   }
 
   public static class DirtyStatus {
@@ -81,6 +102,11 @@ public class CurrentAppSecConfig {
   }
 
   public AppSecConfig getMergedUpdateConfig() throws IOException {
+    if (ddConfig == null) {
+      ddConfig =
+          AppSecConfig.valueOf(
+              Collections.singletonMap("version", "2.0")); // placeholder for empty config
+    }
     if (!dirtyStatus.isAnyDirty()) {
       throw new IllegalStateException(
           "Can't call getMergedUpdateConfig without any dirty property");

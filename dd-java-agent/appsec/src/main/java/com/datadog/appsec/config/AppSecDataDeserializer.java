@@ -7,6 +7,7 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import okio.Okio;
 
 public class AppSecDataDeserializer implements ConfigurationDeserializer<AppSecData> {
@@ -17,11 +18,27 @@ public class AppSecDataDeserializer implements ConfigurationDeserializer<AppSecD
   private AppSecDataDeserializer() {}
 
   @Override
+  @SuppressWarnings("unchecked")
   public AppSecData deserialize(byte[] content) throws IOException {
-    return deserialize(new ByteArrayInputStream(content));
-  }
+    if (content == null || content.length == 0) {
+      return null;
+    }
+    InputStream is = new ByteArrayInputStream(content);
+    AppSecData appSecData = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+    if (appSecData == null) {
+      return null;
+    }
+    is.reset();
+    appSecData.setRawConfig(MOSHI.adapter(Map.class).fromJson(Okio.buffer(Okio.source(is))));
+    if (appSecData.getRawConfig().containsKey("rules_data")) {
+      appSecData.getRawConfig().put("rules", appSecData.getRawConfig().get("rules_data"));
+      appSecData.getRawConfig().remove("rules_data");
+    }
+    if (appSecData.getRawConfig().containsKey("exclusion_data")) {
+      appSecData.getRawConfig().put("exclusions", appSecData.getRawConfig().get("exclusion_data"));
+      appSecData.getRawConfig().remove("exclusion_data");
+    }
 
-  private AppSecData deserialize(InputStream is) throws IOException {
-    return ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+    return appSecData;
   }
 }

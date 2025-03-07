@@ -1,10 +1,10 @@
 package com.datadog.appsec.ddwaf
 
-import com.datadog.ddwaf.WafErrorCode as LibWafErrorCode
-import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode as InternalWafErrorCode
-
-import com.datadog.appsec.AppSecModule
+import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.AppSecConfigDeserializer
+import com.datadog.appsec.config.AppSecConfigService
+import com.datadog.appsec.config.AppSecConfigServiceImpl
 import com.datadog.appsec.config.AppSecData
 import com.datadog.appsec.config.AppSecModuleConfigurer
 import com.datadog.appsec.config.AppSecUserConfig
@@ -20,34 +20,39 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.ddwaf.Waf
+import com.datadog.ddwaf.WafBuilder
+import com.datadog.ddwaf.WafContext
+import com.datadog.ddwaf.WafErrorCode as LibWafErrorCode
+import com.datadog.ddwaf.WafHandle
+import com.datadog.ddwaf.WafMetrics
 import com.datadog.ddwaf.exception.AbstractWafException
 import com.datadog.ddwaf.exception.InternalWafException
 import com.datadog.ddwaf.exception.InvalidArgumentWafException
 import com.datadog.ddwaf.exception.InvalidObjectWafException
 import com.datadog.ddwaf.exception.UnclassifiedWafException
-import datadog.trace.api.telemetry.RuleType
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
-import datadog.communication.monitor.Monitoring
-import datadog.trace.api.ConfigDefaults
-import datadog.trace.api.internal.TraceSegment
 import datadog.appsec.api.blocking.BlockingContentType
+import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.communication.monitor.Monitoring
+import datadog.remoteconfig.ConfigurationChangesTypedListener
+import datadog.trace.api.Config
+import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
+import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode as InternalWafErrorCode
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
-import com.datadog.ddwaf.WafContext
-import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
-import com.datadog.ddwaf.WafMetrics
+import datadog.trace.util.stacktrace.StackTraceEvent
+import okhttp3.OkHttpClient
 import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicLong
 
-import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
 import static org.hamcrest.Matchers.hasSize
 
@@ -72,41 +77,76 @@ class WAFModuleSpecification extends DDSpecification {
   AppSecRequestContext ctx = Spy()
   GatewayContext gwCtx = new GatewayContext(false)
 
-  StubAppSecConfigService service
+  AppSecConfigServiceImpl service
   WAFModule wafModule = new WAFModule()
   DataListener dataListener
 
-  WafContext wafContext
-  WafMetrics metrics
+  WafMetrics metrics = new WafMetrics()
+
+  static WafBuilder wafBuilder
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+  AppSecConfigService.TransactionalAppSecModuleConfigurer cfg
 
   void setup() {
+    WafInitialization.ONLINE
     WafMetricCollector.INSTANCE = wafMetricCollector
     AgentTracer.forceRegister(tracer)
+    wafBuilder = new WafBuilder(AppSecSystem.createWafConfig(Config.get()))
+
+    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects()
+    sharedCommunicationObjects.monitoring = Monitoring.DISABLED
+    sharedCommunicationObjects.okHttpClient = Mock(OkHttpClient)
+    service = new AppSecConfigServiceImpl(Config.get(), sharedCommunicationObjects.configurationPoller(Config.get()),
+    () -> {})
+
+    release()
+    wafBuilder = new WafBuilder(AppSecSystem.createWafConfig(Config.get()))
+    service.init(wafBuilder)
   }
 
   void cleanup() {
     WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
     AgentTracer.forceRegister(ORIGINAL_TRACER)
-    wafContext?.close()
-    release wafModule
+    release()
   }
 
-  private static void release(WAFModule wafModule) {
-    wafModule?.ctxAndAddresses?.get()?.ctx?.close()
+  private static void release() {
+    if (wafBuilder?.isOnline()) {
+      wafBuilder.destroy()
+    }
   }
 
-  private void setupWithStubConfigService(String location = "test_multi_config.json") {
-    service = new StubAppSecConfigService(location)
-    service.init()
-    wafModule.config(service)
+  private void initialRuleAdd(String location = "test_multi_config.json") {
+    release() // release the previous WAF builder, else we will have to rename all test configs
+    wafBuilder = new WafBuilder(AppSecSystem.createWafConfig(Config.get()))
+    def stream = getClass().classLoader.getResourceAsStream(location)
+    def casc = new CurrentAppSecConfig()
+    casc.ddConfig = AppSecConfigDeserializer.INSTANCE.deserialize(stream)
+    ConfigurationChangesTypedListener<AppSecConfig> listener = service.asmDDTypedListener(wafBuilder)
+    listener.accept("waf", casc.ddConfig, null)
+  }
+
+  void initialRuleAddWithMap(Map<String, Object> definition) {
+    release()
+    wafBuilder = new WafBuilder(AppSecSystem.createWafConfig(Config.get()))
+    def casc = new CurrentAppSecConfig()
+    casc.ddConfig = AppSecConfig.valueOf(definition)
+    ConfigurationChangesTypedListener<AppSecConfig> listener = service.asmDDTypedListener(wafBuilder)
+    listener.accept("waf", casc.ddConfig, null)
+  }
+
+  private void readyToHandle(){
+    cfg = service.createAppSecModuleConfigurer()
+    wafModule.config(cfg, wafBuilder)
+    cfg.commit()
     dataListener = wafModule.dataSubscriptions.first()
   }
 
   void 'use default actions if none defined in config'() {
     when:
-    setupWithStubConfigService'no_actions_config.json'
+    initialRuleAdd'no_actions_config.json'
+    readyToHandle()
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
@@ -120,7 +160,8 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'override default actions by config'() {
     when:
-    setupWithStubConfigService('override_actions_config.json')
+    initialRuleAdd('override_actions_config.json')
+    readyToHandle()
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
@@ -133,7 +174,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'override actions through reconfiguration'() {
     when:
-    setupWithStubConfigService('override_actions_config.json')
+    initialRuleAdd('override_actions_config.json')
 
     def actions = [
       [
@@ -148,12 +189,12 @@ class WAFModuleSpecification extends DDSpecification {
     AppSecModuleConfigurer.Reconfiguration reconf = Stub()
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('b', [], actions, [], []))
+      new AppSecUserConfig('b', [], actions, [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
@@ -166,11 +207,10 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'override on_match through reconfiguration'() {
     ChangeableFlow flow = Mock()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    setupWithStubConfigService('override_actions_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('override_actions_config.json')
+    readyToHandle()
 
     def actions = [
       [
@@ -202,32 +242,27 @@ class WAFModuleSpecification extends DDSpecification {
     ])
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('b', ruleOverrides, actions, [], []))
+      new AppSecUserConfig('b', ruleOverrides, actions, [], []))
       mergedAsmData.addConfig('c', ipData)
       it.dirtyStatus.data = true
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-    def newBundle = MapDataBundle.of(
-      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
-      '1.2.3.4'
-      )
+    def newBundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, newBundle, gwCtx)
+
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 501 &&
-        rba.blockingContentType == BlockingContentType.JSON
+      rba.blockingContentType == BlockingContentType.JSON
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -240,17 +275,15 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'provide data through the initial config'() {
     ChangeableFlow flow = Mock()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    setupWithStubConfigService('rules_with_data_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
-    ctx.closeWafContext()
+    initialRuleAdd('rules_with_data_config.json')
+    readyToHandle()
 
     def bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'user-to-block-1'
-      )
+    KnownAddresses.USER_ID,
+    'user-to-block-1'
+    )
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
@@ -258,16 +291,14 @@ class WAFModuleSpecification extends DDSpecification {
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
-        rba.blockingContentType == BlockingContentType.AUTO
+      rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    2 * ctx.closeWafContext()
+    1 * ctx.closeWafContext()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
     0 * _
@@ -288,24 +319,20 @@ class WAFModuleSpecification extends DDSpecification {
     service.currentAppSecConfig.with {
       mergedAsmData.addConfig('c', newData)
       it.dirtyStatus.data = true
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
-        rba.blockingContentType == BlockingContentType.AUTO
+      rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -317,20 +344,18 @@ class WAFModuleSpecification extends DDSpecification {
 
     when:
     bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'user-to-block-2'
-      )
+    KnownAddresses.USER_ID,
+    'user-to-block-2'
+    )
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
-        rba.blockingContentType == BlockingContentType.AUTO
+      rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -366,29 +391,26 @@ class WAFModuleSpecification extends DDSpecification {
     service.currentAppSecConfig.with {
       setDdConfig(AppSecConfig.valueOf(newCfg))
       dirtyStatus.markAllDirty()
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
 
-      service.listeners['waf'].onNewSubconfig(it, reconf)
       dirtyStatus.clearDirty()
     }
-
     and:
     bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'user-to-block-2'
-      )
+    KnownAddresses.USER_ID,
+    'user-to-block-2'
+    )
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 403 &&
-        rba.blockingContentType == BlockingContentType.AUTO
+      rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -400,16 +422,14 @@ class WAFModuleSpecification extends DDSpecification {
 
     when:
     bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'user-to-block-1'
-      )
+    KnownAddresses.USER_ID,
+    'user-to-block-1'
+    )
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -418,10 +438,10 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'add exclusions through reconfiguration'() {
     ChangeableFlow flow = new ChangeableFlow()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    setupWithStubConfigService()
+    initialRuleAdd()
+    readyToHandle()
 
     def exclusions = [
       [
@@ -449,17 +469,16 @@ class WAFModuleSpecification extends DDSpecification {
 
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('b', [], [], exclusions, []))
+      new AppSecUserConfig('b', [], [], exclusions, []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     0 * _
 
     when:
@@ -467,32 +486,28 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> { wafContext.close() }
+    1 * ctx.closeWafContext()
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
     0 * _
 
     when:
     def newBundle = MapDataBundle.of(
-      KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']),
-      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
-      '192.168.0.1'
-      )
+    KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']),
+    KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+    '192.168.0.1'
+    )
     dataListener.onDataAvailable(flow, ctx, newBundle, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -501,10 +516,10 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'add custom rule through reconfiguration'() {
     ChangeableFlow flow = new ChangeableFlow()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    setupWithStubConfigService()
+    initialRuleAdd()
+    readyToHandle()
 
     def customRules = [
       [
@@ -534,17 +549,16 @@ class WAFModuleSpecification extends DDSpecification {
 
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('b', [], [], [], customRules))
+      new AppSecUserConfig('b', [], [], [], customRules))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     0 * _
 
     when:
@@ -552,9 +566,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(hasSize(1))
     2 * ctx.getWafMetrics()
@@ -567,61 +579,54 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'append actions in addition to default'() {
     when:
-    WAFModule powerWAFModule = new WAFModule()
-    StubAppSecConfigService confService = new StubAppSecConfigService("another_actions_config.json")
-    confService.init()
-    powerWAFModule.config(confService)
+    initialRuleAdd("another_actions_config.json")
+    readyToHandle()
 
     then:
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.size() == 2
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+    wafModule.ctxAndAddresses.get().actionInfoMap.size() == 2
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
       status_code: 403,
       type:'auto',
       grpc_status_code: 10
     ]
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
       status_code: 302,
       type:'xxx'
     ]
-
-    cleanup:
-    release powerWAFModule
   }
 
   void 'replace actions through runtime configuration'() {
     ChangeableFlow flow = Mock()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
 
     when:
-    setupWithStubConfigService()
-    // first initialization to exercise the update path
-    service.listeners['waf'].onNewSubconfig(service.currentAppSecConfig, reconf)
-    service.currentAppSecConfig.dirtyStatus.clearDirty()
+    initialRuleAdd()
+    readyToHandle()
 
-    def actions = [
+    def actions =  [
       [
-        id: 'block',
-        type: 'block_request',
+        id        : 'block',
+        type      : 'block_request',
         parameters: [
           status_code: 401,
+          type: 'html'
         ]
       ]
     ]
+
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('new config', [], actions, [], []))
+      new AppSecUserConfig('waf', [], actions, [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
-    2 * wafMetricCollector.wafUpdates(_, true)
-    2 * reconf.reloadSubscriptions()
+    1 * wafMetricCollector.wafUpdates(_, true)
     0 * _
 
     when:
@@ -632,9 +637,9 @@ class WAFModuleSpecification extends DDSpecification {
     // original rule is replaced; no attack
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 401 &&
-        rba.blockingContentType == BlockingContentType.AUTO
+      rba.blockingContentType == BlockingContentType.HTML
     })
-    1 * ctx.getOrCreateWafContext(_, true, false) >> { it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -647,20 +652,16 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'redirect actions are correctly processed expected variant redirect#variant'(int variant, int statusCode) {
     when:
-    setupWithStubConfigService('redirect_actions.json')
+    initialRuleAdd('redirect_actions.json')
     DataBundle bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'redirect' + variant]))
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'redirect' + variant]))
     def flow = new ChangeableFlow()
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle wafHandle = it[0] as WafHandle
-      wafContext = wafHandle.openContext()
-      metrics = wafHandle.createMetrics()
-      wafContext
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -668,7 +669,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
-    flow.blocking == true
+    flow.blocking
     flow.action instanceof Flow.Action.RequestBlockingAction
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == statusCode
@@ -682,51 +683,22 @@ class WAFModuleSpecification extends DDSpecification {
     3       | 303
   }
 
-  void 'is named powerwaf'() {
+  void 'is named ddwaf'() {
     expect:
     wafModule.name == 'ddwaf'
   }
 
-  void 'report waf stats on first span'() {
-    setup:
-    TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp
-
-    when:
-    setupWithStubConfigService()
-    pp = service.traceSegmentPostProcessors.first()
-    pp.processTraceSegment(segment, ctx, [])
-
-    then:
-    1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
-    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 116)
-    1 * segment.setTagTop('_dd.appsec.event_rules.error_count', 1)
-    1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
-    1 * segment.setTagTop('asm.keep', true)
-    0 * segment._(*_)
-
-    when:
-    pp.processTraceSegment(segment, ctx, [])
-
-    then:
-    0 * segment._(*_)
-  }
-
   void 'triggers a rule through the user agent header'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
+    readyToHandle()
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle wafHandle = it[0] as WafHandle
-      wafContext = wafHandle.openContext()
-      metrics = wafHandle.createMetrics()
-      wafContext
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -734,26 +706,26 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
-    flow.blocking == true
+    flow.blocking
     flow.action.statusCode == 418
     flow.action.blockingContentType == BlockingContentType.HTML
   }
 
   void 'no metrics are set if waf metrics are off'() {
     setup:
+    metrics = null
     injectSysConfig('appsec.waf.metrics', 'false')
     wafModule = new WAFModule() // replace the one created too soon
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
+    readyToHandle()
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, false, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, false, false)
     2 * ctx.getWafMetrics() >> null
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -764,57 +736,16 @@ class WAFModuleSpecification extends DDSpecification {
     metrics == null
   }
 
-  void 'reports waf metrics'() {
-    setup:
-    TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp
-    Flow flow = new ChangeableFlow()
-
-    when:
-    setupWithStubConfigService()
-    pp = service.traceSegmentPostProcessors[1]
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
-    ctx.closeWafContext()
-    pp.processTraceSegment(segment, ctx, [])
-
-    then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle wafHandle = it[0] as WafHandle
-      wafContext = wafHandle.openContext()
-      metrics = wafHandle.createMetrics()
-      wafContext
-    }
-    1 * ctx.closeWafContext()
-    3 * ctx.getWafMetrics() >> {
-      metrics.with {
-        totalDdwafRunTimeNs = new AtomicLong(1000)
-        totalRunTimeNs = new AtomicLong(2000)
-        truncatedStringTooLongCount = new AtomicLong(0)
-        truncatedListMapTooLargeCount = new AtomicLong(0)
-        truncatedObjectTooDeepCount = new AtomicLong(0)
-        it } }
-
-    1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
-    1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
-    1 * segment.setTagTop('_dd.appsec.event_rules.version', '0.42.0')
-
-    0 * segment._(*_)
-  }
-
   void 'can trigger a nonwafContext waf run'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
+    readyToHandle()
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle wafHandle = it[0] as WafHandle
-      wafContext = wafHandle.openContext()
-      metrics = wafHandle.createMetrics()
-      wafContext
-    }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.reportEvents(*_)
     1 * ctx.setBlocked()
@@ -826,23 +757,22 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'reports events'() {
     setup:
-    setupWithStubConfigService()
+    initialRuleAdd()
     AppSecEvent event
     StackTraceEvent stackTrace
     wafModule = new WAFModule() // replace the one created too soon
     def attackBundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/generate-stacktrace']))
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/generate-stacktrace']))
+    readyToHandle()
 
     when:
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, attackBundle, gwCtx)
     ctx.closeWafContext()
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
-    ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
-    ctx.reportStackTrace(_ as StackTraceEvent) >> { stackTrace = it[0] }
+    1 * ctx.getOrCreateWafContext(_, _, _)
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
+    1 * ctx.reportStackTrace(_ as StackTraceEvent) >> { stackTrace = it[0] }
 
     event.rule.id == 'generate-stacktrace-on-scanner'
     event.rule.name == 'Arachni'
@@ -866,19 +796,18 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'redaction with default settings'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     AppSecEvent event
+    readyToHandle()
 
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
+    new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, _)
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
@@ -887,43 +816,19 @@ class WAFModuleSpecification extends DDSpecification {
     event.ruleMatches[0].parameters[0].value == '<Redacted>'
   }
 
-  void 'disabling of key regex'() {
-    injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, '')
-    setupWithStubConfigService()
-    AppSecEvent event
-
-    when:
-    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, gwCtx)
-    ctx.closeWafContext()
-
-    then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
-    ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
-
-    event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
-    event.ruleMatches[0].parameters[0].highlight == ['Arachni/v']
-    event.ruleMatches[0].parameters[0].key_path == ['user-agent', 'password']
-    event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
-  }
-
   void 'redaction of values'() {
     injectSysConfig(APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, 'Arachni')
 
-    setupWithStubConfigService()
+    initialRuleAdd()
     AppSecEvent event
 
     when:
+    readyToHandle()
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, _)
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
 
     event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
@@ -933,169 +838,79 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'triggers no rule'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
 
     when:
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
-    flow.blocking == false
+    1 * ctx.getOrCreateWafContext(_, true, _)
+    !flow.blocking
   }
 
   void 'non-string types work'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
     DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_BODY_OBJECT,
-      [
-        [key: [
-            true,
-            (byte)1,
-            (short)2,
-            (int)3,
-            (long)4,
-            (float)5.0,
-            (double)6.0,
-            (char)'7',
-            (BigDecimal)8.0G,
-            (BigInteger)9.0G
-          ]]
-      ])
+    [
+      [key: [
+          true,
+          (byte)1,
+          (short)2,
+          (int)3,
+          (long)4,
+          (float)5.0,
+          (double)6.0,
+          (char)'7',
+          (BigDecimal)8.0G,
+          (BigInteger)9.0G
+        ]]
+    ])
 
     when:
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
-    flow.blocking == false
+    1 * ctx.getOrCreateWafContext(_, true, _)
+    !flow.blocking
   }
 
   void 'powerwaf exceptions do not propagate'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
     ChangeableFlow flow = new ChangeableFlow()
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES, [get: { null }] as List)
 
     when:
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_, true, _)
     assert !flow.blocking
-  }
-
-  void 'timeout is honored (waf)'() {
-    setup:
-    injectSysConfig('appsec.waf.timeout', '1')
-    WAFModule.createLimitsObject()
-    setupWithStubConfigService()
-    DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
-    ChangeableFlow flow = new ChangeableFlow()
-
-    TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
-
-    when:
-    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
-
-    then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext() }
-    assert !flow.blocking
-    1 * ctx.isWafContextClosed()
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
-    2 * ctx.getWafMetrics()
-    1 * ctx.increaseWafTimeouts()
-    1 * wafMetricCollector.get().wafRequestTimeout()
-    0 * _
-
-    when:
-    pp.processTraceSegment(segment, ctx, [])
-
-    then:
-    1 * segment.setTagTop('_dd.appsec.waf.timeouts', 1L)
-    _ * segment.setTagTop(_, _)
-
-    cleanup:
-    injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
-    WAFModule.createLimitsObject()
-  }
-
-  void 'timeout is honored (rasp)'() {
-    setup:
-    injectSysConfig('appsec.waf.timeout', '1')
-    WAFModule.createLimitsObject()
-    setupWithStubConfigService()
-    DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v' + ('a' * 4000)]))
-    ChangeableFlow flow = new ChangeableFlow()
-
-    TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
-
-    gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION)
-
-    when:
-    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
-
-    then:
-    ctx.getOrCreateWafContext(_, true) >> {
-      wafContext = it[0].openContext() }
-    assert !flow.blocking
-    1 * ctx.isWafContextClosed()
-    1 * ctx.getOrCreateWafContext(_, true, true) >> {
-      wafContext = it[0].openContext() }
-    1 * ctx.getRaspMetrics()
-    1 * ctx.getRaspMetricsCounter()
-    1 * ctx.increaseRaspTimeouts()
-    1 * wafMetricCollector.get().raspTimeout(gwCtx.raspRuleType)
-    1 * wafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
-    0 * _
-
-    when:
-    pp.processTraceSegment(segment, ctx, [])
-
-    then:
-    1 * segment.setTagTop('_dd.appsec.rasp.timeout', 1L)
-    _ * segment.setTagTop(_, _)
-
-    cleanup:
-    injectSysConfig('appsec.waf.timeout', ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT as String)
-    WAFModule.createLimitsObject()
-    gwCtx = new GatewayContext(false)
   }
 
   void 'configuration can be given later'() {
-    def cfgService = new StubAppSecConfigService([waf: null])
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
-
     when:
-    cfgService.init()
-    wafModule.config(cfgService)
+    initialRuleAddWithMap([waf: null])
 
     then:
-    thrown AppSecModule.AppSecModuleActivationException
+    thrown IOException
     0 * _
 
     when:
-    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'], reconf)
-    dataListener = wafModule.dataSubscriptions.first()
+    // default config
+    initialRuleAdd()
+    readyToHandle()
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.isWafContextClosed()
     2 * ctx.getWafMetrics()
@@ -1103,13 +918,12 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     2 * tracer.activeSpan()
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
-    1 * reconf.reloadSubscriptions()
     0 * _
   }
 
   void 'rule data given through configuration'() {
-    setupWithStubConfigService()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    initialRuleAdd()
+    readyToHandle()
     ChangeableFlow flow = Mock()
     def ipData = new AppSecData(rules: [
       [
@@ -1126,19 +940,17 @@ class WAFModuleSpecification extends DDSpecification {
     service.currentAppSecConfig.with {
       mergedAsmData.addConfig('my_config', ipData)
       it.dirtyStatus.data = true
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-
-    dataListener = wafModule.dataSubscriptions.first()
+    readyToHandle()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -1162,8 +974,8 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'reloading rules clears waf data and rule toggling'() {
-    setupWithStubConfigService()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    initialRuleAdd()
+    readyToHandle()
     ChangeableFlow flow = Mock()
     def ipData = new AppSecData(rules: [
       [
@@ -1181,26 +993,23 @@ class WAFModuleSpecification extends DDSpecification {
       mergedAsmData.addConfig('my_config', ipData)
       it.dirtyStatus.data = true
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('my_config', toggleById('ip_match_rule', false), [], [], []))
+      new AppSecUserConfig('my_config', toggleById('ip_match_rule', false), [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("my_config", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
 
-    dataListener = wafModule.dataSubscriptions.first()
+    readyToHandle()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then: 'no match; rule is disabled'
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> { wafContext.close() }
+    1 * ctx.closeWafContext()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1211,48 +1020,43 @@ class WAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.data = true
       def dirtyStatus = userConfigs.removeConfig('my_config')
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.removeConfig("my_config")
       it.dirtyStatus.clearDirty()
     }
-
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then: 'no match; data was cleared (though rule is no longer disabled)'
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * wafMetricCollector.wafUpdates(_, true)
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
-    1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
+    1 * ctx.closeWafContext()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
 
-    when: 'data is readded'
+    when: 'data is read'
     service.currentAppSecConfig.with {
       mergedAsmData.addConfig('my_config', ipData)
       it.dirtyStatus.data = true
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("my_config", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then: 'now we have match'
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
+    1 * ctx.closeWafContext()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
     _ * ctx.increaseWafTimeouts()
@@ -1262,20 +1066,18 @@ class WAFModuleSpecification extends DDSpecification {
     when: 'toggling the rule off'
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('my_config', toggleById('ip_match_rule', false), [], [], []))
+      new AppSecUserConfig('my_config', toggleById('ip_match_rule', false), [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("my_config", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then: 'nothing again; we disabled the rule'
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1285,32 +1087,29 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'rule toggling data given through configuration'() {
-    setupWithStubConfigService()
-    AppSecModuleConfigurer.Reconfiguration reconf = Mock()
+    initialRuleAdd()
     ChangeableFlow flow = Mock()
 
     when: 'rule disabled in config b'
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('b', toggleById('ua0-600-12x', false), [], [], []))
+      new AppSecUserConfig('b', toggleById('ua0-600-12x', false), [], [], []))
 
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("b", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
-    dataListener = wafModule.dataSubscriptions.first()
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     // no attack
-    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
+    1 * ctx.closeWafContext()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1319,24 +1118,22 @@ class WAFModuleSpecification extends DDSpecification {
     // later configurations have precedence (b > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('a', toggleById('ua0-600-12x', true), [], [], []))
-
+      new AppSecUserConfig('a', toggleById('ua0-600-12x', true), [], [], []))
+      wafBuilder.addOrUpdateConfig("a", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.mergeFrom(dirtyStatus)
-      service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
+    1 * ctx.closeWafContext()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1345,50 +1142,40 @@ class WAFModuleSpecification extends DDSpecification {
     // later configurations have precedence (c > a)
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
-        new AppSecUserConfig('c', toggleById('ua0-600-12x', true), [], [], []))
+      new AppSecUserConfig('c', toggleById('ua0-600-12x', true), [], [], []))
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("c", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
-    // attack found
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
-    1 * flow.isBlocking()
-    1 * flow.setAction({ it.blocking })
-    2 * tracer.activeSpan()
-    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
+    1 * ctx.closeWafContext()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
-    1 * ctx.isThrottled(null)
     0 * _
 
-    when: 'removing c restores the state before c was added (rule disabled)'
+    when: 'removing c removes c'
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.removeConfig('c')
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.removeConfig("c")
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * wafMetricCollector.wafUpdates(_, true)
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1399,8 +1186,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'initial configuration has unknown addresses'() {
     Address<String> doesNotExistAddress = new Address<>("server.request.headers.does-not-exist")
-    def cfgService = new StubAppSecConfigService(waf:
-    new CurrentAppSecConfig(
+    def waf = new CurrentAppSecConfig(
     ddConfig: AppSecConfig.valueOf([
       version: '2.1',
       rules: [
@@ -1426,11 +1212,11 @@ class WAFModuleSpecification extends DDSpecification {
           ],
         ]
       ]
-    ])))
+    ]))
 
     when:
-    cfgService.init()
-    wafModule.config(cfgService)
+    initialRuleAddWithMap(waf.ddConfig.rawConfig)
+    readyToHandle()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
@@ -1439,27 +1225,25 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'bad initial configuration is given results in no subscriptions'() {
-    def cfgService = new StubAppSecConfigService([waf: [:]])
+    def waf = [waf: [:]]
 
     when:
-    cfgService.init()
-    wafModule.config(cfgService)
+    initialRuleAddWithMap(waf)
 
     then:
-    thrown AppSecModule.AppSecModuleActivationException
+    thrown IOException
     wafModule.dataSubscriptions.empty
     0 * _
   }
 
   void 'rule data not a config'() {
-    def confService = new StubAppSecConfigService(waf: [])
+    def waf = [waf: [:]]
 
     when:
-    confService.init()
-    wafModule.config(confService)
+    initialRuleAddWithMap(waf)
 
     then:
-    thrown AppSecModule.AppSecModuleActivationException
+    thrown IOException
     wafModule.ctxAndAddresses.get() == null
     0 * _
   }
@@ -1489,19 +1273,19 @@ class WAFModuleSpecification extends DDSpecification {
   }
 
   void 'ephemeral and persistent addresses'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
+    readyToHandle()
     ChangeableFlow flow = Mock()
 
     when:
     def transientBundle = MapDataBundle.of(
-      KnownAddresses.REQUEST_BODY_OBJECT,
-      '/cybercop'
-      )
+    KnownAddresses.REQUEST_BODY_OBJECT,
+    '/cybercop'
+    )
     dataListener.onDataAvailable(flow, ctx, transientBundle, gwCtx)
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext = it[0].openContext() }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
       it[0].iterator().next().ruleMatches[0].parameters[0].value == '/cybercop'
@@ -1517,8 +1301,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      wafContext }
+    1 * ctx.getOrCreateWafContext(_, true, false)
     1 * flow.setAction({ it.blocking })
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
@@ -1538,7 +1321,8 @@ class WAFModuleSpecification extends DDSpecification {
    */
   @Unroll("test repeated #n time")
   void 'parallel REQUEST_END should not cause race condition'() {
-    setupWithStubConfigService()
+    initialRuleAdd()
+    readyToHandle()
     ChangeableFlow flow = new ChangeableFlow()
     AppSecRequestContext ctx = new AppSecRequestContext()
 
@@ -1576,23 +1360,21 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     waf.rateLimiter.limitPerSec == 5
-
   }
 
   void 'suspicious attacker blocking'() {
     given:
     final flow = Mock(ChangeableFlow)
-    final reconf = Mock(AppSecModuleConfigurer.Reconfiguration)
     final suspiciousIp = '34.65.27.85'
-    setupWithStubConfigService('rules_suspicious_attacker_blocking.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('rules_suspicious_attacker_blocking.json')
     ctx.closeWafContext()
     final bundle = MapDataBundle.of(
-      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
-      suspiciousIp,
-      KnownAddresses.HEADERS_NO_COOKIES,
-      new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
-      )
+    KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+    suspiciousIp,
+    KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+    )
+    readyToHandle()
 
     when:
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
@@ -1600,9 +1382,7 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.isWafContextClosed()
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isThrottled(null)
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
@@ -1624,24 +1404,21 @@ class WAFModuleSpecification extends DDSpecification {
       mergedAsmData.addConfig('suspicious_ips', ipData)
       it.dirtyStatus.data = true
       it.dirtyStatus.mergeFrom(dirtyStatus)
-
-      service.listeners['waf'].onNewSubconfig(it, reconf)
+      wafBuilder.addOrUpdateConfig("waf", it.mergedUpdateConfig.rawConfig)
       it.dirtyStatus.clearDirty()
     }
+    readyToHandle()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
-    1 * reconf.reloadSubscriptions()
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
     })
     1 * flow.isBlocking()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> {
-      wafContext = it[0].openContext()
-    }
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isThrottled(null)
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
@@ -1654,8 +1431,8 @@ class WAFModuleSpecification extends DDSpecification {
     given:
     final flow = Mock(ChangeableFlow)
     final fingerprint = '_dd.appsec.fp.http.endpoint'
-    setupWithStubConfigService 'fingerprint_config.json'
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd 'fingerprint_config.json'
+    readyToHandle()
     ctx.closeWafContext()
     final bundle = MapDataBundle.ofDelegate([
       (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
@@ -1682,8 +1459,8 @@ class WAFModuleSpecification extends DDSpecification {
     final flow = Mock(ChangeableFlow)
     final fingerprint = '_dd.appsec.fp.session'
     final sessionId = UUID.randomUUID().toString()
-    setupWithStubConfigService 'fingerprint_config.json'
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd 'fingerprint_config.json'
+    readyToHandle()
     ctx.closeWafContext()
     final bundle = MapDataBundle.ofDelegate([
       (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
@@ -1704,9 +1481,10 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'retrieve used addresses'() {
     when:
-    setupWithStubConfigService('small_config.json')
-    def ctx0 = wafModule.ctxAndAddresses.get().ctx
-    def addresses = wafModule.getUsedAddresses(ctx0)
+    initialRuleAdd('small_config.json')
+    readyToHandle()
+    def ctx0 = wafModule.ctxAndAddresses.get()
+    def addresses = ctx0.addressesOfInterest
 
     then:
     addresses.size() == 6
@@ -1722,13 +1500,13 @@ class WAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = Mock()
 
     when:
-    setupWithStubConfigService('rules_with_data_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('rules_with_data_config.json')
+    readyToHandle()
 
     def bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'legit-user'
-      )
+    KnownAddresses.USER_ID,
+    'legit-user'
+    )
     ctx.closeWafContext()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
 
@@ -1745,13 +1523,13 @@ class WAFModuleSpecification extends DDSpecification {
     GatewayContext gwCtxMock = new GatewayContext(false, RuleType.SQL_INJECTION)
 
     when:
-    setupWithStubConfigService('rules_with_data_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('rules_with_data_config.json')
+    readyToHandle()
 
     def bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'legit-user'
-      )
+    KnownAddresses.USER_ID,
+    'legit-user'
+    )
     ctx.closeWafContext()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtxMock)
 
@@ -1770,13 +1548,13 @@ class WAFModuleSpecification extends DDSpecification {
     WafContext wafContext = Mock()
 
     when:
-    setupWithStubConfigService('rules_with_data_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('rules_with_data_config.json')
+    readyToHandle()
 
     def bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'legit-user'
-      )
+    KnownAddresses.USER_ID,
+    'legit-user'
+    )
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtxMock)
 
     then:
@@ -1801,13 +1579,13 @@ class WAFModuleSpecification extends DDSpecification {
     WafContext wafContext = Mock()
 
     when:
-    setupWithStubConfigService('rules_with_data_config.json')
-    dataListener = wafModule.dataSubscriptions.first()
+    initialRuleAdd('rules_with_data_config.json')
+    readyToHandle()
 
     def bundle = MapDataBundle.of(
-      KnownAddresses.USER_ID,
-      'legit-user'
-      )
+    KnownAddresses.USER_ID,
+    'legit-user'
+    )
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
 
     then:
@@ -1839,21 +1617,15 @@ class WAFModuleSpecification extends DDSpecification {
   static AbstractWafException createWafException(LibWafErrorCode code) {
     switch (code) {
       case LibWafErrorCode.INVALID_ARGUMENT:
-        return new InvalidArgumentWafException(code.code)
+      return new InvalidArgumentWafException(code.code)
       case LibWafErrorCode.INVALID_OBJECT:
-        return new InvalidObjectWafException(code.code)
+      return new InvalidObjectWafException(code.code)
       case LibWafErrorCode.INTERNAL_ERROR:
-        return new InternalWafException(code.code)
+      return new InternalWafException(code.code)
       case LibWafErrorCode.BINDING_ERROR:
-        return new UnclassifiedWafException(code.code)
+      return new UnclassifiedWafException(code.code)
       default:
-        throw new IllegalStateException("Unhandled WafErrorCode: $code")
+      throw new IllegalStateException("Unhandled WafErrorCode: $code")
     }
-  }
-
-  private Map<String, Object> getDefaultConfig() {
-    def service = new StubAppSecConfigService()
-    service.init()
-    service.lastConfig
   }
 }
