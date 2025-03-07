@@ -2,6 +2,7 @@ package com.datadog.appsec.config;
 
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,17 +49,23 @@ public class AppSecUserConfig {
     public final List<Map<String, Object>> actions;
     public final List<Map<String, Object>> exclusions;
     public final List<Map<String, Object>> customRules;
+    private final Map<String, Object> rawConfig;
 
     public Builder(Map<String, List<Map<String, Object>>> userConfig) {
       this.ruleOverrides = userConfig.getOrDefault("rules_override", Collections.EMPTY_LIST);
       this.actions = userConfig.getOrDefault("actions", Collections.EMPTY_LIST);
       this.exclusions = userConfig.getOrDefault("exclusions", Collections.EMPTY_LIST);
       this.customRules = userConfig.getOrDefault("custom_rules", Collections.EMPTY_LIST);
+      this.rawConfig = new HashMap<>(userConfig);
     }
 
     // configKey is unavailable on the deserializer
     AppSecUserConfig build(String configKey) {
       return new AppSecUserConfig(configKey, ruleOverrides, actions, exclusions, customRules);
+    }
+
+    public Map<String, Object> getRawConfig() {
+      return rawConfig;
     }
   }
 }

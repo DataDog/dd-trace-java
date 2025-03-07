@@ -1,6 +1,8 @@
 package com.datadog.appsec
 
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.CurrentAppSecConfig
+import com.datadog.appsec.ddwaf.WafInitialization
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
@@ -37,7 +39,7 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.stop()
   }
 
-  void 'registers powerwaf module'() {
+  void 'registers waf module'() {
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
 
@@ -102,6 +104,7 @@ class AppSecSystemSpecification extends DDSpecification {
   }
 
   void 'updating configuration replaces the EventProducer'() {
+    WafInitialization.ONLINE
     ConfigurationChangesTypedListener<AppSecConfig> savedAsmListener
     ConfigurationEndListener savedConfEndListener
 
@@ -118,7 +121,7 @@ class AppSecSystemSpecification extends DDSpecification {
     }
 
     when:
-    savedAsmListener.accept('ignored config key',
+    savedAsmListener.accept(CurrentAppSecConfig.DEFAULT_KEY,
       AppSecConfig.valueOf([version: '2.1', rules: [
           [
             id: 'foo',

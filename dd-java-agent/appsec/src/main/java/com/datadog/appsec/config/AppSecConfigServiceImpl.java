@@ -27,6 +27,8 @@ import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafBuilder;
+import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
@@ -75,6 +77,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this::applyRemoteConfigListener;
 
   private boolean hasUserWafConfig;
+  private boolean defaultConfigActivated;
+  private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -85,12 +89,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.reconfiguration = reconfig;
   }
 
-  private void subscribeConfigurationPoller() {
+  private void subscribeConfigurationPoller(WafBuilder wafBuilder) {
     // see also close() method
     subscribeAsmFeatures();
 
     if (!hasUserWafConfig) {
-      subscribeRulesAndData();
+      subscribeRulesAndData(wafBuilder);
     } else {
       log.debug("Will not subscribe to ASM, ASM_DD and ASM_DATA (AppSec custom rules in use)");
     }
@@ -125,7 +129,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addCapabilities(capabilities);
   }
 
-  private void subscribeRulesAndData() {
+  private void subscribeRulesAndData(WafBuilder wafBuilder) {
     this.configurationPoller.addListener(
         Product.ASM_DD,
         AppSecConfigDeserializer.INSTANCE,
@@ -134,13 +138,20 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (!initialized) {
             throw new IllegalStateException();
           }
-          if (newConfig == null) {
-            if (DEFAULT_WAF_CONFIG == null) {
-              throw new IllegalStateException("Expected default waf config to be available");
+          if (newConfig == null || newConfig.getRawConfig() == null) {
+            log.debug("AppSec config given by remote config was pulled. Removing WAF config");
+            wafBuilder.removeConfig(configKey);
+          } else {
+            if (defaultConfigActivated) {
+              log.debug("Removing default config");
+              wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
+              defaultConfigActivated = false;
             }
-            log.debug(
-                "AppSec config given by remote config was pulled. Restoring default WAF config");
-            newConfig = DEFAULT_WAF_CONFIG;
+            try {
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig());
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
           this.currentAppSecConfig.setDdConfig(newConfig);
           // base rules can contain all rules/data/exclusions/etc
@@ -155,8 +166,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           if (newConfig == null) {
             currentAppSecConfig.mergedAsmData.removeConfig(configKey);
+            wafBuilder.removeConfig(configKey);
           } else {
             currentAppSecConfig.mergedAsmData.addConfig(configKey, newConfig);
+            try {
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig());
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
           this.currentAppSecConfig.dirtyStatus.data = true;
         });
@@ -170,9 +187,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           DirtyStatus dirtyStatus;
           if (newConfig == null) {
             dirtyStatus = currentAppSecConfig.userConfigs.removeConfig(configKey);
+            wafBuilder.removeConfig(configKey);
           } else {
             AppSecUserConfig userCfg = newConfig.build(configKey);
             dirtyStatus = currentAppSecConfig.userConfigs.addConfig(userCfg);
+            try {
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig());
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
 
           this.currentAppSecConfig.dirtyStatus.mergeFrom(dirtyStatus);
@@ -218,7 +241,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   @Override
-  public void init() {
+  public void init(WafBuilder wafBuilder) {
     AppSecConfig wafConfig;
     hasUserWafConfig = false;
     try {
@@ -242,9 +265,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.lastConfig.put("waf", this.currentAppSecConfig);
     this.mergedAsmFeatures = new MergedAsmFeatures();
     this.initialized = true;
+
+    if (DEFAULT_WAF_CONFIG == null) {
+      throw new IllegalStateException("Expected default waf config to be available");
+    }
+    defaultConfigActivated = true;
   }
 
-  public void maybeSubscribeConfigPolling() {
+  public void maybeSubscribeConfigPolling(WafBuilder wafBuilder) {
     if (this.configurationPoller != null) {
       if (hasUserWafConfig
           && tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
@@ -252,7 +280,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             "AppSec will not use remote config because "
                 + "there is a custom user configuration and AppSec is explicitly enabled");
       } else {
-        subscribeConfigurationPoller();
+        subscribeConfigurationPoller(wafBuilder);
       }
     } else {
       log.info("Remote config is disabled; AppSec will not be able to use it");

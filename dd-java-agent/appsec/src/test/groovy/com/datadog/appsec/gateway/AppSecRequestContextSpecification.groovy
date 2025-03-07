@@ -1,23 +1,24 @@
 package com.datadog.appsec.gateway
 
-
 import com.datadog.appsec.config.CurrentAppSecConfig
+import com.datadog.appsec.ddwaf.WafInitialization
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.appsec.test.StubAppSecConfigService
+import com.datadog.ddwaf.Waf
+import com.datadog.ddwaf.WafBuilder
+import com.datadog.ddwaf.WafContext
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
-import com.datadog.ddwaf.WafContext
-import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
   AppSecRequestContext ctx = new AppSecRequestContext()
+  WafBuilder wafBuilder
 
   void 'implements DataBundle'() {
     when:
@@ -204,14 +205,20 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   private WafContext createWafContext() {
+    WafInitialization.ONLINE
     Waf.initialize false
     def service = new StubAppSecConfigService()
     service.init()
     CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
     config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new WafContext(context)
+    if (wafBuilder?.online){
+      wafBuilder.destroy()
+    }
+    wafBuilder = new WafBuilder()
+    wafBuilder.addOrUpdateConfig(uniqueId, config.mergedUpdateConfig.rawConfig)
+
+    new WafContext(wafBuilder)
   }
 
   void 'close closes the wafContext'() {
@@ -223,7 +230,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.close()
 
     then:
-    ctx.wafContext == null
     !wafContext.online
   }
 
