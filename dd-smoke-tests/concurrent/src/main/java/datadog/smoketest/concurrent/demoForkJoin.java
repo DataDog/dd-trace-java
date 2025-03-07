@@ -4,7 +4,7 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 
-public class demoForkJoin implements FibonacciCalculator {
+public class DemoForkJoin implements FibonacciCalculator {
   private static ForkJoinPool forkJoinPool;
 
   public demoForkJoin() {
