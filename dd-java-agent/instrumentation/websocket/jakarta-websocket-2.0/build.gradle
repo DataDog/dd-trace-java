@@ -1,0 +1,25 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+  minJavaVersionForLatestDepTests = JavaVersion.VERSION_17
+}
+muzzle {
+  pass {
+    name = "jakarta-websocket"
+    group = "jakarta.websocket"
+    module = "jakarta.websocket-client-api"
+    versions = "[2.0.0,)"
+    javaVersion = "17"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir("latestDepTest", "test")
+
+dependencies {
+  compileOnly group: 'jakarta.websocket', name: 'jakarta.websocket-client-api', version: '2.0.0'
+  implementation project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
+
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
+  testImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '2.0.0'
+  latestDepTestImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '+'
+}

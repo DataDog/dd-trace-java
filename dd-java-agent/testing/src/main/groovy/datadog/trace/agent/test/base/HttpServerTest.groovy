@@ -29,6 +29,8 @@ import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -37,12 +39,15 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
+import net.bytebuddy.utility.RandomString
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import okhttp3.WebSocketListener
+import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -74,12 +79,14 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
@@ -153,6 +160,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
+    injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -211,9 +219,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.message"  : { it == null || it == EXCEPTION.body },
-        "error.type" : { it == null || it == Exception.name },
-        "error.stack": { it == null || it instanceof String }]
+      ["error.message": { it == null || it == EXCEPTION.body },
+        "error.type"   : { it == null || it == Exception.name },
+        "error.stack"  : { it == null || it instanceof String }]
     } else {
       Collections.emptyMap()
     }
@@ -392,6 +400,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testWebsockets() {
+    server instanceof WebsocketServer
+  }
+
   @Override
   int version() {
     return 0
@@ -444,6 +456,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
+    WEBSOCKET("websocket", 101, null)
 
     private final String path
     private final String rawPath
@@ -503,8 +516,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     private static final Map<String, ServerEndpoint> PATH_MAP = {
-      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it]}
-      map.putAll(values().collectEntries { [it.rawPath, it]})
+      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it] }
+      map.putAll(values().collectEntries { [it.rawPath, it] })
       map
     }.call()
 
@@ -550,7 +563,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       responses = (1..count).collect { completionService.take().get() }
     } else {
-      responses = (1..count).collect {client.newCall(request).execute()}
+      responses = (1..count).collect { client.newCall(request).execute() }
     }
 
     if (isDataStreamsEnabled()) {
@@ -723,9 +736,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    method | body | header                           | value | tags
-    'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
-    'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+    method | body | header                          | value | tags
+    'GET'  | null | 'x-datadog-test-both-header'    | 'foo' | ['both_header_tag': 'foo']
+    'GET'  | null | 'x-datadog-test-request-header' | 'bar' | ['request_header_tag': 'bar']
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
@@ -737,7 +750,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def body = null
     def header = IG_RESPONSE_HEADER
     def mapping = 'mapped_response_header_tag'
-    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
+    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE"]
 
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
@@ -820,13 +833,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    rawQuery | endpoint               | encoded
-    true     | SUCCESS                | false
-    true     | QUERY_PARAM            | false
-    true     | QUERY_ENCODED_QUERY    | true
-    false    | SUCCESS                | false
-    false    | QUERY_PARAM            | false
-    false    | QUERY_ENCODED_QUERY    | true
+    rawQuery | endpoint            | encoded
+    true     | SUCCESS             | false
+    true     | QUERY_PARAM         | false
+    true     | QUERY_ENCODED_QUERY | true
+    false    | SUCCESS             | false
+    false    | QUERY_PARAM         | false
+    false    | QUERY_ENCODED_QUERY | true
 
     method = "GET"
     body = null
@@ -939,7 +952,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     then:
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
 
     and:
@@ -1633,7 +1646,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
-    assert trace.find {it.isError() } == null
+    assert trace.find { it.isError() } == null
   }
 
   def 'test blocking of request for path parameters'() {
@@ -1715,7 +1728,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (testBlockingErrorTypeSet()) {
       spans.find {
         it.error &&
-        it.tags['error.type'] == BlockingException.name } != null
+        it.tags['error.type'] == BlockingException.name
+      } != null
     }
 
     and:
@@ -1897,11 +1911,193 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span != null
     final sessionId = span.tags[IG_SESSION_ID_TAG]
     sessionId != null
     secondResponse.body().string().contains(sessionId as String)
+  }
+
+
+  def 'test websocket server send #msgType message of size #size and #chunks chunks'() {
+    setup:
+    assumeTrue(testWebsockets())
+    def wsServer = getServer() as WebsocketServer
+
+    when:
+    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
+    .get().build()
+
+    client.newWebSocket(request, new WebSocketListener() {})
+    wsServer.awaitConnected()
+    runUnderTrace("parent", {
+      if (messages[0] instanceof String) {
+        wsServer.serverSendText(messages as String[])
+      } else {
+        wsServer.serverSendBinary(messages as byte[][])
+      }
+      wsServer.serverClose()
+    })
+
+    then:
+    assertTraces(2, {
+      DDSpan handshake
+      trace(hasHandlerSpan() ? 2 : 1, {
+        handshake = span(0)
+        serverSpan(it, null, null, "GET", WEBSOCKET)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, WEBSOCKET)
+        }
+      })
+      trace(3, {
+        sortSpansByStart()
+        basicSpan(it, "parent")
+        websocketSendSpan(it, handshake, msgType, size, chunks, span(0))
+        websocketCloseSpan(it, handshake, true, 1000, null, span(0))
+      })
+    })
+
+    where:
+
+    messages                                      | msgType  | chunks | size
+    [RandomString.make(10)]                       | "text"   | 1      | 10
+    [someBytes(20)]                               | "binary" | 1      | 20
+    [RandomString.make(10), RandomString.make(5)] | "text"   | 2      | 10 + 5
+    [someBytes(10), someBytes(15), someBytes(30)] | "binary" | 3      | 10 + 15 + 30
+  }
+
+  def 'test websocket server receive #msgType message of size #size and #chunks chunks'() {
+    setup:
+    assumeTrue(testWebsockets())
+    def wsServer = getServer() as WebsocketServer
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads())
+
+    when:
+    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
+    .get().build()
+
+    def ws = client.newWebSocket(request, new WebSocketListener() {})
+    wsServer.awaitConnected()
+    wsServer.setMaxPayloadSize(10)
+    if (message instanceof String) {
+      ws.send(message as String)
+    } else {
+      ws.send(ByteString.of(message as byte[]))
+    }
+    ws.close(1000, "goodbye")
+
+    then:
+    assertTraces(3, {
+      DDSpan handshake
+      trace(hasHandlerSpan() ? 2 : 1, {
+        handshake = span(0)
+        serverSpan(it, null, null, "GET", WEBSOCKET)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, WEBSOCKET)
+        }
+      })
+      trace(1 + chunks, {
+        websocketReceiveSpan(it, handshake, msgType, size, chunks)
+        for (int i = 0; i < chunks; i++) {
+          basicSpan(it, "onRead", span(0))
+        }
+      })
+      trace(1, {
+        websocketCloseSpan(it, handshake, false, 1000, "goodbye")
+      })
+    })
+    where:
+
+    message               | msgType  | chunks | size
+    RandomString.make(10) | "text"   | 1      | 10
+    someBytes(10)         | "binary" | 1      | 10
+    RandomString.make(20) | "text"   | 2      | 20
+    someBytes(30)         | "binary" | 3      | 30
+  }
+
+  static def someBytes(nb) {
+    def b = new byte[nb]
+    new Random().nextBytes(b)
+    b
+  }
+
+  static void websocketSendSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength,
+  int nbOfChunks = 1, DDSpan parentSpan = null, Map extraTags = [:]) {
+    websocketSpan(trace, handshake, "websocket.send", messageType, messageLength, nbOfChunks,
+    false, parentSpan, extraTags)
+  }
+
+  static void websocketReceiveSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength, int nbOfChunks = 1, Map extraTags = [:]) {
+    websocketSpan(trace, handshake, "websocket.receive", messageType, messageLength, nbOfChunks, true,
+    Config.get().isWebsocketMessagesSeparateTraces() ? null : handshake,
+    extraTags + [(InstrumentationTags.WEBSOCKET_MESSAGE_RECEIVE_TIME): { Number }])
+  }
+
+  static void websocketCloseSpan(TraceAssert trace, DDSpan handshake, boolean closeStarter, int closeCode, closeReason = null,
+  DDSpan parentSpan = null, Map extraTags = [:]) {
+    Map tags = new HashMap(extraTags)
+    tags.put(InstrumentationTags.WEBSOCKET_CLOSE_REASON, closeReason)
+    tags.put(InstrumentationTags.WEBSOCKET_CLOSE_CODE, closeCode)
+    websocketSpan(trace, handshake, "websocket.close", null, null, null, !closeStarter, parentSpan, tags)
+  }
+
+  static void websocketSpan(TraceAssert trace, DDSpan handshake, String operation,
+  String messageType, Integer messageLength, Integer nbOfChunks,
+  boolean traceStarter,
+  DDSpan parentSpan,
+  Map<String, ?> extraTags = [:]) {
+    byte linkFlags = SpanLink.DEFAULT_FLAGS
+    if (handshake.getSamplingPriority() > 0 && Config.get().isWebsocketMessagesInheritSampling()) {
+      linkFlags |= SpanLink.SAMPLED_FLAG
+    }
+
+    def linkAttributes = SpanAttributes.builder()
+    .put("dd.kind", traceStarter ? "executed_from" : "resuming")
+    .build()
+
+    trace.span {
+      operationName operation
+      if (handshake.getTag(Tags.HTTP_ROUTE) != null) {
+        resourceName "websocket ${handshake.getTag(Tags.HTTP_ROUTE) as String}"
+      } else {
+        resourceName "websocket ${URI.create(handshake.getTag(Tags.HTTP_URL) as String).path}"
+      }
+      if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
+        parent()
+      } else {
+        if (parentSpan != null) {
+          childOf(parentSpan)
+        } else {
+          childOfPrevious()
+        }
+      }
+      spanType(DDSpanTypes.WEBSOCKET)
+      if (Config.get().isWebsocketMessagesSeparateTraces() || !traceStarter) {
+        links {
+          link(handshake, linkFlags, linkAttributes)
+        }
+      }
+      tags {
+        tag(Tags.SPAN_KIND, traceStarter ? Tags.SPAN_KIND_CONSUMER : Tags.SPAN_KIND_PRODUCER)
+        tag(Tags.COMPONENT, "websocket")
+        if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
+          if (Config.get().isWebsocketMessagesInheritSampling()) {
+            tag(DDTags.DECISION_MAKER_INHERITED, 1)
+            tag(DDTags.DECISION_MAKER_SERVICE, handshake.getServiceName())
+            tag(DDTags.DECISION_MAKER_RESOURCE, handshake.getResourceName())
+          }
+        }
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_LENGTH, messageLength)
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_TYPE, messageType)
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_FRAMES, nbOfChunks)
+        tag(Tags.PEER_HOSTNAME, handshake.getTag(Tags.PEER_HOSTNAME))
+        if (Config.get().isWebsocketTagSessionId()) {
+          tag(InstrumentationTags.WEBSOCKET_SESSION_ID, { it != null }) // it can be an incremental thing
+        }
+        extraTags.each { tag(it.key, it.value) }
+        defaultTagsNoPeerService()
+      }
+    }
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
