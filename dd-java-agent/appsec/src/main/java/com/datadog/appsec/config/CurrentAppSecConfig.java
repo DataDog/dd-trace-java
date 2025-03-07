@@ -18,11 +18,21 @@ import org.slf4j.LoggerFactory;
 
 public class CurrentAppSecConfig {
   private static final Logger log = LoggerFactory.getLogger(CurrentAppSecConfig.class);
+  public static final String DEFAULT_KEY = "default_java_config";
 
   private AppSecConfig ddConfig; // assume there's only one of these
   CollectedUserConfigs userConfigs = new CollectedUserConfigs();
   MergedAsmData mergedAsmData = new MergedAsmData(new HashMap<>());
   public final DirtyStatus dirtyStatus = new DirtyStatus();
+  private String configKey;
+
+  public CurrentAppSecConfig() {
+    configKey = DEFAULT_KEY;
+  }
+
+  public CurrentAppSecConfig(String configKey) {
+    this.configKey = configKey;
+  }
 
   @SuppressWarnings("unchecked")
   public void setDdConfig(AppSecConfig newConfig) {
@@ -40,6 +50,18 @@ public class CurrentAppSecConfig {
     } else {
       mergedAsmData.removeConfig(MergedAsmData.KEY_BUNDLED_DATA);
     }
+  }
+
+  public String getKey() {
+    return configKey;
+  }
+
+  public void setKey(String key) {
+    this.configKey = key;
+  }
+
+  public boolean keyIsDefault() {
+    return DEFAULT_KEY.equals(configKey);
   }
 
   public static class DirtyStatus {

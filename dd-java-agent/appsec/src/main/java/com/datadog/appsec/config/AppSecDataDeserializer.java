@@ -7,6 +7,7 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import okio.Okio;
 
 public class AppSecDataDeserializer implements ConfigurationDeserializer<AppSecData> {
@@ -22,6 +23,10 @@ public class AppSecDataDeserializer implements ConfigurationDeserializer<AppSecD
   }
 
   private AppSecData deserialize(InputStream is) throws IOException {
-    return ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+    AppSecData appSecData = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+    if (appSecData != null) {
+      appSecData.setRawConfig(MOSHI.adapter(Map.class).fromJson(Okio.buffer(Okio.source(is))));
+    }
+    return appSecData;
   }
 }

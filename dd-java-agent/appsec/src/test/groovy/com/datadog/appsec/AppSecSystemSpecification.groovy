@@ -37,7 +37,7 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.stop()
   }
 
-  void 'registers powerwaf module'() {
+  void 'registers waf module'() {
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
 

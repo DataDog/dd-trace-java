@@ -1,7 +1,9 @@
 package com.datadog.appsec.config
 
 import com.datadog.appsec.AppSecSystem
+import com.datadog.appsec.ddwaf.WafInitialization
 import com.datadog.appsec.util.AbortStartupException
+import com.datadog.ddwaf.WafBuilder
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
@@ -45,17 +47,21 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   def config = Mock(Class.forName('datadog.trace.api.Config'))
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
   AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
+  WafBuilder wafBuilder
+
+  void setup() {
+    WafInitialization.ONLINE
+    wafBuilder = new WafBuilder()
+    appSecConfigService.init(wafBuilder)
+  }
 
   void cleanup() {
     appSecConfigService?.close()
   }
 
   void 'maybeStartConfigPolling subscribes to the configuration poller'() {
-    setup:
-    appSecConfigService.init()
-
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
@@ -68,11 +74,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'no subscription to ASM_FEATURES if appsec is fully enabled'() {
-    setup:
-    appSecConfigService.init()
-
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
@@ -86,11 +89,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'no subscription to ASM_FEATURES if appsec is fully disabled'() {
-    setup:
-    appSecConfigService.init()
-
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_DISABLED
@@ -104,17 +104,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'no subscription to ASM ASM_DD ASM_DATA if custom rules are provided'() {
-    setup:
+    when:
     Path p = Files.createTempFile('appsec', '.json')
     p.toFile() << '{"version":"2.0", "rules": []}'
-
-    when:
-    appSecConfigService.init()
-    then:
-    1 * config.getAppSecRulesFile() >> (p as String)
-
-    when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.init(wafBuilder)
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
@@ -124,13 +118,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'can load from a different location'() {
-    setup:
+    when:
     Path p = Files.createTempFile('appsec', '.json')
     p.toFile() << '{"version":"2.0", "rules": []}'
     AppSecModuleConfigurer.SubconfigListener listener = Stub()
-
-    when:
-    appSecConfigService.init()
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
@@ -139,22 +130,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     actual.ddConfig == expected
   }
 
-  void 'aborts if alt config location does not exist'() {
-    when:
-    appSecConfigService.init()
-
-    then:
-    1 * config.getAppSecRulesFile() >> '/file/that/does/not/exist'
-    thrown AbortStartupException
-  }
 
   void 'aborts if alt config file is not valid json'() {
-    setup:
+    when:
     Path p = Files.createTempFile('appsec', '.json')
     p.toFile() << 'THIS IS NOT JSON'
-
-    when:
-    appSecConfigService.init()
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
@@ -162,11 +142,9 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   }
 
   void 'provides initial subconfiguration upon subscription'() {
-    AppSecModuleConfigurer.SubconfigListener listener = Stub()
-
     setup:
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    AppSecModuleConfigurer.SubconfigListener listener = Stub()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     expect:
     AppSecConfigService.TransactionalAppSecModuleConfigurer configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -192,8 +170,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     AppSecSystem.active = false
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -229,8 +206,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     AppSecSystem.active = false
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -381,8 +357,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     AppSecConfig mergedUpdateConfig
 
     when:
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.init(wafBuilder)
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -475,7 +451,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'stopping appsec unsubscribes from the poller'() {
     setup:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     when:
     appSecConfigService.close()
@@ -530,8 +506,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     def listeners = new SavedListeners()
 
     when:
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.init(wafBuilder)
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
@@ -565,8 +541,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     AppSecSystem.active = false
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.init(wafBuilder)
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
