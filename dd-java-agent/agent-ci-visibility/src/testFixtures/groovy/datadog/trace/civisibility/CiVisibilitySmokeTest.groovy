@@ -12,7 +12,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
       def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
       CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
     } else {
-      CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
+      CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements, [])
     }
   }
 
