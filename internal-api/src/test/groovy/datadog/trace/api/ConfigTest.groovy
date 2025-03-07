@@ -315,7 +315,7 @@ class ConfigTest extends DDSpecification {
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 250
 
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"]
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"].toSet()
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -500,7 +500,7 @@ class ConfigTest extends DDSpecification {
     config.getLongRunningTraceFlushInterval() == 333
     config.traceRateLimit == 200
 
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"]
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"].toSet()
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
