@@ -3,8 +3,8 @@ package com.datadog.appsec.ddwaf;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafDiagnostics;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -27,16 +27,16 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
           .adapter(
               Types.newParameterizedType(
                   Map.class, String.class, Types.newParameterizedType(List.class, String.class)));
-  private final AtomicReference<RuleSetInfo> pendingReportRef = new AtomicReference<>();
+  private final AtomicReference<WafDiagnostics> pendingReportRef = new AtomicReference<>();
 
-  public void setReportForPublication(RuleSetInfo report) {
+  public void setReportForPublication(WafDiagnostics report) {
     this.pendingReportRef.set(report);
   }
 
   @Override
   public void processTraceSegment(
       TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents) {
-    RuleSetInfo report = pendingReportRef.get();
+    WafDiagnostics report = pendingReportRef.get();
     if (report == null) {
       return;
     }
@@ -45,9 +45,9 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
       return;
     }
 
-    segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.getErrors()));
-    segment.setTagTop(RULES_LOADED, report.getNumRulesOK());
-    segment.setTagTop(RULE_ERROR_COUNT, report.getNumRulesError());
+    segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.getAllErrors()));
+    segment.setTagTop(RULES_LOADED, report.getNumConfigOK());
+    segment.setTagTop(RULE_ERROR_COUNT, report.getNumConfigError());
     segment.setTagTop(WAF_VERSION, Waf.LIB_VERSION);
 
     segment.setTagTop(Tags.ASM_KEEP, true);

@@ -134,6 +134,12 @@ public class DefaultConfigurationPoller
   }
 
   @Override
+  public synchronized void addListener(
+      Product product, ConfigurationChangesListener mapConfigurationChangesTypedListener) {
+    this.addListener(product, new SimpleProductListener(mapConfigurationChangesTypedListener));
+  }
+
+  @Override
   public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));

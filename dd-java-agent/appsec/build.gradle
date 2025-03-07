@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '13.0.1'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '14.0.0'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
@@ -70,6 +70,7 @@ ext {
     'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
     'com.datadog.appsec.ddwaf.WafInitialization',
     'com.datadog.appsec.ddwaf.WAFModule.WAFDataCallback',
+    'com.datadog.appsec.config.AppSecModuleConfigurer.Reconfiguration',
     'com.datadog.appsec.report.*',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
@@ -81,6 +82,7 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.Asm',
     'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
+    'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
   ]

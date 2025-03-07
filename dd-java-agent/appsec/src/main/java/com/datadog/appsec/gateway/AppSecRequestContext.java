@@ -239,14 +239,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspTimeouts;
   }
 
-  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
-
-    if (createMetrics) {
+  public WafContext getOrCreateWafContext(WafHandle wafHandle, boolean isRasp) {
+    if (Config.get().isAppSecWafMetrics()) {
       if (wafMetrics == null) {
-        this.wafMetrics = ctx.createMetrics();
+        this.wafMetrics = new WafMetrics();
       }
       if (isRasp && raspMetrics == null) {
-        this.raspMetrics = ctx.createMetrics();
+        this.raspMetrics = new WafMetrics();
       }
     }
 
@@ -256,7 +255,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       if (curWafContext != null) {
         return curWafContext;
       }
-      curWafContext = ctx.openContext();
+      curWafContext = new WafContext(wafHandle);
       this.wafContext = curWafContext;
     }
     return curWafContext;
