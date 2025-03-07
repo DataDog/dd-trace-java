@@ -167,7 +167,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * mockAppSecCtx.closeAdditive()
+    1 * mockAppSecCtx.closeWafContext()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -912,7 +912,7 @@ class GatewayBridgeSpecification extends DDSpecification {
         }
 
         @Override
-        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
           return null
         }
 
