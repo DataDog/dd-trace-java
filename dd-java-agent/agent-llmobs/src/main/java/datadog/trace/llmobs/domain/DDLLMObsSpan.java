@@ -46,6 +46,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private final LLMObsServices llmObsServices;
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
+
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
