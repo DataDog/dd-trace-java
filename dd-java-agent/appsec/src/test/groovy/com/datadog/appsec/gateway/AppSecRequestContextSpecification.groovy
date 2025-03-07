@@ -1,23 +1,31 @@
 package com.datadog.appsec.gateway
 
-
-import com.datadog.appsec.config.CurrentAppSecConfig
+import com.datadog.appsec.ddwaf.WafInitialization
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.ddwaf.Waf
+import com.datadog.ddwaf.WafBuilder
+import com.datadog.ddwaf.WafContext
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
-import com.datadog.ddwaf.WafContext
-import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
+import okio.Okio
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
+  private static final JsonAdapter<Map<String, Object>> ADAPTER =
+  new Moshi.Builder()
+  .build()
+  .adapter(Types.newParameterizedType(Map, String, Object))
+
   AppSecRequestContext ctx = new AppSecRequestContext()
+  WafBuilder wafBuilder
 
   void 'implements DataBundle'() {
     when:
@@ -204,14 +212,13 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
   private WafContext createWafContext() {
+    WafInitialization.ONLINE
     Waf.initialize false
-    def service = new StubAppSecConfigService()
-    service.init()
-    CurrentAppSecConfig config = service.lastConfig['waf']
-    String uniqueId = UUID.randomUUID() as String
-    config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new WafContext(context)
+    wafBuilder?.close()
+    wafBuilder = new WafBuilder()
+    def stream = getClass().classLoader.getResourceAsStream("test_multi_config.json")
+    wafBuilder.addOrUpdateConfig("test", ADAPTER.fromJson(Okio.buffer(Okio.source(stream))))
+    new WafContext(wafBuilder.buildWafHandleInstance())
   }
 
   void 'close closes the wafContext'() {

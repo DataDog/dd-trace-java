@@ -12,11 +12,16 @@ public interface ConfigurationPoller {
 
   void addListener(Product product, String configKey, ProductListener listener);
 
+  void addListener(Product product, ConfigurationMapListener configurationMapListener);
+
   <T> void addListener(
       Product product,
       String configKey,
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener);
+
+  void addListener(
+      Product product, ConfigurationChangesListener mapConfigurationChangesTypedListener);
 
   void removeListeners(Product product);
 
