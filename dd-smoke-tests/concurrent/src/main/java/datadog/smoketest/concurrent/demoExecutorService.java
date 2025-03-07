@@ -8,7 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-public class demoExecutorService implements FibonacciCalculator {
+public class DemoExecutorService implements FibonacciCalculator {
   private static ExecutorService executorService;
 
   public demoExecutorService() {
