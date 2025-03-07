@@ -1,77 +1,74 @@
 package datadog.trace.bootstrap.config.provider;
 
-import java.io.File;
+import datadog.trace.bootstrap.config.provider.StableConfigYaml.Rule;
+import datadog.trace.bootstrap.config.provider.StableConfigYaml.Selector;
+import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml;
+import datadog.yaml.YamlParser;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StableConfigParser {
   private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
-  // Match config_id:<value>
-  private static final Pattern idPattern = Pattern.compile("^config_id\\s*:(.*)$");
-  // Match 'apm_configuration_default:'
-  private static final Pattern apmConfigPattern = Pattern.compile("^apm_configuration_default:$");
-  // Match indented (2 spaces) key-value pairs, either with double quotes or without
-  private static final Pattern keyValPattern =
-      Pattern.compile("^\\s{2}([^:]+):\\s*(\"[^\"]*\"|[^\"\\n]*)$");;
 
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
-    File file = new File(filePath);
-    if (!file.exists()) {
-      log.debug("Stable configuration file not available at specified path: {}", file);
-      return StableConfigSource.StableConfig.EMPTY;
+    try {
+      StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
+      ConfigurationMap configMap = data.getApm_configuration_default();
+      // TODO: Support multiple sets of rules + configs.
+      List<Rule> rules = data.getApm_configuration_rules();
+      if (rules != null) {
+        for (Rule rule : rules) {
+          List<Selector> selectors = rule.getSelectors();
+          boolean match = true;
+          for (Selector selector : selectors) {
+            if (!selectorMatch(
+                selector.getOrigin(),
+                selector.getMatches(),
+                selector.getOperator(),
+                selector.getKey())) {
+              match = false;
+              break;
+            }
+          }
+          // Use the first selector that matches; return early
+          if (match) {
+            configMap.putAll(rule.getConfiguration());
+            return new StableConfigSource.StableConfig(
+                data.getConfig_id(), new HashMap<>(configMap));
+          }
+        }
+      }
+      // If configs were found in apm_configuration_default, use them
+      if (!configMap.isEmpty()) {
+        return new StableConfigSource.StableConfig(data.getConfig_id(), new HashMap<>(configMap));
+      }
+    } catch (IOException e) {
+      // TODO: Update this log from "stable configuration" to the official name of the feature, once
+      // determined
+      log.debug(
+          "Stable configuration file either not found or not readable at filepath {}", filePath);
     }
-    Map<String, String> configMap = new HashMap<>();
-    String[] configId = new String[1];
-    try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
-      int apmConfigNotFound = -1, apmConfigStarted = 0, apmConfigComplete = 1;
-      int[] apmConfigFound = {apmConfigNotFound};
-      lines.forEach(
-          line -> {
-            Matcher matcher = idPattern.matcher(line);
-            if (matcher.find()) {
-              // Do not allow duplicate config_id keys
-              if (configId[0] != null) {
-                throw new RuntimeException("Duplicate config_id keys found; file may be malformed");
-              }
-              configId[0] = trimQuotes(matcher.group(1).trim());
-              return; // go to next line
-            }
-            // TODO: Do not allow duplicate apm_configuration_default keys; and/or return early once
-            // apmConfigFound[0] == apmConfigComplete
-            if (apmConfigFound[0] == apmConfigNotFound
-                && apmConfigPattern.matcher(line).matches()) {
-              apmConfigFound[0] = apmConfigStarted;
-              return; // go to next line
-            }
-            if (apmConfigFound[0] == apmConfigStarted) {
-              Matcher keyValueMatcher = keyValPattern.matcher(line);
-              if (keyValueMatcher.matches()) {
-                configMap.put(
-                    keyValueMatcher.group(1).trim(),
-                    trimQuotes(keyValueMatcher.group(2).trim())); // Store key-value pair in map
-              } else {
-                // If we encounter a non-indented or non-key-value line, stop processing
-                apmConfigFound[0] = apmConfigComplete;
-              }
-            }
-          });
-      return new StableConfigSource.StableConfig(configId[0], configMap);
-    }
+    return StableConfigSource.StableConfig.EMPTY;
   }
 
-  private static String trimQuotes(String value) {
-    if (value.length() > 1 && (value.startsWith("'") && value.endsWith("'"))
-        || (value.startsWith("\"") && value.endsWith("\""))) {
-      return value.substring(1, value.length() - 1);
-    }
-    return value;
+  // TODO: Create strict types for origin and operator values
+  private static boolean selectorMatch(
+      String origin, List<String> matches, String operator, String key) {
+    //    if(origin.equals("language")) {
+    //      List<String> matchesList = Arrays.asList(matches);
+    //      return matchesList.contains("Java") || matchesList.contains("java") &&
+    // operator.equals("equals");
+    //    }
+    //    else if(origin.equals("tags")) {
+    //
+    //    } else if(origin.equals("environment_variables")) {
+    //
+    //    } else if(origin.equals("process_arguments")) {
+    //
+    //    }
+    return true;
   }
 }
