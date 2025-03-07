@@ -20,6 +20,7 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 class HttpExtractorTest extends DDSpecification {
   static final W3C_TRACE_ID = "00000000000000000000000000000001"
   static final W3C_SPAN_ID = "123456789abcdef0"
+  static final W3C_HEX_SPAN_ID = "1311768467463790320"
   static final W3C_TRACE_PARENT = "00-$W3C_TRACE_ID-$W3C_SPAN_ID-01"
   static final W3C_TRACE_STATE_WITH_P = "dd=p:456789abcdef0123"
   static final W3C_TRACE_STATE_NO_P = "dd=s:2,foo=1"
@@ -171,6 +172,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })

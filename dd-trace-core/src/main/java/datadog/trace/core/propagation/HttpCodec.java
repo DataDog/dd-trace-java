@@ -171,10 +171,8 @@ public class HttpCodec {
     switch (extractors.size()) {
       case 0:
         return StubExtractor.INSTANCE;
-      case 1:
-        return extractors.get(0);
       default:
-        return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
+        return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst(), config.getTracePropagationBehaviorExtract());
     }
   }
 
@@ -208,10 +206,12 @@ public class HttpCodec {
   public static class CompoundExtractor implements Extractor {
     private final List<Extractor> extractors;
     private final boolean extractFirst;
+    private final String extractBehavior;
 
-    public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst) {
+    public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst, String extractBehavior) {
       this.extractors = extractors;
       this.extractFirst = extractFirst;
+      this.extractBehavior = extractBehavior;
     }
 
     @Override
@@ -262,6 +262,13 @@ public class HttpCodec {
       }
 
       if (context != null) {
+        if(extractBehavior.equals("restart")){
+          context.resetTerminatedContextLink();
+          context.addTerminatedContextLink(DDSpanLink.from(context, SpanAttributes.builder()
+              .put("reason", "propagation_behavior_extract")
+              .put("context_headers", context.getPropagationStyle().toString())
+              .build()));
+        }
         log.debug("Extract complete context {}", context);
         return context;
       } else if (partialContext != null) {

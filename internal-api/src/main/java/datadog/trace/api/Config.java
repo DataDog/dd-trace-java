@@ -189,6 +189,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final String tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
@@ -924,6 +925,11 @@ public class Config {
 
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+
+    tracePropagationBehaviorExtract =
+        configProvider.getString(
+            TRACE_PROPAGATION_BEHAVIOR_EXTRACT, DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT);
+
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -995,8 +1001,13 @@ public class Config {
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
       // Now we can check if we should pick the default injection/extraction
-      tracePropagationStylesToExtract =
-          extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+
+      if (extract.isEmpty()){
+        extract = DEFAULT_TRACE_PROPAGATION_STYLE;
+      }
+
+      tracePropagationStylesToExtract = tracePropagationBehaviorExtract.equals("ignore") ? new HashSet<>() : extract;
+
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
@@ -2258,6 +2269,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public String getTracePropagationBehaviorExtract() {
+    return tracePropagationBehaviorExtract;
   }
 
   public boolean isTracePropagationExtractFirst() {
@@ -4441,6 +4456,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationBehaviorExtract="
+        + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
         + ", clockSyncPeriod="

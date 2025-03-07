@@ -91,6 +91,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final String DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT = "continue";
   static final boolean DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST = false;
 
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;

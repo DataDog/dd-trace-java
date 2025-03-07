@@ -89,6 +89,10 @@ public class TagContext implements AgentSpanContext.Extracted {
     this.terminatedContextLinks.add(link);
   }
 
+  public void resetTerminatedContextLink() {
+    this.terminatedContextLinks = null;
+  }
+
   @Override
   public String getForwarded() {
     return httpHeaders.forwarded;
