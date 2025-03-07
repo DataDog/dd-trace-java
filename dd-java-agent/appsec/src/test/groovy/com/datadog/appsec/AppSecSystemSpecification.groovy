@@ -1,6 +1,5 @@
 package com.datadog.appsec
 
-import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
@@ -8,17 +7,18 @@ import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
+import datadog.remoteconfig.state.ConfigKey
+import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import okhttp3.OkHttpClient
@@ -53,7 +53,26 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
-    thrown AbortStartupException
+    def exception = thrown(AbortStartupException)
+    exception.cause.toString().contains('/file/that/does/not/exist')
+  }
+
+  void 'system should throw AbortStartupException when config file is not valid JSON'() {
+    given: 'a temporary file with invalid JSON content'
+    Path path = Files.createTempFile('dd-trace-', '.json')
+    path.toFile() << '{'  // Invalid JSON - missing closing brace
+    injectSysConfig('dd.appsec.rules', path as String)
+    rebuildConfig()
+
+    when: 'starting the AppSec system'
+    AppSecSystem.start(subService, sharedCommunicationObjects())
+
+    then: 'an AbortStartupException should be thrown'
+    def exception = thrown(AbortStartupException)
+    exception.cause instanceof IOException
+
+    cleanup: 'delete the temporary file'
+    Files.deleteIfExists(path)
   }
 
   void 'honors appsec.ipheader'() {
@@ -102,7 +121,7 @@ class AppSecSystemSpecification extends DDSpecification {
   }
 
   void 'updating configuration replaces the EventProducer'() {
-    ConfigurationChangesTypedListener<AppSecConfig> savedAsmListener
+    ProductListener savedAsmListener
     ConfigurationEndListener savedConfEndListener
 
     when:
@@ -110,40 +129,45 @@ class AppSecSystemSpecification extends DDSpecification {
     EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur
 
     then:
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      savedAsmListener = it[2]
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      savedAsmListener = it[1]
     }
     1 * poller.addConfigurationEndListener(_) >> {
       savedConfEndListener = it[0]
     }
 
     when:
-    savedAsmListener.accept('ignored config key',
-      AppSecConfig.valueOf([version: '2.1', rules: [
-          [
-            id: 'foo',
-            name: 'foo',
-            conditions: [
-              [
-                operator: 'match_regex',
-                parameters: [
-                  inputs: [
-                    [
-                      address: 'my.addr',
-                      key_path: ['kp'],
-                    ]
-                  ],
-                  regex: 'foo',
-                ]
-              ]
-            ],
-            tags: [
-              type: 't',
-              'category': 'c',
-            ],
-            action: 'record',
-          ]
-        ]]), null)
+    def config = '''
+   {
+     "version": "2.1",
+     "rules": [
+       {
+         "id": "foo",
+         "name": "foo",
+         "conditions": [
+           {
+             "operator": "match_regex",
+             "parameters": {
+               "inputs": [
+                 {
+                   "address": "my.addr",
+                   "key_path": ["kp"]
+                 }
+               ],
+               "regex": "foo"
+             }
+           }
+         ],
+         "tags": {
+           "type": "t",
+           "category": "c"
+         },
+         "action": "record"
+       }
+     ]
+   }
+   '''
+    savedAsmListener.accept('ignored config key' as ConfigKey, config.getBytes(), null)
     savedConfEndListener.onConfigurationEnd()
 
     then:
@@ -151,8 +175,7 @@ class AppSecSystemSpecification extends DDSpecification {
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
-    def sco = new SharedCommunicationObjects(
-      ) {
+    def sco = new SharedCommunicationObjects() {
         @Override
         ConfigurationPoller configurationPoller(Config config) {
           poller
