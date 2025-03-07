@@ -16,7 +16,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public static WafMetricCollector INSTANCE = new WafMetricCollector();
   private static final int ABSTRACT_POWERWAF_EXCEPTION_NUMBER =
-      3; // only 3 error codes are possible for now in AbstractPowerwafException
+      3; // only 3 error codes are possible for now in AbstractWafException
 
   public static WafMetricCollector get() {
     return WafMetricCollector.INSTANCE;

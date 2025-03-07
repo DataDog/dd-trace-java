@@ -6,11 +6,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
-import io.sqreen.powerwaf.exception.AbstractPowerwafException;
+import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafMetrics;
+import com.datadog.ddwaf.exception.AbstractWafException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -37,21 +37,21 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
-public class PowerwafBenchmark {
+public class WafBenchmark {
 
   static {
     BenchmarkUtil.disableLogging();
-    BenchmarkUtil.initializePowerwaf();
+    BenchmarkUtil.initializeWaf();
   }
 
-  PowerwafContext ctx;
+  WafHandle ctx;
   Map<String, Object> wafData = new HashMap<>();
-  Powerwaf.Limits limits = new Powerwaf.Limits(50, 500, 1000, 5000000, 5000000);
+  Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
-    PowerwafMetrics metricsCollector = ctx.createMetrics();
-    Additive add = ctx.openAdditive();
+    WafMetrics metricsCollector = ctx.createMetrics();
+    WafContext add = ctx.openWafContext();
     try {
       add.run(wafData, limits, metricsCollector);
     } finally {
@@ -61,7 +61,7 @@ public class PowerwafBenchmark {
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    Additive add = ctx.openAdditive();
+    WafContext add = ctx.openWafContext();
     try {
       add.run(wafData, limits, null);
     } finally {
@@ -70,12 +70,12 @@ public class PowerwafBenchmark {
   }
 
   @Setup(Level.Trial)
-  public void setUp() throws AbstractPowerwafException, IOException {
+  public void setUp() throws AbstractWafException, IOException {
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig waf = cfg.get("waf");
-    ctx = Powerwaf.createContext("waf", waf.getRawConfig());
+    ctx = Waf.createContext("waf", waf.getRawConfig());
 
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
