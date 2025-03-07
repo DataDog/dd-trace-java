@@ -25,14 +25,6 @@ test {
   useJUnitPlatform()
 }
 
-jar {
-  manifest {
-    attributes(
-      'Main-Class': 'datadog.smoketest.concurrent.ConcurrentApp'
-      )
-  }
-}
-
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 

@@ -11,7 +11,7 @@ public class ConcurrentApp {
     FibonacciCalculator calc;
     for (String arg : args) {
       if (arg.equalsIgnoreCase("executorService")) {
-        calc = new demoExecutorService();
+        calc = new DemoExecutorService();
         calc.computeFibonacci(10);
       } else if (arg.equalsIgnoreCase("forkJoin")) {
         calc = new DemoForkJoin();
