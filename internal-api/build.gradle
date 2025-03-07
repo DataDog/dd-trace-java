@@ -189,8 +189,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
-  // BaggageContext class tested in BaggagePropagatorTest in dd-trace-core
-  'datadog.trace.bootstrap.instrumentation.api.BaggageContext',
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
