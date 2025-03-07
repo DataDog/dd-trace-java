@@ -31,10 +31,17 @@ class DemoMixedConcurrencyTest extends AbstractSmokeTest {
   }
 
   def 'receive one expected trace for ExecutorService and ForkJoin'() {
-    expect:
-    waitForSpan(new PollingConditions(timeout: TIMEOUT_SECS), checkSpanName())
+    given:
+    def poll = new PollingConditions(timeout: TIMEOUT_SECS)
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    waitForSpan(poll, checkSpanName())
     traceCount.get() == 1
 
+    and:
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0
   }
