@@ -9,9 +9,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class DemoExecutorService implements FibonacciCalculator {
-  private static ExecutorService executorService;
+  private ExecutorService executorService;
 
-  public demoExecutorService() {
+  public DemoExecutorService() {
     executorService = Executors.newFixedThreadPool(10);
   }
 
@@ -59,7 +59,7 @@ public class DemoExecutorService implements FibonacciCalculator {
   }
 
   public static void main(String[] args) throws ExecutionException, InterruptedException {
-    demoExecutorService demoService = new demoExecutorService();
+    DemoExecutorService demoService = new DemoExecutorService();
     demoService.computeFibonacci(10);
     demoService.shutdown();
   }

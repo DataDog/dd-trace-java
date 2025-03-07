@@ -14,7 +14,7 @@ public class ConcurrentApp {
         calc = new demoExecutorService();
         calc.computeFibonacci(10);
       } else if (arg.equalsIgnoreCase("forkJoin")) {
-        calc = new demoForkJoin();
+        calc = new DemoForkJoin();
         calc.computeFibonacci(10);
       }
     }

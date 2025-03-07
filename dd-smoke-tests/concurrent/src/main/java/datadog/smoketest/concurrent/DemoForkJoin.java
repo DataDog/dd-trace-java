@@ -5,9 +5,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 
 public class DemoForkJoin implements FibonacciCalculator {
-  private static ForkJoinPool forkJoinPool;
+  private ForkJoinPool forkJoinPool;
 
-  public demoForkJoin() {
+  public DemoForkJoin() {
     forkJoinPool = new ForkJoinPool();
   }
 
@@ -37,13 +37,13 @@ public class DemoForkJoin implements FibonacciCalculator {
     }
   }
 
-  public static void shutdown() {
+  public void shutdown() {
     forkJoinPool.shutdown();
   }
 
   public static void main(String[] args) {
-    demoForkJoin demoService = new demoForkJoin();
+    DemoForkJoin demoService = new DemoForkJoin();
     demoService.computeFibonacci(10);
-    demoForkJoin.shutdown();
+    demoService.shutdown();
   }
 }
