@@ -29,18 +29,22 @@ class DemoMixedConcurrencyTest extends AbstractSmokeTest {
   private static Function<DecodedTrace, Boolean> checkTrace() {
     return { trace ->
       def parentSpanCount = 0
-      def parentSpanId = -1
+      //      def parentSpanId = -1
       def childSpanCount = 0
+      def otherSpanCount = 0
 
-      trace.spans.findAll {span -> (span.getName() == "ConcurrentApp.spanWrapper" || span.getParentId() == parentSpanId) }.each { innerSpan ->
-        if (innerSpan.getName() == "ConcurrentApp.spanWrapper") {
+      trace.spans.each { span ->
+        if (span.getName() == "ConcurrentApp.spanWrapper") {
           parentSpanCount++
-          parentSpanId = innerSpan.getParentId()
-        } else {
-          childSpanCount++
+          //          parentSpanId = span.getSpanId()
         }
+        //        else if (parentSpanId != -1 && span.getParentId() == parentSpanId) {
+        //          childSpanCount++
+        //        } else {
+        //          otherSpanCount++
+        //        }
       }
-      parentSpanCount == 1 && childSpanCount == 0
+      parentSpanCount == 1 && childSpanCount == 0 && otherSpanCount == 0
     }
   }
 
