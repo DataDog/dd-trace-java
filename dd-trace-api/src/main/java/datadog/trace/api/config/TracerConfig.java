@@ -34,6 +34,9 @@ public final class TracerConfig {
   @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
   public static final String SERVICE_MAPPING = "service.mapping";
 
+  public static final String TRACE_EXPERIMENTAL_FEATURES_ENABLED =
+      "trace.experimental.features.enabled";
+
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
 

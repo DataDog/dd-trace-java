@@ -179,6 +179,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.env=${ENV}",
       "-Ddd.version=${VERSION}",
+      "-Ddd.logs.injection=true",
       "-Ddd.profiling.enabled=true",
       "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
       "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
