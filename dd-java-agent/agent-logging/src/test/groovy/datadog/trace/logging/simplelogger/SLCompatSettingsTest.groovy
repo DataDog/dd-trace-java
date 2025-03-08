@@ -71,6 +71,7 @@ class SLCompatSettingsTest extends Specification {
     settings.dateTimeFormatter.class == SLCompatSettings.DiffDTFormatter
     settings.showDateTime == false
     settings.defaultLogLevel == LogLevel.INFO
+    settings.jsonEnabled == false
   }
 
   def "test file properties"() {
@@ -91,6 +92,7 @@ class SLCompatSettingsTest extends Specification {
     formatted.toString() == new SimpleDateFormat("'['yy-dd-MM HH:mm:ss:SSS Z']'").format(new Date(4711 << 20))
     settings.showDateTime == true
     settings.defaultLogLevel == LogLevel.DEBUG
+    settings.jsonEnabled == true
   }
 
   def "test log file creation"() {
