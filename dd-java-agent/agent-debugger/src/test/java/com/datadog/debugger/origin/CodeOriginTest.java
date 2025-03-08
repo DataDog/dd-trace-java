@@ -1,6 +1,5 @@
 package com.datadog.debugger.origin;
 
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
@@ -14,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;

@@ -1,7 +1,7 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.probe.LogProbe;
 import java.lang.instrument.IllegalClassFormatException;
