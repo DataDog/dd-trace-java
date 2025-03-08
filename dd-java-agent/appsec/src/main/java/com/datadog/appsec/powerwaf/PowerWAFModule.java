@@ -56,6 +56,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -177,12 +178,14 @@ public class PowerWAFModule implements AppSecModule {
     ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
       if (!initialConfig.isPresent()) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("No initial config for WAF");
       }
 
       try {
         applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
+        WafMetricCollector.get().wafConfigError();
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
     }
@@ -213,6 +216,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     boolean success = false;
+    List<String> errors = new ArrayList<>();
     try {
       // ddwaf_init/update
       success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
@@ -223,6 +227,10 @@ public class PowerWAFModule implements AppSecModule {
         WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+      }
+      if (!errors.isEmpty()) {
+        log.error("Errors during WAF initialization: {}", errors);
+        WafMetricCollector.get().addWafConfigError(errors.size());
       }
     }
   }
@@ -275,6 +283,12 @@ public class PowerWAFModule implements AppSecModule {
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
+      if (initReport != null
+          && initReport.getErrors() != null
+          && !initReport.getErrors().isEmpty()) {
+
+        WafMetricCollector.get().addWafConfigError(countErrors(initReport));
+      }
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
@@ -300,6 +314,24 @@ public class PowerWAFModule implements AppSecModule {
 
     reconf.reloadSubscriptions();
     return true;
+  }
+
+  private int countErrors(RuleSetInfo initReport) {
+    int count = countErrorsForSection(initReport.rules);
+    count += countErrorsForSection(initReport.customRules);
+    count += countErrorsForSection(initReport.rulesData);
+    count += countErrorsForSection(initReport.rulesOverride);
+    count += countErrorsForSection(initReport.exclusions);
+    count += countErrorsForSection(initReport.exclusionData);
+
+    return count;
+  }
+
+  private int countErrorsForSection(RuleSetInfo.SectionInfo section) {
+    if (section != null && section.getErrors() != null) {
+      return section.getErrors().size();
+    }
+    return 0;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
