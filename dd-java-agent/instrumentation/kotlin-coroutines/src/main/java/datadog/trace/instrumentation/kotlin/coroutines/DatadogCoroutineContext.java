@@ -2,10 +2,9 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.Job;
@@ -13,55 +12,53 @@ import kotlinx.coroutines.ThreadContextElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeState> {
+public class DatadogCoroutineContext implements ThreadContextElement<Context> {
 
-  public static final Key<ScopeStateCoroutineContext> KEY = new ContextElementKey();
+  public static final Key<DatadogCoroutineContext> KEY = new ContextElementKey();
 
-  private final ContextStore<Job, ScopeStateCoroutineContextItem> contextItemPerCoroutine;
+  private final ContextStore<Job, DatadogCoroutineContextItem> contextItemPerCoroutine;
 
-  public ScopeStateCoroutineContext(
-      final ContextStore<Job, ScopeStateCoroutineContextItem> contextItemPerCoroutine) {
+  public DatadogCoroutineContext(
+      final ContextStore<Job, DatadogCoroutineContextItem> contextItemPerCoroutine) {
     this.contextItemPerCoroutine = contextItemPerCoroutine;
   }
 
   /** Get a context item instance for the coroutine and try to initialize it */
   public void maybeInitialize(final Job coroutine) {
     contextItemPerCoroutine
-        .putIfAbsent(coroutine, ScopeStateCoroutineContextItem::new)
+        .putIfAbsent(coroutine, DatadogCoroutineContextItem::new)
         .maybeInitialize();
   }
 
   @Override
   public void restoreThreadContext(
-      @NotNull final CoroutineContext coroutineContext, final ScopeState oldState) {
-    oldState.activate();
+      @NotNull final CoroutineContext coroutineContext, final Context oldDatadogContext) {
+    oldDatadogContext.swap();
   }
 
   @Override
-  public ScopeState updateThreadContext(@NotNull final CoroutineContext coroutineContext) {
-    final ScopeState oldScopeState = AgentTracer.get().newScopeState();
-    oldScopeState.fetchFromActive();
+  public Context updateThreadContext(@NotNull final CoroutineContext coroutineContext) {
+    final Context oldDatadogContext = Context.current();
 
     final Job coroutine = CoroutineContextHelper.getJob(coroutineContext);
-    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
+    final DatadogCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
     if (contextItem != null) {
       contextItem.activate();
     }
 
-    return oldScopeState;
+    return oldDatadogContext;
   }
 
   /** If there's a context item for the coroutine then try to close it */
   public void maybeCloseScopeAndCancelContinuation(final Job coroutine) {
-    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
+    final DatadogCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
     if (contextItem != null) {
-      final ScopeState currentThreadScopeState = AgentTracer.get().newScopeState();
-      currentThreadScopeState.fetchFromActive();
+      final Context currentDatadogContext = Context.current();
 
       contextItem.maybeCloseScopeAndCancelContinuation();
       contextItemPerCoroutine.remove(coroutine);
 
-      currentThreadScopeState.activate();
+      currentDatadogContext.swap();
     }
   }
 
@@ -95,20 +92,20 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     return KEY;
   }
 
-  static class ContextElementKey implements Key<ScopeStateCoroutineContext> {}
+  static class ContextElementKey implements Key<DatadogCoroutineContext> {}
 
-  public static class ScopeStateCoroutineContextItem {
-    private final ScopeState coroutineScopeState;
+  public static class DatadogCoroutineContextItem {
+    private final Context datadogContext;
     @Nullable private AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
     private boolean isInitialized = false;
 
-    public ScopeStateCoroutineContextItem() {
-      coroutineScopeState = AgentTracer.get().newScopeState();
+    public DatadogCoroutineContextItem() {
+      datadogContext = Context.root();
     }
 
     public void activate() {
-      coroutineScopeState.activate();
+      datadogContext.swap();
 
       if (continuation != null && continuationScope == null) {
         continuationScope = continuation.activate();
@@ -131,7 +128,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
      * scope and cancels the continuation.
      */
     public void maybeCloseScopeAndCancelContinuation() {
-      coroutineScopeState.activate();
+      datadogContext.swap();
 
       if (continuationScope != null) {
         continuationScope.close();
