@@ -77,7 +77,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     @Override
     public JacocoCoverageCalculator moduleCoverage(
         long moduleId,
-        BuildModuleLayout moduleLayout,
+        @Nullable BuildModuleLayout moduleLayout,
         ExecutionSettings executionSettings,
         JacocoCoverageCalculator sessionCoverage) {
       return new JacocoCoverageCalculator(
@@ -130,7 +130,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       ExecutionSettings executionSettings,
       String repoRoot,
       long moduleId,
-      BuildModuleLayout moduleLayout,
+      @Nullable BuildModuleLayout moduleLayout,
       ModuleSignalRouter moduleSignalRouter,
       @Nonnull JacocoCoverageCalculator parent) {
     this.parent = parent;
@@ -149,7 +149,11 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         moduleId, SignalType.MODULE_COVERAGE_DATA_JACOCO, this::addCoverageData);
   }
 
-  private void addModuleLayout(BuildModuleLayout moduleLayout) {
+  private void addModuleLayout(@Nullable BuildModuleLayout moduleLayout) {
+    if (moduleLayout == null) {
+      LOGGER.debug("Received null module layout, will not be able to calculate coverage");
+      return;
+    }
     synchronized (coverageDataLock) {
       for (SourceSet sourceSet : moduleLayout.getSourceSets()) {
         if (sourceSet.getType() == SourceSet.Type.TEST) {
