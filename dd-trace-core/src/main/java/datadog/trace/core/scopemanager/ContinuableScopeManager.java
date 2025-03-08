@@ -16,8 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
-import datadog.trace.bootstrap.instrumentation.api.ScopeStateAware;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -37,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public final class ContinuableScopeManager implements ScopeStateAware {
+public final class ContinuableScopeManager {
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
   static final long iterationKeepAlive =
@@ -278,26 +276,6 @@ public final class ContinuableScopeManager implements ScopeStateAware {
 
   ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
-  }
-
-  @Override
-  public ScopeState newScopeState() {
-    return new ContinuableScopeState();
-  }
-
-  private class ContinuableScopeState implements ScopeState {
-
-    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
-
-    @Override
-    public void activate() {
-      tlsScopeStack.set(localScopeStack);
-    }
-
-    @Override
-    public void fetchFromActive() {
-      localScopeStack = tlsScopeStack.get();
-    }
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
