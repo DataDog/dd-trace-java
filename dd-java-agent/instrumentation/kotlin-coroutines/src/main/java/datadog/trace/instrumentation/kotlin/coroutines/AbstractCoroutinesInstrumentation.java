@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.closeScopeStateContext;
-import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.initializeScopeStateContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.closeDatadogContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.initializeDatadogContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isOverriddenFrom;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -42,9 +42,9 @@ public abstract class AbstractCoroutinesInstrumentation extends InstrumenterModu
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ScopeStateCoroutineContext",
-      packageName + ".ScopeStateCoroutineContext$ContextElementKey",
-      packageName + ".ScopeStateCoroutineContext$ScopeStateCoroutineContextItem",
+      packageName + ".DatadogCoroutineContext",
+      packageName + ".DatadogCoroutineContext$ContextElementKey",
+      packageName + ".DatadogCoroutineContext$DatadogCoroutineContextItem",
       packageName + ".CoroutineContextHelper",
     };
   }
@@ -84,36 +84,35 @@ public abstract class AbstractCoroutinesInstrumentation extends InstrumenterModu
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "kotlinx.coroutines.Job",
-        packageName + ".ScopeStateCoroutineContext$ScopeStateCoroutineContextItem");
+        packageName + ".DatadogCoroutineContext$DatadogCoroutineContextItem");
   }
 
   /**
-   * If/when coroutine is started lazily, initializes ScopeStateCoroutineContext element on
-   * coroutine start
+   * If/when coroutine is started lazily, initializes DatadogCoroutineContext element on coroutine
+   * start
    *
-   * @see ScopeStateCoroutineContext
+   * @see DatadogCoroutineContext
    * @see AbstractCoroutine#onStart()
    */
   public static class AbstractCoroutineOnStartAdvice {
     @Advice.OnMethodEnter
     public static void onStartInvocation(@Advice.This final AbstractCoroutine<?> coroutine) {
       // try to inherit parent span from the coroutine start call site
-      initializeScopeStateContext(coroutine);
+      initializeDatadogContext(coroutine);
     }
   }
 
   /**
-   * Guarantees a ScopeStateCoroutineContext element is always closed when coroutine transitions
-   * into a terminal state.
+   * Guarantees a DatadogCoroutineContext element is always closed when coroutine transitions into a
+   * terminal state.
    *
-   * @see ScopeStateCoroutineContext
+   * @see DatadogCoroutineContext
    * @see AbstractCoroutine#onCompletionInternal(Object)
    */
   public static class JobSupportAfterCompletionInternalAdvice {
     @Advice.OnMethodEnter
     public static void onCompletionInternal(@Advice.This final AbstractCoroutine<?> coroutine) {
-      // close the scope if needed
-      closeScopeStateContext(coroutine);
+      closeDatadogContext(coroutine);
     }
   }
 }
