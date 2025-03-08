@@ -8,6 +8,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -36,6 +37,9 @@ public class TelemetryService {
   private final BlockingQueue<ProductChange> productChanges = new LinkedBlockingQueue<>();
 
   private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
+
+  private final BlockingQueue<Endpoint> endpoints = new LinkedBlockingQueue<>();
+
   private final EventSource.Queued eventSource =
       new EventSource.Queued(
           configurations,
@@ -44,7 +48,8 @@ public class TelemetryService {
           metrics,
           distributionSeries,
           logMessages,
-          productChanges);
+          productChanges,
+          endpoints);
 
   private final long messageBytesSoftLimit;
   private final boolean debug;
@@ -122,6 +127,10 @@ public class TelemetryService {
 
   public boolean addDistributionSeries(DistributionSeries series) {
     return this.distributionSeries.offer(series);
+  }
+
+  public boolean addEndpoint(final Endpoint endpoint) {
+    return this.endpoints.offer(endpoint);
   }
 
   public void sendAppClosingEvent() {
@@ -210,6 +219,7 @@ public class TelemetryService {
       request.writeDistributions();
       request.writeLogs();
       request.writeChangedProducts();
+      request.writeEndpoints();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
 

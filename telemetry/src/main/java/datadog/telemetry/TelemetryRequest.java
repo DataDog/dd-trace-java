@@ -13,6 +13,7 @@ import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
@@ -223,6 +224,24 @@ public class TelemetryRequest {
       requestBody.endProducts();
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("changed-products", e);
+    }
+  }
+
+  public void writeEndpoints() {
+    if (!isWithinSizeLimits() || !eventSource.hasEndpoint()) {
+      return;
+    }
+    try {
+      log.debug("Writing endpoints");
+      requestBody.beginEndpoints();
+      while (eventSource.hasEndpoint() && isWithinSizeLimits()) {
+        Endpoint event = eventSource.nextEndpoint();
+        requestBody.writeEndpoint(event);
+        eventSink.addEndpointEvent(event);
+      }
+      requestBody.endEndpoints();
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("asm-endpoints", e);
     }
   }
 
