@@ -404,7 +404,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       AppSecSystem.setActive(newState);
       if (AppSecSystem.isActive()) {
         // On remote activation, we need to re-distribute the last known configuration.
-        // This may trigger initializations, including PowerWAF if it was lazy loaded.
+        // This may trigger initializations, including WAF if it was lazy loaded.
         this.currentAppSecConfig.dirtyStatus.markAllDirty();
       }
     }

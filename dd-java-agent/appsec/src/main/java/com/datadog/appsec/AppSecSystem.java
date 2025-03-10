@@ -4,10 +4,10 @@ import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
+import com.datadog.appsec.ddwaf.WAFModule;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
-import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -141,7 +141,7 @@ public class AppSecSystem {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(monitoring));
+    final List<AppSecModule> modules = Collections.singletonList(new WAFModule(monitoring));
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {
