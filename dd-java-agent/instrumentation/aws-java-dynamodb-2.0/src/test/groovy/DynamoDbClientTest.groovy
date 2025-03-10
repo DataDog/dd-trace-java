@@ -1,7 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.core.tagprocessor.SpanPointersProcessor
-import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -23,6 +25,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import spock.lang.Shared
+
 import java.time.Duration
 
 class DynamoDbClientTest extends AgentTestRunner {
@@ -188,6 +191,15 @@ class DynamoDbClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "DynamoDb.UpdateItem"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              // First 32 chars of SHA256("dynamodb-one-key-table|id|test-id-1||")
+              .put("ptr.hash", "ca8daaa857b00545ed5186a915cf1ab5")
+              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -205,18 +217,6 @@ class DynamoDbClientTest extends AgentTestRunner {
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
             tag "_dd.span_links", { it != null }
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.DYNAMODB_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            // First 32 chars of SHA256("dynamodb-one-key-table|id|test-id-1||")
-            assert link["attributes"]["ptr.hash"] == "ca8daaa857b00545ed5186a915cf1ab5"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -293,6 +293,15 @@ class DynamoDbClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "DynamoDb.UpdateItem"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|customer-123|sortKey|order-456")
+              .put("ptr.hash", "90922c7899a82ea34406fdcdfb95161e")
+              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -310,18 +319,6 @@ class DynamoDbClientTest extends AgentTestRunner {
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
             tag "_dd.span_links", { it != null }
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.DYNAMODB_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|customer-123|sortKey|order-456")
-            assert link["attributes"]["ptr.hash"] == "90922c7899a82ea34406fdcdfb95161e"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -384,6 +381,15 @@ class DynamoDbClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "DynamoDb.DeleteItem"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              // First 32 chars of SHA256("dynamodb-one-key-table|id|delete-test-id||")
+              .put("ptr.hash", "65031164be5e929fddd274a02cba3f9f")
+              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -401,18 +407,6 @@ class DynamoDbClientTest extends AgentTestRunner {
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
             tag "_dd.span_links", { it != null }
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.DYNAMODB_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            // First 32 chars of SHA256("dynamodb-one-key-table|id|delete-test-id||")
-            assert link["attributes"]["ptr.hash"] == "65031164be5e929fddd274a02cba3f9f"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -486,6 +480,15 @@ class DynamoDbClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "DynamoDb.DeleteItem"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|user-789|sortKey|profile")
+              .put("ptr.hash", "e5ce1148208c6f88041c73ceb9bbbf3a")
+              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -503,18 +506,6 @@ class DynamoDbClientTest extends AgentTestRunner {
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
             tag "_dd.span_links", { it != null }
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.DYNAMODB_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|user-789|sortKey|profile")
-            assert link["attributes"]["ptr.hash"] == "e5ce1148208c6f88041c73ceb9bbbf3a"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
