@@ -6,11 +6,11 @@ import datadog.trace.api.Stateful
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
+import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
@@ -66,91 +66,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def cleanup() {
     tracer.close()
-  }
-
-  def "scope state should be able to fetch and activate state when there is no active span"() {
-    when:
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    writer == [[scope.span()]]
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-  }
-
-  def "scope state should be able to fetch and activate state when there is an active span"() {
-    when:
-    def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    scopeManager.active() == null
-    writer == [[scope.span()]]
   }
 
   def "non-ddspan activation results in a continuable scope"() {

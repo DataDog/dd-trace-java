@@ -60,7 +60,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -290,11 +289,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return profilingContextIntegration.onRootSpanStarted(root);
     }
     return null;
-  }
-
-  @Override
-  public ScopeState newScopeState() {
-    return scopeManager.newScopeState();
   }
 
   public static class CoreTracerBuilder {
