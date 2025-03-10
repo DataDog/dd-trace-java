@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.getScopeStateContext;
-import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.initializeScopeStateContextIfActive;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.getDatadogContext;
+import static datadog.trace.instrumentation.kotlin.coroutines.CoroutineContextHelper.initializeDatadogContextIfActive;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.instrumentation.kotlin.coroutines.ScopeStateCoroutineContext.ScopeStateCoroutineContextItem;
+import datadog.trace.instrumentation.kotlin.coroutines.DatadogCoroutineContext.DatadogCoroutineContextItem;
 import kotlin.coroutines.CoroutineContext;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.Job;
@@ -33,21 +33,21 @@ public class KotlinCoroutines15Instrumentation extends AbstractCoroutinesInstrum
   }
 
   /**
-   * Guarantees every coroutine created has an instance of ScopeStateCoroutineContext
+   * Guarantees every coroutine created has an instance of DatadogCoroutineContext
    *
-   * @see ScopeStateCoroutineContext
+   * @see DatadogCoroutineContext
    * @see AbstractCoroutine#AbstractCoroutine(CoroutineContext, boolean, boolean)
    */
   public static class AbstractCoroutineConstructorAdvice {
     @Advice.OnMethodEnter
     public static void constructorInvocation(
         @Advice.Argument(value = 0, readOnly = false) CoroutineContext parentContext) {
-      final ScopeStateCoroutineContext scopeStackContext = getScopeStateContext(parentContext);
-      if (scopeStackContext == null) {
+      final DatadogCoroutineContext datadogContext = getDatadogContext(parentContext);
+      if (datadogContext == null) {
         parentContext =
             parentContext.plus(
-                new ScopeStateCoroutineContext(
-                    InstrumentationContext.get(Job.class, ScopeStateCoroutineContextItem.class)));
+                new DatadogCoroutineContext(
+                    InstrumentationContext.get(Job.class, DatadogCoroutineContextItem.class)));
       }
     }
 
@@ -57,7 +57,7 @@ public class KotlinCoroutines15Instrumentation extends AbstractCoroutinesInstrum
         @Advice.Argument(value = 2) final boolean active) {
       // if this is not a lazy coroutine, inherit parent span from
       // the coroutine constructor call site
-      initializeScopeStateContextIfActive(coroutine, active);
+      initializeDatadogContextIfActive(coroutine, active);
     }
   }
 }
