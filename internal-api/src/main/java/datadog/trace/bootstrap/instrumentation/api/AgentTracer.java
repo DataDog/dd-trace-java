@@ -189,12 +189,6 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
-  /** @deprecated To be removed, do not use. */
-  @Deprecated
-  public static AgentScope activeScope() {
-    return get().activeScope();
-  }
-
   /**
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
@@ -368,8 +362,6 @@ public class AgentTracer {
 
     AgentSpan activeSpan();
 
-    AgentScope activeScope();
-
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
       return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
@@ -537,11 +529,6 @@ public class AgentTracer {
     @Override
     public AgentSpan activeSpan() {
       return NoopSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentScope activeScope() {
-      return null;
     }
 
     @Override
