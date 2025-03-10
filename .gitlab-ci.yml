@@ -293,6 +293,9 @@ muzzle-dep-report:
   needs: [ build ]
   stage: tests
   variables:
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    GRADLE_WORKERS: 4
     BUILD_CACHE_TYPE: lib
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
