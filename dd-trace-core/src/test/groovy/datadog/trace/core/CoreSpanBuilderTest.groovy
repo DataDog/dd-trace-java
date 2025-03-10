@@ -354,6 +354,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     expect:
     span.traceId != extractedContext.traceId
     span.parentId != extractedContext.spanId
+    span.samplingPriority() == PrioritySampling.UNSET
 
     def spanLinks = span.links
 

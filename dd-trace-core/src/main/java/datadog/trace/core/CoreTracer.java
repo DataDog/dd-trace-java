@@ -1550,7 +1550,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
             traceId = idGenerationStrategy.generateTraceId();
             parentSpanId = 0;
-            samplingPriority = parentContext.getSamplingPriority();
+            samplingPriority = PrioritySampling.UNSET;
             endToEndStartTime = 0;
             propagationTags = propagationTagsFactory.empty();
           } else {
