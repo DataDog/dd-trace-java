@@ -307,7 +307,7 @@ muzzle-dep-report:
       fi
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
