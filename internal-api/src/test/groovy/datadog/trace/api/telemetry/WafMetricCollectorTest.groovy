@@ -226,6 +226,40 @@ class WafMetricCollectorTest extends DDSpecification {
     ].toSet()
   }
 
+  def "config error"(){
+    when:
+    WafMetricCollector.get().wafConfigError()
+    WafMetricCollector.get().prepareMetrics()
+
+    then:
+    def metrics = WafMetricCollector.get().drain()
+
+
+    def wafConfigError = (WafMetricCollector.WafConfigError)metrics[0]
+    wafConfigError.type == 'count'
+    wafConfigError.value == 1
+    wafConfigError.namespace == 'appsec'
+    wafConfigError.metricName == 'waf.config_errors'
+    wafConfigError.tags.toSet() == ['event_rules_version:rules.3', 'waf_version:waf_ver1'].toSet()
+  }
+
+  def "config error"(){
+    when:
+    WafMetricCollector.get().wafConfigError()
+    WafMetricCollector.get().prepareMetrics()
+
+    then:
+    def metrics = WafMetricCollector.get().drain()
+
+
+    def wafConfigError = (WafMetricCollector.WafConfigError)metrics[0]
+    wafConfigError.type == 'count'
+    wafConfigError.value == 1
+    wafConfigError.namespace == 'appsec'
+    wafConfigError.metricName == 'waf.config_errors'
+    wafConfigError.tags.toSet() == ['event_rules_version:rules.3', 'waf_version:waf_ver1'].toSet()
+  }
+
   def "overflowing WafMetricCollector does not crash"() {
     given:
     final limit = 1024
