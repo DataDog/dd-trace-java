@@ -954,11 +954,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope activeScope() {
-    return scopeManager.active();
-  }
-
-  @Override
   public void checkpointActiveForRollback() {
     this.scopeManager.checkpointActiveForRollback();
   }
