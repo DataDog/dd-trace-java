@@ -1,0 +1,28 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir("latestDepTest", "test")
+
+compileMain_java11Java.configure {
+  setJavaVersion(it, 11)
+}
+[compileTestGroovy, compileLatestDepTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(11)
+}
+
+dependencies {
+  main_java11CompileOnly group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
+
+  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
+  latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
+
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
+  configurations.all {
+    it.resolutionStrategy {
+      force libs.slf4j
+    }
+  }
+}

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -22,7 +23,7 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public WebSocketSessionInstrumentation() {
-    super("jetty", "jetty-websocket");
+    super("jetty", "jetty-websocket", "websocket");
   }
 
   @Override
@@ -45,6 +46,11 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.eclipse.jetty.websocket.jsr356.JsrSession");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isWebsocketTracingEnabled();
   }
 
   @Override
