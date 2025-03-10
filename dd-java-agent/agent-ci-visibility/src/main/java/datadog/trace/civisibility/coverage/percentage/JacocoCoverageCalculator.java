@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.BitSet;
@@ -42,9 +43,11 @@ import org.jacoco.core.data.ExecutionDataStore;
 import org.jacoco.core.data.SessionInfoStore;
 import org.jacoco.report.FileMultiReportOutput;
 import org.jacoco.report.IReportVisitor;
+import org.jacoco.report.ISourceFileLocator;
 import org.jacoco.report.InputStreamSourceFileLocator;
 import org.jacoco.report.html.HTMLFormatter;
 import org.jacoco.report.xml.XMLFormatter;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,13 +58,13 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       implements CoverageCalculator.Factory<JacocoCoverageCalculator> {
     private final Config config;
     private final RepoIndexProvider repoIndexProvider;
-    private final String repoRoot;
+    @Nullable private final String repoRoot;
     private final ModuleSignalRouter moduleSignalRouter;
 
     public Factory(
         Config config,
         RepoIndexProvider repoIndexProvider,
-        String repoRoot,
+        @Nullable String repoRoot,
         ModuleSignalRouter moduleSignalRouter) {
       this.config = config;
       this.repoIndexProvider = repoIndexProvider;
@@ -100,7 +103,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
   private final RepoIndexProvider repoIndexProvider;
 
-  private final String repoRoot;
+  @Nullable private final String repoRoot;
 
   private final long eventId;
 
@@ -116,7 +119,10 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   private final Collection<File> outputClassesDirs = new HashSet<>();
 
   private JacocoCoverageCalculator(
-      Config config, RepoIndexProvider repoIndexProvider, String repoRoot, long sessionId) {
+      Config config,
+      RepoIndexProvider repoIndexProvider,
+      @Nullable String repoRoot,
+      long sessionId) {
     this.parent = null;
     this.config = config;
     this.repoIndexProvider = repoIndexProvider;
@@ -128,7 +134,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       Config config,
       RepoIndexProvider repoIndexProvider,
       ExecutionSettings executionSettings,
-      String repoRoot,
+      @Nullable String repoRoot,
       long moduleId,
       @Nullable BuildModuleLayout moduleLayout,
       ModuleSignalRouter moduleSignalRouter,
@@ -297,8 +303,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       final IReportVisitor htmlVisitor =
           htmlFormatter.createVisitor(new FileMultiReportOutput(reportFolder));
       htmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
-      htmlVisitor.visitBundle(
-          coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
+      htmlVisitor.visitBundle(coverageBundle, createSourceFileLocator());
       htmlVisitor.visitEnd();
 
       File xmlReport = new File(reportFolder, "jacoco.xml");
@@ -306,8 +311,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         XMLFormatter xmlFormatter = new XMLFormatter();
         IReportVisitor xmlVisitor = xmlFormatter.createVisitor(xmlReportStream);
         xmlVisitor.visitInfo(Collections.emptyList(), Collections.emptyList());
-        xmlVisitor.visitBundle(
-            coverageBundle, new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot));
+        xmlVisitor.visitBundle(coverageBundle, createSourceFileLocator());
         xmlVisitor.visitEnd();
       }
     } catch (Exception e) {
@@ -315,11 +319,18 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
   }
 
+  @NotNull
+  private ISourceFileLocator createSourceFileLocator() {
+    return repoRoot != null
+        ? new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot)
+        : NoOpFileLocator.INSTANCE;
+  }
+
   private static final class RepoIndexFileLocator extends InputStreamSourceFileLocator {
     private final RepoIndex repoIndex;
-    private final String repoRoot;
+    @Nonnull private final String repoRoot;
 
-    private RepoIndexFileLocator(RepoIndex repoIndex, String repoRoot) {
+    private RepoIndexFileLocator(RepoIndex repoIndex, @Nonnull String repoRoot) {
       super("utf-8", 4);
       this.repoIndex = repoIndex;
       this.repoRoot = repoRoot;
@@ -340,6 +351,22 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         LOGGER.debug("Could not resolve source for path {}", path, e);
         return null;
       }
+    }
+  }
+
+  private static final class NoOpFileLocator implements ISourceFileLocator {
+    private static final NoOpFileLocator INSTANCE = new NoOpFileLocator();
+
+    private NoOpFileLocator() {}
+
+    @Override
+    public Reader getSourceFile(String s, String s1) {
+      return null;
+    }
+
+    @Override
+    public int getTabWidth() {
+      return 0;
     }
   }
 
