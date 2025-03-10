@@ -17,30 +17,28 @@ public class CoroutineContextHelper {
   }
 
   @Nullable
-  public static ScopeStateCoroutineContext getScopeStateContext(final CoroutineContext context) {
-    return context.get(ScopeStateCoroutineContext.KEY);
+  public static DatadogCoroutineContext getDatadogContext(final CoroutineContext context) {
+    return context.get(DatadogCoroutineContext.KEY);
   }
 
-  public static void initializeScopeStateContextIfActive(
+  public static void initializeDatadogContextIfActive(
       final AbstractCoroutine<?> coroutine, final boolean active) {
     if (active) {
-      initializeScopeStateContext(coroutine);
+      initializeDatadogContext(coroutine);
     }
   }
 
-  public static void initializeScopeStateContext(final AbstractCoroutine<?> coroutine) {
-    final ScopeStateCoroutineContext scopeStackContext =
-        getScopeStateContext(coroutine.getContext());
-    if (scopeStackContext != null) {
-      scopeStackContext.maybeInitialize(coroutine);
+  public static void initializeDatadogContext(final AbstractCoroutine<?> coroutine) {
+    final DatadogCoroutineContext datadogContext = getDatadogContext(coroutine.getContext());
+    if (datadogContext != null) {
+      datadogContext.maybeInitialize(coroutine);
     }
   }
 
-  public static void closeScopeStateContext(final AbstractCoroutine<?> coroutine) {
-    final ScopeStateCoroutineContext scopeStackContext =
-        getScopeStateContext(coroutine.getContext());
-    if (scopeStackContext != null) {
-      scopeStackContext.maybeCloseScopeAndCancelContinuation(coroutine);
+  public static void closeDatadogContext(final AbstractCoroutine<?> coroutine) {
+    final DatadogCoroutineContext datadogContext = getDatadogContext(coroutine.getContext());
+    if (datadogContext != null) {
+      datadogContext.maybeCloseScopeAndCancelContinuation(coroutine);
     }
   }
 }
