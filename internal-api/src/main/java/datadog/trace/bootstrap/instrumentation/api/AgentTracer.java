@@ -292,7 +292,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer, ScopeStateAware {
+      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
 
     /**
      * Create and start a new span.
@@ -634,11 +634,6 @@ public class AgentTracer {
 
     @Override
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
-
-    @Override
-    public ScopeState newScopeState() {
-      return null;
-    }
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
