@@ -230,6 +230,10 @@ public class TelemetryRequest {
     requestBody.writeHeartbeatEvent();
   }
 
+  public void writeAppClosing() {
+    requestBody.writeAppClosingEvent();
+  }
+
   private boolean isWithinSizeLimits() {
     return requestBody.size() < messageBytesSoftLimit;
   }
