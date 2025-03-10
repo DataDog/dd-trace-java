@@ -9,7 +9,7 @@ import javax.servlet.Servlet
 abstract class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   HttpServer server() {
-    new JettyServer(JettyServer.servletHandler(servletClass()))
+    new JettyServer(JettyServer.servletHandler(servletClass()), useWebsocketPojoEndpoint())
   }
 
   protected abstract Class<Servlet> servletClass()
@@ -53,6 +53,9 @@ abstract class Jetty12Test extends HttpServerTest<Server> implements TestingGene
   boolean testSessionId() {
     true
   }
+  protected boolean useWebsocketPojoEndpoint() {
+    false
+  }
 }
 
 class Jetty12SyncTest extends Jetty12Test {
@@ -75,6 +78,10 @@ class Jetty12AsyncTest extends Jetty12Test {
 
   @Override
   boolean testTimeout() {
+    true
+  }
+  @Override
+  protected boolean useWebsocketPojoEndpoint() {
     true
   }
 }

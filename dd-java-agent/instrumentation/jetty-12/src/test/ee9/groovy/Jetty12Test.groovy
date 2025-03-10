@@ -7,7 +7,7 @@ import org.eclipse.jetty.server.Server
 class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNamingConventions.ServerV1 {
   @Override
   HttpServer server() {
-    new JettyServer(JettyServer.servletHandler(TestServlet5))
+    new JettyServer(JettyServer.servletHandler(TestServlet5), useWebsocketPojoEndpoint())
   }
 
   @Override
@@ -48,5 +48,15 @@ class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNa
   @Override
   boolean testExceptionBody() {
     false
+  }
+
+  protected boolean useWebsocketPojoEndpoint() {
+    false
+  }
+}
+
+class Jetty12PojoWebsocketTest extends Jetty12Test {
+  protected boolean useWebsocketPojoEndpoint() {
+    true
   }
 }
