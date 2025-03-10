@@ -60,6 +60,10 @@ muzzle {
   }
 }
 
+ext {
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -113,13 +117,6 @@ addTestSuiteForDir('jetty92ForkedTest', 'test')
 addTestSuiteForDir('jetty94ForkedTest', 'test')
 addTestSuiteForDir('latestDepJetty9ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
-
-tasks.named("latestDepForkedTest").configure {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("compileLatestDepForkedTestGroovy").configure {
-  setJavaVersion(it, 11)
-}
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
