@@ -201,10 +201,7 @@ public class OtelSpanBuilder implements SpanBuilder {
       setSpanKind(INTERNAL);
     }
     if (!this.ignoreActiveSpan) {
-      Context context = Context.current();
-      if (null != context) {
-        setParent(context);
-      }
+      setParent(Context.current());
     }
     AgentSpan delegate = this.delegate.start();
     // Apply overrides

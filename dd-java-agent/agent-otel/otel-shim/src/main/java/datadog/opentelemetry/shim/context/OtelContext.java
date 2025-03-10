@@ -21,7 +21,8 @@ public class OtelContext implements Context {
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
 
-  private static final Map<ContextKey<?>, datadog.context.ContextKey<?>> CONTEXT_KEYS =
+  /** Records the keys needed to access the delegate context, mapped by key name. */
+  private static final Map<ContextKey<?>, datadog.context.ContextKey<?>> DELEGATE_KEYS =
       new ConcurrentHashMap<>();
 
   private final datadog.context.Context delegate;
@@ -47,14 +48,15 @@ public class OtelContext implements Context {
       if (span != null) {
         return (V) toOtelSpan(span);
       }
-    }
-    if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
+      // fall-through and check for non-datadog span data
+    } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       AgentSpan span = AgentSpan.fromContext(delegate);
       if (span != null) {
         return (V) toOtelSpan(span.getLocalRootSpan());
       }
+      // fall-through and check for non-datadog span data
     }
-    return (V) delegate.get(datadogKey(key));
+    return (V) delegate.get(delegateKey(key));
   }
 
   @Override
@@ -64,8 +66,9 @@ public class OtelContext implements Context {
         AgentSpan span = ((OtelSpan) value).asAgentSpan();
         return new OtelContext(delegate.with(span));
       }
+      // fall-through and store as non-datadog span data
     }
-    return new OtelContext(delegate.with(datadogKey(key), value));
+    return new OtelContext(delegate.with(delegateKey(key), value));
   }
 
   @Override
@@ -86,11 +89,11 @@ public class OtelContext implements Context {
     return "OtelContext{" + "delegate=" + delegate + '}';
   }
 
-  static datadog.context.ContextKey datadogKey(ContextKey key) {
-    return CONTEXT_KEYS.computeIfAbsent(key, OtelContext::mapKeyByName);
+  private static datadog.context.ContextKey delegateKey(ContextKey key) {
+    return DELEGATE_KEYS.computeIfAbsent(key, OtelContext::mapByKeyName);
   }
 
-  private static datadog.context.ContextKey mapKeyByName(ContextKey key) {
+  private static datadog.context.ContextKey mapByKeyName(ContextKey key) {
     return datadog.context.ContextKey.named(key.toString());
   }
 
