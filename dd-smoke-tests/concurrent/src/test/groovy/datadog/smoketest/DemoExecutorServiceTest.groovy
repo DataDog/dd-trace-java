@@ -1,11 +1,8 @@
 package datadog.smoketest
 
-import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import spock.util.concurrent.PollingConditions
-
 import java.util.function.Function
-
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class DemoExecutorServiceTest extends AbstractSmokeTest {
@@ -37,7 +34,12 @@ class DemoExecutorServiceTest extends AbstractSmokeTest {
       if (!rootSpan) {
         return false
       }
-      // Check every compute span is either a child of the root span or another compute span
+      // Check that there are only 'main' and 'compute' spans
+      def otherSpans = trace.spans.findAll { it.name != 'main' && it.name != 'compute' }
+      if (!otherSpans.isEmpty()) {
+        return false
+      }
+      // Check every 'compute' span is either a child of the root span or another 'compute' span
       def computeSpans = trace.spans.findAll { it.name == 'compute' }
       if (computeSpans.isEmpty()) {
         return false

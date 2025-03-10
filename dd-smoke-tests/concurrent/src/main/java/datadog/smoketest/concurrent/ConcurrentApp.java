@@ -6,12 +6,12 @@ import java.util.concurrent.ExecutionException;
 public class ConcurrentApp {
   @WithSpan("main")
   public static void main(String[] args) {
-    // calculate fibonacci using concurrent strategies
+    // Calculate fibonacci using concurrent strategies
     for (String arg : args) {
       try (FibonacciCalculator calc = getCalculator(arg)) {
         calc.computeFibonacci(10);
       } catch (ExecutionException | InterruptedException e) {
-        throw new RuntimeException("Failed to compute", e);
+        throw new RuntimeException("Failed to compute fibonacci number.", e);
       }
     }
   }

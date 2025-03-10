@@ -5,26 +5,25 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 
 public class DemoForkJoin implements FibonacciCalculator {
-  private ForkJoinPool forkJoinPool;
+  private final ForkJoinPool forkJoinPool;
 
   public DemoForkJoin() {
     forkJoinPool = new ForkJoinPool();
   }
 
-  @WithSpan
+  @WithSpan("compute")
   @Override
   public long computeFibonacci(int n) {
     return forkJoinPool.invoke(new FibonacciTask(n));
   }
 
-  private static class FibonacciTask extends RecursiveTask<Long> {
+  private class FibonacciTask extends RecursiveTask<Long> {
     private final int n;
 
     public FibonacciTask(int n) {
       this.n = n;
     }
 
-    @WithSpan
     @Override
     protected Long compute() {
       if (n <= 1) {
@@ -37,12 +36,8 @@ public class DemoForkJoin implements FibonacciCalculator {
     }
   }
 
-  public void shutdown() {
-    forkJoinPool.shutdown();
-  }
-
   @Override
   public void close() {
-    shutdown();
+    forkJoinPool.shutdown();
   }
 }
