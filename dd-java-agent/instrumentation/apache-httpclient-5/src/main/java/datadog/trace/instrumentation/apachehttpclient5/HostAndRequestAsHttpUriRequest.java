@@ -39,4 +39,9 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
   public Header getFirstHeader(String name) {
     return actualRequest.getFirstHeader(name);
   }
+
+  @Override
+  public Header[] getHeaders(String name) {
+    return actualRequest.getHeaders(name);
+  }
 }
