@@ -51,7 +51,7 @@ public class ShellGitClient implements GitClient {
    */
   ShellGitClient(
       CiVisibilityMetricCollector metricCollector,
-      String repoRoot,
+      @Nonnull String repoRoot,
       String latestCommitsSince,
       int latestCommitsLimit,
       long timeoutMillis) {
@@ -651,10 +651,15 @@ public class ShellGitClient implements GitClient {
     }
 
     @Override
-    public GitClient create(String repoRoot) {
+    public GitClient create(@Nullable String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      return new ShellGitClient(
-          metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+      if (repoRoot != null) {
+        return new ShellGitClient(
+            metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+      } else {
+        LOGGER.debug("Could not determine repository root, using no-op git client");
+        return NoOpGitClient.INSTANCE;
+      }
     }
   }
 }

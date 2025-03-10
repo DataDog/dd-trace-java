@@ -15,7 +15,6 @@ import datadog.trace.civisibility.execution.Regular;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 public class NoOpTestEventsHandler<SuiteKey, TestKey>
     implements TestEventsHandler<SuiteKey, TestKey> {
@@ -99,7 +98,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     return null;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public TestExecutionPolicy executionPolicy(
       TestIdentifier test, TestSourceData source, Collection<String> testTags) {
