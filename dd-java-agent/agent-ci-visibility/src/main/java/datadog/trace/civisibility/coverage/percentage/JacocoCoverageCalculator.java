@@ -47,7 +47,6 @@ import org.jacoco.report.ISourceFileLocator;
 import org.jacoco.report.InputStreamSourceFileLocator;
 import org.jacoco.report.html.HTMLFormatter;
 import org.jacoco.report.xml.XMLFormatter;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -319,7 +318,6 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
   }
 
-  @NotNull
   private ISourceFileLocator createSourceFileLocator() {
     return repoRoot != null
         ? new RepoIndexFileLocator(repoIndexProvider.getIndex(), repoRoot)
