@@ -107,17 +107,16 @@ public final class PercentEscaper {
     return octets;
   }
 
-  public EscapedData escapeKey(String s) {
+  public Escaped escapeKey(String s) {
     return escape(s, unsafeKeyOctets);
   }
 
-  public EscapedData escapeValue(String s) {
+  public Escaped escapeValue(String s) {
     return escape(s, unsafeValOctets);
   }
 
   /** Escape the provided String, using percent-style URL Encoding. */
-  public EscapedData escape(String s, boolean[] unsafeOctets) {
-    int size = 0;
+  public Escaped escape(String s, boolean[] unsafeOctets) {
     int slen = s.length();
     for (int index = 0; index < slen; index++) {
       char c = s.charAt(index);
@@ -125,7 +124,7 @@ public final class PercentEscaper {
         return escapeSlow(s, index, unsafeOctets);
       }
     }
-    return new EscapedData(s, slen);
+    return new Escaped(s, slen);
   }
 
   /*
@@ -147,14 +146,14 @@ public final class PercentEscaper {
    * @throws NullPointerException if {@code string} is null
    * @throws IllegalArgumentException if invalid surrogate characters are encountered
    */
-  private static EscapedData escapeSlow(String s, int index, boolean[] unsafeOctets) {
+  private static Escaped escapeSlow(String s, int index, boolean[] unsafeOctets) {
     int end = s.length();
 
     // Get a destination buffer and setup some loop variables.
     char[] dest = new char[1024]; // 1024 from the original guava source
     int destIndex = 0;
     int unescapedChunkStart = 0;
-    EscapedData data = new EscapedData("", index);
+    Escaped result = new Escaped("", index);
 
     while (index < end) {
       int cp = codePointAt(s, index, end);
@@ -164,7 +163,7 @@ public final class PercentEscaper {
       // It is possible for this to return null because nextEscapeIndex() may
       // (for performance reasons) yield some false positives but it must never
       // give false negatives.
-      char[] escaped = escape(cp, data, unsafeOctets);
+      char[] escaped = escape(cp, result, unsafeOctets);
       int nextIndex = index + (Character.isSupplementaryCodePoint(cp) ? 2 : 1);
       if (escaped != null) {
         int charsSkipped = index - unescapedChunkStart;
@@ -202,10 +201,11 @@ public final class PercentEscaper {
       s.getChars(unescapedChunkStart, end, dest, destIndex);
       destIndex = endIndex;
     }
-    data.addSize(charsSkipped); // Adding characters in-between characters that want to be encoded
+    // Adding characters in-between characters that want to be encoded
+    result.size += charsSkipped;
 
-    data.setData(new String(dest, 0, destIndex));
-    return data;
+    result.data = new String(dest, 0, destIndex);
+    return result;
   }
 
   private static int nextEscapeIndex(CharSequence csq, int index, int end, boolean[] unsafeOctets) {
@@ -221,7 +221,7 @@ public final class PercentEscaper {
   /** Escapes the given Unicode code point in UTF-8. */
   @CheckForNull
   @SuppressWarnings("UngroupedOverloads")
-  private static char[] escape(int cp, EscapedData data, boolean[] unsafeOctets) {
+  private static char[] escape(int cp, Escaped escaped, boolean[] unsafeOctets) {
     // We should never get negative values here but if we do it will throw an
     // IndexOutOfBoundsException, so at least it will get spotted.
     if (cp < unsafeOctets.length && !unsafeOctets[cp]) {
@@ -233,7 +233,7 @@ public final class PercentEscaper {
       dest[0] = '%';
       dest[2] = UPPER_HEX_DIGITS[cp & 0xF];
       dest[1] = UPPER_HEX_DIGITS[cp >>> 4];
-      data.incrementSize();
+      escaped.size++;
       return dest;
     } else if (cp <= 0x7ff) {
       // Two byte UTF-8 characters [cp >= 0x80 && cp <= 0x7ff]
@@ -248,7 +248,7 @@ public final class PercentEscaper {
       dest[2] = UPPER_HEX_DIGITS[cp & 0xF];
       cp >>>= 4;
       dest[1] = UPPER_HEX_DIGITS[0xC | cp];
-      data.addSize(2);
+      escaped.size += 2;
       return dest;
     } else if (cp <= 0xffff) {
       // Three byte UTF-8 characters [cp >= 0x800 && cp <= 0xffff]
@@ -267,7 +267,7 @@ public final class PercentEscaper {
       dest[4] = UPPER_HEX_DIGITS[0x8 | (cp & 0x3)];
       cp >>>= 2;
       dest[2] = UPPER_HEX_DIGITS[cp];
-      data.addSize(3);
+      escaped.size += 3;
       return dest;
     } else if (cp <= 0x10ffff) {
       char[] dest = new char[12];
@@ -291,7 +291,7 @@ public final class PercentEscaper {
       dest[4] = UPPER_HEX_DIGITS[0x8 | (cp & 0x3)];
       cp >>>= 2;
       dest[2] = UPPER_HEX_DIGITS[cp & 0x7];
-      data.addSize(4);
+      escaped.size += 4;
       return dest;
     } else {
       // If this ever happens it is due to bug in UnicodeEscaper, not bad input.
@@ -385,5 +385,15 @@ public final class PercentEscaper {
       System.arraycopy(dest, 0, copy, 0, index);
     }
     return copy;
+  }
+
+  public static class Escaped {
+    public String data;
+    public int size;
+
+    public Escaped(String data, int size) {
+      this.data = data;
+      this.size = size;
+    }
   }
 }
