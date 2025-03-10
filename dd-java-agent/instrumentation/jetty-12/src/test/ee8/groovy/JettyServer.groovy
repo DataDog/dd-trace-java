@@ -1,30 +1,40 @@
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
-
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WebsocketServer
 import org.eclipse.jetty.ee8.nested.ErrorHandler
-import org.eclipse.jetty.ee8.servlet.ServletContextHandler
 import org.eclipse.jetty.ee8.nested.SessionHandler as EE8SessionHandler
-import org.eclipse.jetty.server.Handler
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler
+import org.eclipse.jetty.ee8.websocket.javax.server.config.JavaxWebSocketServletContainerInitializer
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.session.SessionHandler
-
 
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
+import javax.websocket.CloseReason
+import javax.websocket.Endpoint
+import javax.websocket.EndpointConfig
+import javax.websocket.MessageHandler
+import javax.websocket.Session
+import javax.websocket.server.ServerEndpointConfig
+import java.nio.ByteBuffer
 
-class JettyServer implements HttpServer {
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+class JettyServer implements WebsocketServer {
   def port = 0
   final server = new Server(0) // select random open port
 
-  JettyServer(Handler handler) {
+  JettyServer(ServletContextHandler handler) {
     final sessionHandler = new SessionHandler()
     sessionHandler.handler = handler
     server.handler = sessionHandler
     server.addBean(errorHandler)
     server.addBean(sessionHandler.sessionIdManager, true)
+    JavaxWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
+      container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
+    })
   }
 
   @Override
@@ -49,7 +59,7 @@ class JettyServer implements HttpServer {
     return this.class.name
   }
 
-  static Handler servletHandler(Class<? extends Servlet> servlet) {
+  static ServletContextHandler servletHandler(Class<? extends Servlet> servlet) {
     // defaults to jakarta servlet
     ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
     handler.sessionHandler = new EE8SessionHandler()
@@ -59,7 +69,7 @@ class JettyServer implements HttpServer {
       .each {
         handler.servletHandler.addServletWithMapping(servlet, it.path)
       }
-    handler.get()
+    handler
   }
 
   static errorHandler = new ErrorHandler() {
@@ -71,6 +81,89 @@ class JettyServer implements HttpServer {
       if (message) {
         writer.write(message)
       }
+    }
+  }
+
+  @Override
+  void serverSendText(String[] messages) {
+    if (messages.length == 1) {
+      WsEndpoint.activeSession.getBasicRemote().sendText(messages[0])
+    } else {
+      def remoteEndpoint = WsEndpoint.activeSession.getBasicRemote()
+      for (int i = 0; i < messages.length; i++) {
+        remoteEndpoint.sendText(messages[i], i == messages.length - 1)
+      }
+    }
+  }
+
+  @Override
+  void serverSendBinary(byte[][] binaries) {
+    if (binaries.length == 1) {
+      WsEndpoint.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+    } else {
+      try (def stream = WsEndpoint.activeSession.getBasicRemote().getSendStream()) {
+        binaries.each { stream.write(it) }
+      }
+    }
+  }
+
+  @Override
+  synchronized void awaitConnected() {
+    synchronized (WsEndpoint) {
+      try {
+        while (WsEndpoint.activeSession == null) {
+          WsEndpoint.wait()
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt()
+      }
+    }
+  }
+
+  @Override
+  void serverClose() {
+    WsEndpoint.activeSession?.close()
+    WsEndpoint.activeSession = null
+  }
+
+  @Override
+  void setMaxPayloadSize(int size) {
+    WsEndpoint.activeSession?.setMaxTextMessageBufferSize(size)
+    WsEndpoint.activeSession?.setMaxBinaryMessageBufferSize(size)
+  }
+
+  @Override
+  boolean canSplitLargeWebsocketPayloads() {
+    false
+  }
+
+  static class WsEndpoint extends Endpoint {
+    static Session activeSession
+
+    @Override
+    void onOpen(Session session, EndpointConfig endpointConfig) {
+      session.addMessageHandler(new MessageHandler.Partial<String>() {
+          @Override
+          void onMessage(String s, boolean last) {
+            // jetty does not respect at all limiting the payload so we have to simulate it in few tests
+            runUnderTrace("onRead", {})
+          }
+        })
+      session.addMessageHandler(new MessageHandler.Partial<byte[]>() {
+          @Override
+          void onMessage(byte[] b, boolean last) {
+            runUnderTrace("onRead", {})
+          }
+        })
+      activeSession = session
+      synchronized (WsEndpoint) {
+        WsEndpoint.notifyAll()
+      }
+    }
+
+    @Override
+    void onClose(Session session, CloseReason closeReason) {
+      activeSession = null
     }
   }
 }

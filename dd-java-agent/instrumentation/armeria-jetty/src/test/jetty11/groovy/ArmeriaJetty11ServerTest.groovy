@@ -119,4 +119,9 @@ class ArmeriaJetty11ServerTest extends HttpServerTest<ArmeriaServer> {
   boolean testSessionId() {
     true
   }
+
+  @Override
+  boolean testWebsockets() {
+    false
+  }
 }

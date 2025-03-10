@@ -96,6 +96,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpanContext",
+  "datadog.trace.bootstrap.instrumentation.api.NotSampledSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",

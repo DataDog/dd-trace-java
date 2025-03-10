@@ -2,11 +2,11 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
