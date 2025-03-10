@@ -6,7 +6,13 @@ import java.util.List;
 public class StableConfigYaml {
   private String config_id; // optional
   private ConfigurationMap apm_configuration_default;
-  private List<Rule> apm_configuration_rules;
+  private List<Rule> apm_configuration_rules; // optional
+
+  public StableConfigYaml() {
+    this.config_id = null;
+    this.apm_configuration_default = null;
+    this.apm_configuration_rules = null;
+  }
 
   // Getters and setters
   public String getConfig_id() {

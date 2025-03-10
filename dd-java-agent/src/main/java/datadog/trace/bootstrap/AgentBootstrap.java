@@ -421,7 +421,7 @@ public final class AgentBootstrap {
     javaagentFile = new File(new URI(thisClassUrl.getFile().split("!")[0]));
     return javaagentFile;
   }
-
+  
   private static void checkJarManifestMainClassIsThis(final URL jarUrl) throws IOException {
     final URL manifestUrl = new URL("jar:" + jarUrl + "!/META-INF/MANIFEST.MF");
     final String mainClassLine = "Main-Class: " + thisClass.getCanonicalName();
