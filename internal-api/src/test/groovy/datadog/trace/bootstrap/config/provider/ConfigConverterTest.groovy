@@ -99,6 +99,40 @@ class ConfigConverterTest extends DDSpecification {
     // spotless:on
   }
 
+  def "parsing map #mapString with List of arg separators for with key value separator #separator"() {
+    //testing parsing for DD_TAGS
+    setup:
+    def separatorList = [',' as char, ' ' as char]
+
+    when:
+    def result = ConfigConverter.parseTraceTagsMap(mapString, separator as char, separatorList as List<Character>)
+
+    then:
+    result == expected
+
+    where:
+    // spotless:off
+    mapString                                       | separator | expected
+    "key1:value1,key2:value2"                       | ':'       | [key1: "value1", key2: "value2"]
+    "key1:value1 key2:value2"                       | ':'       | [key1: "value1", key2: "value2"]
+    "env:test aKey:aVal bKey:bVal cKey:"            | ':'       | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
+    "env:test,aKey:aVal,bKey:bVal,cKey:"            | ':'       | [env: "test", aKey: "aVal", bKey: "bVal", cKey:""]
+    "env:test,aKey:aVal bKey:bVal cKey:"            | ':'       | [env: "test", aKey: "aVal bKey:bVal cKey:"]
+    "env:test     bKey :bVal dKey: dVal cKey:"      | ':'       | [env: "test", bKey: "", dKey: "", dVal: "", cKey: ""]
+    'env :test, aKey : aVal bKey:bVal cKey:'        | ':'       | [env: "test", aKey : "aVal bKey:bVal cKey:"]
+    "env:keyWithA:Semicolon bKey:bVal cKey"         | ':'       | [env: "keyWithA:Semicolon", bKey: "bVal", cKey: ""]
+    "env:keyWith:  , ,   Lots:Of:Semicolons "       | ':'       | [env: "keyWith:", Lots: "Of:Semicolons"]
+    "a:b,c,d"                                       | ':'       | [a: "b", c: "", d: ""]
+    "a,1"                                           | ':'       | [a: "", "1": ""]
+    "a:b:c:d"                                       | ':'       | [a: "b:c:d"]
+    //edge cases
+    "noDelimiters"                                  | ':'       | [noDelimiters: ""]
+    "            "                                  | ':'       | [:]
+    ",,,,,,,,,,,,"                                  | ':'       | [:]
+    ", , , , , , "                                  | ':'       | [:]
+    // spotless:on
+  }
+
   def "test parseMapWithOptionalMappings"() {
     when:
     def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", "", lowercaseKeys)

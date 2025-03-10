@@ -1786,6 +1786,19 @@ class ConfigTest extends DDSpecification {
       'service.version': 'my-svc-vers']
   }
 
+  def "service name prioritizes values from DD_SERVICE over tags"() {
+    setup:
+    System.setProperty(PREFIX + TAGS, "service:service-name-from-tags")
+    System.setProperty(PREFIX + SERVICE, "service-name-from-dd-service")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "service-name-from-dd-service"
+    !config.mergedSpanTags.containsKey("service")
+  }
+
   def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
@@ -1799,7 +1812,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
@@ -1815,7 +1828,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
@@ -1831,12 +1844,12 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
-  def "set servicenaem by DD_SERVICE"() {
+  def "set servicename by DD_SERVICE"() {
     setup:
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
@@ -1847,7 +1860,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
