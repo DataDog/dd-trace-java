@@ -17,7 +17,6 @@ public class StableConfigParser {
     try {
       StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
       ConfigurationMap configMap = data.getApm_configuration_default();
-      // TODO: Support multiple sets of rules + configs.
       List<Rule> rules = data.getApm_configuration_rules();
       if (rules != null) {
         for (Rule rule : rules) {
@@ -33,7 +32,7 @@ public class StableConfigParser {
               break;
             }
           }
-          // Use the first selector that matches; return early
+          // Use the first rule that matches; return early
           if (match) {
             configMap.putAll(rule.getConfiguration());
             return new StableConfigSource.StableConfig(
@@ -54,17 +53,57 @@ public class StableConfigParser {
     return StableConfigSource.StableConfig.EMPTY;
   }
 
-  // TODO: Create strict types for origin and operator values
-  private static boolean selectorMatch(
+  // TODO: Make this private again after testing
+  public static boolean selectorMatch(
       String origin, List<String> matches, String operator, String key) {
-    //    if(origin.equals("language")) {
-    //      List<String> matchesList = Arrays.asList(matches);
-    //      return matchesList.contains("Java") || matchesList.contains("java") &&
-    // operator.equals("equals");
-    //    }
+    switch (origin) {
+      case "language":
+        return matches.contains("Java") || matches.contains("java") && operator.equals("equals");
+      case "environment_variables":
+        String envValue = System.getenv(key);
+        if (envValue == null) {
+          return false;
+        }
+        switch (operator) {
+          case "exists":
+            // We don't care about the value
+            return true;
+            // TODO: Determine if substrings are case insensitive
+          case "equals":
+            for (String value : matches) {
+              if (value.equals(envValue)) {
+                return true;
+              }
+            }
+            break;
+          case "starts_with":
+            for (String value : matches) {
+              if (envValue.startsWith(value)) {
+                return true;
+              }
+            }
+            break;
+          case "ends_with":
+            for (String value : matches) {
+              if (envValue.endsWith(value)) {
+                return true;
+              }
+            }
+            break;
+          case "contains":
+            for (String value : matches) {
+              if (envValue.contains(value)) {
+                return true;
+              }
+            }
+        }
+        return false;
+      case "process_arguments":
+        // TODO: export getVMArgumentsThroughReflection to a utility class and cache its results, so
+        // as not to re-run this query
+        break;
+    }
     //    else if(origin.equals("tags")) {
-    //
-    //    } else if(origin.equals("environment_variables")) {
     //
     //    } else if(origin.equals("process_arguments")) {
     //
