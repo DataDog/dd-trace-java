@@ -18,7 +18,7 @@ public class StableConfigParser {
       StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
       ConfigurationMap configMap = data.getApm_configuration_default();
       List<Rule> rules = data.getApm_configuration_rules();
-      if (rules != null) {
+      if (!rules.isEmpty()) {
         for (Rule rule : rules) {
           List<Selector> selectors = rule.getSelectors();
           boolean match = true;
@@ -34,12 +34,15 @@ public class StableConfigParser {
           }
           // Use the first rule that matches; return early
           if (match) {
+            // Merge apm_configuration_default and apm_configuration_rules
             configMap.putAll(rule.getConfiguration());
             return new StableConfigSource.StableConfig(
                 data.getConfig_id(), new HashMap<>(configMap));
           }
         }
       }
+      // TODO: Right now, a file with config_id but no apm_configuration_default nor
+      // apm_configuration_rules gets discarded. Should it?
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
         return new StableConfigSource.StableConfig(data.getConfig_id(), new HashMap<>(configMap));
@@ -96,18 +99,19 @@ public class StableConfigParser {
                 return true;
               }
             }
+          default:
+            return false;
         }
         return false;
       case "process_arguments":
         // TODO: export getVMArgumentsThroughReflection to a utility class and cache its results, so
         // as not to re-run this query
-        break;
+        return true;
+      case "tags":
+        // TODO: Determine where tags are sourced from
+        return true;
+      default:
+        return false;
     }
-    //    else if(origin.equals("tags")) {
-    //
-    //    } else if(origin.equals("process_arguments")) {
-    //
-    //    }
-    return true;
   }
 }

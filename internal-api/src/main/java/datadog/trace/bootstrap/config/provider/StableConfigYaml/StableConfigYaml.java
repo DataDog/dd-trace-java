@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.config.provider.StableConfigYaml;
 
 import datadog.trace.bootstrap.config.provider.ConfigurationMap;
+import java.util.ArrayList;
 import java.util.List;
 
 public class StableConfigYaml {
@@ -10,8 +11,8 @@ public class StableConfigYaml {
 
   public StableConfigYaml() {
     this.config_id = null;
-    this.apm_configuration_default = null;
-    this.apm_configuration_rules = null;
+    this.apm_configuration_default = new ConfigurationMap();
+    this.apm_configuration_rules = new ArrayList<>();
   }
 
   // Getters and setters
