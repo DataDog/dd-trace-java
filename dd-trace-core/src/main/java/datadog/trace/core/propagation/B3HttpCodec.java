@@ -164,7 +164,10 @@ class B3HttpCodec {
     final List<HttpCodec.Extractor> extractors = new ArrayList<>(2);
     extractors.add(newSingleExtractor(config, traceConfigSupplier));
     extractors.add(newMultiExtractor(config, traceConfigSupplier));
-    return new HttpCodec.CompoundExtractor(extractors, config.isTracePropagationExtractFirst(), config.getTracePropagationBehaviorExtract());
+    return new HttpCodec.CompoundExtractor(
+        extractors,
+        config.isTracePropagationExtractFirst(),
+        config.getTracePropagationBehaviorExtract());
   }
 
   public static HttpCodec.Extractor newMultiExtractor(

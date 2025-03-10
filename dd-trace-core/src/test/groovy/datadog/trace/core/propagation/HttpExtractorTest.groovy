@@ -20,7 +20,6 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 class HttpExtractorTest extends DDSpecification {
   static final W3C_TRACE_ID = "00000000000000000000000000000001"
   static final W3C_SPAN_ID = "123456789abcdef0"
-  static final W3C_HEX_SPAN_ID = "1311768467463790320"
   static final W3C_TRACE_PARENT = "00-$W3C_TRACE_ID-$W3C_SPAN_ID-01"
   static final W3C_TRACE_STATE_WITH_P = "dd=p:456789abcdef0123"
   static final W3C_TRACE_STATE_NO_P = "dd=s:2,foo=1"
@@ -34,6 +33,7 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
       isTracePropagationExtractFirst() >> extractFirst
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create()
       .setHeaderTags(["SOME_HEADER": "some-tag"])
@@ -120,6 +120,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
@@ -206,6 +207,52 @@ class HttpExtractorTest extends DDSpecification {
     [DATADOG, B3MULTI, TRACECONTEXT] | "2"               | "2"               | "2"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [TRACECONTEXT]
     [DATADOG, B3MULTI, TRACECONTEXT] | "2"               | "2"               | "1"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [B3MULTI, TRACECONTEXT]
     [TRACECONTEXT, B3MULTI, DATADOG] | "2"               | "2"               | "1"               | "b"               | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [DATADOG]
+    // spotless:on
+  }
+
+  def "verify extract behavior with TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {
+    setup:
+    Config config = Mock(Config) {
+      getTracePropagationStylesToExtract() >> [DATADOG, TRACECONTEXT]
+      getTracePropagationBehaviorExtract() >> behaviorExtract
+      isTracePropagationExtractFirst() >> extractFirst
+    }
+    DynamicConfig dynamicConfig = DynamicConfig.create().apply()
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
+
+    final Map<String, String> actual = [
+      (DatadogHttpCodec.TRACE_ID_KEY.toUpperCase()): datadogTraceId,
+      (DatadogHttpCodec.SPAN_ID_KEY.toUpperCase()) : datadogSpanId,
+      (W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase()): w3cTraceParent,
+      (W3CHttpCodec.TRACE_STATE_KEY.toUpperCase()) : traceState
+    ]
+
+    when:
+    final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
+
+    then:
+    def links = context.getTerminatedContextLinks()
+    assert links.size() == expectedLinkStyle.size()
+    for (int i = 0; i < links.size(); i++) {
+      assert links[i].traceId().toString() == linkTraceId
+      assert links[i].spanId().toString() == linkSpanId
+      assert links[i].attributes().asMap()["reason"] == linkReason
+      assert links[i].attributes().asMap()["context_headers"] == expectedLinkStyle[i].toString()
+      if (expectedLinkStyle[i] == TRACECONTEXT || linkReason == "propagation_behavior_extract" && datadogTraceId == getW3C_TRACE_ID()) {
+        assert links[i].traceState() == traceState
+      }
+    }
+
+    // no tests for behaviorExtract=ignore since no extraction will occur in this situation
+    where:
+    // spotless:off
+    behaviorExtract | extractFirst | datadogTraceId | datadogSpanId | w3cTraceParent   | traceState           | expectedLinkStyle | linkTraceId | linkSpanId            | linkReason
+    "continue"      | false        | "1"            | "2"           | W3C_TRACE_PARENT | ""                   | []                | ""          | "1311768467463790320" | ""
+    "continue"      | false        | "2"            | "2"           | W3C_TRACE_PARENT | W3C_TRACE_STATE_NO_P | [TRACECONTEXT]    | "1"         | "1311768467463790320" | "terminated_context"
+    "restart"       | false        | "1"            | "2"           | W3C_TRACE_PARENT | "dd=foo=1"           | [DATADOG]         | "1"         | "1311768467463790320" | "propagation_behavior_extract"
+    "restart"       | false        | "2"            | "2"           | W3C_TRACE_PARENT | ""                   | [DATADOG]         | "2"         | "2"                   | "propagation_behavior_extract"
+    "restart"       | true         | "2"            | "2"           | W3C_TRACE_PARENT | ""                   | [DATADOG]         | "2"         | "2"                   | "propagation_behavior_extract"
+    "restart"       | true         | "1"            | "2"           | W3C_TRACE_PARENT | ""                   | [DATADOG]         | "1"         | "2"                   | "propagation_behavior_extract"
     // spotless:on
   }
 }

@@ -63,7 +63,6 @@ import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
-import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -1494,8 +1493,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
-      System.out.println("inside buildSpanContext");
-
       if (this.spanId == 0) {
         spanId = idGenerationStrategy.generateSpanId();
       } else {
@@ -1518,7 +1515,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
       if (parentContext instanceof DDSpanContext) {
-        System.out.println("inside DDSPANCONTEXT");
         final DDSpanContext ddsc = (DDSpanContext) parentContext;
         traceId = ddsc.getTraceId();
         parentSpanId = ddsc.getSpanId();
@@ -1551,13 +1547,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           isRemote = true;
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
 
-          if(Config.get().getTracePropagationBehaviorExtract().equals("restart")){
+          if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
             traceId = idGenerationStrategy.generateTraceId();
             parentSpanId = 0;
             samplingPriority = parentContext.getSamplingPriority();
             endToEndStartTime = 0;
             propagationTags = propagationTagsFactory.empty();
-          }else{
+          } else {
             traceId = extractedContext.getTraceId();
             parentSpanId = extractedContext.getSpanId();
             samplingPriority = extractedContext.getSamplingPriority();

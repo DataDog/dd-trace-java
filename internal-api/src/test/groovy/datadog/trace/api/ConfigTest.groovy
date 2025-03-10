@@ -123,6 +123,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -205,6 +206,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     prop.setProperty(PROPAGATION_STYLE_INJECT, "B3, Datadog")
     prop.setProperty(TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     prop.setProperty(JMX_FETCH_ENABLED, "false")
     prop.setProperty(JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     prop.setProperty(JMX_FETCH_CHECK_PERIOD, "100")
@@ -295,6 +297,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == "restart"
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -386,6 +389,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, "B3, Datadog")
     System.setProperty(PREFIX + TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    System.setProperty(PREFIX + TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     System.setProperty(PREFIX + JMX_FETCH_ENABLED, "false")
     System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     System.setProperty(PREFIX + JMX_FETCH_CHECK_PERIOD, "100")
@@ -475,6 +479,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == "restart"
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -2603,5 +2608,19 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
+  }
+
+  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.tracePropagationBehaviorExtract == "ignore"
+    config.tracePropagationStylesToExtract.toList() == []
   }
 }
