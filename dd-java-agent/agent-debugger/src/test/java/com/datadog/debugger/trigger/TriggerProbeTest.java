@@ -1,13 +1,13 @@
 package com.datadog.debugger.trigger;
 
 import static com.datadog.debugger.el.DSL.*;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static java.lang.String.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.agent.Configuration;
