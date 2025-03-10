@@ -2,63 +2,56 @@ package datadog.trace.instrumentation.zio.v2_0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 
 public class FiberContext {
-  private final ScopeState state;
+  private final Context context;
   private AgentScope.Continuation continuation;
   private AgentScope scope;
-  private ScopeState oldState;
+  private Context oldContext;
 
-  private FiberContext(ScopeState state) {
-    this.state = state;
-    this.scope = null;
-    this.oldState = null;
+  private FiberContext(Context context) {
+    this.context = context;
     this.continuation = captureActiveSpan();
+    this.scope = null;
+    this.oldContext = null;
   }
 
   public static FiberContext create() {
-    final ScopeState state = AgentTracer.get().newScopeState();
-    return new FiberContext(state);
+    return new FiberContext(Context.root());
   }
 
   public void onEnd() {
-    if (this.scope != null) {
-      this.scope.close();
-      this.scope = null;
+    if (scope != null) {
+      scope.close();
+      scope = null;
     }
     if (continuation != null) {
       continuation.cancel();
       continuation = null;
     }
-
-    if (this.oldState != null) {
-      this.oldState.activate();
-      this.oldState = null;
+    if (oldContext != null) {
+      oldContext.swap();
+      oldContext = null;
     }
   }
 
   public void onSuspend() {
-    if (this.scope != null && continuation != null) {
-      this.scope.close();
-      this.scope = null;
+    if (scope != null && continuation != null) {
+      scope.close();
+      scope = null;
     }
-    if (this.oldState != null) {
-      this.oldState.activate();
-      this.oldState = null;
+    if (oldContext != null) {
+      oldContext.swap();
+      oldContext = null;
     }
   }
 
   public void onResume() {
-    this.oldState = AgentTracer.get().newScopeState();
-    this.oldState.fetchFromActive();
-
-    this.state.activate();
-
-    if (this.continuation != null) {
-      this.scope = continuation.activate();
+    oldContext = context.swap();
+    if (continuation != null) {
+      scope = continuation.activate();
       continuation = null;
     }
   }
