@@ -34,6 +34,10 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
   abstract Map<String, Object> getMap()
 
+  def setup() {
+    injectSysConfig("logs.injection.enabled", "true")
+  }
+
   def "Log context shows trace and span ids for active scope"() {
     when:
     put("foo", "bar")
