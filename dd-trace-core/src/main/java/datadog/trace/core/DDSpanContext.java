@@ -142,7 +142,6 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private volatile boolean requiresPostProcessing;
   private volatile CharSequence lastParentId;
   private final boolean isRemote;
 
@@ -1042,14 +1041,6 @@ public class DDSpanContext
   @Override
   public void setMetaStructCurrent(String field, Object value) {
     setMetaStruct(field, value);
-  }
-
-  public void setRequiresPostProcessing(boolean postProcessing) {
-    this.requiresPostProcessing = postProcessing;
-  }
-
-  public boolean isRequiresPostProcessing() {
-    return requiresPostProcessing;
   }
 
   public CharSequence getLastParentId() {
