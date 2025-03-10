@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import spock.util.concurrent.PollingConditions
 
@@ -29,24 +30,29 @@ class DemoExecutorServiceTest extends AbstractSmokeTest {
   }
 
   private static Function<DecodedTrace, Boolean> checkTrace() {
-    return { trace ->
-      def parentSpanCount = 0
-      //      def parentSpanId = -1
-      def childSpanCount = 0
-      def otherSpanCount = 0
-
-      trace.spans.each { span ->
-        if (span.getName() == "ConcurrentApp.spanWrapper") {
-          parentSpanCount++
-          //          parentSpanId = span.getSpanId()
-        }
-        //        else if (parentSpanId != -1 && span.getParentId() == parentSpanId) {
-        //          childSpanCount++
-        //        } else {
-        //          otherSpanCount++
-        //        }
+    return {
+      trace ->
+      // Get root span
+      def rootSpan = trace.spans.find { it.name == 'main' }
+      if (!rootSpan) {
+        return false
       }
-      parentSpanCount == 1 && childSpanCount == 0 && otherSpanCount == 0
+      // Check every compute span is either a child of the root span or another compute span
+      def computeSpans = trace.spans.findAll { it.name == 'compute' }
+      if (computeSpans.isEmpty()) {
+        return false
+      }
+      return computeSpans.every {
+        // Check same trace
+        if (it.traceId != rootSpan.traceId) {
+          return false
+        }
+        // Check parent
+        if (it.parentId != rootSpan.spanId && trace.spans.find(s -> s.spanId == it.parentId).name != 'compute') {
+          return false
+        }
+        return true
+      }
     }
   }
 

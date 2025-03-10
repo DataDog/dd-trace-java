@@ -4,28 +4,24 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.ExecutionException;
 
 public class ConcurrentApp {
-
-  @WithSpan
-  static void spanWrapper(String[] args) throws ExecutionException, InterruptedException {
+  @WithSpan("main")
+  public static void main(String[] args) {
     // calculate fibonacci using concurrent strategies
-    FibonacciCalculator calc = null;
     for (String arg : args) {
-      try {
-        if (arg.equalsIgnoreCase("executorService")) {
-          calc = new DemoExecutorService();
-          calc.computeFibonacci(10);
-        } else if (arg.equalsIgnoreCase("forkJoin")) {
-          calc = new DemoForkJoin();
-          calc.computeFibonacci(10);
-        }
-      } finally {
-        calc.close();
+      try (FibonacciCalculator calc = getCalculator(arg)) {
+        calc.computeFibonacci(10);
+      } catch (ExecutionException | InterruptedException e) {
+        throw new RuntimeException("Failed to compute", e);
       }
     }
   }
 
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
-    // wrap calculations in a span
-    spanWrapper(args);
+  private static FibonacciCalculator getCalculator(String name) {
+    if (name.equalsIgnoreCase("executorService")) {
+      return new DemoExecutorService();
+    } else if (name.equalsIgnoreCase("forkJoin")) {
+      return new DemoForkJoin();
+    }
+    throw new IllegalArgumentException("Unknown calculator: " + name);
   }
 }
