@@ -5,12 +5,9 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import javax.annotation.Nonnull;
 
-class ContinuableScope implements AgentScope, AttachableWrapper {
+class ContinuableScope implements AgentScope {
   private final ContinuableScopeManager scopeManager;
 
   final AgentSpan span; // package-private so scopeManager can access it directly
@@ -26,10 +23,6 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   private final byte source;
 
   private short referenceCount = 1;
-
-  private volatile Object wrapper;
-  private static final AtomicReferenceFieldUpdater<ContinuableScope, Object> WRAPPER_FIELD_UPDATER =
-      AtomicReferenceFieldUpdater.newUpdater(ContinuableScope.class, Object.class, "wrapper");
 
   private final Stateful scopeState;
 
@@ -187,15 +180,5 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   @Override
   public byte source() {
     return (byte) (source & 0x7F);
-  }
-
-  @Override
-  public void attachWrapper(@Nonnull Object wrapper) {
-    WRAPPER_FIELD_UPDATER.set(this, wrapper);
-  }
-
-  @Override
-  public Object getWrapper() {
-    return WRAPPER_FIELD_UPDATER.get(this);
   }
 }

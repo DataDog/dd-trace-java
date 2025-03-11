@@ -55,16 +55,6 @@ public class TypeConverter {
     if (scope == null) {
       return null;
     }
-    if (scope instanceof AttachableWrapper) {
-      AttachableWrapper attachableScopeWrapper = (AttachableWrapper) scope;
-      Object wrapper = attachableScopeWrapper.getWrapper();
-      if (wrapper instanceof Scope) {
-        return (Scope) wrapper;
-      }
-      Scope otScope = new OtelScope(scope);
-      attachableScopeWrapper.attachWrapper(otScope);
-      return otScope;
-    }
     if (scope == noopScope()) {
       return noopScopeWrapper;
     }
