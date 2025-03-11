@@ -16,7 +16,7 @@ public class VMArgsCache {
     private static final VMArgsCache INSTANCE = new VMArgsCache(getVMArgumentsThroughReflection());
   }
 
-  private final HashSet<String> args;
+  private final Set<String> args;
 
   public VMArgsCache(List<String> args) {
     this.args = new HashSet<>(args);
