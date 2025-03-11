@@ -1,6 +1,7 @@
 package datadog.common.socket;
 
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,18 +18,33 @@ import org.junit.jupiter.api.Test;
 public class TunnelingJdkSocketTest {
 
   private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
-  private final int clientTimeout = 1000;
-  private final int testTimeout = 3000;
 
   @Test
   public void testTimeout() throws Exception {
+    int testTimeout = 3000;
     Path socketPath = getSocketPath();
     UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
     startServer(socketAddress);
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
+    // Test that the socket unblocks when timeout is set to >0
+    clientSocket.setSoTimeout(1000);
     assertTimeoutPreemptively(
         Duration.ofMillis(testTimeout), () -> clientSocket.getInputStream().read());
+
+    // Test that the socket blocks indefinitely when timeout is set to 0, per
+    // https://docs.oracle.com/en/java/javase/16/docs/api//java.base/java/net/Socket.html#setSoTimeout(int).
+    clientSocket.setSoTimeout(0);
+    boolean infiniteTimeOut = false;
+    try {
+      assertTimeoutPreemptively(
+          Duration.ofMillis(testTimeout), () -> clientSocket.getInputStream().read());
+    } catch (AssertionError e) {
+      infiniteTimeOut = true;
+    }
+    if (!infiniteTimeOut) {
+      fail("Test failed: Expected infinite blocking when timeout is set to 0.");
+    }
 
     clientSocket.close();
     isServerRunning.set(false);
@@ -77,7 +93,6 @@ public class TunnelingJdkSocketTest {
   private TunnelingJdkSocket createClient(Path socketPath) throws IOException {
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
     clientSocket.connect(new InetSocketAddress("localhost", 0));
-    clientSocket.setSoTimeout(clientTimeout);
     return clientSocket;
   }
 }

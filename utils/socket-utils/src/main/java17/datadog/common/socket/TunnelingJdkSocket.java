@@ -143,11 +143,6 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public int read(byte[] b, int off, int len) throws IOException {
-        if (timeout == 0) {
-          System.out.println("Timeout (0ms) while waiting for data.");
-          return 0;
-        }
-
         buffer.clear();
 
         int readyChannels = selector.select(timeout);
