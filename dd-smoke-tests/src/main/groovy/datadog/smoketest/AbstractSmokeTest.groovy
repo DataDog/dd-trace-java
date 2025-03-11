@@ -51,7 +51,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
 
   @Shared
-  protected final PollingConditions DEFAULT_POLL = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
+  protected final PollingConditions defaultPoll = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
 
   @Shared
   @AutoCleanup
@@ -295,7 +295,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   int waitForTraceCount(int count) {
-    return waitForTraceCount(count, DEFAULT_POLL)
+    return waitForTraceCount(count, defaultPoll)
   }
 
   int waitForTraceCount(int count, PollingConditions conditions) {
@@ -327,7 +327,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   void waitForTelemetryCount(final int count) {
-    waitForTelemetryCount(DEFAULT_POLL, count)
+    waitForTelemetryCount(defaultPoll, count)
   }
 
   void waitForTelemetryCount(final PollingConditions poll, final int count) {
@@ -337,7 +337,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   void waitForTelemetryFlat(final Function<Map<String, Object>, Boolean> predicate) {
-    waitForTelemetryFlat(DEFAULT_POLL, predicate)
+    waitForTelemetryFlat(defaultPoll, predicate)
   }
 
   void waitForTelemetryFlat(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {

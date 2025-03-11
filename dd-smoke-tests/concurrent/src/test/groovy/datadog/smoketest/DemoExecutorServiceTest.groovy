@@ -10,7 +10,7 @@ class DemoExecutorServiceTest extends AbstractDemoTest {
 
   def 'receive one expected trace for ExecutorService'() {
     when:
-    waitForTrace(DEFAULT_POLL, checkTrace())
+    waitForTrace(defaultPoll, checkTrace())
 
     then:
     traceCount.get() == 1
