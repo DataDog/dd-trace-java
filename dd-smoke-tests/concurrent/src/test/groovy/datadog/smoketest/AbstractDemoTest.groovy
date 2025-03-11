@@ -1,7 +1,7 @@
 package datadog.smoketest
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import datadog.trace.test.agent.decoder.DecodedTrace
-
 import java.util.function.Function
 
 abstract class AbstractDemoTest extends AbstractSmokeTest {
@@ -30,9 +30,9 @@ abstract class AbstractDemoTest extends AbstractSmokeTest {
   protected static Function<DecodedTrace, Boolean> checkTrace() {
     return {
       trace ->
-      // Get root span
-      def rootSpan = trace.spans.find { it.name == 'main' }
-      if (!rootSpan) {
+      // Check for 'main' span
+      def mainSpan = trace.spans.find { it.name == 'main' }
+      if (!mainSpan) {
         return false
       }
       // Check that there are only 'main' and 'compute' spans
@@ -40,22 +40,27 @@ abstract class AbstractDemoTest extends AbstractSmokeTest {
       if (!otherSpans.isEmpty()) {
         return false
       }
-      // Check every 'compute' span is either a child of the root span or another 'compute' span
+      // Check that every 'compute' span is in the same trace and is either a child of the 'main' span or another 'compute' span
       def computeSpans = trace.spans.findAll { it.name == 'compute' }
       if (computeSpans.isEmpty()) {
         return false
       }
       return computeSpans.every {
-        // Check same trace
-        if (it.traceId != rootSpan.traceId) {
+        if (it.traceId != mainSpan.traceId) {
           return false
         }
-        // Check parent
-        if (it.parentId != rootSpan.spanId && trace.spans.find(s -> s.spanId == it.parentId).name != 'compute') {
+        if (it.parentId != mainSpan.spanId && trace.spans.find(s -> s.spanId == it.parentId).name != 'compute') {
           return false
         }
         return true
       }
     }
+  }
+
+  protected void receivedCorrectTrace() {
+    waitForTrace(defaultPoll, checkTrace())
+    assert traceCount.get() == 1
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+    assert testedProcess.exitValue() == 0
   }
 }

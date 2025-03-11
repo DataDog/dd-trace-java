@@ -1,6 +1,6 @@
 package datadog.smoketest.concurrent;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.Callable;
@@ -43,7 +43,7 @@ public class DemoExecutorService implements FibonacciCalculator {
   public void close() {
     executorService.shutdown();
     try {
-      if (!executorService.awaitTermination(800, MILLISECONDS)) {
+      if (!executorService.awaitTermination(10, SECONDS)) {
         executorService.shutdownNow();
       }
     } catch (InterruptedException e) {

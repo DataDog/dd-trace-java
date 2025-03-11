@@ -11,7 +11,6 @@ public class DemoForkJoin implements FibonacciCalculator {
     forkJoinPool = new ForkJoinPool();
   }
 
-  @WithSpan("compute")
   @Override
   public long computeFibonacci(int n) {
     return forkJoinPool.invoke(new FibonacciTask(n));
@@ -24,6 +23,7 @@ public class DemoForkJoin implements FibonacciCalculator {
       this.n = n;
     }
 
+    @WithSpan("compute")
     @Override
     protected Long compute() {
       if (n <= 1) {
