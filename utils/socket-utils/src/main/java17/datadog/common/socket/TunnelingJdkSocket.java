@@ -94,6 +94,9 @@ final class TunnelingJdkSocket extends Socket {
     unixSocketChannel = SocketChannel.open(unixSocketAddress);
   }
 
+  // `timeout` is intentionally ignored here, like in the jnr-unixsocket implementation.
+  // See:
+  // https://github.com/jnr/jnr-unixsocket/blob/master/src/main/java/jnr/unixsocket/UnixSocket.java#L89-L97
   @Override
   public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
     if (isClosed()) {
@@ -124,7 +127,7 @@ final class TunnelingJdkSocket extends Socket {
     }
 
     return new InputStream() {
-      private final ByteBuffer buffer = ByteBuffer.allocate(256);
+      private final ByteBuffer buffer = ByteBuffer.allocate(8192);
       private final Selector selector = Selector.open();
 
       {
@@ -140,6 +143,11 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public int read(byte[] b, int off, int len) throws IOException {
+        if (timeout == 0) {
+          System.out.println("Timeout (0ms) while waiting for data.");
+          return 0;
+        }
+
         buffer.clear();
 
         int readyChannels = selector.select(timeout);
