@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import junit.runner.Version
 import org.example.*
@@ -207,8 +208,16 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(JUnit4Utils.CAPABILITIES, 4)
+  }
+
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4)
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.CAPABILITIES)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)

@@ -326,6 +326,13 @@
     "duration" : ${content_duration_10},
     "error" : 0,
     "meta" : {
+      "_dd.library_capabilities.auto_test_retries" : "false",
+      "_dd.library_capabilities.early_flake_detection" : "false",
+      "_dd.library_capabilities.impacted_tests" : "true",
+      "_dd.library_capabilities.test_impact_analysis" : "false",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "false",
+      "_dd.library_capabilities.test_management.disable" : "false",
+      "_dd.library_capabilities.test_management.quarantine" : "false",
       "_dd.p.tid" : ${content_meta__dd_p_tid_10},
       "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},

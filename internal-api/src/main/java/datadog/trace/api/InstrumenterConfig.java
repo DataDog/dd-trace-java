@@ -18,6 +18,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
@@ -64,6 +65,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -123,6 +125,7 @@ public class InstrumenterConfig {
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
+  private final boolean websocketTracingEnabled;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -272,6 +275,9 @@ public class InstrumenterConfig {
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+    this.websocketTracingEnabled =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -495,6 +501,10 @@ public class InstrumenterConfig {
     return additionalJaxRsAnnotations;
   }
 
+  public boolean isWebsocketTracingEnabled() {
+    return websocketTracingEnabled;
+  }
+
   /**
    * Check whether asynchronous result types are supported with @Trace annotation.
    *
@@ -625,6 +635,8 @@ public class InstrumenterConfig {
         + internalExitOnFailure
         + ", additionalJaxRsAnnotations="
         + additionalJaxRsAnnotations
+        + ", websocketTracingEnabled="
+        + websocketTracingEnabled
         + '}';
   }
 }

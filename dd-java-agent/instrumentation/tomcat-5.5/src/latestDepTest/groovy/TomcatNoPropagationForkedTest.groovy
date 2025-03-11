@@ -21,7 +21,7 @@ class TomcatNoPropagationForkedTest extends AgentTestRunner {
     wrapper.asyncSupported = true
     ctx.addChild(wrapper)
     ctx.addServletMappingDecoded("/*", wrapper.name)
-  })
+  }, {})
 
   @Override
   protected void configurePreAgent() {
@@ -38,6 +38,7 @@ class TomcatNoPropagationForkedTest extends AgentTestRunner {
   void cleanupSpec() {
     server.stop()
   }
+
 
   def "should not extract propagated context but collect headers"() {
     setup:
