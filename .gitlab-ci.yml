@@ -110,17 +110,20 @@ default:
         - workspace
       policy: $BUILD_CACHE_POLICY
   before_script:
+    - source .gitlab/gitlab-utils.sh
     - export GRADLE_USER_HOME=`pwd`/.gradle
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
+    - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
     - mkdir -p .gradle
     - cp -r .gradle .gradle-copy
     - rm -rf .gradle
     - mv .gradle-copy .gradle
     - ls -la
+    - gitlab_section_end "gradle-dance"
 
 build:
   extends: .gradle_build
@@ -182,7 +185,10 @@ test_published_artifacts:
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew check --info $GRADLE_ARGS
   after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
     - .circleci/collect_reports.sh
+    - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
@@ -197,7 +203,10 @@ test_published_artifacts:
   script:
     - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
     - .circleci/collect_reports.sh --destination ./check_reports --move
+    - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
@@ -247,7 +256,10 @@ muzzle:
     - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
     - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
   after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
     - .circleci/collect_reports.sh
+    - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
@@ -311,11 +323,13 @@ muzzle-dep-report:
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
     - .circleci/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
     - .circleci/collect_results.sh
     - .circleci/upload_ciapp.sh tests $testJvm
-# TODO Get APM Test Agent Trace Check Results
+    - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
