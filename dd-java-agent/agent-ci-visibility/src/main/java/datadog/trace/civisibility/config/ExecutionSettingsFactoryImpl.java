@@ -54,7 +54,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
   private final PullRequestInfo pullRequestInfo;
-  private final String repositoryRoot;
+  @Nullable private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
@@ -63,7 +63,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      String repositoryRoot) {
+      @Nullable String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
     this.gitClient = gitClient;
@@ -75,21 +75,19 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   /** @return Executions settings by module name */
   public Map<String, ExecutionSettings> create(@Nonnull JvmInfo jvmInfo) {
-    TracerEnvironment tracerEnvironment = buildTracerEnvironment(repositoryRoot, jvmInfo, null);
+    TracerEnvironment tracerEnvironment = buildTracerEnvironment(jvmInfo, null);
     return create(tracerEnvironment);
   }
 
   @Override
   public ExecutionSettings create(@Nonnull JvmInfo jvmInfo, @Nullable String moduleName) {
-    TracerEnvironment tracerEnvironment =
-        buildTracerEnvironment(repositoryRoot, jvmInfo, moduleName);
+    TracerEnvironment tracerEnvironment = buildTracerEnvironment(jvmInfo, moduleName);
     Map<String, ExecutionSettings> settingsByModule = create(tracerEnvironment);
     ExecutionSettings settings = settingsByModule.get(moduleName);
     return settings != null ? settings : settingsByModule.get(DEFAULT_SETTINGS);
   }
 
-  private TracerEnvironment buildTracerEnvironment(
-      String repositoryRoot, JvmInfo jvmInfo, @Nullable String moduleName) {
+  private TracerEnvironment buildTracerEnvironment(JvmInfo jvmInfo, @Nullable String moduleName) {
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(repositoryRoot);
 
     TracerEnvironment.Builder builder = TracerEnvironment.builder();

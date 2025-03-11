@@ -39,6 +39,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,7 @@ public class CiVisibilityRepoServices {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityRepoServices.class);
 
-  final String repoRoot;
+  @Nullable final String repoRoot;
   final String moduleName;
   final Provider ciProvider;
   final Map<String, String> ciTags;
@@ -135,7 +136,7 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  static String getModuleName(Config config, String repoRoot, Path path) {
+  static String getModuleName(Config config, @Nullable String repoRoot, Path path) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
@@ -175,7 +176,7 @@ public class CiVisibilityRepoServices {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      String repoRoot) {
+      @Nullable String repoRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
       LOGGER.warn(
@@ -208,7 +209,7 @@ public class CiVisibilityRepoServices {
       GitClient gitClient,
       GitRepoUnshallow gitRepoUnshallow,
       BackendApi backendApi,
-      String repoRoot) {
+      @Nullable String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
       return () -> CompletableFuture.completedFuture(null);
     }
@@ -239,7 +240,7 @@ public class CiVisibilityRepoServices {
   }
 
   private static SourcePathResolver buildSourcePathResolver(
-      String repoRoot, RepoIndexProvider indexProvider) {
+      @Nullable String repoRoot, RepoIndexProvider indexProvider) {
     SourcePathResolver compilerAidedResolver =
         repoRoot != null
             ? new CompilerAidedSourcePathResolver(repoRoot)
@@ -248,7 +249,7 @@ public class CiVisibilityRepoServices {
     return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }
 
-  private static Codeowners buildCodeowners(String repoRoot) {
+  private static Codeowners buildCodeowners(@Nullable String repoRoot) {
     if (repoRoot != null) {
       return new CodeownersProvider().build(repoRoot);
     } else {
