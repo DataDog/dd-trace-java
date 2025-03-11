@@ -37,10 +37,10 @@ variables:
 #      - "21"
 #      - "ubuntu17"
 #      - "zulu8"
-      - "semeru8"
+#      - "semeru8"
 #      - "ibm8"
 #      - "zulu11"
-      - "11"
+#      - "11"
 #      - "17"
 #      - "semeru17"
 
@@ -94,7 +94,7 @@ default:
     MAVEN_OPTS: "-Xms64M -Xmx512M"
     GRADLE_WORKERS: 2
     KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_REQUEST: 8Gi
   cache:
     - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
       paths:
@@ -182,7 +182,7 @@ test_published_artifacts:
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
     - cd test-published-dependencies
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx512M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew check --info $GRADLE_ARGS
   after_script:
     - source .gitlab/gitlab-utils.sh
@@ -308,6 +308,7 @@ muzzle-dep-report:
     KUBERNETES_MEMORY_REQUEST: 16Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
     GRADLE_WORKERS: 4
+    GRADLE_MEM: 3G
     BUILD_CACHE_TYPE: lib
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
@@ -318,7 +319,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
