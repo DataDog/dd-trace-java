@@ -22,7 +22,7 @@ public class VMArgsCache {
     this.args = new HashSet<>(args);
   }
 
-  private HashSet<String> getArgs() {
+  private Set<String> getArgs() {
     return this.args;
   }
 
