@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   public RepoIndexBuilder(
       Config config,
-      String repoRoot,
+      @Nonnull String repoRoot,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
       FileSystem fileSystem) {
