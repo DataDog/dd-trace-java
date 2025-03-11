@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.config.provider.StableConfigYaml.Selector;
 import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ public class StableConfigParser {
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
       StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
+      String configId = data.getConfig_id();
       ConfigurationMap configMap = data.getApm_configuration_default();
       List<Rule> rules = data.getApm_configuration_rules();
       if (!rules.isEmpty()) {
@@ -36,16 +38,17 @@ public class StableConfigParser {
           if (match) {
             // Merge apm_configuration_default and apm_configuration_rules
             configMap.putAll(rule.getConfiguration());
-            return new StableConfigSource.StableConfig(
-                data.getConfig_id(), new HashMap<>(configMap));
+            return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
           }
         }
       }
-      // TODO: Right now, a file with config_id but no apm_configuration_default nor
-      // apm_configuration_rules gets discarded. Should it?
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
-        return new StableConfigSource.StableConfig(data.getConfig_id(), new HashMap<>(configMap));
+        return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
+      }
+      // There was an update but with no configs; still register this
+      if (configId != null) {
+        return new StableConfigSource.StableConfig(configId, Collections.emptyMap());
       }
     } catch (IOException e) {
       // TODO: Update this log from "stable configuration" to the official name of the feature, once
