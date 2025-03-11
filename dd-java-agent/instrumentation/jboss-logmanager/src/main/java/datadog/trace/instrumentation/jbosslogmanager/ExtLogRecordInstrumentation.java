@@ -112,7 +112,7 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
         case "dd.trace_id":
           if (context != null) {
             DDTraceId traceId = context.getTraceId();
-            if (traceId.toHighOrderLong() != 0 && Config.get().isLogs128bTraceIdEnabled()) {
+            if (traceId.toHighOrderLong() != 0 && Config.get().isLogs128bitTraceIdEnabled()) {
               value = traceId.toHexString();
             } else {
               value = traceId.toString();
@@ -153,7 +153,7 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
         String traceIdValue =
-            Config.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
                 ? traceId.toHexString()
                 : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

@@ -82,7 +82,7 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
         String traceIdValue =
-            Config.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
                 ? traceId.toHexString()
                 : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

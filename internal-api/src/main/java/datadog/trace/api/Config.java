@@ -483,7 +483,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
-  private final boolean logs128bTraceIdEnabled;
+  private final boolean logs128bitTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -664,7 +664,7 @@ public class Config {
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
 
-    logs128bTraceIdEnabled =
+    logs128bitTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
 
@@ -1031,9 +1031,15 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
-    logsInjectionEnabled =
-        configProvider.getBoolean(
-            LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    if (experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(LOGS_INJECTION))) {
+      logsInjectionEnabled =
+          configProvider.getBoolean(
+              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    } else {
+      logsInjectionEnabled =
+          configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
+    }
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -3456,8 +3462,8 @@ public class Config {
     return trace128bitTraceIdGenerationEnabled;
   }
 
-  public boolean isLogs128bTraceIdEnabled() {
-    return logs128bTraceIdEnabled;
+  public boolean isLogs128bitTraceIdEnabled() {
+    return logs128bitTraceIdEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
@@ -4706,8 +4712,8 @@ public class Config {
         + idGenerationStrategy
         + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
-        + ", logs128bTraceIdEnabled="
-        + logs128bTraceIdEnabled
+        + ", logs128bitTraceIdEnabled="
+        + logs128bitTraceIdEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
