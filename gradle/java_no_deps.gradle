@@ -59,6 +59,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     targetCompatibility = version
   }
 
+  // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
+  // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
   dependencies {
     if ("${project.projectDir}".endsWith("socket-utils")) {
       compileOnly files(project.sourceSets."main_$name".output)
