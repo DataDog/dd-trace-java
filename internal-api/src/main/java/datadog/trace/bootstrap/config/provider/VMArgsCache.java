@@ -31,7 +31,7 @@ public class VMArgsCache {
   }
 
   @SuppressForbidden
-  public static HashSet<String> getVMArguments() {
+  public static Set<String> getVMArguments() {
     return Singleton.INSTANCE.getArgs();
   }
 
