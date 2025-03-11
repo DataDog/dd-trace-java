@@ -425,7 +425,6 @@ public final class AgentBootstrap {
   }
 
   @SuppressForbidden
-  // TODO: Move this
   public static List<String> getVMArgumentsThroughReflection() {
     // Try Oracle-based
     // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
