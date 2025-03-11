@@ -561,6 +561,7 @@ public class Config {
   private final long dependecyResolutionPeriodMillis;
 
   private final boolean apmTracingEnabled;
+  private final Set<String> experimentalFeaturesEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -625,6 +626,10 @@ public class Config {
     rootContextServiceName =
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+
+    experimentalFeaturesEnabled =
+        configProvider.getSet(
+            TRACE_EXPERIMENTAL_FEATURES_ENABLED, DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED);
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
@@ -2011,6 +2016,10 @@ public class Config {
 
   public String getRootContextServiceName() {
     return rootContextServiceName;
+  }
+
+  public Set<String> getExperimentalFeaturesEnabled() {
+    return experimentalFeaturesEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -4367,6 +4376,8 @@ public class Config {
         + serviceNameSetByUser
         + ", rootContextServiceName="
         + rootContextServiceName
+        + ", experimentalFeaturesEnabled="
+        + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
         + ", writerType='"
