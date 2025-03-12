@@ -8,8 +8,6 @@ import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-
 class VirtualThreadTest extends AgentTestRunner {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
@@ -37,7 +35,6 @@ class VirtualThreadTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           // this child will have a span
           m(pool, new JavaAsyncChild())
           // this child won't
