@@ -63,6 +63,7 @@ import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -1499,18 +1500,33 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         spanId = this.spanId;
       }
 
+      boolean isRemote = false;
+
       AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
         if (activeSpan != null) {
           parentContext = activeSpan.context();
-          //check if restart, if so, parentContext=null, and add span links
+          // check if parentContext is remote
+          if (parentContext.isRemote() && parentContext instanceof ExtractedContext) {
+            ExtractedContext pc = (ExtractedContext) parentContext;
+            if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
+              links.add(
+                  DDSpanLink.from(
+                      pc,
+                      SpanAttributes.builder()
+                          .put("reason", "propagation_behavior_extract")
+                          .put("context_headers", pc.getPropagationStyle().toString())
+                          .build()));
+              parentContext = null;
+              isRemote = true;
+            }
+          }
         }
       }
 
       String parentServiceName = null;
-      boolean isRemote = false;
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
@@ -1547,21 +1563,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           // Propagate external trace
           isRemote = true;
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
-
-          if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
-            traceId = idGenerationStrategy.generateTraceId();
-            parentSpanId = 0;
-            samplingPriority = PrioritySampling.UNSET;
-            endToEndStartTime = 0;
-            propagationTags = propagationTagsFactory.empty();
-            //adding span link from extracted context
-          } else {
-            traceId = extractedContext.getTraceId();
-            parentSpanId = extractedContext.getSpanId();
-            samplingPriority = extractedContext.getSamplingPriority();
-            endToEndStartTime = extractedContext.getEndToEndStartTime();
-            propagationTags = extractedContext.getPropagationTags();
-          }
+          traceId = extractedContext.getTraceId();
+          parentSpanId = extractedContext.getSpanId();
+          samplingPriority = extractedContext.getSamplingPriority();
+          endToEndStartTime = extractedContext.getEndToEndStartTime();
+          propagationTags = extractedContext.getPropagationTags();
         } else if (parentContext != null) {
           traceId =
               parentContext.getTraceId() == DDTraceId.ZERO
@@ -1573,6 +1579,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           propagationTags = propagationTagsFactory.empty();
         } else {
           // Start a new trace
+          System.out.println("Starting a new trace");
           traceId = idGenerationStrategy.generateTraceId();
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;

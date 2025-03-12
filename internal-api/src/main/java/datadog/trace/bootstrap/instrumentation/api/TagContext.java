@@ -240,6 +240,11 @@ public class TagContext implements AgentSpanContext.Extracted {
     return this.pathwayContext;
   }
 
+  @Override
+  public boolean isRemote() {
+    return true;
+  }
+
   public TagContext withPathwayContext(PathwayContext pathwayContext) {
     this.pathwayContext = pathwayContext;
     return this;

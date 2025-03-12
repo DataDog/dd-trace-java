@@ -346,10 +346,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     setup:
     injectSysConfig("trace.propagation.behavior.extract", "restart")
     def thread = Thread.currentThread()
-    TagContext context = extractedContext
-    context.addTerminatedContextLink(DDSpanLink.from(extractedContext))
     final DDSpan span = tracer.buildSpan("test", "op name")
-      .asChildOf(context).start()
+      .asChildOf(extractedContext).start()
 
     expect:
     span.traceId != extractedContext.traceId

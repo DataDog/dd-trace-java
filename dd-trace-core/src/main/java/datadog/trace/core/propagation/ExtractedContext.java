@@ -62,7 +62,7 @@ public class ExtractedContext extends TagContext {
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
     this.propagationTags = propagationTags;
-    //set remote flag
+    // set remote flag
   }
 
   @Override

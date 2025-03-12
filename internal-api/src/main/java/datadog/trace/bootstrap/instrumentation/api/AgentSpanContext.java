@@ -15,7 +15,6 @@ import java.util.Map;
  */
 public interface AgentSpanContext {
 
-  //add remote field. Deafult is false unless coming from tag or extracted
   /**
    * Gets the TraceId of the span's trace.
    *
@@ -53,6 +52,8 @@ public interface AgentSpanContext {
   PathwayContext getPathwayContext();
 
   default void mergePathwayContext(PathwayContext pathwayContext) {}
+
+  boolean isRemote();
 
   interface Extracted extends AgentSpanContext {
     /**
