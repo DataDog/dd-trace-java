@@ -1505,6 +1505,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         final AgentSpan activeSpan = scopeManager.activeSpan();
         if (activeSpan != null) {
           parentContext = activeSpan.context();
+          //check if restart, if so, parentContext=null, and add span links
         }
       }
 
@@ -1553,6 +1554,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             samplingPriority = PrioritySampling.UNSET;
             endToEndStartTime = 0;
             propagationTags = propagationTagsFactory.empty();
+            //adding span link from extracted context
           } else {
             traceId = extractedContext.getTraceId();
             parentSpanId = extractedContext.getSpanId();

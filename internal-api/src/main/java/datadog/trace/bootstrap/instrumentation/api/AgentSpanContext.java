@@ -14,6 +14,8 @@ import java.util.Map;
  * contextualize the associated Span instance.
  */
 public interface AgentSpanContext {
+
+  //add remote field. Deafult is false unless coming from tag or extracted
   /**
    * Gets the TraceId of the span's trace.
    *
