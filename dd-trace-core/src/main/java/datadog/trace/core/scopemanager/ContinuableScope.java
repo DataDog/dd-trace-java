@@ -177,7 +177,6 @@ class ContinuableScope implements AgentScope {
     }
   }
 
-  @Override
   public byte source() {
     return (byte) (source & 0x7F);
   }

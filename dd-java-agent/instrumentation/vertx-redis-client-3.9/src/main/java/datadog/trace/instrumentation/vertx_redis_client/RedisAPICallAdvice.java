@@ -111,7 +111,7 @@ public class RedisAPICallAdvice {
     The potential racy condition when the handler may be added to an already finished task is handled
     by RedisAPIImplSendAdvice.
     */
-    scope = activateSpan(clientSpan, true);
+    scope = activateSpan(clientSpan);
     ResponseHandlerWrapper respHandler =
         new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
     handler = respHandler;

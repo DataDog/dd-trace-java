@@ -78,7 +78,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      scope = activateSpan(span, true);
+      scope = activateSpan(span);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

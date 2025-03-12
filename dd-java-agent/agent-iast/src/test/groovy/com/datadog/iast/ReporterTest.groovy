@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import datadog.trace.util.stacktrace.StackTraceEvent
@@ -232,7 +231,7 @@ class ReporterTest extends DDSpecification {
     then:
     noExceptionThrown()
     1 * tracerAPI.startSpan('iast', 'vulnerability', _ as AgentSpanContext) >> span
-    1 * tracerAPI.activateSpan(span, ScopeSource.MANUAL) >> scope
+    1 * tracerAPI.activateManualSpan(span) >> scope
     1 * span.getRequestContext() >> reqCtx
     1 * span.setSpanType(InternalSpanTypes.VULNERABILITY) >> span
     1 * span.setTag(ANALYZED.key(), ANALYZED.value())

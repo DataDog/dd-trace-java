@@ -62,7 +62,7 @@ public class RedisFutureSendAdvice {
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
-    return activateSpan(clientSpan, true);
+    return activateSpan(clientSpan);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

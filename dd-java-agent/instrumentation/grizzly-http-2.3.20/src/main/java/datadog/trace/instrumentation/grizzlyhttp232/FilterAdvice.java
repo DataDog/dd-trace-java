@@ -17,7 +17,7 @@ public class FilterAdvice {
     if (span == null || activeSpan() != null) {
       return null;
     }
-    return activateSpan((AgentSpan) span, true);
+    return activateSpan((AgentSpan) span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -67,7 +67,7 @@ public class RedisSendAdvice {
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
     handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
-    return activateSpan(clientSpan, true);
+    return activateSpan(clientSpan);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

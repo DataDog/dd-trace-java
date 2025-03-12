@@ -11,11 +11,6 @@ final class NoopScope implements AgentScope {
   }
 
   @Override
-  public byte source() {
-    return 0;
-  }
-
-  @Override
   public Continuation capture() {
     return NoopContinuation.INSTANCE;
   }
