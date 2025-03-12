@@ -2,13 +2,14 @@ package datadog.trace.civisibility.events;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
-import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -139,8 +140,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
-      final @Nullable RetryReason retryReason,
-      final @Nullable Long startTime) {
+      final @Nullable Long startTime,
+      final @Nullable TestExecutionHistory testExecutionHistory) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -166,6 +167,26 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_IS_MODIFIED, true);
     }
 
+    if (testModule.isQuarantined(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED, true);
+    }
+
+    if (testModule.isDisabled(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED, true);
+    }
+
+    if (testModule.isAttemptToFix(thisTest)) {
+      test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX, true);
+    }
+
+    if (testExecutionHistory != null) {
+      RetryReason retryReason = testExecutionHistory.currentExecutionRetryReason();
+      if (retryReason != null) {
+        test.setTag(Tags.TEST_IS_RETRY, true);
+        test.setTag(Tags.TEST_RETRY_REASON, retryReason);
+      }
+    }
+
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
       if (testFrameworkVersion != null) {
@@ -185,7 +206,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_TRAITS, getTestTraits(categories));
 
       for (String category : categories) {
-        if (category.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+        if (category.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
@@ -196,11 +217,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           break;
         }
       }
-    }
-
-    if (retryReason != null) {
-      test.setTag(Tags.TEST_IS_RETRY, true);
-      test.setTag(Tags.TEST_RETRY_REASON, retryReason);
     }
 
     inProgressTests.put(descriptor, test);
@@ -227,12 +243,27 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
+
+    TestIdentifier thisTest = test.getIdentifier();
+    if (testExecutionHistory != null) {
+      if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
+        test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+      } else if (!test.hasFailed()
+          && testModule.isAttemptToFix(thisTest)
+          && testExecutionHistory.hasSucceededAllRetries()) {
+        test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, true);
+      }
+    }
+
     test.end(endTime);
   }
 
@@ -259,22 +290,28 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         null,
         null);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null);
+    onTestFinish(testDescriptor, null, null);
   }
 
   @Override
   @Nonnull
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData testSource) {
-    return testModule.retryPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return testModule.executionPolicy(test, testSource, testTags);
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return testModule.executionPriority(test, testSource);
+  }
+
+  @Override
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return testModule.isNew(test);
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return testModule.isFlaky(test);
   }
 

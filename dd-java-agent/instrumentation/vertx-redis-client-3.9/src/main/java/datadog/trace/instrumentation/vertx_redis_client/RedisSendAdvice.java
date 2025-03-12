@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.vertx_redis_client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
@@ -12,7 +13,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -51,7 +51,7 @@ public class RedisSendAdvice {
     // If we had already wrapped the innermost handler in the RedisAPI call, then we should
     // not wrap it again here. See comment in RedisAPICallAdvice
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     AgentSpan parentSpan = activeSpan();
@@ -67,7 +67,7 @@ public class RedisSendAdvice {
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
     handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
-    return activateSpan(clientSpan, true);
+    return activateSpan(clientSpan);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

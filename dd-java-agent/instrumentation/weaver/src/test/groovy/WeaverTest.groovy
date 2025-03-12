@@ -19,19 +19,27 @@ class WeaverTest extends CiVisibilityInstrumentationTest {
   def "test #testcaseName"() {
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                   | tests                       | expectedTracesCount
-    "test-succeed-pure"            | [TestSucceedPure]           | 2
-    "test-failed-pure"             | [TestFailedPure]            | 2
-    "test-failed-exception-pure"   | [TestFailedExceptionPure]   | 2
-    "test-succeeded"               | [TestSucceed]               | 2
-    "test-failed"                  | [TestFailed]                | 2
-    "test-ignored"                 | [TestIgnored]               | 2
-    "test-canceled"                | [TestCanceled]              | 2
-    "test-succeed-suite-resource"  | [TestSucceedSuiteResource]  | 3
-    "test-succeed-global-resource" | [TestSucceedGlobalResource] | 2
+    testcaseName                   | tests
+    "test-succeed-pure"            | [TestSucceedPure]
+    "test-failed-pure"             | [TestFailedPure]
+    "test-failed-exception-pure"   | [TestFailedExceptionPure]
+    "test-succeeded"               | [TestSucceed]
+    "test-failed"                  | [TestFailed]
+    "test-ignored"                 | [TestIgnored]
+    "test-canceled"                | [TestCanceled]
+    "test-succeed-suite-resource"  | [TestSucceedSuiteResource]
+    "test-succeed-global-resource" | [TestSucceedGlobalResource]
+  }
+
+  def "test capabilities tagging"() {
+    setup:
+    runTests([TestSucceed])
+
+    expect:
+    assertCapabilities(WeaverUtils.CAPABILITIES, 4)
   }
 
   @Override

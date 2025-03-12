@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.vertx_redis_client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
@@ -12,7 +13,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -55,14 +55,14 @@ public class RedisFutureSendAdvice {
     // If we had already wrapped the innermost handler in the RedisAPI call, then we should
     // not wrap it again here. See comment in RedisAPICallAdvice
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
 
-    return activateSpan(clientSpan, true);
+    return activateSpan(clientSpan);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -78,8 +78,7 @@ public class RedisFutureSendAdvice {
       final AgentSpan span = clientScope != null ? clientScope.span() : activeSpan();
 
       if (socketAddress != null && span != null) {
-        final AgentSpan spanWithConnection =
-            clientScope == AgentTracer.NoopAgentScope.INSTANCE ? activeSpan() : span;
+        final AgentSpan spanWithConnection = clientScope == noopScope() ? activeSpan() : span;
         DECORATE.onConnection(spanWithConnection, socketAddress);
         DECORATE.setPeerPort(spanWithConnection, socketAddress.port());
       }

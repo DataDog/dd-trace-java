@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
@@ -7,7 +8,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -40,6 +40,7 @@ import com.rabbitmq.client.MessageProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -189,14 +190,14 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         if (TIME_IN_QUEUE_ENABLED) {
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
-        propagate().inject(span, headers, SETTER);
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
         sortedTags.put(EXCHANGE_TAG, exchange);
         sortedTags.put(
-            HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.equals("") ? "false" : "true");
+            HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.isEmpty() ? "false" : "true");
         sortedTags.put(TYPE_TAG, "rabbitmq");
-        propagate().injectPathwayContext(span, headers, SETTER, sortedTags);
+        DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
+        defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

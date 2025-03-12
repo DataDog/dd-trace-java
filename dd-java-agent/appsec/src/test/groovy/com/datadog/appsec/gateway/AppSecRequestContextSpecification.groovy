@@ -5,6 +5,8 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import datadog.trace.api.telemetry.LogCollector
+import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
@@ -271,5 +273,66 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     where:
     postProcessing << [true, false]
+  }
+
+  def "test increase and get WafTimeouts"() {
+    when:
+    ctx.increaseWafTimeouts()
+    ctx.increaseWafTimeouts()
+
+    then:
+    ctx.getWafTimeouts() == 2
+  }
+
+  def "test increase and get RaspTimeouts"() {
+    when:
+    ctx.increaseRaspTimeouts()
+    ctx.increaseRaspTimeouts()
+
+    then:
+    ctx.getRaspTimeouts() == 2
+  }
+
+  def "test increase and get RaspErrors"() {
+    when:
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR)
+
+    then:
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR) == 2
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
+    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
+    ctx.getRaspError(0) == 0
+  }
+
+  def "test increase and get WafErrors"() {
+    when:
+    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
+    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR)
+
+    then:
+    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR) == 2
+    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
+    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
+    ctx.getWafError(0) == 0
+  }
+
+  void 'close logs if request end was not called'() {
+    given:
+    TestLogCollector.enable()
+    def ctx = new AppSecRequestContext()
+
+    when:
+    ctx.close()
+
+    then:
+    def log = TestLogCollector.drainCapturedLogs().find { it.message.contains('Request end event was not called before close') }
+    log != null
+    log.marker == LogCollector.SEND_TELEMETRY
+
+    cleanup:
+    TestLogCollector.disable()
   }
 }

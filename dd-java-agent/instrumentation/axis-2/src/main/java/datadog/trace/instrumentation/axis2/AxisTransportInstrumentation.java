@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.axis2;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_ASYNC_SPAN_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_TRANSPORT;
@@ -77,7 +77,7 @@ public final class AxisTransportInstrumentation extends InstrumenterModule.Traci
           message.setProperty("TRANSPORT_HEADERS", headers);
         }
         try {
-          propagate().inject(span, headers, SETTER);
+          defaultPropagator().inject(span, headers, SETTER);
         } catch (Throwable ignore) {
         }
 

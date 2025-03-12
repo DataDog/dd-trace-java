@@ -5,23 +5,29 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.flare.TracerFlare
 import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
+import groovy.json.JsonSlurper
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
+import static java.nio.charset.StandardCharsets.UTF_8
 
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
@@ -143,7 +149,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "priority sampling is always sent"() {
     setup:
-    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), PrioritySampling.USER_KEEP))
+    def parent = addContinuation(newSpanOf(factory.create(DDTraceId.ONE), USER_KEEP, 0))
     def metadataChecker = new SamplingPriorityMetadataChecker()
 
     when: "Fill the buffer - Only children - Priority taken from root"
@@ -443,18 +449,63 @@ class PendingTraceBufferTest extends DDSpecification {
     }
   }
 
+  def "testing tracer flare dump with multiple traces"() {
+    setup:
+    TracerFlare.addReporter {} // exercises default methods
+    def dumpReporter = Mock(PendingTraceBuffer.TracerDump)
+    TracerFlare.addReporter(dumpReporter)
+    def trace1 = factory.create(DDTraceId.ONE)
+    def parent1 = newSpanOf(trace1, UNSET, System.currentTimeMillis() * 1000)
+    def child1 = newSpanOf(parent1)
+    def trace2 = factory.create(DDTraceId.from(2))
+    def parent2 = newSpanOf(trace2, UNSET, System.currentTimeMillis() * 2000)
+    def child2 = newSpanOf(parent2)
+
+    when:
+    parent1.finish()
+    parent2.finish()
+    buffer.start()
+    def entries = buildAndExtractZip()
+
+    then:
+    1 * dumpReporter.prepareForFlare()
+    1 * dumpReporter.addReportToFlare(_)
+    1 * dumpReporter.cleanupAfterFlare()
+    entries.size() == 1
+    def pendingTraceText = entries["pending_traces.txt"] as String
+    (entries["pending_traces.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
+
+    def parsedTraces = pendingTraceText.split('\n').collect { new JsonSlurper().parseText(it) }.flatten()
+    parsedTraces.size() == 2
+    parsedTraces[0]["trace_id"] == 1 //Asserting both traces exist
+    parsedTraces[1]["trace_id"] == 2
+    parsedTraces[0]["start"] < parsedTraces[1]["start"] //Asserting the dump has the oldest trace first
+
+
+    then:
+    child1.finish()
+    child2.finish()
+
+    then:
+    trace1.size() == 0
+    trace1.pendingReferenceCount == 0
+    trace2.size() == 0
+    trace2.pendingReferenceCount == 0
+  }
+
+
   def addContinuation(DDSpan span) {
     def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
-    continuations << scope.capture()
+    continuations << scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id())
     scope.close()
     return span
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
-    return newSpanOf(trace, PrioritySampling.UNSET)
+    return newSpanOf(trace, UNSET, 0)
   }
 
-  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority) {
+  static DDSpan newSpanOf(PendingTrace trace, int samplingPriority, long timestampMicro) {
     def context = new DDSpanContext(
       trace.traceId,
       1,
@@ -475,7 +526,7 @@ class PendingTraceBufferTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return DDSpan.create("test", 0, context, null)
+    return DDSpan.create("test", timestampMicro, context, null)
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
@@ -488,7 +539,7 @@ class PendingTraceBufferTest extends DDSpecification {
       "fakeService",
       "fakeOperation",
       "fakeResource",
-      PrioritySampling.UNSET,
+      UNSET,
       null,
       Collections.emptyMap(),
       false,
@@ -501,5 +552,28 @@ class PendingTraceBufferTest extends DDSpecification {
       false,
       PropagationTags.factory().empty())
     return DDSpan.create("test", 0, context, null)
+  }
+
+  def buildAndExtractZip() {
+    TracerFlare.prepareForFlare()
+    def out = new ByteArrayOutputStream()
+    try (ZipOutputStream zip = new ZipOutputStream(out)) {
+      TracerFlare.addReportsToFlare(zip)
+    } finally {
+      TracerFlare.cleanupAfterFlare()
+    }
+
+    def entries = [:]
+
+    def zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))
+    def entry
+    while (entry = zip.nextEntry) {
+      def bytes = new ByteArrayOutputStream()
+      bytes << zip
+      entries.put(entry.name, entry.name.endsWith(".bin")
+      ? bytes.toByteArray() : new String(bytes.toByteArray(), UTF_8))
+    }
+
+    return entries
   }
 }

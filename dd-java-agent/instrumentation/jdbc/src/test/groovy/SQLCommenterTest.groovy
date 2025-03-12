@@ -1,5 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
+
 import datadog.trace.instrumentation.jdbc.SQLCommenter
+
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class SQLCommenterTest extends AgentTestRunner {
 
@@ -35,15 +41,13 @@ class SQLCommenterTest extends AgentTestRunner {
     String sqlWithComment = ""
     if (injectTrace) {
       sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
-    } else {
-      if (appendComment) {
-        sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
-      } else {
-        sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
-      }
+    } else if (appendComment) {
+      sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
+    }
+    else {
+      sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
     }
 
-    sqlWithComment == expected
 
     then:
     sqlWithComment == expected
@@ -104,5 +108,39 @@ class SQLCommenterTest extends AgentTestRunner {
     "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * FROM foo"                 | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | false       | false         | null                                                      | "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * FROM foo"
     "/*customer-comment*/ SELECT * FROM foo"                                                                      | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | false       | false         | null                                                      | "/*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion'*/ /*customer-comment*/ SELECT * FROM foo"
     "/*traceparent"                                                                                               | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | false       | false         | null                                                      | "/*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion'*/ /*traceparent"
+  }
+
+  def "test encode Sql Comment with peer service"() {
+    setup:
+    injectSysConfig("dd.service", ddService)
+    injectSysConfig("dd.env", ddEnv)
+    injectSysConfig("dd.version", ddVersion)
+
+    when:
+    String sqlWithComment = ""
+    runUnderTrace("testTrace"){
+      AgentSpan currSpan = AgentTracer.activeSpan()
+      currSpan.setTag(Tags.PEER_SERVICE, peerService)
+
+      if (injectTrace) {
+        sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
+      }
+      else if (appendComment) {
+        sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
+      }
+      else {
+        sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
+      }
+    }
+
+    then:
+    sqlWithComment == expected
+
+    where:
+    query                                                                                                         | ddService      | ddEnv  | dbService    | dbType     | host | dbName | ddVersion     | injectTrace | appendComment | traceParent                                               | peerService | expected
+    "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | ""          | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | ""          | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "testPeer" | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',ddprs='testPeer',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "testPeer" | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',ddprs='testPeer',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
   }
 }

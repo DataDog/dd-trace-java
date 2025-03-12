@@ -1,19 +1,34 @@
 ext {
   // See https://ignite.apache.org/docs/latest/quick-start/java#running-ignite-with-java-11-or-later
+  // FIXME: Because of this condition, tests only run in Java 8, and latestDepTest never run, as they require Java 11+.
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
+  // ignite 2.17.0+ requires Java 11+
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 muzzle {
   pass {
     group = 'org.apache.ignite'
     module = 'ignite-core'
-    versions = "[2.0.0,)"
+    versions = "[2.0.0,2.17.0)"
+  }
+  // ignite-core 2.17.0 is compiled with Java 11
+  pass {
+    group = 'org.apache.ignite'
+    module = 'ignite-core'
+    versions = "[2.17.0,3)"
+    javaVersion = 11
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+// ignite 2.16.0 latest version compatible with Java 8
+addTestSuiteForDir('ignite216Test', 'test')
+addTestSuiteExtendingForDir('ignite216ForkedTest', 'ignite216Test', 'test')
 
 dependencies {
   compileOnly group: 'org.apache.ignite', name: 'ignite-core', version: '2.0.0'
@@ -21,6 +36,15 @@ dependencies {
   testImplementation group: 'org.apache.ignite', name: 'ignite-core', version: '2.0.0'
   testImplementation group: 'org.apache.ignite', name: 'ignite-indexing', version: '2.0.0'
 
+  ignite216TestImplementation group: 'org.apache.ignite', name: 'ignite-core', version: '2.16.0'
+  ignite216TestImplementation group: 'org.apache.ignite', name: 'ignite-indexing', version: '2.16.0'
+
   latestDepTestImplementation group: 'org.apache.ignite', name: 'ignite-core', version: '2.+'
   latestDepTestImplementation group: 'org.apache.ignite', name: 'ignite-indexing', version: '2.+'
+}
+
+for (task in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroovy']) {
+  tasks.named(task, GroovyCompile) {
+    it.javaLauncher = getJavaLauncherFor(11)
+  }
 }

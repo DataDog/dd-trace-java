@@ -263,7 +263,7 @@ public final class DatadogProfiler {
               + "This is not recommended and may cause instability and crashes.",
           safemode);
     }
-    StringBuilder cmd = new StringBuilder("start,jfr=7");
+    StringBuilder cmd = new StringBuilder("start,jfr");
     cmd.append(",file=").append(file.toAbsolutePath());
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));

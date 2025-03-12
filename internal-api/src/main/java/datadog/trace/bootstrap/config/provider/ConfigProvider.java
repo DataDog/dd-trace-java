@@ -379,15 +379,19 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -401,16 +405,20 @@ public final class ConfigProvider {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new OtelEnvironmentConfigSource(),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           false,
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -426,17 +434,21 @@ public final class ConfigProvider {
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           providedConfigSource,
           new OtelEnvironmentConfigSource(),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           providedConfigSource,
           new SystemPropertiesConfigSource(),
+          StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
           new OtelEnvironmentConfigSource(configProperties),
+          StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     }
   }

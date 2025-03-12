@@ -1,7 +1,8 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -90,9 +91,17 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return activate(span, source.id(), true, isAsyncPropagating);
   }
 
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    AbstractContinuation continuation =
-        new SingleContinuation(this, span, ScopeSource.INSTRUMENTATION.id());
+  public AgentScope.Continuation captureActiveSpan() {
+    ContinuableScope activeScope = scopeStack().active();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return captureSpan(activeScope.span(), activeScope.source());
+    } else {
+      return AgentTracer.noopContinuation();
+    }
+  }
+
+  public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
+    ScopeContinuation continuation = new ScopeContinuation(this, span, source);
     continuation.register();
     healthMetrics.onCaptureContinuation();
     return continuation;
@@ -116,7 +125,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     if (depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     assert span != null;
@@ -136,12 +145,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   /**
-   * Activates a scope for the given {@link AbstractContinuation}.
+   * Activates a scope for the given {@link ScopeContinuation}.
    *
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final AbstractContinuation continuation, final AgentSpan span, final byte source) {
+      final ScopeContinuation continuation, final AgentSpan span, final byte source) {
     ScopeStack scopeStack = scopeStack();
 
     // optimization: if the top scope is already keeping the same span alive
@@ -165,6 +174,18 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     scopeStack.push(scope);
 
     return scope;
+  }
+
+  public boolean isAsyncPropagationEnabled() {
+    ContinuableScope activeScope = scopeStack().active();
+    return activeScope != null && activeScope.isAsyncPropagating();
+  }
+
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null) {
+      activeScope.setAsyncPropagation(asyncPropagationEnabled);
+    }
   }
 
   public void closePrevious(final boolean finishSpan) {
@@ -192,7 +213,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     if (depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
+      return noopScope();
     }
 
     assert span != null;
@@ -219,6 +240,24 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return scopeStack().active();
   }
 
+  public void checkpointActiveForRollback() {
+    ContinuableScope active = scopeStack().active();
+    if (active != null) {
+      active.checkpoint();
+    }
+  }
+
+  public void rollbackActiveToCheckpoint() {
+    ContinuableScope active;
+    while ((active = scopeStack().active()) != null) {
+      if (active.rollback()) {
+        active.close();
+      } else {
+        break; // stop at the most recent checkpointed scope
+      }
+    }
+  }
+
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span;
@@ -243,7 +282,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     extendedScopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null && activeSpan != NoopAgentSpan.INSTANCE) {
+    if (activeSpan != null && activeSpan != noopSpan()) {
       // Notify the listener about the currently active scope
       listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.getSpanId());
     }

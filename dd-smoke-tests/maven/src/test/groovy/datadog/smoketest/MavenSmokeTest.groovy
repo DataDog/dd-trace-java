@@ -88,7 +88,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                              | minSupportedJavaVersion
-    "test_successful_maven_run"                         | "3.2.1"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
@@ -117,7 +116,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
 
     def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
     ], [])
     assert exitCode == 0
 
@@ -126,6 +126,31 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     where:
     projectName                                | mavenVersion
     "test_successful_maven_run_impacted_tests" | "3.9.9"
+  }
+
+  def "test test management"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    mockBackend.givenTestManagement(true)
+    mockBackend.givenAttemptToFixRetries(5)
+
+    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
+    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
+
+    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeed")
+
+    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
+
+    def exitCode = whenRunningMavenBuild([], [])
+    assert exitCode == 0
+
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
+
+    where:
+    projectName                                   | mavenVersion
+    "test_successful_maven_run_test_management"   | "3.9.9"
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {

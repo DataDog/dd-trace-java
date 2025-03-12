@@ -73,10 +73,7 @@ public class AppSecSystem {
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
-            config,
-            configurationPoller,
-            requestSampler,
-            () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
+            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     APP_SEC_CONFIG_SERVICE.init();
 
     sco.createRemaining(config);

@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -30,7 +29,7 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
+    return super.isApplicable(enabledSystems);
   }
 
   @Override
@@ -121,6 +120,8 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
       TestIdentifier test = new TestIdentifier(suiteId, testName, null);
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
+      runContext.populateTags(test, tags);
+
       if (runContext.skip(test, tags)) {
         filterResult = new Tuple2<>(false, true);
       }
@@ -144,7 +145,9 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
       }
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
-      filterResult = runContext.skip(suiteId, tags, filterResult);
+      runContext.populateTags(suiteId, tags, filterResult);
+
+      filterResult = runContext.skip(suiteId, filterResult);
     }
   }
 }

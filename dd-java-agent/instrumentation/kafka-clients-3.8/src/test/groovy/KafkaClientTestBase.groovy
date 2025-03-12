@@ -38,8 +38,8 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
@@ -201,7 +201,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       producer.send(new ProducerRecord(SHARED_TOPIC,greeting)) { meta, ex ->
-        assert activeScope().isAsyncPropagating()
+        assert isAsyncPropagationEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
@@ -368,7 +368,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       kafkaTemplate.send(SHARED_TOPIC, greeting).whenComplete { meta, ex ->
-        assert activeScope().isAsyncPropagating()
+        assert isAsyncPropagationEnabled()
         if (ex == null) {
           runUnderTrace("producer callback") {}
         } else {
@@ -924,6 +924,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
         if (partitioned) {
           "$InstrumentationTags.PARTITION" { it >= 0 }
         }
@@ -999,6 +1000,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+        "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }

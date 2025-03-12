@@ -31,16 +31,16 @@ class MockBackend implements AutoCloseable {
 
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
+  private final Collection<Map<String, Object>> testManagement = new CopyOnWriteArrayList<>()
   private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
   private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
-
   private boolean testsSkippingEnabled = true
-
   private boolean flakyRetriesEnabled = false
-
   private boolean impactedTestsDetectionEnabled = false
+  private boolean testManagementEnabled = false
+  private int attemptToFixRetries = 0
 
   void reset() {
     receivedTraces.clear()
@@ -51,6 +51,7 @@ class MockBackend implements AutoCloseable {
 
     skippableTests.clear()
     flakyTests.clear()
+    testManagement.clear()
     changedFiles.clear()
   }
 
@@ -81,6 +82,41 @@ class MockBackend implements AutoCloseable {
 
   void givenChangedFile(String relativePath) {
     changedFiles.add(relativePath)
+  }
+
+  void givenTestManagement(boolean testManagementEnabled) {
+    this.testManagementEnabled = testManagementEnabled
+  }
+
+  void givenAttemptToFixRetries(int attemptToFixRetries) {
+    this.attemptToFixRetries = attemptToFixRetries
+  }
+
+  void givenQuarantinedTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["quarantined": true]
+    ])
+  }
+
+  void givenDisabledTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["disabled": true]
+    ])
+  }
+
+  void givenAttemptToFixTests(String module, String suite, String name) {
+    testManagement.add([
+      "module": module,
+      "suite": suite,
+      "name": name,
+      "properties": ["attempt_to_fix": true]
+    ])
   }
 
   String getIntakeUrl() {
@@ -127,7 +163,11 @@ class MockBackend implements AutoCloseable {
               "code_coverage": $codeCoverageEnabled,
               "tests_skipping": $testsSkippingEnabled,
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
-              "impacted_tests_enabled": $impactedTestsDetectionEnabled
+              "impacted_tests_enabled": $impactedTestsDetectionEnabled,
+              "test_management": {
+                "enabled": $testManagementEnabled,
+                "attempt_to_fix_retries": $attemptToFixRetries
+              }
             }
           }
         }""").bytes)
@@ -223,6 +263,21 @@ class MockBackend implements AutoCloseable {
         response.status(200)
         .addHeader("Content-Encoding", "gzip")
         .send(MockBackend.compress((""" { "data": $flakyTestsResponse } """).bytes))
+      }
+
+      prefix("/api/v2/test/libraries/test-management/tests") {
+        Map<String, Map> modules = [:]
+        for (Map<String, Object> test : testManagement) {
+          Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:]).computeIfAbsent("suites", k -> [:])
+          Map<String, Map> tests = suites.computeIfAbsent("${test.suite}", k -> [:]).computeIfAbsent("tests", k -> [:])
+          Map<String, Boolean> properties = tests.computeIfAbsent("${test.name}", k -> [:]).computeIfAbsent("properties", k -> [:])
+          properties.putAll(test.properties)
+        }
+
+        String testManagementResponse = """{ "modules": ${JSON_MAPPER.writeValueAsString(modules)} }"""
+        response.status(200)
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress(("""{ "data": { "attributes": $testManagementResponse } } """).bytes))
       }
 
       prefix("/api/v2/apmtelemetry") {

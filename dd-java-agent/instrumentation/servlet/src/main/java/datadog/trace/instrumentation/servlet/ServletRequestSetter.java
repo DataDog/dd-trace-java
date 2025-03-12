@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.servlet;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
+import javax.annotation.ParametersAreNonnullByDefault;
 import javax.servlet.ServletRequest;
 
 /** Inject into request attributes since the request headers can't be modified. */
-public class ServletRequestSetter implements AgentPropagation.Setter<ServletRequest> {
+@ParametersAreNonnullByDefault
+public class ServletRequestSetter implements CarrierSetter<ServletRequest> {
   public static final ServletRequestSetter SETTER = new ServletRequestSetter();
 
   @Override

@@ -36,18 +36,18 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
 
     assertEquals(expectedExitCode, exitCode)
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                                                      | args                           | expectedExitCode | expectedTracesCount
-    "test_maven_build_with_no_tests_generates_spans"                                  | ["-B", "verify"]               | 0                | 1
-    "test_maven_build_with_incorrect_command_generates_spans"                         | ["-B", "unknownPhase"]         | 1                | 1
-    "test_maven_build_with_tests_generates_spans"                                     | ["-B", "clean", "test"]        | 0                | 1
-    "test_maven_build_with_failed_tests_generates_spans"                              | ["-B", "clean", "test"]        | 1                | 1
-    "test_maven_build_with_tests_in_multiple_modules_generates_spans"                 | ["-B", "clean", "test"]        | 1                | 1
-    "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans" | ["-B", "-T4", "clean", "test"] | 0                | 1
-    "test_maven_build_with_unit_and_integration_tests_generates_spans"                | ["-B", "verify"]               | 0                | 1
-    "test_maven_build_with_no_fork_generates_spans"                                   | ["-B", "clean", "test"]        | 0                | 1
+    testcaseName                                                                      | args                           | expectedExitCode
+    "test_maven_build_with_no_tests_generates_spans"                                  | ["-B", "verify"]               | 0
+    "test_maven_build_with_incorrect_command_generates_spans"                         | ["-B", "unknownPhase"]         | 1
+    "test_maven_build_with_tests_generates_spans"                                     | ["-B", "clean", "test"]        | 0
+    "test_maven_build_with_failed_tests_generates_spans"                              | ["-B", "clean", "test"]        | 1
+    "test_maven_build_with_tests_in_multiple_modules_generates_spans"                 | ["-B", "clean", "test"]        | 1
+    "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans" | ["-B", "-T4", "clean", "test"] | 0
+    "test_maven_build_with_unit_and_integration_tests_generates_spans"                | ["-B", "verify"]               | 0
+    "test_maven_build_with_no_fork_generates_spans"                                   | ["-B", "clean", "test"]        | 0
   }
 
   private void givenMavenProjectFiles(String projectFilesSources) {

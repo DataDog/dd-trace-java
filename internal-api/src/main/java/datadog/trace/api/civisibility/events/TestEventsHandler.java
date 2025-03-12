@@ -2,10 +2,11 @@ package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -52,9 +53,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
    *     case
    * @param categories test categories (or test tags) if the test case is marked with any
    * @param testSourceData metadata for locating the source code for the test case
-   * @param retryReason if this is a retry of the previously executed test case, the reason for
-   *     retrying
    * @param startTime the timestamp of the test execution start ({@code null} for current timestamp)
+   * @param testExecutionHistory the history of executions of this test case
    */
   void onTestStart(
       SuiteKey suiteDescriptor,
@@ -65,14 +65,17 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable RetryReason retryReason,
-      @Nullable Long startTime);
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
   void onTestFailure(TestKey descriptor, @Nullable Throwable throwable);
 
-  void onTestFinish(TestKey descriptor, @Nullable Long endTime);
+  void onTestFinish(
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   void onTestIgnore(
       SuiteKey suiteDescriptor,
@@ -86,7 +89,14 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String reason);
 
   @Nonnull
-  TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags);
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData);
 
   /**
    * Returns the reason for skipping a test IF it can be skipped.
@@ -97,9 +107,9 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   @Nullable
   SkipReason skipReason(TestIdentifier test);
 
-  boolean isNew(TestIdentifier test);
+  boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(TestIdentifier test);
+  boolean isFlaky(@Nonnull TestIdentifier test);
 
   @Override
   void close();
@@ -108,6 +118,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        @Nullable ContextStore<TestKey, DDTest> testStore);
+        @Nullable ContextStore<TestKey, DDTest> testStore,
+        Collection<LibraryCapability> capabilities);
   }
 }

@@ -34,6 +34,9 @@ public final class TracerConfig {
   @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
   public static final String SERVICE_MAPPING = "service.mapping";
 
+  public static final String TRACE_EXPERIMENTAL_FEATURES_ENABLED =
+      "trace.experimental.features.enabled";
+
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
 
@@ -91,6 +94,8 @@ public final class TracerConfig {
   public static final String TRACE_PROPAGATION_STYLE_EXTRACT = "trace.propagation.style.extract";
   public static final String TRACE_PROPAGATION_STYLE_INJECT = "trace.propagation.style.inject";
   public static final String TRACE_PROPAGATION_EXTRACT_FIRST = "trace.propagation.extract.first";
+  public static final String TRACE_BAGGAGE_MAX_ITEMS = "trace.baggage.max.items";
+  public static final String TRACE_BAGGAGE_MAX_BYTES = "trace.baggage.max.bytes";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 

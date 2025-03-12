@@ -71,7 +71,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
               element.getMethodName(),
               null,
               String.valueOf(element.getLineNumber()));
-      probe = createProbe(fingerprint, entry, where);
+      probe = createProbe(fingerprint, entry, where, true);
 
       LOG.debug("Creating probe for location {}", where);
     }
@@ -79,12 +79,17 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   @Override
-  public String captureCodeOrigin(Method method, boolean entry) {
+  public String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
     String fingerprint = method.toString();
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
-      probe = createProbe(fingerprint, entry, Where.of(method));
+      probe = createProbe(fingerprint, entry, Where.of(method), instrument);
       LOG.debug("Creating probe for method {}", fingerprint);
+    } else if (!instrument) {
+      // direct call to fill code origin info without using probe instrumentation
+      // buildLocation should be called before in order to gather location info
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
     }
     return probe.getId();
   }
@@ -105,17 +110,18 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
                     .build());
   }
 
-  private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
+  private CodeOriginProbe createProbe(
+      String fingerPrint, boolean entry, Where where, boolean instrument) {
     CodeOriginProbe probe;
     AgentSpan span = AgentTracer.activeSpan();
 
-    probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
+    probe = new CodeOriginProbe(ProbeId.newId(), entry, where, instrument);
     addFingerprint(fingerPrint, probe);
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
 
     // i think this check is unnecessary at this point time but leaving for now to be safe
     if (installed == null) {
-      if (Config.get().isDebuggerEnabled()) {
+      if (Config.get().isDistributedDebuggerEnabled()) {
         registerLogProbe(probe);
       }
       installProbes();

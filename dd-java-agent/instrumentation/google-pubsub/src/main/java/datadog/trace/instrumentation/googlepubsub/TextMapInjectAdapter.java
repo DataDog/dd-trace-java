@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.googlepubsub;
 
 import com.google.pubsub.v1.PubsubMessage;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-public class TextMapInjectAdapter implements AgentPropagation.Setter<PubsubMessage.Builder> {
+@ParametersAreNonnullByDefault
+public class TextMapInjectAdapter implements CarrierSetter<PubsubMessage.Builder> {
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 

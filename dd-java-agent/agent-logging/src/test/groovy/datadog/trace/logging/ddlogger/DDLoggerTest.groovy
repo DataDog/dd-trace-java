@@ -359,6 +359,7 @@ class DDLoggerTest extends LogValidatingSpecification {
       (Names.SHOW_SHORT_LOG_NAME): Defaults.SHOW_SHORT_LOG_NAME,
       (Names.SHOW_THREAD_NAME): false,
       (Names.SHOW_DATE_TIME): true,
+      (Names.JSON_ENABLED): Defaults.JSON_ENABLED,
       (Names.DATE_TIME_FORMAT): "relative",
       (Names.DEFAULT_LOG_LEVEL): expectedLevel,
       (Names.EMBED_EXCEPTION): Defaults.EMBED_EXCEPTION,

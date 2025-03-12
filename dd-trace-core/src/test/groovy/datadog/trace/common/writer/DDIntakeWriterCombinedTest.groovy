@@ -10,7 +10,7 @@ import datadog.trace.api.StatsDClient
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -46,7 +46,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   def wellKnownTags = new CiVisibilityWellKnownTags(
   "my-runtime-id", "my-env", "my-language",
   "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-  "my-os-arch", "my-os-platform", "my-os-version")
+  "my-os-arch", "my-os-platform", "my-os-version", "false")
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
@@ -736,7 +736,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       trace,
       null,
       null,
-      AgentTracer.NoopPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
   }

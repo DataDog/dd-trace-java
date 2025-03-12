@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import java.net.HttpURLConnection;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<HttpURLConnection> {
+@ParametersAreNonnullByDefault
+public class HeadersInjectAdapter implements CarrierSetter<HttpURLConnection> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

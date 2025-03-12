@@ -153,8 +153,11 @@ public class CompositeController implements Controller {
       }
       if (!isOracleJDK8) {
         try {
-          Class.forName("jdk.jfr.Event");
-          controllers.add(OpenJdkController.instance(provider));
+          if (Platform.hasJfr()) {
+            controllers.add(OpenJdkController.instance(provider));
+          } else {
+            log.debug("JFR is not available on this platform");
+          }
         } catch (Throwable ignored) {
           log.debug("Failed to load openjdk profiler", ignored);
         }

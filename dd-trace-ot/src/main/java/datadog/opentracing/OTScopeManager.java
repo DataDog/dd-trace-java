@@ -1,16 +1,20 @@
 package datadog.opentracing;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
+  static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
+
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -31,7 +35,7 @@ class OTScopeManager implements ScopeManager {
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateSpan(agentSpan, ScopeSource.MANUAL);
+    final AgentScope agentScope = tracer.activateManualSpan(agentSpan);
 
     return converter.toScope(agentScope, finishSpanOnClose);
   }
@@ -39,8 +43,12 @@ class OTScopeManager implements ScopeManager {
   @Deprecated
   @Override
   public Scope active() {
+    AgentSpan agentSpan = tracer.activeSpan();
+    if (null == agentSpan) {
+      return null;
+    }
     // WARNING... Making an assumption about finishSpanOnClose
-    return converter.toScope(tracer.activeScope(), false);
+    return new OTScope(new FakeScope(agentSpan), false, converter);
   }
 
   @Override
@@ -83,26 +91,40 @@ class OTScopeManager implements ScopeManager {
         return false;
       }
       final OTScope otScope = (OTScope) o;
-      return delegate.equals(otScope.delegate);
+      return delegate.span().equals(otScope.delegate.span());
     }
 
     @Override
     public int hashCode() {
-      return delegate.hashCode();
-    }
-
-    @Override
-    public Continuation capture() {
-      return delegate.capture();
-    }
-
-    @Override
-    public Continuation captureConcurrent() {
-      return delegate.captureConcurrent();
+      return delegate.span().hashCode();
     }
 
     boolean isFinishSpanOnClose() {
       return finishSpanOnClose;
+    }
+  }
+
+  private final class FakeScope implements AgentScope {
+    private final AgentSpan agentSpan;
+
+    FakeScope(AgentSpan agentSpan) {
+      this.agentSpan = agentSpan;
+    }
+
+    @Override
+    public AgentSpan span() {
+      return agentSpan;
+    }
+
+    @Override
+    public void close() {
+      if (agentSpan == tracer.activeSpan()) {
+        tracer.closeActive();
+      } else if (Config.get().isScopeStrictMode()) {
+        throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
+      } else {
+        log.warn("Tried to close {} scope when not on top", agentSpan);
+      }
     }
   }
 }

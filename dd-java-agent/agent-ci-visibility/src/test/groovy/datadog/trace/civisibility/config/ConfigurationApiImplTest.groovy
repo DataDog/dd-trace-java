@@ -7,6 +7,7 @@ import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
@@ -54,13 +55,10 @@ class ConfigurationApiImplTest extends Specification {
 
     where:
     agentless | compression | expectedSettings
-    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT)
-    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT)
-    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(1000, 3)], 10))
-    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [
-      new EarlyFlakeDetectionSettings.ExecutionsByDuration(5000, 3),
-      new EarlyFlakeDetectionSettings.ExecutionsByDuration(120000, 2)
-    ], 10))
+    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
+    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10))
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20))
   }
 
   def "test skippable tests request"() {
@@ -133,11 +131,11 @@ class ConfigurationApiImplTest extends Specification {
     where:
     testBundle     | request                        | response                        | expectedTests
     null           | "flaky-request.ftl"            | "flaky-response.ftl"            | [
-      "testBundle-a": new HashSet<>([new TestIdentifier("suite-a", "name-a", "parameters-a")]),
-      "testBundle-b": new HashSet<>([new TestIdentifier("suite-b", "name-b", "parameters-b")]),
+      "testBundle-a": new HashSet<>([new TestFQN("suite-a", "name-a")]),
+      "testBundle-b": new HashSet<>([new TestFQN("suite-b", "name-b")]),
     ]
     "testBundle-a" | "flaky-request-one-module.ftl" | "flaky-response-one-module.ftl" | [
-      "testBundle-a": new HashSet<>([new TestIdentifier("suite-a", "name-a", "parameters-a")])
+      "testBundle-a": new HashSet<>([new TestFQN("suite-a", "name-a")])
     ]
   }
 
@@ -158,24 +156,62 @@ class ConfigurationApiImplTest extends Specification {
     when:
     def knownTests = configurationApi.getKnownTestsByModule(tracerEnvironment)
 
-    for (Map.Entry<String, Collection<TestIdentifier>> e : knownTests.entrySet()) {
+    for (Map.Entry<String, Collection<TestFQN>> e : knownTests.entrySet()) {
       def sortedTests = new ArrayList<>(e.value)
-      Collections.sort(sortedTests, Comparator.comparing(TestIdentifier::getSuite).thenComparing((Function) TestIdentifier::getName))
+      Collections.sort(sortedTests, Comparator.comparing(TestFQN::getSuite).thenComparing((Function)TestFQN::getName))
       e.value = sortedTests
     }
 
     then:
     knownTests == [
       "test-bundle-a": [
-        new TestIdentifier("test-suite-a", "test-name-1", null),
-        new TestIdentifier("test-suite-a", "test-name-2", null),
-        new TestIdentifier("test-suite-b", "another-test-name-1", null),
-        new TestIdentifier("test-suite-b", "test-name-2", null)
+        new TestFQN("test-suite-a", "test-name-1"),
+        new TestFQN("test-suite-a", "test-name-2"),
+        new TestFQN("test-suite-b", "another-test-name-1"),
+        new TestFQN("test-suite-b", "test-name-2")
       ],
       "test-bundle-N": [
-        new TestIdentifier("test-suite-M", "test-name-1", null),
-        new TestIdentifier("test-suite-M", "test-name-2", null)
+        new TestFQN("test-suite-M", "test-name-1"),
+        new TestFQN("test-suite-M", "test-name-2")
       ]
+    ]
+
+    cleanup:
+    intakeServer.close()
+  }
+
+  def "test test management tests request"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+
+    def intakeServer = givenBackendEndpoint(
+    "/api/v2/test/libraries/test-management/tests",
+    "/datadog/trace/civisibility/config/test-management-tests-request.ftl",
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    "/datadog/trace/civisibility/config/test-management-tests-response.ftl",
+    [:]
+    )
+
+    def configurationApi = givenConfigurationApi(intakeServer)
+
+    when:
+    def testManagementTests = configurationApi.getTestManagementTestsByModule(tracerEnvironment)
+    def quarantinedTests = testManagementTests.get(TestSetting.QUARANTINED)
+    def disabledTests = testManagementTests.get(TestSetting.DISABLED)
+    def attemptToFixTests = testManagementTests.get(TestSetting.ATTEMPT_TO_FIX)
+
+    then:
+    quarantinedTests == [
+      "module-a": new HashSet<>([new TestFQN("suite-a", "test-a"), new TestFQN("suite-b", "test-c")]),
+      "module-b": new HashSet<>([new TestFQN("suite-c", "test-e")])
+    ]
+    disabledTests == [
+      "module-a": new HashSet<>([new TestFQN("suite-a", "test-b")]),
+      "module-b": new HashSet<>([new TestFQN("suite-c", "test-d"), new TestFQN("suite-c", "test-f")])
+    ]
+    attemptToFixTests == [
+      "module-a": new HashSet<>([new TestFQN("suite-b", "test-c")]),
+      "module-b": new HashSet<>([new TestFQN("suite-c", "test-d"), new TestFQN("suite-c", "test-e")])
     ]
 
     cleanup:
@@ -284,6 +320,7 @@ class ConfigurationApiImplTest extends Specification {
     .repositoryUrl("https://github.com/DataDog/foo")
     .branch("prod")
     .sha("d64185e45d1722ab3a53c45be47accae")
+    .commitMessage("full commit message")
     .osPlatform("linux")
     .osArchitecture("amd64")
     .osVersion("bionic")

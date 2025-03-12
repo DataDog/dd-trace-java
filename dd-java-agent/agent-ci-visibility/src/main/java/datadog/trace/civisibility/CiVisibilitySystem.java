@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -39,6 +40,7 @@ import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -158,7 +160,7 @@ public class CiVisibilitySystem {
                 services, repoServices, coverageServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(
+            headlessTestFrameworkSessionFactory(
                 services, repoServices, coverageServices, executionSettings);
       }
     }
@@ -167,9 +169,10 @@ public class CiVisibilitySystem {
     public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        @Nullable ContextStore<TestKey, DDTest> testStore) {
+        @Nullable ContextStore<TestKey, DDTest> testStore,
+        Collection<LibraryCapability> capabilities) {
       TestFrameworkSession testSession =
-          sessionFactory.startSession(repoServices.moduleName, component, null);
+          sessionFactory.startSession(repoServices.moduleName, component, null, capabilities);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
       return new TestEventsHandlerImpl<>(
           services.metricCollector,
@@ -231,7 +234,10 @@ public class CiVisibilitySystem {
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
-    return (String projectName, String component, Long startTime) -> {
+    return (String projectName,
+        String component,
+        Long startTime,
+        Collection<LibraryCapability> capabilities) -> {
       String sessionName = services.config.getCiVisibilitySessionName();
       String testCommand = services.config.getCiVisibilityTestCommand();
       TestDecorator testDecorator =
@@ -255,16 +261,20 @@ public class CiVisibilitySystem {
           coverageServices.coverageStoreFactory,
           coverageServices.coverageReporter,
           services.signalClientFactory,
-          executionStrategy);
+          executionStrategy,
+          capabilities);
     };
   }
 
-  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
-    return (String projectName, String component, Long startTime) -> {
+    return (String projectName,
+        String component,
+        Long startTime,
+        Collection<LibraryCapability> capabilities) -> {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       String sessionName = services.config.getCiVisibilitySessionName();
@@ -288,7 +298,8 @@ public class CiVisibilitySystem {
           repoServices.codeowners,
           services.linesResolver,
           coverageServices.coverageStoreFactory,
-          executionStrategy);
+          executionStrategy,
+          capabilities);
     };
   }
 

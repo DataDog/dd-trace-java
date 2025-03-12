@@ -24,4 +24,9 @@ final class EmptyContext implements Context {
     }
     return new SingletonContext(key.index, value);
   }
+
+  @Override
+  public String toString() {
+    return "EmptyContext{}";
+  }
 }

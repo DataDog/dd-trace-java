@@ -1,11 +1,12 @@
 package java.util.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import java.util.concurrent.CompletableFuture.UniCompletion;
 import net.bytebuddy.asm.Advice;
@@ -16,11 +17,11 @@ public final class CompletableFutureAdvice {
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
-      AgentScope scope = activeScope();
-      if (zis.isLive() && scope != null) {
+      AgentSpan span = activeSpan();
+      if (zis.isLive() && span != null) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState.captureScope(contextStore, zis, scope);
+        ConcurrentState.captureContinuation(contextStore, zis, span);
       }
     }
 
@@ -72,7 +73,7 @@ public final class CompletableFutureAdvice {
       boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
       if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
         contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState.closeAndClearContinuation(contextStore, zis);
+        ConcurrentState.cancelAndClearContinuation(contextStore, zis);
       }
       if (scope != null || throwable != null) {
         if (contextStore == null) {

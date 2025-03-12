@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -21,6 +22,7 @@ import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -34,6 +36,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestSession(
       String projectName,
@@ -46,7 +49,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       Codeowners codeowners,
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
-      ExecutionStrategy executionStrategy) {
+      ExecutionStrategy executionStrategy,
+      @Nonnull Collection<LibraryCapability> capabilities) {
     super(
         projectName,
         startTime,
@@ -60,6 +64,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver);
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -76,6 +81,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver,
         coverageStoreFactory,
         executionStrategy,
+        capabilities,
         this::propagateModuleTags);
   }
 
@@ -90,7 +96,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
         Tags.TEST_EARLY_FLAKE_ENABLED,
         Tags.TEST_EARLY_FLAKE_ABORT_REASON,
-        DDTags.CI_ITR_TESTS_SKIPPED);
+        DDTags.CI_ITR_TESTS_SKIPPED,
+        Tags.TEST_TEST_MANAGEMENT_ENABLED);
   }
 
   @Override
@@ -100,5 +107,10 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
     }
     return Collections.emptySet();
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    super.end(endTime);
   }
 }

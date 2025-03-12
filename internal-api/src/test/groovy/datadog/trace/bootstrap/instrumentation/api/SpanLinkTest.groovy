@@ -3,12 +3,12 @@ package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.test.util.DDSpecification
+import spock.lang.Specification
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG
 
-class SpanLinkTest extends DDSpecification {
+class SpanLinkTest extends Specification {
   def "test span link from context"() {
     setup:
     def traceId = DDTraceId.fromHex("11223344556677889900aabbccddeeff")
@@ -141,5 +141,19 @@ class SpanLinkTest extends DDSpecification {
 
     then:
     notThrown(NullPointerException)
+  }
+
+  def "test span link attributes equals and hashcode"() {
+    when:
+    def a = SpanAttributes.builder().put("test", "value").build()
+    def b = SpanAttributes.builder().put("test", "value").build()
+    def c = SpanAttributes.builder().build()
+
+    then:
+    assert a == b
+    assert a != c
+    assert !c.equals(null)
+    assert a.hashCode() == b.hashCode()
+    assert a.hashCode() !=  c.hashCode()
   }
 }

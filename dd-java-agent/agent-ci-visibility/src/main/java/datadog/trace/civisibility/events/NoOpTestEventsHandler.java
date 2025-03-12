@@ -2,19 +2,19 @@ package datadog.trace.civisibility.events;
 
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.retry.TestRetryPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.civisibility.retry.NeverRetry;
+import datadog.trace.civisibility.execution.Regular;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 public class NoOpTestEventsHandler<SuiteKey, TestKey>
     implements TestEventsHandler<SuiteKey, TestKey> {
@@ -58,8 +58,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      RetryReason retryReason,
-      @Nullable Long startTime) {
+      @Nullable Long startTime,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     // do nothing
   }
 
@@ -74,7 +74,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public void onTestFinish(TestKey descriptor, @Nullable Long endTime) {
+  public void onTestFinish(
+      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionHistory executionHistory) {
     // do nothing
   }
 
@@ -97,20 +98,27 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     return null;
   }
 
-  @NotNull
+  @Nonnull
   @Override
-  public TestRetryPolicy retryPolicy(TestIdentifier test, TestSourceData source) {
-    return NeverRetry.INSTANCE;
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags) {
+    return Regular.INSTANCE;
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return false;
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return false;
+  }
+
+  @Override
+  public int executionPriority(
+      @Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData) {
+    return 0;
   }
 
   @Override
@@ -123,7 +131,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        @Nullable ContextStore<TestKey, DDTest> testStore) {
+        @Nullable ContextStore<TestKey, DDTest> testStore,
+        Collection<LibraryCapability> capabilities) {
       return new NoOpTestEventsHandler<>();
     }
   }

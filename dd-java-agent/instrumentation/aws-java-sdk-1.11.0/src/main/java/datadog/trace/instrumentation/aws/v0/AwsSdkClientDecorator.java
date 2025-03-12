@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
@@ -8,12 +9,12 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.http.HttpMethodName;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -28,9 +29,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.ParametersAreNonnullByDefault;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
-    implements AgentPropagation.Setter<Request<?>> {
+    implements CarrierSetter<Request<?>> {
 
   private static final String AWS = "aws";
 
@@ -263,7 +265,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, 0, responseSize);
+              .setCheckpoint(span, create(sortedTags, 0, responseSize));
         }
 
         if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
@@ -284,7 +286,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, 0, payloadSize);
+              .setCheckpoint(span, create(sortedTags, 0, payloadSize));
         }
       }
     }
@@ -332,6 +334,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     return response.getHttpResponse().getStatusCode();
   }
 
+  @ParametersAreNonnullByDefault
   @Override
   public void set(Request<?> carrier, String key, String value) {
     carrier.addHeader(key, value);

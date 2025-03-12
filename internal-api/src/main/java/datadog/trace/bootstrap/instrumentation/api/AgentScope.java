@@ -6,23 +6,17 @@ import java.io.Closeable;
 public interface AgentScope extends TraceScope, Closeable {
   AgentSpan span();
 
-  byte source();
-
-  @Override
-  Continuation capture();
-
-  @Override
-  Continuation captureConcurrent();
-
   @Override
   void close();
 
   interface Continuation extends TraceScope.Continuation {
+    @Override
+    Continuation hold();
 
     @Override
     AgentScope activate();
 
     /** Provide access to the captured span */
-    AgentSpan getSpan();
+    AgentSpan span();
   }
 }

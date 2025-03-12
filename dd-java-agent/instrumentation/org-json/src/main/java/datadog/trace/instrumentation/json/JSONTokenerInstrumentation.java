@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.io.Reader;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -25,9 +26,14 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
+  public String muzzleDirective() {
+    return "all";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(String.class)),
+        isConstructor().and(takesArguments(Reader.class)),
         getClass().getName() + "$ConstructorAdvice");
   }
 

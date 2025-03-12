@@ -3,17 +3,18 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.SpockRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.GlobalTracer
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.Constants
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import spock.lang.Shared
 
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 
 class AgentTestRunnerTest extends AgentTestRunner {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null
@@ -113,7 +114,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     when:
     AgentScope scope
     runUnderTrace("parent") {
-      scope = TEST_TRACER.activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+      scope = TEST_TRACER.activateManualSpan(noopSpan())
 
       blockUntilChildSpansFinished(1)
     }
@@ -179,11 +180,6 @@ class AgentTestRunnerTest extends AgentTestRunner {
   }
 
   boolean isJFRSupported() {
-    try {
-      Class.forName("jdk.jfr.Recording")
-      return true
-    } catch (Throwable e) {
-      return false
-    }
+    return Platform.hasJfr()
   }
 }

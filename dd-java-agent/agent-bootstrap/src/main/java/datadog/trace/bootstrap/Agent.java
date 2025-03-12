@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -67,6 +68,10 @@ public class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
+  private static final String SIMPLE_LOGGER_JSON_ENABLED_PROPERTY =
+      "datadog.slf4j.simpleLogger.jsonEnabled";
+  private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT =
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
       "datadog.slf4j.simpleLogger.dateTimeFormat";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT =
@@ -82,40 +87,37 @@ public class Agent {
   private static final Logger log;
 
   private enum AgentFeature {
-    TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
-    JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(
-        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
-        DEFAULT_STARTUP_LOGS_ENABLED),
-    PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
-    APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
-    IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
-    DEPRECATED_REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
-    CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
-    CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
-    CIVISIBILITY_AGENTLESS(
-        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
-    USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
-    TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
-    EXCEPTION_DEBUGGING(
-        propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
-    SPAN_ORIGIN(
-        propertyNameToSystemPropertyName(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED),
-        false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
-    AGENTLESS_LOG_SUBMISSION(
-        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
+    TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
+    JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
+    STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
+    APPSEC(AppSecConfig.APPSEC_ENABLED, false),
+    IAST(IastConfig.IAST_ENABLED, false),
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    CWS(CwsConfig.CWS_ENABLED, false),
+    CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
+    CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
+    USM(UsmConfig.USM_ENABLED, false),
+    TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
+    DEBUGGER(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
+    EXCEPTION_DEBUGGING(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
+    SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
+    private final String configKey;
     private final String systemProp;
     private final boolean enabledByDefault;
 
-    AgentFeature(final String systemProp, final boolean enabledByDefault) {
-      this.systemProp = systemProp;
+    AgentFeature(final String configKey, final boolean enabledByDefault) {
+      this.configKey = configKey;
+      this.systemProp = propertyNameToSystemPropertyName(configKey);
       this.enabledByDefault = enabledByDefault;
+    }
+
+    public String getConfigKey() {
+      return configKey;
     }
 
     public String getSystemProp() {
@@ -328,8 +330,6 @@ public class Agent {
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
         registerMBeanServerBuilderCallback(new StartJmxCallback(jmxStartDelay));
-        // one minute fail-safe in case nothing touches JMX and callback isn't triggered
-        scheduleJmxStart(60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
         registerLogManagerCallback(new StartJmxCallback(jmxStartDelay));
@@ -436,6 +436,8 @@ public class Agent {
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
+    // one minute fail-safe in case the class was unintentionally loaded during premain
+    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -447,6 +449,8 @@ public class Agent {
   }
 
   private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
+    // one minute fail-safe in case the class was unintentionally loaded during premain
+    AgentTaskScheduler.INSTANCE.schedule(callback, 1, TimeUnit.MINUTES);
     try {
       final Class<?> agentInstallerClass = AGENT_CLASSLOADER.loadClass(AGENT_INSTALLER_CLASS_NAME);
       final Method registerCallbackMethod =
@@ -458,8 +462,14 @@ public class Agent {
   }
 
   protected abstract static class ClassLoadCallBack implements Runnable {
+    private final AtomicBoolean starting = new AtomicBoolean();
+
     @Override
     public void run() {
+      if (starting.getAndSet(true)) {
+        return; // someone has already called us
+      }
+
       /*
        * This callback is called from within bytecode transformer. This can be a problem if callback tries
        * to load classes being transformed. To avoid this we start a thread here that calls the callback.
@@ -557,6 +567,7 @@ public class Agent {
     }
 
     private void resumeRemoteComponents() {
+      log.debug("Resuming remote components.");
       try {
         // remote components were paused for custom log-manager/jmx-builder
         // add small delay before resuming remote I/O to help stabilization
@@ -754,12 +765,13 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
       final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError
+    } catch (final NoSuchMethodException
+        | NoClassDefFoundError
         | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
+        | UnsupportedClassVersionError
+        | IllegalAccessException
+        | InvocationTargetException ignored) {
       log.debug("Smap entry scraping not supported");
-    } catch (final Throwable ex) {
-      log.error("Unable to initialize smap entry scraping", ex);
     }
   }
 
@@ -1139,8 +1151,14 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(
-        SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
+    } else {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    }
 
     String logLevel;
     if (isDebugMode()) {
@@ -1201,10 +1219,17 @@ public class Agent {
   /** @return {@code true} if the agent feature is enabled */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureEnabledSysprop);
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String featureEnabled = System.getProperty(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = ddGetEnv(featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
+    }
+    if (featureEnabled == null) {
+      featureEnabled = ddGetEnv(featureSystemProp);
+    }
+    if (featureEnabled == null) {
+      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1224,11 +1249,17 @@ public class Agent {
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
     }
 
     // defaults to inactive
@@ -1340,6 +1371,11 @@ public class Agent {
       value = ddGetEnv(sysProp);
     }
     return value;
+  }
+
+  /** Looks for sysProp in the Stable Configuration input */
+  private static String getStableConfig(StableConfigSource source, final String sysProp) {
+    return source.get(sysProp);
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */

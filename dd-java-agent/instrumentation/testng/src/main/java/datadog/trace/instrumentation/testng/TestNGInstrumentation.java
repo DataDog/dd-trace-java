@@ -7,7 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.instrumentation.testng.retry.RetryAnnotationTransformer;
+import datadog.trace.instrumentation.testng.execution.RetryAnnotationTransformer;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -21,6 +21,9 @@ import org.testng.annotations.DataProvider;
 @AutoService(InstrumenterModule.class)
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
+  public static final int ORDER = 0;
+
   public TestNGInstrumentation() {
     super("testng");
   }
@@ -28,6 +31,11 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String instrumentedType() {
     return "org.testng.TestNG";
+  }
+
+  @Override
+  public int order() {
+    return ORDER;
   }
 
   @Override
@@ -44,8 +52,8 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".TestNGClassListener",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".TracingListener",
-      packageName + ".retry.RetryAnalyzer",
-      packageName + ".retry.RetryAnnotationTransformer",
+      packageName + ".execution.RetryAnalyzer",
+      packageName + ".execution.RetryAnnotationTransformer",
     };
   }
 
@@ -75,7 +83,7 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
       TestNGSuiteListener suiteListener = new TestNGSuiteListener(tracingListener);
       testNG.addListener((ITestNGListener) suiteListener);
 
-      if (Config.get().isCiVisibilityFlakyRetryEnabled()) {
+      if (Config.get().isCiVisibilityExecutionPoliciesEnabled()) {
         final RetryAnnotationTransformer transformer =
             new RetryAnnotationTransformer(testNG.getAnnotationTransformer());
         testNG.addListener(transformer);

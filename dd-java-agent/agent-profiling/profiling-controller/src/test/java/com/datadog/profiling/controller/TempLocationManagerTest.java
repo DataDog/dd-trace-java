@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -186,6 +187,7 @@ public class TempLocationManagerTest {
     assertFalse(Files.exists(fakeTempDir));
   }
 
+  @Flaky("https://datadoghq.atlassian.net/browse/PROF-11290")
   @ParameterizedTest
   @MethodSource("timeoutTestArguments")
   void testCleanupWithTimeout(boolean selfCleanup, boolean shouldSucceed, String section)
@@ -239,7 +241,7 @@ public class TempLocationManagerTest {
     Files.createFile(otherTempdir.resolve("dummy"));
     boolean rslt =
         instance.cleanup(
-            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 10 : 0.5d)), TimeUnit.MILLISECONDS);
+            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
   }
 

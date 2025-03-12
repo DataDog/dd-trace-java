@@ -1,143 +1,155 @@
 [ {
-  "type" : "test_suite_end",
-  "version" : 1,
   "content" : {
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test_suite",
-    "resource" : "org.example.TestSucceedSelenium",
-    "start" : ${content_start},
     "duration" : ${content_duration},
     "error" : 0,
-    "metrics" : { },
     "meta" : {
-      "test.type" : "test",
-      "test.source.file" : "dummy_source_path",
-      "test.module" : "selenium",
-      "test.status" : "pass",
-      "test_session.name" : "session-name",
-      "env" : "none",
+      "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
       "library_version" : ${content_meta_library_version},
-      "component" : "junit",
       "span.kind" : "test_suite_end",
-      "test.suite" : "org.example.TestSucceedSelenium",
+      "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
-}, {
-  "type" : "test",
-  "version" : 2,
-  "content" : {
-    "trace_id" : ${content_trace_id},
-    "span_id" : ${content_span_id},
-    "parent_id" : ${content_parent_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "test_suite_id" : ${content_test_suite_id},
+      "test.module" : "selenium",
+      "test.source.file" : "dummy_source_path",
+      "test.status" : "pass",
+      "test.suite" : "org.example.TestSucceedSelenium",
+      "test.type" : "test",
+      "test_session.name" : "session-name"
+    },
+    "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count},
+      "test.source.end" : 19,
+      "test.source.start" : 11
+    },
+    "name" : "junit5.test_suite",
+    "resource" : "org.example.TestSucceedSelenium",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test",
-    "resource" : "org.example.TestSucceedSelenium.test_succeed",
-    "start" : ${content_start_2},
+    "start" : ${content_start},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id},
+    "test_suite_id" : ${content_test_suite_id}
+  },
+  "type" : "test_suite_end",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_2},
     "error" : 0,
+    "meta" : {
+      "_dd.profiling.ctx" : "test",
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
+      "component" : "junit5",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
+      "language" : "jvm",
+      "library_version" : ${content_meta_library_version},
+      "runtime-id" : ${content_meta_runtime_id},
+      "span.kind" : "test",
+      "test.browser.driver" : "selenium",
+      "test.browser.driver_version" : "3.141.59",
+      "test.browser.name" : "htmlunit",
+      "test.browser.version" : "2.70.0",
+      "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.framework" : "junit5",
+      "test.framework_version" : ${content_meta_test_framework_version},
+      "test.is_rum_active" : "true",
+      "test.module" : "selenium",
+      "test.name" : "test_succeed",
+      "test.source.file" : "dummy_source_path",
+      "test.source.method" : "test_succeed()V",
+      "test.status" : "pass",
+      "test.suite" : "org.example.TestSucceedSelenium",
+      "test.type" : "browser",
+      "test_session.name" : "session-name"
+    },
     "metrics" : {
-      "process_id" : ${content_metrics_process_id},
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id},
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "meta" : {
-      "test.browser.driver_version" : "3.141.59",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.source.file" : "dummy_source_path",
-      "test.source.method" : "test_succeed()V",
-      "test.module" : "selenium",
-      "test.status" : "pass",
-      "language" : "jvm",
-      "test.browser.name" : "htmlunit",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "library_version" : ${content_meta_library_version},
-      "test.name" : "test_succeed",
-      "span.kind" : "test",
-      "test.suite" : "org.example.TestSucceedSelenium",
-      "runtime-id" : ${content_meta_runtime_id},
-      "test.type" : "browser",
-      "test.browser.driver" : "selenium",
-      "test.is_rum_active" : "true",
-      "test_session.name" : "session-name",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "component" : "junit",
-      "test.browser.version" : "2.70.0",
-      "_dd.profiling.ctx" : "test",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
-}, {
-  "type" : "test_session_end",
-  "version" : 1,
-  "content" : {
-    "test_session_id" : ${content_test_session_id},
+    "name" : "junit5.test",
+    "parent_id" : ${content_parent_id},
+    "resource" : "org.example.TestSucceedSelenium.test_succeed",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test_session",
-    "resource" : "selenium",
-    "start" : ${content_start_3},
+    "span_id" : ${content_span_id},
+    "start" : ${content_start_2},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id},
+    "test_suite_id" : ${content_test_suite_id},
+    "trace_id" : ${content_trace_id}
+  },
+  "type" : "test",
+  "version" : 2
+}, {
+  "content" : {
     "duration" : ${content_duration_3},
     "error" : 0,
-    "metrics" : {
-      "process_id" : ${content_metrics_process_id},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0
-    },
     "meta" : {
-      "test.type" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "test.status" : "pass",
-      "test_session.name" : "session-name",
-      "language" : "jvm",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "library_version" : ${content_meta_library_version},
-      "component" : "junit",
+      "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "_dd.profiling.ctx" : "test",
-      "span.kind" : "test_session_end",
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
+      "component" : "junit5",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
+      "language" : "jvm",
+      "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
+      "span.kind" : "test_session_end",
       "test.command" : "selenium",
+      "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
-}, {
-  "type" : "test_module_end",
-  "version" : 1,
-  "content" : {
-    "test_session_id" : ${content_test_session_id},
-    "test_module_id" : ${content_test_module_id},
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "name" : "junit.test_module",
+      "test.status" : "pass",
+      "test.type" : "test",
+      "test_session.name" : "session-name"
+    },
+    "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
+      "_dd.profiling.enabled" : 0,
+      "_dd.trace_span_attribute_schema" : 0,
+      "process_id" : ${content_metrics_process_id}
+    },
+    "name" : "junit5.test_session",
     "resource" : "selenium",
-    "start" : ${content_start_4},
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "start" : ${content_start_3},
+    "test_session_id" : ${content_test_session_id}
+  },
+  "type" : "test_session_end",
+  "version" : 1
+}, {
+  "content" : {
     "duration" : ${content_duration_4},
     "error" : 0,
-    "metrics" : { },
     "meta" : {
-      "test.type" : "test",
+      "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "component" : "junit5",
+      "dummy_ci_tag" : "dummy_ci_tag_value",
+      "env" : "none",
+      "library_version" : ${content_meta_library_version},
+      "span.kind" : "test_module_end",
+      "test.framework" : "junit5",
+      "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "selenium",
       "test.status" : "pass",
-      "test_session.name" : "session-name",
-      "env" : "none",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "library_version" : ${content_meta_library_version},
-      "component" : "junit",
-      "span.kind" : "test_module_end",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.framework" : "junit5"
-    }
-  }
+      "test.type" : "test",
+      "test_session.name" : "session-name"
+    },
+    "metrics" : {
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
+    },
+    "name" : "junit5.test_module",
+    "resource" : "selenium",
+    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
+    "start" : ${content_start_4},
+    "test_module_id" : ${content_test_module_id},
+    "test_session_id" : ${content_test_session_id}
+  },
+  "type" : "test_module_end",
+  "version" : 1
 } ]

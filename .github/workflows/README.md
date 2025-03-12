@@ -87,7 +87,7 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
 
-_Trigger:_ Every week or manually.
+_Trigger:_ Every day or manually.
 
 _Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
 
@@ -138,7 +138,7 @@ While GitHub owned actions are allowed by default, the other ones must be declar
 
 Run the following script to get the list of actions to declare according the state of your working copy:
 ```bash
-find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sed 's/@.*/@*/' | sort | uniq
 ```
 
 ## Testing

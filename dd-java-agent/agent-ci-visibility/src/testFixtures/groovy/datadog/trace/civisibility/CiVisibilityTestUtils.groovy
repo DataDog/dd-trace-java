@@ -7,8 +7,13 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.civisibility.config.LibraryCapability
+import datadog.trace.core.DDSpan
+import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
+import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -16,6 +21,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.regex.Pattern
+import java.util.stream.Collectors
 
 abstract class CiVisibilityTestUtils {
 
@@ -47,6 +53,9 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.stack']", false),
   ]
 
+  // ignored tags on assertion and fixture build
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList())
+
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
   private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
@@ -60,7 +69,10 @@ abstract class CiVisibilityTestUtils {
   /**
    * Use this method to generate expected data templates
    */
-  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags = []) {
+    if (!ignoredTags.empty) {
+      events = removeTags(events, ignoredTags)
+    }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def templateGenerator = new TemplateGenerator(new LabelGenerator())
@@ -71,7 +83,7 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
@@ -85,23 +97,82 @@ abstract class CiVisibilityTestUtils {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
+    // ignore provided tags
+    events = removeTags(events, ignoredTags)
+
+    def environment = System.getenv()
+    def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
+    def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
+
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
+
     try {
-      JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
     } catch (AssertionError e) {
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected events: $expectedEvents"
+        println "Actual events: $actualEvents"
+      }
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
     def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
     try {
-      JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedCoverages, actualCoverages, comparisonMode)
     } catch (AssertionError e) {
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected coverages: $expectedCoverages"
+        println "Actual coverages: $actualCoverages"
+      }
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
 
     return replacementMap
+  }
+
+  static List<Map<?, ?>> removeTags(List<Map<?, ?>> events, List<String> tags) {
+    def filteredEvents = []
+
+    for (Map<?, ?> event : events) {
+      ReadContext ctx = JsonPath.parse(event, JSON_PATH_CONFIG)
+      for (String tag : tags) {
+        ctx.delete(path(tag).path)
+      }
+      filteredEvents.add(ctx.json())
+    }
+
+    return filteredEvents
+  }
+
+  // Will sort traces in the following order: TEST -> SUITE -> MODULE -> SESSION
+  static class SortTracesByType implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Integer.compare(rootSpanTypeToVal(o1), rootSpanTypeToVal(o2))
+    }
+
+    int rootSpanTypeToVal(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def spanType = trace.get(0).getSpanType()
+      switch (spanType) {
+        case DDSpanTypes.TEST:
+        return 0
+        case DDSpanTypes.TEST_SUITE_END:
+        return 1
+        case DDSpanTypes.TEST_MODULE_END:
+        return 2
+        case DDSpanTypes.TEST_SESSION_END:
+        return 3
+        default:
+        return 4
+      }
+    }
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()
@@ -114,11 +185,22 @@ abstract class CiVisibilityTestUtils {
     }
   }
 
+  static final TemplateExceptionHandler SUPPRESS_EXCEPTION_HANDLER = new TemplateExceptionHandler() {
+    @Override
+    void handleTemplateException(TemplateException e, Environment environment, Writer writer) throws TemplateException {
+      if (e instanceof InvalidReferenceException) {
+        writer.write('"<VALUE_MISSING>"')
+      } else {
+        throw e
+      }
+    }
+  }
+
   static final freemarker.template.Configuration FREEMARKER = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30) { {
       setClassLoaderForTemplateLoading(CiVisibilityTestUtils.classLoader, "")
       setDefaultEncoding("UTF-8")
-      setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER)
-      setLogTemplateExceptions(true)
+      setTemplateExceptionHandler(SUPPRESS_EXCEPTION_HANDLER)
+      setLogTemplateExceptions(false)
       setWrapUncheckedExceptions(true)
       setFallbackOnNullLoopVariable(false)
       setNumberFormat("0.######")
@@ -131,15 +213,6 @@ abstract class CiVisibilityTestUtils {
       StringWriter coveragesOut = new StringWriter()
       coveragesTemplate.process(replacements, coveragesOut)
       return coveragesOut.toString()
-    } catch (InvalidReferenceException e) {
-      def missingExpression = e.getBlamedExpressionString()
-      if (missingExpression != null) {
-        replacements.put(missingExpression, "<VALUE_MISSING>") // to simplify debugging failures
-        return getFreemarkerTemplate(templatePath, replacements, replacementsSource)
-
-      } else {
-        throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)
-      }
 
     } catch (Exception e) {
       throw new RuntimeException("Could not get Freemarker template " + templatePath + "; replacements map: " + replacements + "; replacements source: " + replacementsSource, e)

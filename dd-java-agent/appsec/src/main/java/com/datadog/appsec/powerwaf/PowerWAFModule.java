@@ -26,9 +26,11 @@ import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.api.telemetry.WafTruncatedType;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -46,6 +48,7 @@ import io.sqreen.powerwaf.RuleSetInfo;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import io.sqreen.powerwaf.exception.InvalidRuleSetException;
 import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
+import io.sqreen.powerwaf.exception.UnclassifiedPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -209,15 +212,22 @@ public class PowerWAFModule implements AppSecModule {
       config.dirtyStatus.markAllDirty();
     }
 
+    boolean success = false;
     try {
       // ddwaf_init/update
-      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
+    } finally {
+      if (curCtxAndAddresses == null) {
+        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+      } else {
+        WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+      }
     }
   }
 
-  private void initializeNewWafCtx(
+  private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
       CtxAndAddresses prevContextAndAddresses)
@@ -243,12 +253,6 @@ public class PowerWAFModule implements AppSecModule {
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
         currentRulesVersion = initReport.rulesetVersion;
-      }
-
-      if (prevContextAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion);
-      } else {
-        WafMetricCollector.get().wafUpdates(currentRulesVersion);
       }
 
       if (initReport != null) {
@@ -295,6 +299,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     reconf.reloadSubscriptions();
+    return true;
   }
 
   private Map<String, ActionInfo> calculateEffectiveActions(
@@ -428,22 +433,55 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
-        reqCtx.increaseTimeouts();
-        WafMetricCollector.get().wafRequestTimeout();
-        log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         if (gwCtx.isRasp) {
+          reqCtx.increaseRaspTimeouts();
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        } else {
+          reqCtx.increaseWafTimeouts();
+          WafMetricCollector.get().wafRequestTimeout();
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
-      } catch (AbstractPowerwafException e) {
+      } catch (UnclassifiedPowerwafException e) {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
+        }
+        WafMetricCollector.get().wafRequestError();
+        return;
+      } catch (AbstractPowerwafException e) {
+        if (gwCtx.isRasp) {
+          reqCtx.increaseRaspErrorCode(e.code);
+          WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
+        } else {
+          reqCtx.increaseWafErrorCode(e.code);
+          WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, e.code);
         }
         return;
       } finally {
         if (log.isDebugEnabled()) {
           long elapsed = System.currentTimeMillis() - start;
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
+        }
+        if (!gwCtx.isRasp) {
+          PowerwafMetrics wafMetrics = reqCtx.getWafMetrics();
+          if (wafMetrics != null) {
+            final long stringTooLong = wafMetrics.getTruncatedStringTooLongCount();
+            final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
+            final long objectTooDeep = wafMetrics.getTruncatedObjectTooDeepCount();
+
+            if (stringTooLong > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, stringTooLong);
+            }
+            if (listMapTooLarge > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
+            }
+            if (objectTooDeep > 0) {
+              WafMetricCollector.get()
+                  .wafInputTruncated(WafTruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+            }
+          }
         }
       }
 
@@ -480,27 +518,35 @@ public class PowerWAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
+            WafMetricCollector.get().wafRequestBlockFailure();
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
 
-        if (!events.isEmpty() && !reqCtx.isThrottled(rateLimiter)) {
-          AgentSpan activeSpan = AgentTracer.get().activeSpan();
-          if (activeSpan != null) {
-            log.debug("Setting force-keep tag on the current span");
-            // Keep event related span, because it could be ignored in case of
-            // reduced datadog sampling rate.
-            activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
-            // If APM is disabled, inform downstream services that the current
-            // distributed trace contains at least one ASM event and must inherit
-            // the given force-keep priority
-            activeSpan.getLocalRootSpan().setTag(Tags.PROPAGATED_APPSEC, true);
+        if (!events.isEmpty()) {
+          if (!reqCtx.isThrottled(rateLimiter)) {
+            AgentSpan activeSpan = AgentTracer.get().activeSpan();
+            if (activeSpan != null) {
+              log.debug("Setting force-keep tag on the current span");
+              // Keep event related span, because it could be ignored in case of
+              // reduced datadog sampling rate.
+              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+              // If APM is disabled, inform downstream services that the current
+              // distributed trace contains at least one ASM event and must inherit
+              // the given force-keep priority
+              activeSpan
+                  .getLocalRootSpan()
+                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+            } else {
+              // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
+              // when the request ends
+              log.debug("There is no active span available");
+            }
+            reqCtx.reportEvents(events);
           } else {
-            // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
-            // when the request ends
-            log.debug("There is no active span available");
+            log.debug("Rate limited WAF events");
+            WafMetricCollector.get().wafRequestRateLimited();
           }
-          reqCtx.reportEvents(events);
         }
 
         if (flow.isBlocking()) {
@@ -534,6 +580,7 @@ public class PowerWAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }
@@ -559,6 +606,7 @@ public class PowerWAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
+        WafMetricCollector.get().wafRequestBlockFailure();
         return null;
       }
     }

@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.synapse3;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.apache.synapse.transport.passthru.TargetRequest;
 
-public final class TargetRequestInjectAdapter implements AgentPropagation.Setter<TargetRequest> {
+@ParametersAreNonnullByDefault
+public final class TargetRequestInjectAdapter implements CarrierSetter<TargetRequest> {
   public static final TargetRequestInjectAdapter SETTER = new TargetRequestInjectAdapter();
 
   @Override

@@ -8,7 +8,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     when:
     def scope = tracer.activateSpan(rootSpan)
     setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 
@@ -40,7 +40,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     when:
     def scope = tracer.activateSpan(rootSpan)
     setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 

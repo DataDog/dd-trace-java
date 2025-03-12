@@ -20,8 +20,6 @@ jobs:
           container: dd-trace-java/dd-lib-java-init
           keep-younger-than: 7 # days
           keep-last: 10
-          keep-tags: |
-            latest_snapshot
           prune-tags-regexes: |
-            ^[a-z0-9]{40}$
+            .+
           prune-untagged: true

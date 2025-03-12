@@ -15,10 +15,15 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   final AgentSpan span; // package-private so scopeManager can access it directly
 
-  /** Flag to propagate this scope across async boundaries. */
-  private boolean isAsyncPropagating;
+  /** Flag that this scope should be allowed to propagate across async boundaries. */
+  private static final byte ASYNC_PROPAGATING = 1;
 
-  private final byte flags;
+  /** Flag that we intend to roll back the scope stack to this scope in the future. */
+  private static final byte CHECKPOINTED = 2;
+
+  private byte flags;
+
+  private final byte source;
 
   private short referenceCount = 1;
 
@@ -36,8 +41,8 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
       final Stateful scopeState) {
     this.scopeManager = scopeManager;
     this.span = span;
-    this.flags = source;
-    this.isAsyncPropagating = isAsyncPropagating;
+    this.source = source;
+    this.flags = isAsyncPropagating ? ASYNC_PROPAGATING : 0;
     this.scopeState = scopeState;
   }
 
@@ -55,7 +60,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
       byte source = source();
       scopeManager.healthMetrics.onScopeCloseError(source);
       if (source == ScopeSource.MANUAL.id() && scopeManager.strictMode) {
-        throw new RuntimeException("Tried to close scope when not on top");
+        throw new RuntimeException("Tried to close " + span + " scope when not on top");
       }
     }
 
@@ -116,7 +121,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final boolean isAsyncPropagating() {
-    return isAsyncPropagating;
+    return (flags & ASYNC_PROPAGATING) != 0;
   }
 
   @Override
@@ -126,36 +131,29 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final void setAsyncPropagation(final boolean value) {
-    isAsyncPropagating = value;
-  }
-
-  /**
-   * The continuation returned must be closed or activated or the trace will not finish.
-   *
-   * @return The new continuation, or null if this scope is not async propagating.
-   */
-  @Override
-  public final AbstractContinuation capture() {
-    return isAsyncPropagating
-        ? new SingleContinuation(scopeManager, span, source()).register()
-        : null;
-  }
-
-  /**
-   * The continuation returned must be closed or activated or the trace will not finish.
-   *
-   * @return The new continuation, or null if this scope is not async propagating.
-   */
-  @Override
-  public final AbstractContinuation captureConcurrent() {
-    return isAsyncPropagating
-        ? new ConcurrentContinuation(scopeManager, span, source()).register()
-        : null;
+    if (value) {
+      flags |= ASYNC_PROPAGATING;
+    } else {
+      flags &= ~ASYNC_PROPAGATING;
+    }
   }
 
   @Override
   public final String toString() {
     return super.toString() + "->" + span;
+  }
+
+  public void checkpoint() {
+    flags |= CHECKPOINTED;
+  }
+
+  public boolean rollback() {
+    if ((flags & CHECKPOINTED) != 0) {
+      flags &= ~CHECKPOINTED;
+      return false;
+    } else {
+      return true;
+    }
   }
 
   public final void beforeActivated() {
@@ -186,9 +184,8 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     }
   }
 
-  @Override
   public byte source() {
-    return (byte) (flags & 0x7F);
+    return (byte) (source & 0x7F);
   }
 
   @Override

@@ -5,9 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.WellKnownTags
+import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
-import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -30,7 +29,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
   static CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
   "my-runtime-id", "my-env", "my-language",
   "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-  "my-os-arch", "my-os-platform", "my-os-version")
+  "my-os-arch", "my-os-platform", "my-os-version", "false")
 
   static String apiKey = "my-secret-apikey"
   static msgPackMapper = new ObjectMapper(new MessagePackFactory())
@@ -168,15 +167,16 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
-          "env"       : "my-env",
-          "runtime-id": "my-runtime-id",
-          "language"  : "my-language",
-          (Tags.RUNTIME_NAME): "my-runtime-name",
-          (Tags.RUNTIME_VERSION): "my-runtime-version",
-          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
-          (Tags.OS_ARCHITECTURE): "my-os-arch",
-          (Tags.OS_PLATFORM): "my-os-platform",
-          (Tags.OS_VERSION): "my-os-version"
+          "env"                                 : "my-env",
+          "runtime-id"                          : "my-runtime-id",
+          "language"                            : "my-language",
+          (Tags.RUNTIME_NAME)                   : "my-runtime-name",
+          (Tags.RUNTIME_VERSION)                : "my-runtime-version",
+          (Tags.RUNTIME_VENDOR)                 : "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE)                : "my-os-arch",
+          (Tags.OS_PLATFORM)                    : "my-os-platform",
+          (Tags.OS_VERSION)                     : "my-os-version",
+          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
@@ -200,15 +200,16 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
-          "env"       : "my-env",
-          "runtime-id": "my-runtime-id",
-          "language"  : "my-language",
-          (Tags.RUNTIME_NAME): "my-runtime-name",
-          (Tags.RUNTIME_VERSION): "my-runtime-version",
-          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
-          (Tags.OS_ARCHITECTURE): "my-os-arch",
-          (Tags.OS_PLATFORM): "my-os-platform",
-          (Tags.OS_VERSION): "my-os-version"
+          "env"                                 : "my-env",
+          "runtime-id"                          : "my-runtime-id",
+          "language"                            : "my-language",
+          (Tags.RUNTIME_NAME)                   : "my-runtime-name",
+          (Tags.RUNTIME_VERSION)                : "my-runtime-version",
+          (Tags.RUNTIME_VENDOR)                 : "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE)                : "my-os-arch",
+          (Tags.OS_PLATFORM)                    : "my-os-platform",
+          (Tags.OS_VERSION)                     : "my-os-version",
+          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test",
@@ -234,15 +235,16 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
-          "env"       : "my-env",
-          "runtime-id": "my-runtime-id",
-          "language"  : "my-language",
-          (Tags.RUNTIME_NAME): "my-runtime-name",
-          (Tags.RUNTIME_VERSION): "my-runtime-version",
-          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
-          (Tags.OS_ARCHITECTURE): "my-os-arch",
-          (Tags.OS_PLATFORM): "my-os-platform",
-          (Tags.OS_VERSION): "my-os-version"
+          "env"                                 : "my-env",
+          "runtime-id"                          : "my-runtime-id",
+          "language"                            : "my-language",
+          (Tags.RUNTIME_NAME)                   : "my-runtime-name",
+          (Tags.RUNTIME_VERSION)                : "my-runtime-version",
+          (Tags.RUNTIME_VENDOR)                 : "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE)                : "my-os-arch",
+          (Tags.OS_PLATFORM)                    : "my-os-platform",
+          (Tags.OS_VERSION)                     : "my-os-version",
+          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_suite_end",
@@ -265,15 +267,16 @@ class DDIntakeApiTest extends DDCoreSpecification {
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
-          "env"       : "my-env",
-          "runtime-id": "my-runtime-id",
-          "language"  : "my-language",
-          (Tags.RUNTIME_NAME): "my-runtime-name",
-          (Tags.RUNTIME_VERSION): "my-runtime-version",
-          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
-          (Tags.OS_ARCHITECTURE): "my-os-arch",
-          (Tags.OS_PLATFORM): "my-os-platform",
-          (Tags.OS_VERSION): "my-os-version"
+          "env"                                 : "my-env",
+          "runtime-id"                          : "my-runtime-id",
+          "language"                            : "my-language",
+          (Tags.RUNTIME_NAME)                   : "my-runtime-name",
+          (Tags.RUNTIME_VERSION)                : "my-runtime-version",
+          (Tags.RUNTIME_VENDOR)                 : "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE)                : "my-os-arch",
+          (Tags.OS_PLATFORM)                    : "my-os-platform",
+          (Tags.OS_VERSION)                     : "my-os-version",
+          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_module_end",

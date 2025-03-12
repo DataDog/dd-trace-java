@@ -9,9 +9,11 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -38,7 +40,9 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
+    return super.isApplicable(enabledSystems)
+        && (Config.get().isCiVisibilityTestSkippingEnabled()
+            || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -88,7 +92,10 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         return;
       }
 
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+      TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler =
+          TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.CUCUMBER);
+
+      if (testEventsHandler == null) {
         // should only happen in integration tests
         // because we cannot avoid instrumenting ourselves
         return;
@@ -99,7 +106,7 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         return;
       }
 
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      SkipReason skipReason = testEventsHandler.skipReason(test);
       if (skipReason == null) {
         return;
       }
@@ -107,7 +114,7 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
       if (skipReason == SkipReason.ITR) {
         Collection<TestTag> tags = testDescriptor.getTags();
         for (TestTag tag : tags) {
-          if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+          if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
             return;
           }
         }

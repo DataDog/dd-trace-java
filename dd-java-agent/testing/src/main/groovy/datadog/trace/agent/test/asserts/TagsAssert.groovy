@@ -13,6 +13,9 @@ import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME
+import static java.lang.String.format
+
 class TagsAssert {
   private final long spanParentId
   private final Map<String, Object> tags
@@ -53,6 +56,21 @@ class TagsAssert {
     tag(name, { it != null })
   }
 
+  def arePresent(Collection<String> tags) {
+    for (String name : tags) {
+      isPresent(name)
+    }
+  }
+
+  def isNotPresent(String name) {
+    tag(name, { it == null })
+  }
+
+  def areNotPresent(Collection<String> tags) {
+    for (String name : tags) {
+      isNotPresent(name)
+    }
+  }
 
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered 'root' for current service
@@ -73,6 +91,7 @@ class TagsAssert {
     assertedTags.add(DDTags.DSM_ENABLED)
     assertedTags.add(DDTags.DJM_ENABLED)
     assertedTags.add(DDTags.PARENT_ID)
+    assertedTags.add(DDTags.SPAN_LINKS) // this is checked by LinksAsserter
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -109,6 +128,15 @@ class TagsAssert {
       assert tags[Tags.PEER_SERVICE] == null
       assert tags[DDTags.PEER_SERVICE_SOURCE] == null
     }
+  }
+
+  def codeOriginTags() {
+    assert tags[DDTags.DD_CODE_ORIGIN_TYPE] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "file")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "method")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "line")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "type")] != null
+    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "signature")] != null
   }
 
   def errorTags(Throwable error) {

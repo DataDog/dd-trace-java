@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
@@ -113,11 +114,11 @@ public class DatadogServerRequestResponseFlowWrapper
                 final AgentScope scope = scopes.poll();
                 if (scope != null) {
                   DatadogWrapperHelper.finishSpan(scope.span(), response);
-                  // Check if the active scope is still the scope from when the request came in,
+                  // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
-                  AgentScope activeScope = activeScope();
-                  if (activeScope == scope) {
+                  AgentSpan activeSpan = activeSpan();
+                  if (activeSpan == scope.span()) {
                     scope.close();
                   }
                 }

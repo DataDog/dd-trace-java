@@ -1,8 +1,14 @@
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.LibraryCapability
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.CiVisibilityTestUtils
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -27,6 +33,7 @@ import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedNested
+import org.example.TestSucceedSkipEfd
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
@@ -34,11 +41,18 @@ import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.engine.JupiterTestEngine
 import org.junit.platform.engine.DiscoverySelector
+import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.stream.Collectors
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -46,35 +60,35 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class JUnit5Test extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                                         | tests                                | expectedTracesCount
-    "test-succeed"                                       | [TestSucceed]                        | 2
-    "test-inheritance"                                   | [TestInheritance]                    | 2
-    "test-parameterized"                                 | [TestParameterized]                  | 3
-    "test-repeated"                                      | [TestRepeated]                       | 3
-    "test-template"                                      | [TestTemplate]                       | 3
-    "test-factory"                                       | [TestFactory]                        | 3
-    "test-failed"                                        | [TestFailed]                         | 2
-    "test-error"                                         | [TestError]                          | 2
-    "test-skipped"                                       | [TestSkipped]                        | 2
-    "test-skipped-class"                                 | [TestSkippedClass]                   | 5
-    "test-assumption-failed"                             | [TestAssumption]                     | 2
-    "test-assumption-failed-legacy"                      | [TestAssumptionLegacy]               | 2
-    "test-succeed-and-skipped"                           | [TestSucceedAndSkipped]              | 3
-    "test-succeed-and-failed"                            | [TestFailedAndSucceed]               | 4
-    "test-suite-teardown-failed"                         | [TestFailedSuiteTearDown]            | 3
-    "test-suite-setup-failed"                            | [TestFailedSuiteSetup]               | 1
-    "test-categories"                                    | [TestSucceedWithCategories]          | 2
-    "test-suite-setup-assumption-failed"                 | [TestSuiteSetUpAssumption]           | 2
-    "test-suite-setup-assumption-failed-multi-test-case" | [TestAssumptionAndSucceed]           | 3
-    "test-succeed-multiple-suites"                       | [TestSucceed, TestSucceedAndSkipped] | 4
-    "test-succeed-and-failed-multiple-suites"            | [TestSucceed, TestFailedAndSucceed]  | 5
-    "test-succeed-nested-suites"                         | [TestSucceedNested]                  | 3
-    "test-skipped-nested-suites"                         | [TestSkippedNested]                  | 3
+    testcaseName                                         | success | tests
+    "test-succeed"                                       | true    | [TestSucceed]
+    "test-inheritance"                                   | true    | [TestInheritance]
+    "test-parameterized"                                 | true    | [TestParameterized]
+    "test-repeated"                                      | true    | [TestRepeated]
+    "test-template"                                      | true    | [TestTemplate]
+    "test-factory"                                       | true    | [TestFactory]
+    "test-failed"                                        | false   | [TestFailed]
+    "test-error"                                         | false   | [TestError]
+    "test-skipped"                                       | true    | [TestSkipped]
+    "test-skipped-class"                                 | true    | [TestSkippedClass]
+    "test-assumption-failed"                             | true    | [TestAssumption]
+    "test-assumption-failed-legacy"                      | true    | [TestAssumptionLegacy]
+    "test-succeed-and-skipped"                           | true    | [TestSucceedAndSkipped]
+    "test-succeed-and-failed"                            | false   | [TestFailedAndSucceed]
+    "test-suite-teardown-failed"                         | false   | [TestFailedSuiteTearDown]
+    "test-suite-setup-failed"                            | false   | [TestFailedSuiteSetup]
+    "test-categories"                                    | true    | [TestSucceedWithCategories]
+    "test-suite-setup-assumption-failed"                 | true    | [TestSuiteSetUpAssumption]
+    "test-suite-setup-assumption-failed-multi-test-case" | true    | [TestAssumptionAndSucceed]
+    "test-succeed-multiple-suites"                       | true    | [TestSucceed, TestSucceedAndSkipped]
+    "test-succeed-and-failed-multiple-suites"            | false   | [TestSucceed, TestFailedAndSucceed]
+    "test-succeed-nested-suites"                         | true    | [TestSucceedNested]
+    "test-skipped-nested-suites"                         | true    | [TestSkippedNested]
   }
 
   def "test ITR #testcaseName"() {
@@ -82,64 +96,65 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                       | tests                         | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestFailedAndSucceed]        | 4                   | [
+    testcaseName                       | tests                         | skippedTests
+    "test-itr-skipping"                | [TestFailedAndSucceed]        | [
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
       new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
-    "test-itr-skipping-parametrized"   | [TestParameterized]           | 3                   | [
+    "test-itr-skipping-parametrized"   | [TestParameterized]           | [
       new TestIdentifier("org.example.TestParameterized", "test_parameterized", '{"metadata":{"test_name":"[1] 0, 0, 0, some:\\\"parameter\\\""}}')
     ]
-    "test-itr-unskippable"             | [TestSucceedUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
-    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
-    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | 2                   | []
+    "test-itr-unskippable"             | [TestSucceedUnskippable]      | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
+    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
+    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | []
   }
 
   def "test flaky retries #testcaseName"() {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                             | tests                          | expectedTracesCount | retriedTests
-    "test-failed"                            | [TestFailed]                   | 2                   | []
-    "test-retry-failed"                      | [TestFailed]                   | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
-    "test-retry-template"                    | [TestFailedTemplate]           | 7                   | [new TestIdentifier("org.example.TestFailedTemplate", "test_template", null)]
-    "test-retry-factory"                     | [TestFailedFactory]            | 7                   | [new TestIdentifier("org.example.TestFailedFactory", "test_factory", null)]
-    "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
-    "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-parameterized"               | [TestFailedParameterized]      | 11                  | [new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", null)]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
+    testcaseName                             | success | tests                          | retriedTests
+    "test-failed"                            | false   | [TestFailed]                   | []
+    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
+    "test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestFQN("org.example.TestFailedTemplate", "test_template")]
+    "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
+    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
+    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "test_parameterized", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
-    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
-    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
+    testcaseName                        | success | tests                  | knownTestsList
+    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "test_parameterized")]
+    "test-efd-new-test"                 | true    | [TestSucceed]          | []
+    "test-efd-new-parameterized-test"   | true    | [TestParameterized]    | []
+    "test-efd-known-tests-and-new-test" | false   | [TestFailedAndSucceed] | [
+      new TestFQN("org.example.TestFailedAndSucceed", "test_failed"),
+      new TestFQN("org.example.TestFailedAndSucceed", "test_succeed")
     ]
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
-    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
+    "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -148,42 +163,139 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests         | expectedTracesCount | prDiff
-    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
-    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+    testcaseName            | tests         | prDiff
+    "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
-  private static void runTests(List<Class<?>> tests) {
-    TestEventsHandlerHolder.startForcefully()
+  def "test quarantined #testcaseName"() {
+    givenQuarantinedTests(quarantined)
 
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                            | tests                     | quarantined
+    "test-quarantined-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                  | tests        | quarantined                                            | retried
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                    | tests        | quarantined                                            | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                         | tests                     | disabled
+    "test-disabled-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                             | quarantined                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | [new TestFQN("org.example.TestFailed", "test_failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    Assumptions.assumeTrue(!JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion()))
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(JUnitPlatformUtils.JUNIT_CAPABILITIES_BASE, 4)
+  }
+
+  protected void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])
     }
 
     def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .selectors(selectors)
-      .build()
+    .selectors(selectors)
+    .build()
 
     def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new JupiterTestEngine())
-      .build()
+    .builder()
+    .enableTestEngineAutoRegistration(false)
+    .addTestEngines(new JupiterTestEngine())
+    .build()
 
     def launcher = LauncherFactory.create(launcherConfig)
+    def listener = new TestResultListener()
+    launcher.registerTestExecutionListeners(listener)
     try {
       launcher.execute(launcherReq)
-    } catch (Throwable ignored) {
-    }
 
-    TestEventsHandlerHolder.stop()
+      def failedTests = listener.testsByStatus[TestExecutionResult.Status.FAILED]
+      if (expectSuccess) {
+        if (failedTests != null && !failedTests.isEmpty()) {
+          throw new AssertionError("Expected successful execution, the following tests were reported as failed: " + failedTests)
+        }
+      } else {
+        if (failedTests == null || failedTests.isEmpty()) {
+          throw new AssertionError("Expected a failed execution, got no failed tests")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop()
+    }
   }
 
   @Override
@@ -194,5 +306,13 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   @Override
   String instrumentedLibraryVersion() {
     return JupiterTestEngine.getPackage().getImplementationVersion()
+  }
+
+  private static final class TestResultListener implements TestExecutionListener {
+    private final Map<TestExecutionResult.Status, Collection<org.junit.platform.launcher.TestIdentifier>> testsByStatus = new ConcurrentHashMap<>()
+
+    void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+      testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
+    }
   }
 }

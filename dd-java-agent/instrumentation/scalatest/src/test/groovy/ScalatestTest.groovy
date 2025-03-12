@@ -1,3 +1,4 @@
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
@@ -14,6 +15,7 @@ import org.example.TestSucceed
 import org.example.TestSucceedFlatSpec
 import org.example.TestSucceedMoreCases
 import org.example.TestSucceedParameterized
+import org.example.TestSucceedSkipEfd
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.scalatest.tools.Runner
@@ -21,53 +23,51 @@ import org.scalatest.tools.Runner
 class ScalatestTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                 | tests                      | expectedTracesCount
-    "test-succeed"               | [TestSucceed]              | 2
-    "test-succeed-flat-spec"     | [TestSucceedFlatSpec]      | 2
-    "test-succeed-parameterized" | [TestSucceedParameterized] | 2
-    "test-failed"                | [TestFailed]               | 2
-    "test-ignored"               | [TestIgnored]              | 2
-    "test-canceled"              | [TestIgnoredCanceled]      | 2
-    "test-pending"               | [TestIgnoredPending]       | 2
-    "test-failed-suite"          | [TestFailedSuite]          | 1
+    testcaseName                 | success | tests
+    "test-succeed"               | true    | [TestSucceed]
+    "test-succeed-flat-spec"     | true    | [TestSucceedFlatSpec]
+    "test-succeed-parameterized" | true    | [TestSucceedParameterized]
+    "test-failed"                | false   | [TestFailed]
+    "test-ignored"               | true    | [TestIgnored]
+    "test-canceled"              | true    | [TestIgnoredCanceled]
+    "test-pending"               | true    | [TestIgnoredPending]
+    "test-failed-suite"          | false   | [TestFailedSuite]
   }
 
   def "test ITR #testcaseName"() {
     givenSkippableTests(skippedTests)
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                       | tests                    | expectedTracesCount | skippedTests
-    "test-itr-skipping"                | [TestSucceed]            | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
-    "test-itr-unskippable"             | [TestSucceedUnskippable] | 2                   | [
-      new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null)
-    ]
-    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | 2                   | []
+    testcaseName                       | tests                    | skippedTests
+    "test-itr-skipping"                | [TestSucceed]            | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
+    "test-itr-unskippable"             | [TestSucceedUnskippable] | [new TestIdentifier("org.example.TestSucceedUnskippable", "test should assert something", null)]
+    "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable] | []
   }
 
   def "test flaky retries #testcaseName"() {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName               | tests                     | expectedTracesCount | retriedTests
-    "test-failed"              | [TestFailed]              | 2                   | []
-    "test-retry-failed"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "Example.add adds two numbers", null)]
-    "test-retry-parameterized" | [TestFailedParameterized] | 2                   | [
-      new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null)
+    testcaseName               | success | tests                     | retriedTests
+    "test-failed"              | false   | [TestFailed]              | []
+    "test-retry-failed"        | false   | [TestFailed]              | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+    "test-retry-parameterized" | false   | [TestFailedParameterized] | [
+      new TestFQN("org.example.TestFailedParameterized", "addition should correctly add two numbers")
     ]
-    "test-failed-then-succeed" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null)]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceed]   | [new TestFQN("org.example.TestFailedThenSucceed", "Example.add adds two numbers")]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -76,14 +76,15 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
-    "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | 8                   | []
+    testcaseName                        | tests                  | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
+    "test-efd-new-test"                 | [TestSucceed]          | []
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | []
+    "test-efd-skip-new-test"            | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -92,15 +93,99 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
 
     runTests(tests)
 
-    assertSpansData(testcaseName, expectedTracesCount)
+    assertSpansData(testcaseName)
 
     where:
-    testcaseName            | tests         | expectedTracesCount | prDiff
-    "test-succeed"          | [TestSucceed] | 2                   | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | 2                   | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
-    "test-succeed"          | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
-    "test-succeed-impacted" | [TestSucceed] | 2                   | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+    testcaseName            | tests         | prDiff
+    "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
+    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
+    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
+    "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
+    "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
+  }
+
+  def "test quarantined #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName              | tests        | quarantined
+    "test-quarantined-failed" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                  | tests        | quarantined                                                             | retried
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                    | tests        | quarantined                                                             | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName           | tests        | disabled
+    "test-disabled-failed" | [TestFailed] | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                                             | quarantined                                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(ScalatestUtils.CAPABILITIES, 4)
   }
 
   @Override
@@ -113,13 +198,16 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     return ScalatestUtils.scalatestVersion
   }
 
-  void runTests(List<Class<?>> tests) {
+  void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     def runnerArguments = ["-o"] // standard out reporting
     for (Class<?> test : tests) {
       runnerArguments += ["-s", test.name]
     }
 
-    Runner.run((String[]) runnerArguments.toArray(new String[0]))
+    def result = Runner.run((String[]) runnerArguments.toArray(new String[0]))
+    if (result != expectSuccess) {
+      throw new AssertionError("Expected $expectSuccess execution status, got $result")
+    }
   }
 
 }

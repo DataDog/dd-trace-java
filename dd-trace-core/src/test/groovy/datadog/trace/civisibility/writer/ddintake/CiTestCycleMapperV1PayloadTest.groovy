@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
@@ -47,7 +48,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
       "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-      "my-os-arch", "my-os-platform", "my-os-version")
+      "my-os-arch", "my-os-platform", "my-os-version", "false")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
@@ -94,7 +95,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     def span = generateRandomSpan(InternalSpanTypes.TEST, [
       (Tags.TEST_SESSION_ID): DDTraceId.from(123),
       (Tags.TEST_MODULE_ID) : 456,
-      (Tags.TEST_SUITE_ID)  : 789
+      (Tags.TEST_SUITE_ID)  : 789,
     ])
 
     when:
@@ -114,7 +115,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     def span = generateRandomSpan(InternalSpanTypes.TEST_SUITE_END, [
       (Tags.TEST_SESSION_ID): DDTraceId.from(123),
       (Tags.TEST_MODULE_ID) : 456,
-      (Tags.TEST_SUITE_ID)  : 789
+      (Tags.TEST_SUITE_ID)  : 789,
     ])
 
     when:
@@ -186,7 +187,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
       "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
-      "my-os-arch", "my-os-platform", "my-os-version")
+      "my-os-arch", "my-os-platform", "my-os-version", "false")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     ByteBufferConsumer consumer = new CaptureConsumer()
@@ -251,7 +252,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         assertEquals(1, unpacker.unpackMapHeader())
         assertEquals("*", unpacker.unpackString())
 
-        assertEquals(9, unpacker.unpackMapHeader())
+        assertEquals(10, unpacker.unpackMapHeader())
         assertEquals("env", unpacker.unpackString())
         assertEquals(wellKnownTags.env as String, unpacker.unpackString())
         assertEquals("runtime-id", unpacker.unpackString())
@@ -270,6 +271,8 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         assertEquals(wellKnownTags.osPlatform as String, unpacker.unpackString())
         assertEquals(Tags.OS_VERSION, unpacker.unpackString())
         assertEquals(wellKnownTags.osVersion as String, unpacker.unpackString())
+        assertEquals(DDTags.TEST_IS_USER_PROVIDED_SERVICE, unpacker.unpackString())
+        assertEquals(wellKnownTags.isUserProvidedService as String, unpacker.unpackString())
 
         assertEquals("events", unpacker.unpackString())
 
