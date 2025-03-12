@@ -184,7 +184,6 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
     }
   }
 
-  @Override
   public byte source() {
     return (byte) (source & 0x7F);
   }

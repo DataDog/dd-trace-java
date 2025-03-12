@@ -922,12 +922,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentScope.Continuation captureActiveSpan() {
-    AgentScope activeScope = this.scopeManager.active();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
-      return scopeManager.captureSpan(activeScope.span(), activeScope.source());
-    } else {
-      return AgentTracer.noopContinuation();
-    }
+    return scopeManager.captureActiveSpan();
   }
 
   @Override
@@ -937,16 +932,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public boolean isAsyncPropagationEnabled() {
-    AgentScope activeScope = this.scopeManager.active();
-    return activeScope != null && activeScope.isAsyncPropagating();
+    return scopeManager.isAsyncPropagationEnabled();
   }
 
   @Override
   public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    AgentScope activeScope = this.scopeManager.active();
-    if (activeScope != null) {
-      activeScope.setAsyncPropagation(asyncPropagationEnabled);
-    }
+    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   @Override
