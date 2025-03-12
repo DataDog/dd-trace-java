@@ -81,7 +81,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

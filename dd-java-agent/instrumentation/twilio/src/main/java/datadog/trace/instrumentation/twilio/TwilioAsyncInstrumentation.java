@@ -108,7 +108,7 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
 
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     /** Method exit instrumentation. */
