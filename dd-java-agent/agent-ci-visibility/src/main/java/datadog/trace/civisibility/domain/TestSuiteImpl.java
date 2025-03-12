@@ -130,7 +130,7 @@ public class TestSuiteImpl implements DDTestSuite {
     testDecorator.afterStart(span);
 
     if (!parallelized) {
-      activateSpan(span, true);
+      activateSpan(span);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
