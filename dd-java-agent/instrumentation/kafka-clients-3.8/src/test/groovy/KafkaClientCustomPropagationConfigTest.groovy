@@ -27,6 +27,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE
 
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
+  static final DOCKER_IMAGE_NAME = DockerImageName.parse("confluentinc/cp-kafka:7.8.0")
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
   static final MESSAGE = "Testing without headers for certain topics"
 
@@ -58,7 +59,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   def "test kafka client header propagation with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
+    KafkaContainer kafkaContainer = new KafkaContainer(DOCKER_IMAGE_NAME).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
     kafkaContainer.start()
 
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
@@ -166,7 +167,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   def "test consumer with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
+    KafkaContainer kafkaContainer = new KafkaContainer(DOCKER_IMAGE_NAME).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
     kafkaContainer.start()
     def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)

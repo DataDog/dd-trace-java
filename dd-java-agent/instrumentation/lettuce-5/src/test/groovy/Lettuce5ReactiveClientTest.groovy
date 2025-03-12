@@ -1,3 +1,5 @@
+import org.testcontainers.utility.DockerImageName
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
@@ -37,7 +39,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
   int port
 
   @Shared
-  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_TAG)
+  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
   .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient

@@ -1,3 +1,5 @@
+import org.testcontainers.utility.DockerImageName
+
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 import com.redis.testcontainers.RedisContainer
@@ -35,7 +37,7 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
   String embeddedDbUri
 
   @Shared
-  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME)
+  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
   .waitingFor(Wait.forListeningPort())
 
   @Shared

@@ -16,7 +16,7 @@ import spock.lang.Shared
 import java.time.Duration
 
 class S3ClientTest extends AgentTestRunner {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "s3")
   .withReuse(true)

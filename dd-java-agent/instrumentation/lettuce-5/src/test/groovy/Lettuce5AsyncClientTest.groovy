@@ -15,6 +15,7 @@ import io.lettuce.core.api.sync.RedisCommands
 import io.lettuce.core.codec.StringCodec
 import io.lettuce.core.protocol.AsyncCommand
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
@@ -49,7 +50,7 @@ abstract class Lettuce5AsyncClientTest extends VersionedNamingTestBase {
   String embeddedDbUri
 
   @Shared
-  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME)
+  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
   .waitingFor(Wait.forListeningPort())
 
   @Shared
