@@ -1889,6 +1889,35 @@ class ConfigTest extends DDSpecification {
     [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
   }
 
+  def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_TAGS")
+    environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_TAGS"].toSet()
+
+    //verify expected behavior enabled under feature flag
+    config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
+  }
+
+  def "verify behavior of 'breaking change' configs when not under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
+    setup:
+    environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == [].toSet()
+
+    //verify expected behavior when not enabled under feature flag
+    config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+  }
+
   def "detect if agent is configured using default values"() {
     setup:
     if (host != null) {
