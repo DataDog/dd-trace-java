@@ -116,7 +116,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    activateSpan(span, true);
+    activateSpan(span);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);

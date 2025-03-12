@@ -33,7 +33,7 @@ public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
     final AgentSpan span = startSpan(operationName, parent != null ? parent.context() : null);
     afterStart(span);
 
-    try (final AgentScope scope = activateSpan(span, true)) {
+    try (final AgentScope scope = activateSpan(span)) {
       delegate.call(new TracedSubscriber(span, subscriber, decorator));
     }
   }

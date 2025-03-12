@@ -31,7 +31,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       if (span == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
-        try (final AgentScope scope = activateSpan(span, true)) {
+        try (final AgentScope scope = activateSpan(span)) {
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }
@@ -43,7 +43,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
     final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
 
-    try (final AgentScope scope = activateSpan(span, true)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, extractedContext);
 
