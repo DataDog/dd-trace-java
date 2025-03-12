@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.config.provider;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -11,10 +10,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
+/** VMArgsCache stores JVM Arguments applied to the current process */
 public class VMArgsCache {
-  private static final class Singleton {
-    private static final VMArgsCache INSTANCE = new VMArgsCache(getVMArgumentsThroughReflection());
-  }
+  public static final VMArgsCache ARGS = new VMArgsCache(initJvmArgs());
 
   private final HashSet<String> args;
 
@@ -22,7 +20,7 @@ public class VMArgsCache {
     this.args = new HashSet<>(args);
   }
 
-  private HashSet<String> getArgs() {
+  public HashSet<String> getJvmArgs() {
     return this.args;
   }
 
@@ -30,12 +28,8 @@ public class VMArgsCache {
     return this.args.contains(argument);
   }
 
-  @SuppressForbidden
-  public static HashSet<String> getVMArguments() {
-    return Singleton.INSTANCE.getArgs();
-  }
-
-  private static List<String> getVMArgumentsThroughReflection() {
+  private static List<String> initJvmArgs() {
+    // If linux OS, use procfs
     // TODO: equals, or contains?
     if (System.getProperty("os.name").equalsIgnoreCase("linux")) {
       // Get the current process PID from /proc/self/status
