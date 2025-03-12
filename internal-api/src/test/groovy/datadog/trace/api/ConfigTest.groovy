@@ -10,6 +10,7 @@ import org.junit.Rule
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -1874,6 +1875,20 @@ class ConfigTest extends DDSpecification {
 
     where:
     [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
+  }
+
+  def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_LOGS_INJECTION")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION"].toSet()
+
+    //verify expected behavior enabled under feature flag
+    config.logsInjectionEnabled == DEFAULT_LOGS_INJECTION_ENABLED
   }
 
   def "detect if agent is configured using default values"() {
