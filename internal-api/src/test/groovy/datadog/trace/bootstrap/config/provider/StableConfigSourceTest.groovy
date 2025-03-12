@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.config.provider
 
 import datadog.trace.api.ConfigOrigin
+import datadog.trace.bootstrap.config.provider.StableConfigYaml.ConfigurationMap
 import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml
 import datadog.trace.test.util.DDSpecification
 import org.yaml.snakeyaml.DumperOptions
@@ -139,31 +140,6 @@ class StableConfigSourceTest extends DDSpecification {
     // YAML instance with custom Representer
     return new Yaml(representer, options)
   }
-
-  //  def generateYaml(configId, apmConfigurationDefault, apmConfigurationRules, miscData) {
-  //    // Construct the YAML dynamically using GString interpolation
-  //    def yaml = """
-  //config_id: ${configId}
-  //apm_configuration_default:
-  //    ${apmConfigurationDefault.collect { key, value -> "$key: $value" }.join("\n    ")}
-  //apm_configuration_rules:
-  //  ${apmConfigurationRules.collect { rule ->
-  //      """
-  //  - selectors:
-  //      ${rule.selectors.collect { selector ->
-  //        """
-  //      - origin: ${selector.origin}
-  //        matches: ${selector.matches.inspect()}
-  //        operator: ${selector.operator}
-  //          """.stripIndent() }.join("\n      ")}
-  //    configuration:
-  //        ${rule.configuration.collect { key, value -> "$key: $value" }.join("\n        ")}
-  //      """.stripIndent()
-  //    }.join("\n")}
-  //${miscData}
-  //"""
-  //    return yaml
-  //  }
 
   def writeFileYaml(Path filePath, StableConfigYaml stableConfigs) {
     //    Yaml yaml = getStableConfigYaml();

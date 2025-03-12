@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.config.provider.StableConfigYaml;
 
-import datadog.trace.bootstrap.config.provider.ConfigurationMap;
 import java.util.ArrayList;
 import java.util.List;
 
