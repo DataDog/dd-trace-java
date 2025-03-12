@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.trace.bootstrap.config.provider.StableConfigYaml.ConfigurationMap;
 import datadog.trace.bootstrap.config.provider.StableConfigYaml.Rule;
 import datadog.trace.bootstrap.config.provider.StableConfigYaml.Selector;
 import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml;
@@ -39,6 +40,7 @@ public class StableConfigParser {
       if (!rules.isEmpty()) {
         for (Rule rule : rules) {
           if (doesRuleMatch(rule)) {
+            // Merge configs found in apm_configuration_default and apm_configuration_rules
             configMap.putAll(rule.getConfiguration());
             return createStableConfig(configId, configMap);
           }
@@ -63,7 +65,10 @@ public class StableConfigParser {
     return StableConfigSource.StableConfig.EMPTY;
   }
 
-  /** Checks if the rule's selectors match. All must match for a "true" return value. */
+  /**
+   * Checks if the rule's selectors match the current process. All must match for a "true" return
+   * value.
+   */
   private static boolean doesRuleMatch(Rule rule) {
     for (Selector selector : rule.getSelectors()) {
       if (!selectorMatch(
@@ -80,7 +85,7 @@ public class StableConfigParser {
     return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
   }
 
-  // TODO: Make this private again after testing
+  // TODO: Make this private again after testing?
   public static boolean selectorMatch(
       String origin, List<String> matches, String operator, String key) {
     switch (origin) {

@@ -12,6 +12,7 @@ class StableConfigParserTest extends DDSpecification {
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
+    // TODO: Test input with muiltiple selector-configuration sets. We always use the first matching selector
     String yaml = """
 config_id: 12345
 apm_configuration_default:
