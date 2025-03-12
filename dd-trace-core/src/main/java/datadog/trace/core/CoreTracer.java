@@ -907,17 +907,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    return activateSpan(span, DEFAULT_ASYNC_PROPAGATING);
   }
 
   @Override
-  public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
-    return scopeManager.activate(span, source);
+  public AgentScope activateSpan(AgentSpan span, boolean isAsyncPropagating) {
+    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
   @Override
-  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
-    return scopeManager.activate(span, source, isAsyncPropagating);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return scopeManager.activate(span, ScopeSource.MANUAL);
   }
 
   @Override
