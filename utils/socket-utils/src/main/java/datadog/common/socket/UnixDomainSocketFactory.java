@@ -38,7 +38,7 @@ public final class UnixDomainSocketFactory extends SocketFactory {
   @Override
   public Socket createSocket() throws IOException {
     try {
-      if (JDK_SUPPORTS_UDS) {
+      if (JDK_SUPPORTS_UDS && Config.get().isJdkSocketEnabled()) {
         try {
           return new TunnelingJdkSocket(path.toPath());
         } catch (Throwable ignore) {

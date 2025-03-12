@@ -3,6 +3,7 @@ package datadog.common.socket;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import datadog.trace.api.Config;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardProtocolFamily;
@@ -21,6 +22,12 @@ public class TunnelingJdkSocketTest {
 
   @Test
   public void testTimeout() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+
     int testTimeout = 3000;
     Path socketPath = getSocketPath();
     UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
