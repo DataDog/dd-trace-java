@@ -22,7 +22,6 @@ public class TracerEnvironment {
   @Json(name = "test_level")
   private final String testLevel = "test";
 
-  private final String module;
   private final Configurations configurations;
 
   private TracerEnvironment(
@@ -32,7 +31,6 @@ public class TracerEnvironment {
       String branch,
       String sha,
       String commitMessage,
-      String module,
       Configurations configurations) {
     this.service = service;
     this.env = env;
@@ -40,7 +38,6 @@ public class TracerEnvironment {
     this.branch = branch;
     this.sha = sha;
     this.commitMessage = commitMessage;
-    this.module = module;
     this.configurations = configurations;
   }
 
@@ -72,10 +69,6 @@ public class TracerEnvironment {
     return testLevel;
   }
 
-  public String getModule() {
-    return module;
-  }
-
   public Configurations getConfigurations() {
     return configurations;
   }
@@ -103,9 +96,6 @@ public class TracerEnvironment {
         + '\''
         + ", testLevel='"
         + testLevel
-        + '\''
-        + ", module='"
-        + module
         + '\''
         + ", configurations="
         + configurations
@@ -216,7 +206,6 @@ public class TracerEnvironment {
           branch,
           sha,
           commitMessage,
-          testBundle,
           new Configurations(
               osPlatform,
               osArchitecture,
