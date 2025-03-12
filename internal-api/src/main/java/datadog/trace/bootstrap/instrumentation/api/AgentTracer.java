@@ -338,9 +338,10 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
-
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    AgentScope activateManualSpan(AgentSpan span);
 
     @Override
     AgentScope.Continuation captureActiveSpan();
@@ -478,13 +479,13 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(
+        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+    public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 

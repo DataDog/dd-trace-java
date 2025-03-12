@@ -911,13 +911,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
-    return scopeManager.activate(span, source);
+  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
+    return scopeManager.activate(span, source, isAsyncPropagating);
   }
 
   @Override
-  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
-    return scopeManager.activate(span, source, isAsyncPropagating);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return scopeManager.activate(span, ScopeSource.MANUAL);
   }
 
   @Override
