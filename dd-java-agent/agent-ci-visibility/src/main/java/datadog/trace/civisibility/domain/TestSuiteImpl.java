@@ -26,7 +26,6 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -54,7 +53,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
@@ -75,7 +74,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
-      @Nonnull Map<LibraryCapability, Boolean> libraryCapabilities,
+      @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
@@ -92,7 +91,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
-    this.libraryCapabilities = libraryCapabilities;
+    this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
     AgentTracer.SpanBuilder spanBuilder =
@@ -263,7 +262,7 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
-        libraryCapabilities,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }
