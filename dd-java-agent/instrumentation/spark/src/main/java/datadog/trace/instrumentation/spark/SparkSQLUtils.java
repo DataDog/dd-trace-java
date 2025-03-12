@@ -1,25 +1,145 @@
 package datadog.trace.instrumentation.spark;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.scheduler.AccumulableInfo;
+import org.apache.spark.sql.catalyst.analysis.NamedRelation;
+import org.apache.spark.sql.catalyst.catalog.CatalogStatistics;
+import org.apache.spark.sql.catalyst.catalog.CatalogTable;
+import org.apache.spark.sql.catalyst.catalog.HiveTableRelation;
+import org.apache.spark.sql.catalyst.plans.logical.AppendData;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.Statistics;
 import org.apache.spark.sql.execution.SparkPlanInfo;
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
+import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.PartialFunction;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
 public class SparkSQLUtils {
+  private static final Logger log = LoggerFactory.getLogger(SparkSQLUtils.class);
+
+  private static final Class<?> dataSourceV2RelationClass;
+  private static final MethodHandle tableMethod;
+  private static final MethodHandle computeStatsMethod;
+
+  private static final Class<?> replaceDataClass;
+  private static final MethodHandle tableMethodForReplaceData;
+
+  private static final Class<?> insertIntoHiveTableClass;
+
+  private static final Class<?> tableClass;
+  private static final MethodHandle schemaMethod;
+  private static final MethodHandle nameMethod;
+  private static final MethodHandle propertiesMethod;
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findDataSourceV2Relation() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findTable() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.connector.catalog.Table");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findReplaceData() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.catalyst.plans.logical.ReplaceData");
+  }
+
+  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  private static Class<?> findInsertIntoHiveTable() throws ClassNotFoundException {
+    return Class.forName("org.apache.spark.sql.hive.execution.InsertIntoHiveTable");
+  }
+
+  static {
+    Class<?> relationClassFound = null;
+    MethodHandle tableMethodFound = null;
+    MethodHandle computeStatsMethodFound = null;
+
+    Class<?> replaceDataClassFound = null;
+    MethodHandle tableMethodForReplaceDataFound = null;
+
+    Class<?> insertIntoHiveTableClassFound = null;
+
+    Class<?> tableClassFound = null;
+    MethodHandle nameMethodFound = null;
+    MethodHandle schemaMethodFound = null;
+    MethodHandle propertiesMethodFound = null;
+
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+      // TODO: this class contains different fields and methods in different versions of Spark (e.x
+      // 2.4 vs 3.5)
+      relationClassFound = findDataSourceV2Relation();
+      tableClassFound = findTable();
+      replaceDataClassFound = findReplaceData();
+      insertIntoHiveTableClassFound = findInsertIntoHiveTable();
+
+      if (relationClassFound != null && tableClassFound != null) {
+        tableMethodFound =
+            lookup.findVirtual(relationClassFound, "table", MethodType.methodType(tableClassFound));
+        computeStatsMethodFound =
+            lookup.findVirtual(
+                relationClassFound, "computeStats", MethodType.methodType(Statistics.class));
+      }
+
+      if (tableClassFound != null) {
+        schemaMethodFound =
+            lookup.findVirtual(tableClassFound, "schema", MethodType.methodType(StructType.class));
+        nameMethodFound =
+            lookup.findVirtual(tableClassFound, "name", MethodType.methodType(String.class));
+        propertiesMethodFound =
+            lookup.findVirtual(tableClassFound, "properties", MethodType.methodType(Map.class));
+      }
+
+      if (replaceDataClassFound != null) {
+        tableMethodForReplaceDataFound =
+            lookup.findVirtual(
+                replaceDataClassFound, "table", MethodType.methodType(NamedRelation.class));
+      }
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
+    }
+
+    dataSourceV2RelationClass = relationClassFound;
+    tableMethod = tableMethodFound;
+    computeStatsMethod = computeStatsMethodFound;
+
+    replaceDataClass = replaceDataClassFound;
+    tableMethodForReplaceData = tableMethodForReplaceDataFound;
+
+    insertIntoHiveTableClass = insertIntoHiveTableClassFound;
+
+    tableClass = tableClassFound;
+    schemaMethod = schemaMethodFound;
+    nameMethod = nameMethodFound;
+    propertiesMethod = propertiesMethodFound;
+  }
+
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
@@ -206,4 +326,217 @@ public class SparkSQLUtils {
       generator.writeEndObject();
     }
   }
+
+  static class LineageDataset {
+    @JsonProperty final String name;
+
+    @JsonProperty final String schema;
+
+    @JsonProperty final String properties;
+
+    @JsonProperty final String stats;
+
+    @JsonProperty final String type;
+
+    public LineageDataset(
+        String name, String schema, String stats, String properties, String type) {
+      this.name = name;
+      this.schema = schema;
+      this.properties = properties;
+      this.stats = stats;
+      this.type = type;
+    }
+  }
+
+  static PartialFunction<LogicalPlan, LineageDataset> logicalPlanToDataset =
+      new PartialFunction<LogicalPlan, LineageDataset>() {
+        private final ObjectMapper mapper =
+            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        @Override
+        public boolean isDefinedAt(LogicalPlan x) {
+          return x instanceof DataSourceV2Relation
+              || (x instanceof AppendData
+                  && ((AppendData) x).table() instanceof DataSourceV2Relation)
+              || (replaceDataClass != null && replaceDataClass.isInstance(x))
+              || (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x))
+              || x instanceof HiveTableRelation;
+        }
+
+        @Override
+        public LineageDataset apply(LogicalPlan x) {
+          try {
+            if (dataSourceV2RelationClass != null && dataSourceV2RelationClass.isInstance(x)) {
+              return parseDataSourceV2Relation(x, "input");
+            } else if (x instanceof AppendData) {
+              AppendData appendData = (AppendData) x;
+              NamedRelation table = appendData.table();
+              if (dataSourceV2RelationClass != null
+                  && dataSourceV2RelationClass.isInstance(table)) {
+                return parseDataSourceV2Relation(table, "output");
+              }
+            } else if (replaceDataClass != null
+                && replaceDataClass.isInstance(x)
+                && tableMethodForReplaceData != null) {
+              Object table = tableMethodForReplaceData.invoke(x);
+              if (table != null
+                  && dataSourceV2RelationClass != null
+                  && dataSourceV2RelationClass.isInstance(table)) {
+                return parseDataSourceV2Relation(table, "output");
+              }
+            } else if (insertIntoHiveTableClass != null && insertIntoHiveTableClass.isInstance(x)) {
+              return parseCatalogTable(
+                  (CatalogTable) x.getClass().getMethod("table").invoke(x), "output");
+            } else if (x instanceof HiveTableRelation) {
+              return parseCatalogTable(((HiveTableRelation) x).tableMeta(), "input");
+            }
+          } catch (Throwable ignored) {
+            log.debug("Error while converting logical plan to dataset", ignored);
+          }
+          return null;
+        }
+
+        private LineageDataset parseCatalogTable(CatalogTable table, String datasetType) {
+          Map<String, String> properties = new HashMap<>();
+
+          if (table.provider().isDefined()) {
+            properties.put("provider", table.provider().get());
+          }
+
+          if (table.storage().locationUri().isDefined()) {
+            properties.put("location", table.storage().locationUri().get().toString());
+          }
+          properties.put("storage", table.storage().toString());
+          properties.put("created_time", Long.toString(table.createTime()));
+          properties.put("last_access_time", Long.toString(table.lastAccessTime()));
+          properties.put("owner", table.owner());
+          properties.put("comment", table.comment().getOrElse(() -> ""));
+
+          String propertiesJson = null;
+          try {
+            propertiesJson = mapper.writeValueAsString(properties);
+          } catch (JsonProcessingException ignored) {
+            log.debug("Error while converting properties to JSON", ignored);
+          }
+
+          String statsJson = getCatalogTableStatsJson(table);
+
+          return new LineageDataset(
+              table.qualifiedName(), table.schema().json(), statsJson, propertiesJson, datasetType);
+        }
+
+        private LineageDataset parseDataSourceV2Relation(Object logicalPlan, String datasetType) {
+          if (null == dataSourceV2RelationClass
+              || !dataSourceV2RelationClass.isInstance(logicalPlan)) {
+            return null;
+          }
+
+          if (null == tableMethod || null == tableClass) {
+            log.debug(
+                "table method or table class is not found, cannot parse current DataSourceV2Relation");
+            return null;
+          }
+
+          try {
+            String tableName = null;
+            String tableSchema = null;
+            String propertiesJson = null;
+
+            Object table = tableMethod.invoke(logicalPlan);
+            if (null == table) {
+              return null;
+            }
+
+            if (null == tableClass || !tableClass.isInstance(table)) {
+              log.debug("table is not instance of a Table class, cannot parse current LogicalPlan");
+              return null;
+            }
+
+            if (nameMethod != null) {
+              tableName = (String) nameMethod.invoke(table);
+            }
+
+            if (schemaMethod != null) {
+              StructType schema = (StructType) schemaMethod.invoke(table);
+              tableSchema = schema.json();
+            }
+
+            if (propertiesMethod != null) {
+              Map<String, String> propertyMap =
+                  (Map<String, String>) propertiesMethod.invoke(table);
+              propertiesJson = mapper.writeValueAsString(propertyMap);
+              log.debug("method properties found with content of {}", propertiesJson);
+            }
+
+            String statsJson = getDataSourceV2RelationStatsJson(logicalPlan);
+
+            return new LineageDataset(
+                tableName, tableSchema, statsJson, propertiesJson, datasetType);
+          } catch (Throwable ignored) {
+            log.debug("Error while converting logical plan to dataset", ignored);
+            return null;
+          }
+        }
+
+        private String getCatalogTableStatsJson(CatalogTable table) {
+          if (!table.stats().isDefined()) {
+            return null;
+          }
+
+          String statsJson = null;
+
+          try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(outputStream)) {
+            CatalogStatistics stats = table.stats().get();
+
+            generator.writeStartObject();
+            generator.writeNumberField("sizeInBytes", stats.sizeInBytes().longValue());
+            if (stats.rowCount().isDefined()) {
+              generator.writeNumberField("rowCount", stats.rowCount().get().longValue());
+            }
+            generator.writeObjectField("colStats", stats.colStats());
+            generator.writeEndObject();
+
+            statsJson = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
+
+            log.debug("CatalogTable stats: {}", stats);
+          } catch (Throwable ignored) {
+          }
+
+          return statsJson;
+        }
+
+        private String getDataSourceV2RelationStatsJson(Object logicalPlan) {
+          if (null == computeStatsMethod
+              || null == dataSourceV2RelationClass
+              || !dataSourceV2RelationClass.isInstance(logicalPlan)) {
+            return null;
+          }
+
+          String statsJson = null;
+
+          try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+              JsonGenerator generator = mapper.getFactory().createGenerator(outputStream)) {
+            Statistics stats = (Statistics) computeStatsMethod.invoke(logicalPlan);
+
+            if (stats != null) {
+              log.debug("DataSourceV2Relation stats: {}", stats);
+
+              generator.writeStartObject();
+              generator.writeNumberField("sizeInBytes", stats.sizeInBytes().longValue());
+              if (stats.rowCount().isDefined()) {
+                generator.writeNumberField("rowCount", stats.rowCount().get().longValue());
+              }
+              generator.writeObjectField("attributeStats", stats.attributeStats());
+              generator.writeEndObject();
+
+              statsJson = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
+            }
+          } catch (Throwable ignored) {
+            log.debug("Error while converting DataSourceV2Relation stats to JSON", ignored);
+          }
+
+          return statsJson;
+        }
+      };
 }
