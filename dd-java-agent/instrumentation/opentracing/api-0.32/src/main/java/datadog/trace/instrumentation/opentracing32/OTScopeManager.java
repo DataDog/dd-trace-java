@@ -100,11 +100,6 @@ public class OTScopeManager implements ScopeManager {
     }
 
     @Override
-    public byte source() {
-      return ScopeSource.MANUAL.id();
-    }
-
-    @Override
     public void close() {
       if (agentSpan == tracer.activeSpan()) {
         tracer.closeActive();

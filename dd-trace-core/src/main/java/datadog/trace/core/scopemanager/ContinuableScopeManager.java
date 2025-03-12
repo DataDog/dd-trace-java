@@ -13,6 +13,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -90,6 +91,15 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return activate(span, source.id(), true, isAsyncPropagating);
   }
 
+  public AgentScope.Continuation captureActiveSpan() {
+    ContinuableScope activeScope = scopeStack().active();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return captureSpan(activeScope.span(), activeScope.source());
+    } else {
+      return AgentTracer.noopContinuation();
+    }
+  }
+
   public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
     ScopeContinuation continuation = new ScopeContinuation(this, span, source);
     continuation.register();
@@ -164,6 +174,18 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     scopeStack.push(scope);
 
     return scope;
+  }
+
+  public boolean isAsyncPropagationEnabled() {
+    ContinuableScope activeScope = scopeStack().active();
+    return activeScope != null && activeScope.isAsyncPropagating();
+  }
+
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null) {
+      activeScope.setAsyncPropagation(asyncPropagationEnabled);
+    }
   }
 
   public void closePrevious(final boolean finishSpan) {
