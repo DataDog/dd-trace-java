@@ -12,7 +12,8 @@ class StableConfigParserTest extends DDSpecification {
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
-    // TODO: Test input with muiltiple selector-configuration sets. We always use the first matching selector
+    injectEnvConfig("DD_SERVICE", "mysvc")
+    // From the below yaml, only apm_configuration_default and the second selector should be applied
     String yaml = """
 config_id: 12345
 apm_configuration_default:
@@ -21,11 +22,24 @@ apm_configuration_default:
 apm_configuration_rules:
   - selectors:
     - origin: language
+      matches: ["golang"]
+      operator: equals
+    configuration:
+      KEY_ONE: "ignored"
+  - selectors:
+    - origin: language
       matches: ["Java"]
       operator: equals
     configuration:
       KEY_ONE: "rules"
       KEY_THREE: 1
+  - selectors:
+    - origin: environment_variables
+      key: "DD_SERVICE"
+      operator: equals
+      matches: ["mysvc"]
+    configuration:
+      KEY_FOUR: "ignored"
 """
     try {
       StableConfigSourceTest.writeFileRaw(filePath, yaml)
