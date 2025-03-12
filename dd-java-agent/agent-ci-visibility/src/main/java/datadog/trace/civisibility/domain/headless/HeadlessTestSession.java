@@ -37,7 +37,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestSession(
       String projectName,
@@ -65,8 +65,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver);
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
-    this.libraryCapabilities =
-        executionStrategy.getExecutionSettings().getCapabilitiesStatus(capabilities);
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -83,7 +82,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver,
         coverageStoreFactory,
         executionStrategy,
-        libraryCapabilities,
+        capabilities,
         this::propagateModuleTags);
   }
 

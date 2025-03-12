@@ -16,9 +16,13 @@ public class TracerEnvironment {
   private final String branch;
   private final String sha;
 
+  @Json(name = "commit_message")
+  private final String commitMessage;
+
   @Json(name = "test_level")
   private final String testLevel = "test";
 
+  private final String module;
   private final Configurations configurations;
 
   private TracerEnvironment(
@@ -27,17 +31,25 @@ public class TracerEnvironment {
       String repositoryUrl,
       String branch,
       String sha,
+      String commitMessage,
+      String module,
       Configurations configurations) {
     this.service = service;
     this.env = env;
     this.repositoryUrl = repositoryUrl;
     this.branch = branch;
     this.sha = sha;
+    this.commitMessage = commitMessage;
+    this.module = module;
     this.configurations = configurations;
   }
 
   public String getSha() {
     return sha;
+  }
+
+  public String getCommitMessage() {
+    return commitMessage;
   }
 
   public String getService() {
@@ -58,6 +70,10 @@ public class TracerEnvironment {
 
   public String getTestLevel() {
     return testLevel;
+  }
+
+  public String getModule() {
+    return module;
   }
 
   public Configurations getConfigurations() {
@@ -82,8 +98,14 @@ public class TracerEnvironment {
         + ", sha='"
         + sha
         + '\''
+        + ", commitMessage='"
+        + commitMessage
+        + '\''
         + ", testLevel='"
         + testLevel
+        + '\''
+        + ", module='"
+        + module
         + '\''
         + ", configurations="
         + configurations
@@ -100,6 +122,7 @@ public class TracerEnvironment {
     private String repositoryUrl;
     private String branch;
     private String sha;
+    private String commitMessage;
     private String osPlatform;
     private String osArchitecture;
     private String osVersion;
@@ -132,6 +155,11 @@ public class TracerEnvironment {
 
     public Builder sha(String sha) {
       this.sha = sha;
+      return this;
+    }
+
+    public Builder commitMessage(String commitMessage) {
+      this.commitMessage = commitMessage;
       return this;
     }
 
@@ -187,6 +215,8 @@ public class TracerEnvironment {
           repositoryUrl,
           branch,
           sha,
+          commitMessage,
+          testBundle,
           new Configurations(
               osPlatform,
               osArchitecture,

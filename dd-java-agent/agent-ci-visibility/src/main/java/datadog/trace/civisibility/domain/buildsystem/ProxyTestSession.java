@@ -38,7 +38,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final SignalClient.Factory signalClientFactory;
   private final ExecutionStrategy executionStrategy;
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
 
   public ProxyTestSession(
       AgentSpanContext parentProcessModuleContext,
@@ -64,8 +64,7 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.signalClientFactory = signalClientFactory;
     this.executionStrategy = executionStrategy;
-    this.libraryCapabilities =
-        executionStrategy.getExecutionSettings().getCapabilitiesStatus(capabilities);
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -91,6 +90,6 @@ public class ProxyTestSession implements TestFrameworkSession {
         coverageStoreFactory,
         childProcessCoverageReporter,
         signalClientFactory,
-        libraryCapabilities);
+        capabilities);
   }
 }

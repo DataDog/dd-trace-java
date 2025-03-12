@@ -87,7 +87,7 @@ public class TestImpl implements DDTest {
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
-      @Nonnull Map<LibraryCapability, Boolean> libraryCapabilities,
+      @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
@@ -146,8 +146,8 @@ public class TestImpl implements DDTest {
       span.setTag(Tags.ITR_CORRELATION_ID, itrCorrelationId);
     }
 
-    for (Map.Entry<LibraryCapability, Boolean> entry : libraryCapabilities.entrySet()) {
-      span.setTag(entry.getKey().asTag(), entry.getValue());
+    for (LibraryCapability capability : capabilities) {
+      span.setTag(capability.asTag(), capability.getVersion());
     }
 
     testDecorator.afterStart(span);

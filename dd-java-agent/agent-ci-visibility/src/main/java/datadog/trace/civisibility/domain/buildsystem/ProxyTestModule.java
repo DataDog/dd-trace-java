@@ -62,7 +62,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
 
   public ProxyTestModule(
       AgentSpanContext parentProcessModuleContext,
@@ -77,7 +77,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory,
-      Map<LibraryCapability, Boolean> libraryCapabilities) {
+      Collection<LibraryCapability> capabilities) {
     this.parentProcessModuleContext = parentProcessModuleContext;
     this.moduleName = moduleName;
     this.executionStrategy = executionStrategy;
@@ -91,7 +91,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.codeowners = codeowners;
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
-    this.libraryCapabilities = libraryCapabilities;
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -216,7 +216,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         linesResolver,
         coverageStoreFactory,
         executionResults,
-        libraryCapabilities,
+        capabilities,
         this::propagateTestFrameworkData);
   }
 

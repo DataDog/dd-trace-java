@@ -107,6 +107,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .repositoryUrl(gitInfo.getRepositoryURL())
         .branch(gitInfo.getBranch())
         .sha(gitInfo.getCommit().getSha())
+        .commitMessage(gitInfo.getCommit().getFullMessage())
         .osPlatform(wellKnownTags.getOsPlatform().toString())
         .osArchitecture(wellKnownTags.getOsArch().toString())
         .osVersion(wellKnownTags.getOsVersion().toString())

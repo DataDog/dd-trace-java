@@ -46,7 +46,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -60,7 +60,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
-      Map<LibraryCapability, Boolean> libraryCapabilities,
+      Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -77,7 +77,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
-    this.libraryCapabilities = libraryCapabilities;
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -188,7 +188,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
-        libraryCapabilities,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

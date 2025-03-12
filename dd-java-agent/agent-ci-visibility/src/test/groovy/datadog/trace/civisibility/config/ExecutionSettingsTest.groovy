@@ -110,23 +110,6 @@ class ExecutionSettingsTest extends DDSpecification {
     ]
   }
 
-  def "test capabilities status: #testcaseName"() {
-    when:
-    def executionSettings = givenExecutionSettings(settingsEnabled)
-
-    def capabilitiesStatus = executionSettings.getCapabilitiesStatus(capabilities)
-    def expectedStatus = capabilities.stream().collect(Collectors.toMap(item -> item, item -> settingsEnabled))
-
-    then:
-    capabilitiesStatus == expectedStatus
-
-    where:
-    testcaseName             | settingsEnabled | capabilities
-    "capabilities-disabled"  | false           | LibraryCapability.values().toList()
-    "capabilities-enabled"   | true            | LibraryCapability.values().toList()
-    "capabilities-filtering" | true            | [LibraryCapability.TIA, LibraryCapability.ATR, LibraryCapability.IMPACTED, LibraryCapability.QUARANTINE]
-  }
-
   private ExecutionSettings givenExecutionSettings(boolean settingsEnabled) {
     if (settingsEnabled) {
       injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)

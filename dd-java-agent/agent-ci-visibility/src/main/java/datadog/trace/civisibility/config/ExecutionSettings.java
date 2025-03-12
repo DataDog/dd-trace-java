@@ -232,44 +232,6 @@ public class ExecutionSettings {
     return pullRequestDiff;
   }
 
-  @Nonnull
-  public Map<LibraryCapability, Boolean> getCapabilitiesStatus(
-      Collection<LibraryCapability> capabilities) {
-    Map<LibraryCapability, Boolean> status = new EnumMap<>(LibraryCapability.class);
-
-    for (LibraryCapability c : capabilities) {
-      switch (c) {
-        case TIA:
-          status.put(c, isTestSkippingEnabled());
-          break;
-        case EFD:
-          EarlyFlakeDetectionSettings efdSettings = getEarlyFlakeDetectionSettings();
-          status.put(c, efdSettings.isEnabled());
-          break;
-        case ATR:
-          status.put(c, isFlakyTestRetriesEnabled());
-          break;
-        case IMPACTED:
-          status.put(c, isImpactedTestsDetectionEnabled());
-          break;
-        case FAIL_FAST:
-          String testOrder = Config.get().getCiVisibilityTestOrder();
-          status.put(c, CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder));
-          break;
-        case QUARANTINE:
-        case DISABLED:
-        case ATTEMPT_TO_FIX:
-          TestManagementSettings testManagementSettings = getTestManagementSettings();
-          status.put(c, testManagementSettings.isEnabled());
-          break;
-        default:
-          break;
-      }
-    }
-
-    return status;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {

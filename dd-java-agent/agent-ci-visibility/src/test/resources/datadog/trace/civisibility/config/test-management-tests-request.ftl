@@ -3,13 +3,14 @@
     "type"      : "ci_app_libraries_tests_request",
     "id"        : "${uid}",
     "attributes": {
-      "service"       : "${tracerEnvironment.service}",
-      "env"           : "${tracerEnvironment.env}",
-      "repository_url": "${tracerEnvironment.repositoryUrl}",
-      "branch"        : "${tracerEnvironment.branch}",
-      "sha"           : "${tracerEnvironment.sha}",
-      "test_level"    : "${tracerEnvironment.testLevel}",
-      "configurations": {
+      "service"         : "${tracerEnvironment.service}",
+      "env"             : "${tracerEnvironment.env}",
+      "repository_url"  : "${tracerEnvironment.repositoryUrl}",
+      "branch"          : "${tracerEnvironment.branch}",
+      "sha"             : "${tracerEnvironment.sha}",
+      "commit_message"  : "${tracerEnvironment.commitMessage}",
+      "test_level"      : "${tracerEnvironment.testLevel}",
+      "configurations"  : {
         "os.platform"         : "${tracerEnvironment.configurations.osPlatform}",
         "os.architecture"     : "${tracerEnvironment.configurations.osArchitecture}",
         "os.arch"             : "${tracerEnvironment.configurations.osArchitecture}",
