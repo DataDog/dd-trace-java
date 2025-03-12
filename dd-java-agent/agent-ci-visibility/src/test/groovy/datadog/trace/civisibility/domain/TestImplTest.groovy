@@ -118,7 +118,8 @@ class TestImplTest extends SpanWriterTest {
       LibraryCapability.EFD,
       LibraryCapability.QUARANTINE,
       LibraryCapability.DISABLED,
-      LibraryCapability.ATTEMPT_TO_FIX]
+      LibraryCapability.ATTEMPT_TO_FIX
+    ]
 
     new TestImpl(
       moduleSpanContext,
