@@ -1082,6 +1082,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
       assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
+      assert db.get(KnownAddresses.SIGN_UP) != null
       assert !gw.isTransient
       return NoopFlow.INSTANCE
     }
