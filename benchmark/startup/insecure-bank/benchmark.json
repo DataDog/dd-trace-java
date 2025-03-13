@@ -29,6 +29,12 @@
         "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
         "JAVA_OPTS": "-Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
       }
+    },
+    "UDS": {
+      "env": {
+        "VARIANT": "UDS",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.dogstatsd.socket=/var/run/datadog/dsd.socket -Ddd.apm.receiver.socket=/var/run/datadog/apm.socket"
+      }
     }
   }
 }
