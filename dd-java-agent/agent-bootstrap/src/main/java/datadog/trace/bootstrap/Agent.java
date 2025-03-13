@@ -234,6 +234,12 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
