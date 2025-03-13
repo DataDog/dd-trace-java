@@ -79,7 +79,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     public String get(String key) {
       Object value = this.apmConfiguration.get(key);
       // TODO: Handle this more safely, e.g. for an array
-      return (value != null) ? value.toString() : null;
+      return (value == null) ? null : value.toString();
     }
 
     public Set<String> getKeys() {
