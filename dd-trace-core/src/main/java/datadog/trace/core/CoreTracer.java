@@ -1585,7 +1585,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           propagationTags = propagationTagsFactory.empty();
         } else {
           // Start a new trace
-          System.out.println("Starting a new trace");
           traceId = idGenerationStrategy.generateTraceId();
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
