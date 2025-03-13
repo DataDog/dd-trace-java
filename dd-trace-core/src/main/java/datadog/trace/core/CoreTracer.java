@@ -64,6 +64,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -1500,34 +1501,38 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         spanId = this.spanId;
       }
 
-      boolean isRemote = false;
-
       AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
         if (activeSpan != null) {
           parentContext = activeSpan.context();
-          // check if parentContext is remote
-          if (parentContext.isRemote() && parentContext instanceof ExtractedContext) {
-            ExtractedContext pc = (ExtractedContext) parentContext;
-            if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
-              links.add(
-                  DDSpanLink.from(
-                      pc,
-                      SpanAttributes.builder()
-                          .put("reason", "propagation_behavior_extract")
-                          .put("context_headers", pc.getPropagationStyle().toString())
-                          .build()));
-              parentContext = null;
-              isRemote = true;
-            }
-          }
         }
       }
 
       String parentServiceName = null;
+      boolean isRemote = false;
 
+      if (parentContext != null && parentContext.isRemote()) {
+        if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
+          SpanLink link;
+          if(parentContext instanceof ExtractedContext){
+            ExtractedContext pc = (ExtractedContext) parentContext;
+            link = DDSpanLink.from(
+                pc,
+                SpanAttributes.builder()
+                    .put("reason", "propagation_behavior_extract")
+                    .put("context_headers", pc.getPropagationStyle().toString())
+                    .build());
+          } else {
+            link = SpanLink.from(parentContext);
+          }
+          //reset links that may have come terminated span links
+          links = new ArrayList<>();
+          links.add(link);
+          parentContext = null;
+        }
+      }
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
