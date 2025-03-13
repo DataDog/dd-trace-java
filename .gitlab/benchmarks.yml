@@ -38,6 +38,8 @@ benchmarks-startup:
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh startup
     - ./steps/analyze-results.sh startup
+    - grep -i unix /proc/net/protocols || true
+    - ls -la /var/run/datadog/*.socket || true
 
 benchmarks-load:
   extends: .benchmarks
@@ -46,6 +48,8 @@ benchmarks-load:
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh load
     - ./steps/analyze-results.sh load
+    - grep -i unix /proc/net/protocols || true
+    - ls -la /var/run/datadog/*.socket || true
 
 benchmarks-dacapo:
   extends: .benchmarks
@@ -54,6 +58,8 @@ benchmarks-dacapo:
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh dacapo
     - ./steps/analyze-results.sh dacapo
+    - grep -i unix /proc/net/protocols || true
+    - ls -la /var/run/datadog/*.socket || true
 
 benchmarks-post-results:
   extends: .benchmarks
