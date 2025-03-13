@@ -54,7 +54,7 @@ public class AdviceUtils {
 
   public static <T> void capture(ContextStore<T, State> contextStore, T task) {
     AgentSpan span = activeSpan();
-    if (span != null && isAsyncPropagationEnabled()) {
+    if (span != null && span.isValid() && isAsyncPropagationEnabled()) {
       State state = contextStore.get(task);
       if (null == state) {
         state = State.FACTORY.create();
