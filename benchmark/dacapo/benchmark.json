@@ -44,7 +44,9 @@
     "UDS": {
       "env": {
         "VARIANT": "UDS",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.dogstatsd.socket=/var/run/datadog/dsd.socket -Ddd.apm.receiver.socket=/var/run/datadog/apm.socket"
+        "JAVA_OPTS": "-javaagent:${TRACER}",
+        "DD_APM_RECEIVER_PORT": "unix:///var/run/datadog/apm.socket",
+        "DD_TRACE_AGENT_URL": "unix:///var/run/datadog/apm.socket",
       }
     }
   }
