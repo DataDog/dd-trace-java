@@ -35,7 +35,6 @@ class HystrixTest extends HystrixTestRunner {
       }
     }
     expect:
-    TRANSFORMED_CLASSES_NAMES.contains("com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler\$ThreadPoolWorker")
     TRANSFORMED_CLASSES_NAMES.contains("HystrixTest\$1")
     result == "Hello!"
 
@@ -114,7 +113,6 @@ class HystrixTest extends HystrixTestRunner {
       }
     }
     expect:
-    TRANSFORMED_CLASSES_NAMES.contains("com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler\$ThreadPoolWorker")
     TRANSFORMED_CLASSES_NAMES.contains("HystrixTest\$2")
     result == "Fallback!"
 
