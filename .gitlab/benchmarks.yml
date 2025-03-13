@@ -31,25 +31,25 @@
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
-benchmarks-startup:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh startup
-    - ./steps/analyze-results.sh startup
-    - grep -i unix /proc/net/protocols || true
-    - ls -la /var/run/datadog/*.socket || true
+# benchmarks-startup:
+#   extends: .benchmarks
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/capture-hardware-software-info.sh
+#     - ./steps/run-benchmarks.sh startup
+#     - ./steps/analyze-results.sh startup
+#     - grep -i unix /proc/net/protocols || true
+#     - ls -la /var/run/datadog/*.socket || true
 
-benchmarks-load:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
-    - ./steps/analyze-results.sh load
-    - grep -i unix /proc/net/protocols || true
-    - ls -la /var/run/datadog/*.socket || true
+# benchmarks-load:
+#   extends: .benchmarks
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/capture-hardware-software-info.sh
+#     - ./steps/run-benchmarks.sh load
+#     - ./steps/analyze-results.sh load
+#     - grep -i unix /proc/net/protocols || true
+#     - ls -la /var/run/datadog/*.socket || true
 
 benchmarks-dacapo:
   extends: .benchmarks
