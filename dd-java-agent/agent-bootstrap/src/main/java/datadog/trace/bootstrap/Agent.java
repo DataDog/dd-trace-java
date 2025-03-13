@@ -233,10 +233,6 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
-      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
-
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
       if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
