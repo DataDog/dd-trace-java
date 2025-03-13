@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.config.provider.StableConfigYaml;
+package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 
 import java.util.ArrayList;
 import java.util.List;

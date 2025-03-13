@@ -1,8 +1,11 @@
 package datadog.trace.bootstrap.config.provider
 
 import datadog.trace.api.ConfigOrigin
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.ConfigurationMap
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationValue
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml
 import datadog.trace.test.util.DDSpecification
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
@@ -91,24 +94,44 @@ class StableConfigSourceTest extends DDSpecification {
       keyString = keyString.substring(4) // Cut `DD_`
       stableCfg.get(keyString) == defaultConfigs.get(key)
     }
+    // All configs from MatchingRule should be applied
+    if (ruleConfigs.contains(sampleMatchingRule)) {
+      for (key in sampleMatchingRule.getConfiguration().keySet()) {
+        String keyString = (String) key
+        keyString = keyString.substring(4) // Cut `DD_`
+        stableCfg.get(keyString) == defaultConfigs.get(key)
+      }
+    }
+    // None of the configs from NonMatchingRule should be applied
+    if (ruleConfigs.contains(sampleNonMatchingRule)) {
+      Set<String> cfgKeys = stableCfg.getKeys()
+      for (key in sampleMatchingRule.getConfiguration().keySet()) {
+        String keyString = (String) key
+        keyString = keyString.substring(4) // Cut `DD_`
+        !cfgKeys.contains(keyString)
+      }
+    }
     Files.delete(filePath)
 
     where:
-    // TODO: Add ruleConfigs
-    configId | defaultConfigs
-    ""       | new HashMap<>()
-    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"]
+    configId | defaultConfigs | ruleConfigs
+    ""       | new HashMap<>() | Arrays.asList(new Rule())
+    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
-  @Shared
-  def corruptYaml = ''' 
+  def static corruptYaml = ''' 
         abc: 123
         def:
           ghi: "jkl"
           lmn: 456
     '''
 
+  // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
+  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap((Map<String, ConfigurationValue>)Map.of("DD_KEY_THREE", new ConfigurationValue("three"))))
+  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap((Map<String, ConfigurationValue>)Map.of("DD_KEY_FOUR", new ConfigurationValue("four"))))
+
+  // Helper functions
   static Path tempFile() {
     try {
       return Files.createTempFile("testFile_", ".yaml")

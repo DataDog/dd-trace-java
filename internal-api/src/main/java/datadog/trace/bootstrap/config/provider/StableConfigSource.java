@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
+import java.io.File;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -26,11 +27,17 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   private final StableConfig config;
 
-  StableConfigSource(String file, ConfigOrigin origin) {
+  StableConfigSource(String filePath, ConfigOrigin origin) {
     this.fileOrigin = origin;
+    File file = new File(filePath);
+    if (!file.exists()) {
+      log.debug("Stable configuration file not available at specified path: {}", file);
+      this.config = StableConfig.EMPTY;
+      return;
+    }
     StableConfig cfg;
     try {
-      cfg = StableConfigParser.parse(file);
+      cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
       log.debug("Stable configuration file not readable at specified path: {}", file);
       cfg = StableConfig.EMPTY;

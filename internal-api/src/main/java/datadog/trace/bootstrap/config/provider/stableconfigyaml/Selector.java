@@ -1,5 +1,6 @@
-package datadog.trace.bootstrap.config.provider.StableConfigYaml;
+package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Selector {
@@ -7,6 +8,20 @@ public class Selector {
   private String key;
   private List<String> matches;
   private String operator;
+
+  public Selector() {
+    this.origin = null;
+    this.key = null;
+    this.matches = new ArrayList<>();
+    this.operator = null;
+  }
+
+  public Selector(String origin, String key, List<String> matches, String operator) {
+    this.origin = origin;
+    this.key = key;
+    this.matches = matches;
+    this.operator = operator;
+  }
 
   // Getters and setters
   public String getOrigin() {
