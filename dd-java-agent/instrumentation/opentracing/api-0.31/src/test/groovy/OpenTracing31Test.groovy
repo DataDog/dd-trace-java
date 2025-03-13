@@ -219,7 +219,6 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
-    setAsyncPropagationEnabled(true)
 
     expect:
     tracer.activeSpan().delegate == span.delegate
