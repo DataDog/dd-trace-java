@@ -1,5 +1,6 @@
-package datadog.trace.bootstrap.config.provider.StableConfigYaml;
+package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 
+import java.util.ArrayList;
 import java.util.List;
 
 // TODO: Update this comment from "stable configuration" to whatever product decides on for the name
@@ -8,6 +9,16 @@ import java.util.List;
 public class Rule {
   private List<Selector> selectors;
   private ConfigurationMap configuration;
+
+  public Rule() {
+    this.selectors = new ArrayList<>();
+    this.configuration = new ConfigurationMap();
+  }
+
+  public Rule(List<Selector> selectors, ConfigurationMap configuration) {
+    this.selectors = selectors;
+    this.configuration = configuration;
+  }
 
   // Getters and setters
   public List<Selector> getSelectors() {

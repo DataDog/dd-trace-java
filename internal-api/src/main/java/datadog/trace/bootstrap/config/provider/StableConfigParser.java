@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.ConfigurationMap;
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.Rule;
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.Selector;
-import datadog.trace.bootstrap.config.provider.StableConfigYaml.StableConfigYaml;
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
 import java.util.Collections;

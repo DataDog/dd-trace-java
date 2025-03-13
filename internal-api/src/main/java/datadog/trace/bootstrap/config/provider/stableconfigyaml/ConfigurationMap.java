@@ -1,10 +1,19 @@
-package datadog.trace.bootstrap.config.provider.StableConfigYaml;
+package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 
 import java.util.HashMap;
+import java.util.Map;
 
 // TODO: Update this comment from "stable configuration" to whatever product decides on for the name
 // ConfigurationMap represents configuration key-values found in stable configuration files
-public class ConfigurationMap extends HashMap<String, ConfigurationValue> {}
+public class ConfigurationMap extends HashMap<String, ConfigurationValue> {
+  public ConfigurationMap() {
+    return;
+  }
+
+  public ConfigurationMap(Map<String, ConfigurationValue> map) {
+    super(map);
+  }
+}
 
 class ConfigurationValue {
   private final String value;
