@@ -189,7 +189,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
-  private final String tracePropagationBehaviorExtract;
+  private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
@@ -927,8 +927,10 @@ public class Config {
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     tracePropagationBehaviorExtract =
-        configProvider.getString(
-            TRACE_PROPAGATION_BEHAVIOR_EXTRACT, DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT);
+        configProvider.getEnum(
+            TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+            TracePropagationBehaviorExtract.class,
+            DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT);
 
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
@@ -1007,7 +1009,9 @@ public class Config {
       }
 
       tracePropagationStylesToExtract =
-          tracePropagationBehaviorExtract.equals("ignore") ? new HashSet<>() : extract;
+          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
+              ? new HashSet<>()
+              : extract;
 
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
@@ -2272,7 +2276,7 @@ public class Config {
     return tracePropagationStylesToInject;
   }
 
-  public String getTracePropagationBehaviorExtract() {
+  public TracePropagationBehaviorExtract getTracePropagationBehaviorExtract() {
     return tracePropagationBehaviorExtract;
   }
 

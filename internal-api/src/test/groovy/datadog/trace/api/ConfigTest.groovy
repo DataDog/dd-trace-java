@@ -297,7 +297,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
-    config.tracePropagationBehaviorExtract == "restart"
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -479,7 +479,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
-    config.tracePropagationBehaviorExtract == "restart"
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -2620,7 +2620,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.tracePropagationBehaviorExtract == "ignore"
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
     config.tracePropagationStylesToExtract.toList() == []
   }
 }
