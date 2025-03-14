@@ -6,7 +6,6 @@ import java.util.concurrent.ExecutionException;
 public class ConcurrentApp {
   @WithSpan("main")
   public static void main(String[] args) {
-    // Calculate fibonacci using concurrent strategies
     for (String arg : args) {
       try (FibonacciCalculator calc = getCalculator(arg)) {
         calc.computeFibonacci(10);
@@ -17,11 +16,13 @@ public class ConcurrentApp {
   }
 
   private static FibonacciCalculator getCalculator(String name) {
-    if (name.equalsIgnoreCase("executorService")) {
-      return new DemoExecutorService();
-    } else if (name.equalsIgnoreCase("forkJoin")) {
-      return new DemoForkJoin();
-    }
-    throw new IllegalArgumentException("Unknown calculator: " + name);
+    return switch (name) {
+      case "virtualThreadExecute" -> new VirtualThreadExecuteCalculator();
+      case "virtualThreadSubmitRunnable" -> new VirtualThreadSubmitRunnableCalculator();
+      case "virtualThreadSubmitCallable" -> new VirtualThreadSubmitCallableCalculator();
+      case "virtualThreadInvokeAll" -> new VirtualThreadInvokeAllCalculator();
+      case "virtualThreadInvokeAny" -> new VirtualThreadInvokeAnyCalculator();
+      default -> throw new RuntimeException("Unknown Fibonacci calculator: " + name);
+    };
   }
 }
