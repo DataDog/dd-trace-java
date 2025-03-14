@@ -941,10 +941,12 @@ public class Config {
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     tracePropagationBehaviorExtract =
-        configProvider.getEnum(
-            TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
-            TracePropagationBehaviorExtract.class,
-            DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT);
+        TracePropagationBehaviorExtract.valueOf(
+            configProvider
+                .getString(
+                    TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                    DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                .toUpperCase(Locale.ROOT));
 
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in

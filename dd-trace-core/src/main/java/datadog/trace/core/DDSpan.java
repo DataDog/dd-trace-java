@@ -856,8 +856,4 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     Object spanKind = context.getTag(Tags.SPAN_KIND);
     return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
   }
-
-  public List<AgentSpanLink> getLinks() {
-    return links;
-  }
 }

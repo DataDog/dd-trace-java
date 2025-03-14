@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -62,7 +61,7 @@ public final class ConfigProvider {
     String value = getString(key);
     if (null != value) {
       try {
-        return Enum.valueOf(enumType, value.toUpperCase(Locale.ROOT));
+        return Enum.valueOf(enumType, value);
       } catch (Exception ignoreAndUseDefault) {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
