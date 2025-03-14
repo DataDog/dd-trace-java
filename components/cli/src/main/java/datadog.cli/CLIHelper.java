@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.config.provider;
+package datadog.cli;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -10,13 +10,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
-/** VMArgsCache stores JVM Arguments applied to the current process */
-public class VMArgsCache {
-  public static final VMArgsCache ARGS = new VMArgsCache(initJvmArgs());
+public class CLIHelper {
+  public static final CLIHelper ARGS = new CLIHelper(initJvmArgs());
 
   private final HashSet<String> args;
 
-  public VMArgsCache(List<String> args) {
+  public CLIHelper(List<String> args) {
     this.args = new HashSet<>(args);
   }
 
@@ -34,11 +33,8 @@ public class VMArgsCache {
     if (System.getProperty("os.name").equalsIgnoreCase("linux")) {
       // Get the current process PID from /proc/self/status
       try {
-        String pid = getPidFromProcStatus();
-        if (pid != null) {
-          // Get the JVM arguments from /proc/[pid]/cmdline
-          return getJvmArgsFromProcCmdline(pid);
-        }
+        // Get the JVM arguments from /proc/self/cmdline
+        return getJvmArgsFromProcCmdline();
       } catch (IOException e) {
         // ignore exception, try other methods
       }
@@ -92,25 +88,9 @@ public class VMArgsCache {
     return Collections.emptyList();
   }
 
-  // Helper methods for getting process information from linux proc dir
-  private static String getPidFromProcStatus() throws IOException {
-    String pid = null;
-    // Read /proc/self/status to find the current process's PID
-    try (BufferedReader pidReader = new BufferedReader(new FileReader("/proc/self/status"))) {
-      String line;
-      while ((line = pidReader.readLine()) != null) {
-        if (line.startsWith("Pid:")) {
-          pid = line.split(":")[1].trim();
-          break;
-        }
-      }
-    }
-    return pid;
-  }
-
-  private static List<String> getJvmArgsFromProcCmdline(String pid) throws IOException {
+  private static List<String> getJvmArgsFromProcCmdline() throws IOException {
     // Read /proc/[pid]/cmdline to get JVM arguments
-    BufferedReader argsReader = new BufferedReader(new FileReader("/proc/" + pid + "/cmdline"));
+    BufferedReader argsReader = new BufferedReader(new FileReader("/proc/self/cmdline"));
     String cmdLine = argsReader.readLine();
     if (cmdLine != null) {
       // Return JVM arguments as a list of strings split by null characters
