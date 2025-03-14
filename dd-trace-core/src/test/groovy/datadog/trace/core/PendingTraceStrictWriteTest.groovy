@@ -1,13 +1,10 @@
 package datadog.trace.core
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-
 class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
   def "trace is not reported until unfinished continuation is closed"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    setAsyncPropagationEnabled(true)
     def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
@@ -39,7 +36,6 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
   def "negative reference count throws an exception"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    setAsyncPropagationEnabled(true)
     def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()

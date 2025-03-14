@@ -40,6 +40,7 @@ class KnownAddressesSpecification extends Specification {
       'usr.session_id',
       'server.business_logic.users.login.failure',
       'server.business_logic.users.login.success',
+      'server.business_logic.users.signup',
       'server.io.net.url',
       'server.io.fs.file',
       'server.sys.exec.cmd',
@@ -50,7 +51,7 @@ class KnownAddressesSpecification extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 38
+    Address.instanceCount() == 39
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }
