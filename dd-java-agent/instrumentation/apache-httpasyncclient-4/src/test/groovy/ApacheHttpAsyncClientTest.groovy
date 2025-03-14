@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpHost
@@ -16,7 +16,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CountDownLatch
 
 @Timeout(5)
-abstract class ApacheHttpAsyncClientTest extends HttpClientTest {
+abstract class ApacheHttpAsyncClientTest extends HttpClientTest2 {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
@@ -41,11 +41,9 @@ abstract class ApacheHttpAsyncClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = createRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     def latch = new CountDownLatch(callback == null ? 0 : 1)
 
