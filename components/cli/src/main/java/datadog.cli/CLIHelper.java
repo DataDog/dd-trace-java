@@ -31,7 +31,6 @@ public class CLIHelper {
     // If linux OS, use procfs
     // TODO: equals, or contains?
     if (System.getProperty("os.name").equalsIgnoreCase("linux")) {
-      // Get the current process PID from /proc/self/status
       try {
         // Get the JVM arguments from /proc/self/cmdline
         return getJvmArgsFromProcCmdline();
@@ -89,7 +88,6 @@ public class CLIHelper {
   }
 
   private static List<String> getJvmArgsFromProcCmdline() throws IOException {
-    // Read /proc/[pid]/cmdline to get JVM arguments
     BufferedReader argsReader = new BufferedReader(new FileReader("/proc/self/cmdline"));
     String cmdLine = argsReader.readLine();
     if (cmdLine != null) {
