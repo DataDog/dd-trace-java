@@ -46,5 +46,10 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
     }
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void exit(@Advice.This SparkContext sparkContext) {
+      AbstractDatadogSparkListener.listener.initializeOpenLineage();
+    }
   }
 }
