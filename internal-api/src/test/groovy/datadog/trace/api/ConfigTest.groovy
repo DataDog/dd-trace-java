@@ -10,6 +10,7 @@ import org.junit.Rule
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -1891,16 +1892,17 @@ class ConfigTest extends DDSpecification {
 
   def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
     setup:
-    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_TAGS")
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_LOGS_INJECTION, DD_TAGS")
     environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
 
     when:
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION", "DD_TAGS"].toSet()
 
     //verify expected behavior enabled under feature flag
+    config.logsInjectionEnabled == DEFAULT_LOGS_INJECTION_ENABLED
     config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
   }
 
@@ -1915,6 +1917,7 @@ class ConfigTest extends DDSpecification {
     config.experimentalFeaturesEnabled == [].toSet()
 
     //verify expected behavior when not enabled under feature flag
+    config.logsInjectionEnabled == false
     config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
   }
 

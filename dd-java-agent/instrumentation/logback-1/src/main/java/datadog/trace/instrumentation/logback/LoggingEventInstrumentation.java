@@ -15,7 +15,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -90,7 +89,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
         String traceIdValue =
-            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
                 ? traceId.toHexString()
                 : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

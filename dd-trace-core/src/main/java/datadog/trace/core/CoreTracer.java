@@ -29,7 +29,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -605,7 +604,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTracingTags(config.getMergedSpanTags())
             .apply();
 
-    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
+    this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy

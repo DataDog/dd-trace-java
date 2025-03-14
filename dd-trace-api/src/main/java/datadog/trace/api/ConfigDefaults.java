@@ -102,7 +102,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
-  static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
+  static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
@@ -235,7 +235,7 @@ public final class ConfigDefaults {
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED = new HashSet<>();
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
-  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;

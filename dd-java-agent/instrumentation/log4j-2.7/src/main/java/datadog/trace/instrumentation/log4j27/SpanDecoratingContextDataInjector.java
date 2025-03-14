@@ -11,7 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
@@ -57,7 +56,7 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     if (span != null) {
       DDTraceId traceId = span.context().getTraceId();
       String traceIdValue =
-          InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+          Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
               ? traceId.toHexString()
               : traceId.toString();
       newContextData.putValue(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
