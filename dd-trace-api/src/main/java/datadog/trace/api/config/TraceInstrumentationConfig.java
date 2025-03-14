@@ -71,6 +71,9 @@ public final class TraceInstrumentationConfig {
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+  public static final String JDBC_SQL_OBFUSCATION = "jdbc.sql.obfuscation";
+  public static final String MONGO_OBFUSCATION = "mongo.obfuscation";
+  public static final String REDIS_COMMAND_ARGS = "redis.command.args";
 
   public static final String EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT =
       "trace.experimental.jee.split-by-deployment";
@@ -88,6 +91,9 @@ public final class TraceInstrumentationConfig {
   public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
   public static final String LOGS_INJECTION = "logs.injection";
 
+  public static final String LOGS_PATTERN = "logs.pattern";
+  public static final String LOGS_PATTERN_REPLACE = "logs.pattern.replace";
+  public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
   public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
       "trace.128.bit.traceid.logging.enabled";
 
@@ -168,6 +174,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
   public static final String ADD_SPAN_POINTERS = "add.span.pointers";
+  public static final String EXPERIMENTAL_KAFKA_ENABLED = "trace.experimental.kafka.enabled";
 
   private TraceInstrumentationConfig() {}
 }

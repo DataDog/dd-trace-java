@@ -1,0 +1,20 @@
+muzzle {
+  pass {
+    group = "com.xuxueli"
+    module = "xxl-job-core"
+    versions = "[2.2.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest','test')
+
+dependencies {
+  compileOnly(group: 'com.xuxueli', name: 'xxl-job-core', version: '2.3.0')
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

@@ -189,7 +189,6 @@ class W3CHttpCodec {
           break;
         default:
       }
-
       if (classification != IGNORE) {
         try {
           if (null != value) {
@@ -298,7 +297,7 @@ class W3CHttpCodec {
       long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
       if (version == 255) {
         throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
-      } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
+      } else if (version == 1 && length > TRACE_PARENT_LENGTH) {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
       DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);

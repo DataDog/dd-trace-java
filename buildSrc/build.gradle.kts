@@ -51,6 +51,7 @@ tasks.compileKotlin {
 }
 
 tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+  // useJUnitPlatform()
+  // dependsOn(":call-site-instrumentation-plugin:build")
+  // enabled = !project.hasProperty("skipBuildSrcTest")
 }

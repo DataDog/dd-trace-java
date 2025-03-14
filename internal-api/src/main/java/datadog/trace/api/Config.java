@@ -227,6 +227,8 @@ public class Config {
   private final int tracerMetricsMaxPending;
 
   private final boolean reportHostName;
+  private final String logPattern;
+  private final boolean logPatternReplace;
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
@@ -265,6 +267,8 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
+
+  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean profilingRecordExceptionMessage;
 
   private final boolean crashTrackingAgentless;
@@ -436,7 +440,8 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
-
+  // enable the Kafka-3.8 instrumentation manually until testing issues are resolved.
+  private final boolean experimentalKafkaEnabled;
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -519,6 +524,12 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
 
+  private final boolean jdbcSqlObfuscation;
+
+  private final boolean mongoObfuscation;
+
+  private final boolean redisCommandArgs;
+
   private String env;
   private String version;
   private final String primaryTag;
@@ -536,10 +547,18 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
-
+  private final boolean tracerHeaderEnabled;
+  private final boolean tracerRequestBodyEnabled;
+  private final boolean tracerResponseBodyEnabled;
+  private final String tracerResponseBodyEncoding;
+  private final String tracerResponseBodyBlackListUrls;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
+
+  private final boolean dubboProviderPropagateEnabled;
+  private final boolean dubboRequestEnabled;
+  private final boolean dubboResponseEnabled;
 
   private final boolean telemetryDebugRequestsEnabled;
 
@@ -549,6 +568,7 @@ public class Config {
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
 
+  private final boolean httpErrorEnabled;
   private final Set<String> cloudPayloadTaggingServices;
   @Nullable private final List<String> cloudRequestPayloadTagging;
   @Nullable private final List<String> cloudResponsePayloadTagging;
@@ -835,6 +855,7 @@ public class Config {
             DEFAULT_HTTP_CLIENT_ERROR_STATUSES,
             HTTP_CLIENT_ERROR_STATUSES);
 
+    httpErrorEnabled = configProvider.getBoolean(HTTP_ERROR_ENABLED, DEFAULT_HTTP_ERROR_ENABLED);
     httpServerTagQueryString =
         configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
@@ -1074,6 +1095,12 @@ public class Config {
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+
+    logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
+    logPatternReplace =
+        configProvider.getBoolean(LOGS_PATTERN_REPLACE, DEFAULT_LOG_PATTERN_REPLACE);
+
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -1678,11 +1705,17 @@ public class Config {
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
     sqsBodyPropagationEnabled = configProvider.getBoolean(SQS_BODY_PROPAGATION_ENABLED, false);
 
+    jdbcSqlObfuscation =
+        configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+    mongoObfuscation = configProvider.getBoolean(MONGO_OBFUSCATION, DEFAULT_MONGO_OBFUSCATION);
+    redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
+
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+    experimentalKafkaEnabled = configProvider.getBoolean(EXPERIMENTAL_KAFKA_ENABLED, false);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -1766,6 +1799,28 @@ public class Config {
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
+
+    tracerHeaderEnabled =
+        configProvider.getBoolean(TRACE_HEADER_ENABLED, DEFAULT_TRACE_HEADER_ENABLED);
+    tracerRequestBodyEnabled =
+        configProvider.getBoolean(TRACE_REQUEST_BODY_ENABLED, DEFAULT_TRACE_REQUEST_BODY_ENABLED);
+
+    tracerResponseBodyBlackListUrls = configProvider.getString(TRACE_RESPONSE_BODY_BLACKLIST_URLS);
+
+    dubboProviderPropagateEnabled =
+        configProvider.getBoolean(
+            TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED, DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED);
+    dubboRequestEnabled =
+        configProvider.getBoolean(TRACE_DUBBO_REQUEST_ENABLED, DEFAULT_TRACE_DUBBO_REQUEST_ENABLED);
+
+    dubboResponseEnabled =
+        configProvider.getBoolean(TRACE_DUBBO_RESPONSE_ENABLED, DEFAULT_TRACE_DUBBO_RESPONSE_ENABLED);
+
+    tracerResponseBodyEnabled =
+        configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
+    tracerResponseBodyEncoding =
+        configProvider.getString(
+            TRACE_RESPONSE_BODY_ENCODING, DEFAULT_TRACE_RESPONSE_BODY_ENCODING);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2150,6 +2205,10 @@ public class Config {
     return httpClientErrorStatuses;
   }
 
+  public boolean isHttpErrorEnabled() {
+    return httpErrorEnabled;
+  }
+
   public boolean isHttpServerTagQueryString() {
     return httpServerTagQueryString;
   }
@@ -2387,6 +2446,18 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public String getLogPattern() {
+    return logPattern;
+  }
+
+  public boolean isLogPatternReplace() {
+    return logPatternReplace;
+  }
+
+  public boolean isLogsMDCTagsInjectionEnabled() {
+    return logsMDCTagsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -2840,12 +2911,16 @@ public class Config {
     return ciVisibilityCodeCoverageEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly enabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly enabled
+   */
   public boolean isCiVisibilityCoverageLinesEnabled() {
     return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly disabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly disabled
+   */
   public boolean isCiVisibilityCoverageLinesDisabled() {
     return ciVisibilityCoverageLinesEnabled != null && !ciVisibilityCoverageLinesEnabled;
   }
@@ -3290,6 +3365,10 @@ public class Config {
     return kafkaClientBase64DecodingEnabled;
   }
 
+  public boolean isExperimentalKafkaEnabled() {
+    return experimentalKafkaEnabled;
+  }
+
   public boolean isRabbitPropagationEnabled() {
     return rabbitPropagationEnabled;
   }
@@ -3495,6 +3574,37 @@ public class Config {
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
+  public boolean isTracerHeaderEnabled() {
+    return tracerHeaderEnabled;
+  }
+
+  public boolean isTracerRequestBodyEnabled() {
+    return tracerRequestBodyEnabled;
+  }
+
+  public boolean isDubboProviderPropagateEnabled() {
+    return dubboProviderPropagateEnabled;
+  }
+
+  public boolean isDubboRequestEnabled() {
+    return dubboRequestEnabled;
+  }
+
+  public boolean isDubboResponseEnabled() {
+    return dubboResponseEnabled;
+  }
+
+  public boolean isTracerResponseBodyEnabled() {
+    return tracerResponseBodyEnabled;
+  }
+
+  public String getTracerResponseBodyEncoding() {
+    return tracerResponseBodyEncoding.toLowerCase();
+  }
+
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
@@ -4309,6 +4419,22 @@ public class Config {
     }
   }
 
+  public boolean getJdbcSqlObfuscation() {
+    return jdbcSqlObfuscation;
+  }
+
+  public boolean getMongoObfuscation() {
+    return mongoObfuscation;
+  }
+
+  public boolean getRedisCommandArgs() {
+    return redisCommandArgs;
+  }
+
+  public String getTracerResponseBodyBlackListUrls() {
+    return tracerResponseBodyBlackListUrls;
+  }
+
   @Override
   public String toString() {
     return "Config{"
@@ -4381,6 +4507,8 @@ public class Config {
         + httpServerErrorStatuses
         + ", httpClientErrorStatuses="
         + httpClientErrorStatuses
+        + ", httpErrorEnabled="
+        + httpErrorEnabled
         + ", httpServerTagQueryString="
         + httpServerTagQueryString
         + ", httpServerRawQueryString="
@@ -4399,6 +4527,16 @@ public class Config {
         + httpClientSplitByDomain
         + ", httpResourceRemoveTrailingSlash="
         + httpResourceRemoveTrailingSlash
+        + ", tracerHeaderEnabled="
+        + tracerHeaderEnabled
+        + ", tracerRequestBodyEnabled="
+        + tracerRequestBodyEnabled
+        + ", tracerResponseBodyEnabled="
+        + tracerResponseBodyEnabled
+        + ", tracerResponseBodyEncoding="
+        + tracerResponseBodyEncoding
+        + ", tracerResponseBodyBlackListUrls="
+        + tracerResponseBodyBlackListUrls
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
@@ -4478,6 +4616,14 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
+        + ", logsMDCTagsInjectionEnabled="
+        + logsMDCTagsInjectionEnabled
+        + ", logPattern="
+        + logPattern
+        + ", logPatternReplace="
+        + logPatternReplace
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="
@@ -4733,6 +4879,14 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
+        + ", appSecStandaloneEnabled="
+        + appSecStandaloneEnabled
+        + ", jdbcSqlObfuscation="
+        + jdbcSqlObfuscation
+        + ", mongoObfuscation="
+        + mongoObfuscation
+        + ", dubboProviderPropagateEnabled="
+        + dubboProviderPropagateEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="

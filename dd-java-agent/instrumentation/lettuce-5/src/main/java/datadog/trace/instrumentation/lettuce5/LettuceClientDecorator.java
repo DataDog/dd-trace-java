@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.lettuce5;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
@@ -16,6 +18,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service("redis");
 
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"lettuce"};
@@ -67,6 +70,10 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   public AgentSpan onCommand(final AgentSpan span, final RedisCommand command) {
+    if (command.getArgs()!=null && RedisCommandRaw){
+      CommandArgs args = command.getArgs();
+      span.setTag("redis.command.args",args.toCommandString());
+    }
     final String commandName = LettuceInstrumentationUtil.getCommandName(command);
     span.setResourceName(LettuceInstrumentationUtil.getCommandResourceName(commandName));
     return span;
