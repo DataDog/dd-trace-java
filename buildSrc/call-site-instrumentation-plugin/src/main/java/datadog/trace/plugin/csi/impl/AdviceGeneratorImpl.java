@@ -11,6 +11,7 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_ENABLED_PROPER
 import static datadog.trace.plugin.csi.util.CallSiteConstants.METHOD_HANDLER_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.OPCODES_FQDN;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.STACK_DUP_MODE_CLASS;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.deleteFile;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
@@ -185,20 +186,24 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
     final MethodType pointCut = spec.getPointcut();
     final BlockStmt adviceBody = new BlockStmt();
     final Expression advice;
+    final String type;
     if (spec.isInvokeDynamic()) {
       advice = invokeDynamicAdviceSignature(adviceBody);
     } else {
       advice = invokeAdviceSignature(adviceBody);
     }
     if (spec instanceof BeforeSpecification) {
+      type = "BEFORE";
       writeStackOperations(spec, adviceBody);
       writeAdviceMethodCall(spec, adviceBody);
       writeOriginalMethodCall(spec, adviceBody);
     } else if (spec instanceof AfterSpecification) {
+      type = "AFTER";
       writeStackOperations(spec, adviceBody);
       writeOriginalMethodCall(spec, adviceBody);
       writeAdviceMethodCall(spec, adviceBody);
     } else {
+      type = "AROUND";
       writeAdviceMethodCall(spec, adviceBody);
     }
     body.addStatement(
@@ -207,6 +212,9 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
             .setName("addAdvice")
             .setArguments(
                 new NodeList<>(
+                    new FieldAccessExpr()
+                        .setScope(new TypeExpr(new ClassOrInterfaceType().setName(TYPE_CLASS)))
+                        .setName(type),
                     new StringLiteralExpr(pointCut.getOwner().getInternalName()),
                     new StringLiteralExpr(pointCut.getMethodName()),
                     new StringLiteralExpr(pointCut.getMethodType().getDescriptor()),
