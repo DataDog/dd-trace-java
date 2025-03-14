@@ -42,4 +42,9 @@ public final class NotSampledSpanContext implements AgentSpanContext {
   public PathwayContext getPathwayContext() {
     return delegate.getPathwayContext();
   }
+
+  @Override
+  public boolean isRemote() {
+    return false;
+  }
 }

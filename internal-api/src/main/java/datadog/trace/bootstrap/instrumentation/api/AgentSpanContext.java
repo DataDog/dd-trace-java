@@ -14,6 +14,7 @@ import java.util.Map;
  * contextualize the associated Span instance.
  */
 public interface AgentSpanContext {
+
   /**
    * Gets the TraceId of the span's trace.
    *
@@ -51,6 +52,8 @@ public interface AgentSpanContext {
   PathwayContext getPathwayContext();
 
   default void mergePathwayContext(PathwayContext pathwayContext) {}
+
+  boolean isRemote();
 
   interface Extracted extends AgentSpanContext {
     /**

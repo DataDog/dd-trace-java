@@ -89,6 +89,10 @@ public class TagContext implements AgentSpanContext.Extracted {
     this.terminatedContextLinks.add(link);
   }
 
+  public void resetTerminatedContextLink() {
+    this.terminatedContextLinks = null;
+  }
+
   @Override
   public String getForwarded() {
     return httpHeaders.forwarded;
@@ -234,6 +238,11 @@ public class TagContext implements AgentSpanContext.Extracted {
   @Override
   public PathwayContext getPathwayContext() {
     return this.pathwayContext;
+  }
+
+  @Override
+  public boolean isRemote() {
+    return true;
   }
 
   public TagContext withPathwayContext(PathwayContext pathwayContext) {

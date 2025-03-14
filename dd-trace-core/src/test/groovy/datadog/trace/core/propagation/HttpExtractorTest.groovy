@@ -33,6 +33,7 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
       isTracePropagationExtractFirst() >> extractFirst
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create()
       .setHeaderTags(["SOME_HEADER": "some-tag"])
@@ -119,6 +120,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
@@ -171,6 +173,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
+      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })

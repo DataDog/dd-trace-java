@@ -78,4 +78,9 @@ public class OtelExtractedContext implements AgentSpanContext {
   public PathwayContext getPathwayContext() {
     return null;
   }
+
+  @Override
+  public boolean isRemote() {
+    return true;
+  }
 }

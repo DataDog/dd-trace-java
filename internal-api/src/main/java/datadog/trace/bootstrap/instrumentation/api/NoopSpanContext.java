@@ -46,6 +46,11 @@ class NoopSpanContext implements AgentSpanContext.Extracted {
   }
 
   @Override
+  public boolean isRemote() {
+    return false;
+  }
+
+  @Override
   public List<AgentSpanLink> getTerminatedContextLinks() {
     return emptyList();
   }
