@@ -14,7 +14,7 @@ public class WithSpanAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     AgentSpan span = DECORATE.startMethodSpan(method);
-    return activateSpan(span, true);
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

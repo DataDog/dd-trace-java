@@ -27,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.util.stream.Stream;
@@ -137,7 +136,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+    try (AgentScope scope = tracer.activateManualSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -178,7 +177,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (AgentScope scope = tracer.activateSpan(span, ScopeSource.MANUAL)) {
+    try (AgentScope scope = tracer.activateManualSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {

@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -86,11 +84,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
-  }
-
-  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
+    return get().activateSpan(span);
   }
 
   /**
@@ -338,9 +332,11 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
+    /** Activate a span from inside auto-instrumentation. */
+    AgentScope activateSpan(AgentSpan span);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    AgentScope activateManualSpan(AgentSpan span);
 
     @Override
     AgentScope.Continuation captureActiveSpan();
@@ -478,13 +474,12 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+    public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 

@@ -3,6 +3,9 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.core.scopemanager.ContinuableScope.INSTRUMENTATION;
+import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
+import static datadog.trace.core.scopemanager.ContinuableScope.MANUAL;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -13,9 +16,9 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.ScopeStateAware;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -38,6 +41,7 @@ import org.slf4j.LoggerFactory;
  * ScopeInterceptors to provide additional functionality.
  */
 public final class ContinuableScopeManager implements ScopeStateAware {
+
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
   static final long iterationKeepAlive =
@@ -81,16 +85,28 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    return activate(span, source.id(), false, /* ignored */ false);
+  public AgentScope activateSpan(final AgentSpan span) {
+    return activate(span, INSTRUMENTATION, true, DEFAULT_ASYNC_PROPAGATING);
   }
 
-  public AgentScope activate(
-      final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
-    return activate(span, source.id(), true, isAsyncPropagating);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return activate(span, MANUAL, false, /* ignored */ false);
   }
 
-  public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
+  public AgentScope.Continuation captureActiveSpan() {
+    ContinuableScope activeScope = scopeStack().active();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return captureSpan(activeScope.span(), activeScope.source());
+    } else {
+      return AgentTracer.noopContinuation();
+    }
+  }
+
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    return captureSpan(span, INSTRUMENTATION);
+  }
+
+  private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
     ScopeContinuation continuation = new ScopeContinuation(this, span, source);
     continuation.register();
     healthMetrics.onCaptureContinuation();
@@ -166,12 +182,24 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return scope;
   }
 
+  public boolean isAsyncPropagationEnabled() {
+    ContinuableScope activeScope = scopeStack().active();
+    return activeScope != null && activeScope.isAsyncPropagating();
+  }
+
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null) {
+      activeScope.setAsyncPropagation(asyncPropagationEnabled);
+    }
+  }
+
   public void closePrevious(final boolean finishSpan) {
     ScopeStack scopeStack = scopeStack();
 
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
-    if (top != null && top.source() == ScopeSource.ITERATION.id()) {
+    if (top != null && top.source() == ITERATION) {
       if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
         cancelRootIterationScopeCleanup(scopeStack, top);
       }
@@ -201,8 +229,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(
-            this, span, ScopeSource.ITERATION.id(), asyncPropagation, createScopeState(span));
+        new ContinuableScope(this, span, ITERATION, asyncPropagation, createScopeState(span));
 
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead

@@ -22,7 +22,6 @@ import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -37,7 +36,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
-  private final Map<LibraryCapability, Boolean> libraryCapabilities;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestSession(
       String projectName,
@@ -65,8 +64,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver);
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
-    this.libraryCapabilities =
-        executionStrategy.getExecutionSettings().getCapabilitiesStatus(capabilities);
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -83,7 +81,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         linesResolver,
         coverageStoreFactory,
         executionStrategy,
-        libraryCapabilities,
+        capabilities,
         this::propagateModuleTags);
   }
 
