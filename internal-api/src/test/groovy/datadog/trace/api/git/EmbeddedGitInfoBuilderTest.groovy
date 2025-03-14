@@ -7,7 +7,7 @@ class EmbeddedGitInfoBuilderTest extends Specification {
 
   def "test no embedded git info"() {
     when:
-    def gitInfo = new EmbeddedGitInfoBuilder("non-existent-git.properties").build(null)
+    def gitInfo = new EmbeddedGitInfoBuilder(["non-existent-git.properties"]).build(null)
 
     then:
     gitInfo.isEmpty()
@@ -16,7 +16,7 @@ class EmbeddedGitInfoBuilderTest extends Specification {
   def "test maven-plugin-generated git info"() {
     when:
     def mavenGitProperties = "datadog/trace/bootstrap/git/maven-git.properties"
-    def gitInfo = new EmbeddedGitInfoBuilder(mavenGitProperties).build(null)
+    def gitInfo = new EmbeddedGitInfoBuilder([mavenGitProperties]).build(null)
 
     then:
     gitInfo.repositoryURL == "git@github.com:DataDog/ciapp-test-resources.git"
@@ -35,7 +35,7 @@ class EmbeddedGitInfoBuilderTest extends Specification {
   def "test gradle-plugin-generated git info"() {
     when:
     def gradleGitProperties = "datadog/trace/bootstrap/git/gradle-git.properties"
-    def gitInfo = new EmbeddedGitInfoBuilder(gradleGitProperties).build(null)
+    def gitInfo = new EmbeddedGitInfoBuilder([gradleGitProperties]).build(null)
 
     then:
     gitInfo.repositoryURL == "git@github.com:DataDog/ciapp-test-resources.git"
