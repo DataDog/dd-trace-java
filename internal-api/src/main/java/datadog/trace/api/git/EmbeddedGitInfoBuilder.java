@@ -15,14 +15,14 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
 
   // Spring boot fat jars and wars should have the git.properties file in a specific path,
   // guaranteeing that it's not coming from a dependency
-  private static final String SPRING_BOOT_JAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME =
-      "BOOT-INF/classes/git.properties";
   private static final String SPRING_BOOT_JAR_EMBEDDED_DATADOG_GIT_PROPERTIES_FILE_NAME =
       "BOOT-INF/classes/datadog_git.properties";
-  private static final String WAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME =
-      "WEB-INF/classes/git.properties";
+  private static final String SPRING_BOOT_JAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME =
+      "BOOT-INF/classes/git.properties";
   private static final String WAR_EMBEDDED_DATADOG_GIT_PROPERTIES_FILE_NAME =
       "WEB-INF/classes/datadog_git.properties";
+  private static final String WAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME =
+      "WEB-INF/classes/git.properties";
   // If we can't find the files above, probably because we're not in a spring context, we can look
   // at the root of the classpath.
   // Since it could be tainted by dependencies, we're looking for a specific datadog_git.properties
@@ -35,10 +35,10 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
     // Order is important here, from the most reliable sources to the least reliable ones
     this(
         Arrays.asList(
-            SPRING_BOOT_JAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME,
             SPRING_BOOT_JAR_EMBEDDED_DATADOG_GIT_PROPERTIES_FILE_NAME,
-            WAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME,
+            SPRING_BOOT_JAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME,
             WAR_EMBEDDED_DATADOG_GIT_PROPERTIES_FILE_NAME,
+            WAR_EMBEDDED_GIT_PROPERTIES_FILE_NAME,
             EMBEDDED_DATADOOG_GIT_PROPERTIES_FILE_NAME));
   }
 
