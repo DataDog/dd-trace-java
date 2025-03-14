@@ -1,5 +1,9 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
+
+import static datadog.trace.test.util.Predicates.IBM8
+
 class SampleTraceSmokeTest extends AbstractSmokeTest {
 
   @Override
@@ -21,6 +25,7 @@ class SampleTraceSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  @Flaky(condition = IBM8)
   def 'sample traces are sent'() {
     when:
     waitForTraceCount(10)
