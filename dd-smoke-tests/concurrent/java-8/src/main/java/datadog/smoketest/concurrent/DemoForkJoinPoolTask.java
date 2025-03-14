@@ -4,19 +4,20 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 
-public class DemoForkJoin implements FibonacciCalculator {
+/** Test ForkJoinPool using the FJP task API. */
+public class DemoForkJoinPoolTask implements FibonacciCalculator {
   private final ForkJoinPool forkJoinPool;
 
-  public DemoForkJoin() {
+  public DemoForkJoinPoolTask() {
     forkJoinPool = new ForkJoinPool();
   }
 
   @Override
   public long computeFibonacci(int n) {
-    return forkJoinPool.invoke(new FibonacciTask(n));
+    return new FibonacciTask(n).invoke();
   }
 
-  private class FibonacciTask extends RecursiveTask<Long> {
+  private static class FibonacciTask extends RecursiveTask<Long> {
     private final int n;
 
     public FibonacciTask(int n) {
@@ -26,8 +27,8 @@ public class DemoForkJoin implements FibonacciCalculator {
     @WithSpan("compute")
     @Override
     protected Long compute() {
-      if (n <= 1) {
-        return (long) n;
+      if (this.n <= 1) {
+        return (long) this.n;
       }
       FibonacciTask taskOne = new FibonacciTask(n - 1);
       taskOne.fork();

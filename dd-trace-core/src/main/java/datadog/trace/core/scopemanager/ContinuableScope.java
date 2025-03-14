@@ -5,9 +5,14 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 
 class ContinuableScope implements AgentScope {
+
+  // different sources of scopes
+  static final byte INSTRUMENTATION = 0;
+  static final byte MANUAL = 1;
+  static final byte ITERATION = 2;
+
   private final ContinuableScopeManager scopeManager;
 
   final AgentSpan span; // package-private so scopeManager can access it directly
@@ -51,8 +56,8 @@ class ContinuableScope implements AgentScope {
       }
 
       byte source = source();
-      scopeManager.healthMetrics.onScopeCloseError(source);
-      if (source == ScopeSource.MANUAL.id() && scopeManager.strictMode) {
+      scopeManager.healthMetrics.onScopeCloseError(source == MANUAL);
+      if (source == MANUAL && scopeManager.strictMode) {
         throw new RuntimeException("Tried to close " + span + " scope when not on top");
       }
     }

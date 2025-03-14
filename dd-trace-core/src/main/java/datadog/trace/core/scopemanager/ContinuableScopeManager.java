@@ -3,6 +3,9 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.core.scopemanager.ContinuableScope.INSTRUMENTATION;
+import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
+import static datadog.trace.core.scopemanager.ContinuableScope.MANUAL;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -16,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -80,13 +82,12 @@ public final class ContinuableScopeManager {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    return activate(span, source.id(), false, /* ignored */ false);
+  public AgentScope activateSpan(final AgentSpan span) {
+    return activate(span, INSTRUMENTATION, true, DEFAULT_ASYNC_PROPAGATING);
   }
 
-  public AgentScope activate(
-      final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
-    return activate(span, source.id(), true, isAsyncPropagating);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return activate(span, MANUAL, false, /* ignored */ false);
   }
 
   public AgentScope.Continuation captureActiveSpan() {
@@ -98,7 +99,11 @@ public final class ContinuableScopeManager {
     }
   }
 
-  public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
+  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    return captureSpan(span, INSTRUMENTATION);
+  }
+
+  private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
     ScopeContinuation continuation = new ScopeContinuation(this, span, source);
     continuation.register();
     healthMetrics.onCaptureContinuation();
@@ -191,7 +196,7 @@ public final class ContinuableScopeManager {
 
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
-    if (top != null && top.source() == ScopeSource.ITERATION.id()) {
+    if (top != null && top.source() == ITERATION) {
       if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
         cancelRootIterationScopeCleanup(scopeStack, top);
       }
@@ -221,8 +226,7 @@ public final class ContinuableScopeManager {
     boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(
-            this, span, ScopeSource.ITERATION.id(), asyncPropagation, createScopeState(span));
+        new ContinuableScope(this, span, ITERATION, asyncPropagation, createScopeState(span));
 
     if (iterationKeepAlive > 0 && currentDepth == 0) {
       // no surrounding scope to aid cleanup, so use background task instead

@@ -775,7 +775,14 @@ public class Config {
 
     {
       final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
-      tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      if (experimentalFeaturesEnabled.contains("DD_TAGS")) {
+        tags.putAll(configProvider.getMergedTagsMap(TRACE_TAGS, TAGS));
+      } else {
+        tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      }
+      if (serviceNameSetByUser) { // prioritize service name set by DD_SERVICE over DD_TAGS config
+        tags.remove("service");
+      }
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 

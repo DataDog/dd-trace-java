@@ -1,4 +1,4 @@
-package datadog.smoketest
+package datadog.smoketest.concurrent
 
 class DemoExecutorServiceTest extends AbstractDemoTest {
   protected List<String> getTestArguments() {
