@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -26,6 +27,7 @@ import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
+  private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
@@ -71,6 +74,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
@@ -87,6 +91,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
+    this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
     AgentTracer.SpanBuilder spanBuilder =
@@ -125,7 +130,7 @@ public class TestSuiteImpl implements DDTestSuite {
     testDecorator.afterStart(span);
 
     if (!parallelized) {
-      activateSpan(span, true);
+      activateSpan(span);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
@@ -257,6 +262,7 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -381,7 +380,7 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   protected suspend fun AgentSpan.activateAndUse(block: suspend () -> Unit) {
     try {
-      get().activateSpan(this, INSTRUMENTATION).use {
+      get().activateManualSpan(this).use {
         block()
       }
     } finally {

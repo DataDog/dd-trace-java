@@ -908,28 +908,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .start();
   }
 
-  public AgentScope activateSpan(final AgentSpan span) {
+  @Override
+  public AgentScope activateSpan(AgentSpan span) {
     return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
   @Override
-  public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
-    return scopeManager.activate(span, source);
-  }
-
-  @Override
-  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
-    return scopeManager.activate(span, source, isAsyncPropagating);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return scopeManager.activate(span, ScopeSource.MANUAL /* inherit async propagation flag */);
   }
 
   @Override
   public AgentScope.Continuation captureActiveSpan() {
-    AgentScope activeScope = this.scopeManager.active();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
-      return scopeManager.captureSpan(activeScope.span(), activeScope.source());
-    } else {
-      return AgentTracer.noopContinuation();
-    }
+    return scopeManager.captureActiveSpan();
   }
 
   @Override
@@ -939,16 +930,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public boolean isAsyncPropagationEnabled() {
-    AgentScope activeScope = this.scopeManager.active();
-    return activeScope != null && activeScope.isAsyncPropagating();
+    return scopeManager.isAsyncPropagationEnabled();
   }
 
   @Override
   public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    AgentScope activeScope = this.scopeManager.active();
-    if (activeScope != null) {
-      activeScope.setAsyncPropagation(asyncPropagationEnabled);
-    }
+    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   @Override
@@ -977,6 +964,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public void checkpointActiveForRollback() {
+    this.scopeManager.checkpointActiveForRollback();
+  }
+
+  @Override
+  public void rollbackActiveToCheckpoint() {
+    this.scopeManager.rollbackActiveToCheckpoint();
   }
 
   @Override

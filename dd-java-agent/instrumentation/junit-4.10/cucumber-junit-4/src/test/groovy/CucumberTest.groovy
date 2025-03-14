@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
+import datadog.trace.instrumentation.junit4.CucumberUtils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import io.cucumber.core.options.Constants
 import org.example.cucumber.TestSucceedCucumber
@@ -202,6 +203,14 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runFeatures(["org/example/cucumber/calculator/basic_arithmetic.feature"], true)
+
+    expect:
+    assertCapabilities(CucumberUtils.CAPABILITIES, 4)
+  }
+
   private String version() {
     return CucumberTracingListener.FRAMEWORK_VERSION < "7" ? CucumberTracingListener.FRAMEWORK_VERSION : "latest"
   }
@@ -213,7 +222,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     .map(f -> "classpath:" + f).
     collect(Collectors.joining(",")))
 
-    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER)
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES)
     try {
       def result = runner.run(TestSucceedCucumber)
       if (expectSuccess) {

@@ -115,7 +115,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         }
       }
 
-      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4);
+      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.CAPABILITIES);
 
       final TracingListener tracingListener =
           new JUnit4TracingListener(

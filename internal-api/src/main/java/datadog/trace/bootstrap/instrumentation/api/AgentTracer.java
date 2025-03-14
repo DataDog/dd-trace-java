@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -86,11 +84,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
-  }
-
-  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
+    return get().activateSpan(span);
   }
 
   /**
@@ -122,9 +116,34 @@ public class AgentTracer {
   }
 
   /**
+   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
+   * outstanding scopes up to but not including the most recent checkpointed scope.
+   *
+   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void checkpointActiveForRollback() {
+    get().checkpointActiveForRollback();
+  }
+
+  /**
+   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
+   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
+   *
+   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void rollbackActiveToCheckpoint() {
+    get().rollbackActiveToCheckpoint();
+  }
+
+  /**
    * Closes the scope for the currently active span.
    *
-   * @deprecated Prefer closing the scope returned by {@link #activateSpan} when available.
+   * @deprecated This should only be used when an instrumentation does not have access to the
+   *     original scope returned by {@link #activateSpan}.
    */
   @Deprecated
   public static void closeActive() {
@@ -160,6 +179,8 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
+  /** @deprecated To be removed, do not use. */
+  @Deprecated
   public static AgentScope activeScope() {
     return get().activeScope();
   }
@@ -311,14 +332,20 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
+    /** Activate a span from inside auto-instrumentation. */
+    AgentScope activateSpan(AgentSpan span);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    AgentScope activateManualSpan(AgentSpan span);
 
     @Override
     AgentScope.Continuation captureActiveSpan();
 
     AgentScope.Continuation captureSpan(AgentSpan span);
+
+    void checkpointActiveForRollback();
+
+    void rollbackActiveToCheckpoint();
 
     void closeActive();
 
@@ -447,13 +474,12 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+    public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
@@ -474,6 +500,12 @@ public class AgentTracer {
 
     @Override
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+
+    @Override
+    public void checkpointActiveForRollback() {}
+
+    @Override
+    public void rollbackActiveToCheckpoint() {}
 
     @Override
     public void closeActive() {}

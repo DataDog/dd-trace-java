@@ -9,7 +9,7 @@ class TraceCorrelationTest extends AgentTestRunner {
   def "access trace correlation only under trace"() {
     when:
     def span = TEST_TRACER.startSpan("test", "myspan")
-    def scope = TEST_TRACER.activateSpan(span)
+    def scope = TEST_TRACER.activateManualSpan(span)
 
     then:
     CorrelationIdentifier.traceId == (span.traceId.toHighOrderLong() == 0 ? span.traceId.toString() : span.traceId.toHexString())

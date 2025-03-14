@@ -13,6 +13,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
@@ -88,6 +89,15 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   public AgentScope activate(
       final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
     return activate(span, source.id(), true, isAsyncPropagating);
+  }
+
+  public AgentScope.Continuation captureActiveSpan() {
+    ContinuableScope activeScope = scopeStack().active();
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
+      return captureSpan(activeScope.span(), activeScope.source());
+    } else {
+      return AgentTracer.noopContinuation();
+    }
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
@@ -166,6 +176,18 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     return scope;
   }
 
+  public boolean isAsyncPropagationEnabled() {
+    ContinuableScope activeScope = scopeStack().active();
+    return activeScope != null && activeScope.isAsyncPropagating();
+  }
+
+  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null) {
+      activeScope.setAsyncPropagation(asyncPropagationEnabled);
+    }
+  }
+
   public void closePrevious(final boolean finishSpan) {
     ScopeStack scopeStack = scopeStack();
 
@@ -216,6 +238,24 @@ public final class ContinuableScopeManager implements ScopeStateAware {
 
   public AgentScope active() {
     return scopeStack().active();
+  }
+
+  public void checkpointActiveForRollback() {
+    ContinuableScope active = scopeStack().active();
+    if (active != null) {
+      active.checkpoint();
+    }
+  }
+
+  public void rollbackActiveToCheckpoint() {
+    ContinuableScope active;
+    while ((active = scopeStack().active()) != null) {
+      if (active.rollback()) {
+        active.close();
+      } else {
+        break; // stop at the most recent checkpointed scope
+      }
+    }
   }
 
   public AgentSpan activeSpan() {

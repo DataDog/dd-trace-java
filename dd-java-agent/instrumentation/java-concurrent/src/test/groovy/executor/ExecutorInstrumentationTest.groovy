@@ -26,7 +26,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 import static org.junit.Assume.assumeTrue
 
 abstract class ExecutorInstrumentationTest extends AgentTestRunner {
@@ -82,7 +81,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           // this child will have a span
           m(pool, new JavaAsyncChild())
           // this child won't
@@ -256,7 +254,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           def future = m(pool, task)
           sleep(500)
           future.cancel(true)
@@ -317,7 +314,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           // this child will have a span
           pool.execute(new JavaAsyncChild())
           // this child won't
@@ -368,7 +364,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           m(pool, w(child))
         }
       }.run()
@@ -406,7 +401,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
         @Override
         @Trace(operationName = "parent")
         void run() {
-          setAsyncPropagationEnabled(true)
           try {
             for (int i = 0; i < 20; ++i) {
               final JavaAsyncChild child = new JavaAsyncChild(false, true)
