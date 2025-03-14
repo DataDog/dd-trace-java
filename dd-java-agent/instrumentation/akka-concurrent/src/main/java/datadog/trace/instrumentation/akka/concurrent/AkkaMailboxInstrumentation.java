@@ -75,7 +75,7 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       // Create an active scope with a noop span, and clean all the way to the previous scope
-      activateSpan(noopSpan(), false);
+      activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
