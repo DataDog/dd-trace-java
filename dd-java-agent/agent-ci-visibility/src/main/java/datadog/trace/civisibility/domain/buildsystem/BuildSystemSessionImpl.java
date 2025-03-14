@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
@@ -14,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReas
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
@@ -208,8 +208,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
 
   @Override
   protected Collection<TagValue> additionalTelemetryTags() {
-    if (CIConstants.EFD_ABORT_REASON_FAULTY.equals(
-        span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
+    if (Constants.EFD_ABORT_REASON_FAULTY.equals(span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
       return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
     }
     return Collections.emptySet();
