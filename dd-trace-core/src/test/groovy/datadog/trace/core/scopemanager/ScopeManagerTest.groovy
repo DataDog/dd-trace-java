@@ -9,7 +9,6 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
@@ -156,7 +155,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "non-ddspan activation results in a continuable scope"() {
     when:
-    def scope = scopeManager.activate(noopSpan(), ScopeSource.INSTRUMENTATION)
+    def scope = scopeManager.activateSpan(noopSpan())
 
     then:
     scopeManager.active() == scope
@@ -443,14 +442,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     def state = Mock(Stateful)
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
     1 * profilingContext.newScopeState(_) >> state
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -638,13 +637,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -874,7 +873,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
@@ -904,7 +903,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
