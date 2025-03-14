@@ -15,6 +15,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',
+  'datadog.trace.api.TracePropagationBehaviorExtract',
   'datadog.trace.api.SpanCorrelation*',
   'datadog.trace.api.internal.TraceSegment',
   'datadog.trace.api.internal.TraceSegment.NoOp',
