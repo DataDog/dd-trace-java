@@ -40,8 +40,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +109,7 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  @NotNull
+  @Nonnull
   private static PullRequestInfo buildPullRequestInfo(
       CiEnvironment environment, CIProviderInfo ciProviderInfo) {
     PullRequestInfo ciProviderPrInfo = ciProviderInfo.buildPullRequestInfo();
