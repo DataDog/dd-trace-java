@@ -33,6 +33,7 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -1511,7 +1512,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       boolean isRemote = false;
 
       if (parentContext != null && parentContext.isRemote()) {
-        if (Config.get().getTracePropagationBehaviorExtract().equals("restart")) {
+        if (Config.get().getTracePropagationBehaviorExtract()
+            == TracePropagationBehaviorExtract.RESTART) {
           SpanLink link;
           if (parentContext instanceof ExtractedContext) {
             ExtractedContext pc = (ExtractedContext) parentContext;
