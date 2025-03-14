@@ -8,7 +8,11 @@ final class EnvironmentConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    return System.getenv(propertyNameToEnvironmentVariableName(key));
+    try {
+      return System.getenv(propertyNameToEnvironmentVariableName(key));
+    } catch (SecurityException e) {
+      return null;
+    }
   }
 
   @Override

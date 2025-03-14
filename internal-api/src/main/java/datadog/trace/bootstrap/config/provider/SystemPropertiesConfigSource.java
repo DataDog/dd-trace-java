@@ -8,7 +8,11 @@ public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    return System.getProperty(propertyNameToSystemPropertyName(key));
+    try {
+      return System.getProperty(propertyNameToSystemPropertyName(key));
+    } catch (SecurityException e) {
+      return null;
+    }
   }
 
   @Override

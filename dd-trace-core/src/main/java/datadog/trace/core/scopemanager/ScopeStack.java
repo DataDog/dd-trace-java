@@ -1,7 +1,8 @@
 package datadog.trace.core.scopemanager;
 
+import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
+
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import java.util.ArrayDeque;
 
 /**
@@ -77,7 +78,7 @@ final class ScopeStack {
    */
   final boolean checkOverdueScopes(final ContinuableScope expectedScope) {
     // we already know 'top' isn't the expected scope, so just need to check its source
-    if (top == null || top.source() != ScopeSource.ITERATION.id()) {
+    if (top == null || top.source() != ITERATION) {
       return false;
     }
     // avoid calling close() as we're already in that method, instead just clear any
@@ -86,7 +87,7 @@ final class ScopeStack {
     top.span.finishWithEndToEnd();
     // now do the same for any previous iteration scopes ahead of the expected scope
     for (ContinuableScope scope : stack) {
-      if (scope.source() != ScopeSource.ITERATION.id()) {
+      if (scope.source() != ITERATION) {
         return expectedScope.equals(scope);
       } else {
         scope.clearReferences();

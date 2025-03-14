@@ -384,7 +384,7 @@ class RxJava2Test extends AgentTestRunner {
   def assemblePublisherUnderTrace(def publisherSupplier) {
     def span = startSpan("publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
-    def scope = activateSpan(span, true)
+    def scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     try {
@@ -405,7 +405,7 @@ class RxJava2Test extends AgentTestRunner {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     if (publisher instanceof Maybe) {

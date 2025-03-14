@@ -66,6 +66,7 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     Stub(LinesResolver),
     Stub(CoverageStore.Factory),
     executionStrategy,
+    [],
     (span) -> { }
     )
   }
