@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -61,7 +60,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
@@ -908,12 +906,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentScope activateSpan(AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    return scopeManager.activateSpan(span);
   }
 
   @Override
   public AgentScope activateManualSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.MANUAL /* inherit async propagation flag */);
+    return scopeManager.activateManualSpan(span);
   }
 
   @Override
@@ -923,7 +921,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id());
+    return scopeManager.captureSpan(span);
   }
 
   @Override
