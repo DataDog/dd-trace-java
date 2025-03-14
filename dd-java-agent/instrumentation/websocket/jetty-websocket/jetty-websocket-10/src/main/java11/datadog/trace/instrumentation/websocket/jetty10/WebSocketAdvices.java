@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import javax.websocket.Endpoint;
@@ -13,6 +14,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketMessageMetadata;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketSession;
 
+@SuppressFBWarnings("UC_USELESS_OBJECT_STACK")
 public class WebSocketAdvices {
   public static class OpenClose9Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
