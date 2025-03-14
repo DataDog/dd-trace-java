@@ -1814,7 +1814,8 @@ public class Config {
         configProvider.getBoolean(TRACE_DUBBO_REQUEST_ENABLED, DEFAULT_TRACE_DUBBO_REQUEST_ENABLED);
 
     dubboResponseEnabled =
-        configProvider.getBoolean(TRACE_DUBBO_RESPONSE_ENABLED, DEFAULT_TRACE_DUBBO_RESPONSE_ENABLED);
+        configProvider.getBoolean(
+            TRACE_DUBBO_RESPONSE_ENABLED, DEFAULT_TRACE_DUBBO_RESPONSE_ENABLED);
 
     tracerResponseBodyEnabled =
         configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
@@ -3573,7 +3574,9 @@ public class Config {
     return apmTracingEnabled;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public boolean isTracerHeaderEnabled() {
     return tracerHeaderEnabled;
   }
@@ -4879,8 +4882,6 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
-        + ", appSecStandaloneEnabled="
-        + appSecStandaloneEnabled
         + ", jdbcSqlObfuscation="
         + jdbcSqlObfuscation
         + ", mongoObfuscation="
