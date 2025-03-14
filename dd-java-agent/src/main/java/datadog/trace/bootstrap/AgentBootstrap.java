@@ -2,7 +2,7 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.cli;
+import datadog.cli.CLIHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
@@ -381,7 +381,7 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : cli.ARGS.getJvmArgs()) {
+      for (final String argument : CLIHelper.ARGS.getJvmArgs()) {
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =
