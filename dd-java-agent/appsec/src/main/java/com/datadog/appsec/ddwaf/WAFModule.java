@@ -1,4 +1,4 @@
-package com.datadog.appsec.powerwaf;
+package com.datadog.appsec.ddwaf;
 
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
@@ -18,6 +18,16 @@ import com.datadog.appsec.gateway.GatewayContext;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.RuleSetInfo;
+import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafConfig;
+import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafMetrics;
+import com.datadog.ddwaf.exception.AbstractWafException;
+import com.datadog.ddwaf.exception.InvalidRuleSetException;
+import com.datadog.ddwaf.exception.TimeoutWafException;
+import com.datadog.ddwaf.exception.UnclassifiedWafException;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -39,16 +49,6 @@ import datadog.trace.util.RandomUtils;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.PowerwafConfig;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
-import io.sqreen.powerwaf.RuleSetInfo;
-import io.sqreen.powerwaf.exception.AbstractPowerwafException;
-import io.sqreen.powerwaf.exception.InvalidRuleSetException;
-import io.sqreen.powerwaf.exception.TimeoutPowerwafException;
-import io.sqreen.powerwaf.exception.UnclassifiedPowerwafException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -74,18 +74,18 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PowerWAFModule implements AppSecModule {
-  private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
+public class WAFModule implements AppSecModule {
+  private static final Logger log = LoggerFactory.getLogger(WAFModule.class);
 
   private static final int MAX_DEPTH = 10;
   private static final int MAX_ELEMENTS = 150;
   private static final int MAX_STRING_SIZE = 4096;
-  private static volatile Powerwaf.Limits LIMITS;
+  private static volatile Waf.Limits LIMITS;
   private static final Class<?> PROXY_CLASS =
-      Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
+      Proxy.getProxyClass(WAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
 
-  private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
+  private static final JsonAdapter<List<WAFResultData>> RES_JSON_ADAPTER;
 
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
@@ -103,12 +103,12 @@ public class PowerWAFModule implements AppSecModule {
 
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
-    final PowerwafContext ctx;
+    final WafHandle ctx;
     final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
         Collection<Address<?>> addressesOfInterest,
-        PowerwafContext ctx,
+        WafHandle ctx,
         Map<String, ActionInfo> actionInfoMap) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
@@ -124,8 +124,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     Moshi moshi = new Moshi.Builder().build();
-    RES_JSON_ADAPTER =
-        moshi.adapter(Types.newParameterizedType(List.class, PowerWAFResultData.class));
+    RES_JSON_ADAPTER = moshi.adapter(Types.newParameterizedType(List.class, WAFResultData.class));
 
     Map<String, Object> actionParams = new HashMap<>();
     actionParams.put("status_code", 403);
@@ -139,12 +138,12 @@ public class PowerWAFModule implements AppSecModule {
   // used in testing
   static void createLimitsObject() {
     LIMITS =
-        new Powerwaf.Limits(
+        new Waf.Limits(
             MAX_DEPTH,
             MAX_ELEMENTS,
             MAX_STRING_SIZE,
             /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
-             * traditionally powerwaf has had problems with too large budgets */
+             * traditionally ddwaf has had problems with too large budgets */
             ((long) Integer.MAX_VALUE) * 1000,
             Config.get().getAppSecWafTimeout());
   }
@@ -152,18 +151,18 @@ public class PowerWAFModule implements AppSecModule {
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
-  private final PowerWAFInitializationResultReporter initReporter =
-      new PowerWAFInitializationResultReporter();
-  private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
+  private final WAFInitializationResultReporter initReporter =
+      new WAFInitializationResultReporter();
+  private final WAFStatsReporter statsReporter = new WAFStatsReporter();
   private final RateLimiter rateLimiter;
 
   private String currentRulesVersion;
 
-  public PowerWAFModule() {
+  public WAFModule() {
     this(null);
   }
 
-  public PowerWAFModule(Monitoring monitoring) {
+  public WAFModule(Monitoring monitoring) {
     this.rateLimiter = getRateLimiter(monitoring);
   }
 
@@ -220,7 +219,7 @@ public class PowerWAFModule implements AppSecModule {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
       if (curCtxAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Powerwaf.LIB_VERSION, currentRulesVersion, success);
+        WafMetricCollector.get().wafInit(Waf.LIB_VERSION, currentRulesVersion, success);
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
       }
@@ -236,13 +235,13 @@ public class PowerWAFModule implements AppSecModule {
     RuleSetInfo initReport = null;
 
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
-    PowerwafContext newPwafCtx = null;
+    WafHandle newPwafCtx = null;
     try {
       String uniqueId = RandomUtils.randomUUID().toString();
 
       if (prevContextAndAddresses == null) {
-        PowerwafConfig pwConfig = createPowerwafConfig();
-        newPwafCtx = Powerwaf.createContext(uniqueId, pwConfig, ruleConfig.getRawConfig());
+        WafConfig pwConfig = createWafConfig();
+        newPwafCtx = Waf.createHandle(uniqueId, pwConfig, ruleConfig.getRawConfig());
       } else {
         newPwafCtx = prevContextAndAddresses.ctx.update(uniqueId, ruleConfig.getRawConfig());
       }
@@ -278,7 +277,7 @@ public class PowerWAFModule implements AppSecModule {
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
-    } catch (RuntimeException | AbstractPowerwafException e) {
+    } catch (RuntimeException | AbstractWafException e) {
       if (newPwafCtx != null) {
         newPwafCtx.close();
       }
@@ -333,8 +332,8 @@ public class PowerWAFModule implements AppSecModule {
     return actionInfoMap;
   }
 
-  private PowerwafConfig createPowerwafConfig() {
-    PowerwafConfig pwConfig = new PowerwafConfig();
+  private WafConfig createWafConfig() {
+    WafConfig pwConfig = new WafConfig();
     Config config = Config.get();
     String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
     if (keyRegexp != null) {
@@ -364,17 +363,17 @@ public class PowerWAFModule implements AppSecModule {
 
   @Override
   public String getName() {
-    return "powerwaf";
+    return "ddwaf";
   }
 
   @Override
   public String getInfo() {
     CtxAndAddresses ctxAndAddresses = this.ctxAndAddresses.get();
     if (ctxAndAddresses == null) {
-      return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") no rules loaded";
+      return "ddwaf(libddwaf: " + Waf.LIB_VERSION + ") no rules loaded";
     }
 
-    return "powerwaf(libddwaf: " + Powerwaf.LIB_VERSION + ") loaded";
+    return "ddwaf(libddwaf: " + Waf.LIB_VERSION + ") loaded";
   }
 
   @Override
@@ -382,10 +381,10 @@ public class PowerWAFModule implements AppSecModule {
     if (this.ctxAndAddresses.get() == null) {
       return Collections.emptyList();
     }
-    return singletonList(new PowerWAFDataCallback());
+    return singletonList(new WAFDataCallback());
   }
 
-  private static Collection<Address<?>> getUsedAddresses(PowerwafContext ctx) {
+  private static Collection<Address<?>> getUsedAddresses(WafHandle ctx) {
     String[] usedAddresses = ctx.getUsedAddresses();
     Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
@@ -397,8 +396,8 @@ public class PowerWAFModule implements AppSecModule {
     return addressList;
   }
 
-  private class PowerWAFDataCallback extends DataSubscription {
-    public PowerWAFDataCallback() {
+  private class WAFDataCallback extends DataSubscription {
+    public WAFDataCallback() {
       super(ctxAndAddresses.get().addressesOfInterest, Priority.DEFAULT);
     }
 
@@ -408,7 +407,7 @@ public class PowerWAFModule implements AppSecModule {
         AppSecRequestContext reqCtx,
         DataBundle newData,
         GatewayContext gwCtx) {
-      Powerwaf.ResultWithData resultWithData;
+      Waf.ResultWithData resultWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
         log.debug("Skipped; the WAF is not configured");
@@ -431,8 +430,8 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       try {
-        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
-      } catch (TimeoutPowerwafException tpe) {
+        resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
+      } catch (TimeoutWafException tpe) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspTimeouts();
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
@@ -442,13 +441,13 @@ public class PowerWAFModule implements AppSecModule {
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
-      } catch (UnclassifiedPowerwafException e) {
+      } catch (UnclassifiedWafException e) {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
         }
         WafMetricCollector.get().wafRequestError();
         return;
-      } catch (AbstractPowerwafException e) {
+      } catch (AbstractWafException e) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspErrorCode(e.code);
           WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
@@ -463,7 +462,7 @@ public class PowerWAFModule implements AppSecModule {
           StandardizedLogging.finishedExecutionWAF(log, elapsed);
         }
         if (!gwCtx.isRasp) {
-          PowerwafMetrics wafMetrics = reqCtx.getWafMetrics();
+          WafMetrics wafMetrics = reqCtx.getWafMetrics();
           if (wafMetrics != null) {
             final long stringTooLong = wafMetrics.getTruncatedStringTooLongCount();
             final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
@@ -487,7 +486,7 @@ public class PowerWAFModule implements AppSecModule {
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);
 
-      if (resultWithData.result != Powerwaf.Result.OK) {
+      if (resultWithData.result != Waf.Result.OK) {
         if (log.isDebugEnabled()) {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
@@ -619,16 +618,16 @@ public class PowerWAFModule implements AppSecModule {
       return new StackTraceEvent(result, DEFAULT_LANGUAGE, stackId, EXPLOIT_DETECTED_MSG);
     }
 
-    private Powerwaf.ResultWithData doRunPowerwaf(
+    private Waf.ResultWithData doRunWaf(
         AppSecRequestContext reqCtx,
         DataBundle newData,
         CtxAndAddresses ctxAndAddr,
         GatewayContext gwCtx)
-        throws AbstractPowerwafException {
+        throws AbstractWafException {
 
-      Additive additive =
+      WafContext wafContext =
           reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
-      PowerwafMetrics metrics;
+      WafMetrics metrics;
       if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();
         reqCtx.getRaspMetricsCounter().incrementAndGet();
@@ -637,29 +636,29 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       if (gwCtx.isTransient) {
-        return runPowerwafTransient(additive, metrics, newData, ctxAndAddr);
+        return runWafTransient(wafContext, metrics, newData, ctxAndAddr);
       } else {
-        return runPowerwafAdditive(additive, metrics, newData, ctxAndAddr);
+        return runWafAdditive(wafContext, metrics, newData, ctxAndAddr);
       }
     }
 
-    private Powerwaf.ResultWithData runPowerwafAdditive(
-        Additive additive, PowerwafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
-        throws AbstractPowerwafException {
-      return additive.run(
+    private Waf.ResultWithData runWafAdditive(
+        WafContext wafContext, WafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
+        throws AbstractWafException {
+      return wafContext.run(
           new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
     }
   }
 
-  private Powerwaf.ResultWithData runPowerwafTransient(
-      Additive additive, PowerwafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
-      throws AbstractPowerwafException {
-    return additive.runEphemeral(
+  private Waf.ResultWithData runWafTransient(
+      WafContext wafContext, WafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
+      throws AbstractWafException {
+    return wafContext.runEphemeral(
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent> buildEvents(Powerwaf.ResultWithData actionWithData) {
-    Collection<PowerWAFResultData> listResults;
+  private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
+    Collection<WAFResultData> listResults;
     try {
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
     } catch (IOException e) {
@@ -675,7 +674,7 @@ public class PowerWAFModule implements AppSecModule {
     return emptyList();
   }
 
-  private AppSecEvent buildEvent(PowerWAFResultData wafResult) {
+  private AppSecEvent buildEvent(WAFResultData wafResult) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -706,7 +705,7 @@ public class PowerWAFModule implements AppSecModule {
       this.dataBundle = dataBundle;
     }
 
-    // powerwaf only calls entrySet().iterator() and size()
+    // ddwaf only calls entrySet().iterator() and size()
     @Nonnull
     @Override
     public Set<Entry<String, Object>> entrySet() {
@@ -746,7 +745,7 @@ public class PowerWAFModule implements AppSecModule {
             if (next == null) {
               throw new NoSuchElementException();
             }
-            // the usage pattern in powerwaf allows object recycling here
+            // the usage pattern in ddwaf allows object recycling here
             entry.key = next.getKey();
             entry.value =
                 addressesOfInterest.contains(next) ? dataBundle.get(next) : Collections.emptyMap();

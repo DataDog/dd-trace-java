@@ -1,21 +1,21 @@
-package com.datadog.appsec.powerwaf;
+package com.datadog.appsec.ddwaf;
 
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.ddwaf.RuleSetInfo;
+import com.datadog.ddwaf.Waf;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.RuleSetInfo;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class PowerWAFInitializationResultReporter implements TraceSegmentPostProcessor {
+public class WAFInitializationResultReporter implements TraceSegmentPostProcessor {
   private static final String WAF_VERSION = "_dd.appsec.waf.version";
   private static final String RULE_ERRORS = "_dd.appsec.event_rules.errors";
   private static final String RULES_LOADED = "_dd.appsec.event_rules.loaded";
@@ -48,7 +48,7 @@ public class PowerWAFInitializationResultReporter implements TraceSegmentPostPro
     segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.getErrors()));
     segment.setTagTop(RULES_LOADED, report.getNumRulesOK());
     segment.setTagTop(RULE_ERROR_COUNT, report.getNumRulesError());
-    segment.setTagTop(WAF_VERSION, Powerwaf.LIB_VERSION);
+    segment.setTagTop(WAF_VERSION, Waf.LIB_VERSION);
 
     segment.setTagTop(Tags.ASM_KEEP, true);
   }
