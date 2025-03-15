@@ -44,6 +44,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       interfaces(CallSites)
       helpers(BeforeAdvice)
       advices(0) {
+        type("BEFORE")
         pointcut('java/security/MessageDigest', 'getInstance', '(Ljava/lang/String;)Ljava/security/MessageDigest;')
         statements(
           'handler.dupParameters(descriptor, StackDupMode.COPY);',
@@ -76,6 +77,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       interfaces(CallSites)
       helpers(AroundAdvice)
       advices(0) {
+        type("AROUND")
         pointcut('java/lang/String', 'replaceAll', '(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;')
         statements(
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundAdvice", "around", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");'
@@ -106,6 +108,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
       interfaces(CallSites)
       helpers(AfterAdvice)
       advices(0) {
+        type("AFTER")
         pointcut('java/lang/String', 'concat', '(Ljava/lang/String;)Ljava/lang/String;')
         statements(
           'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
