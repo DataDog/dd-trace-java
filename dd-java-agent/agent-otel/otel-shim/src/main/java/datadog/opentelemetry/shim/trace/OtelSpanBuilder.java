@@ -99,6 +99,8 @@ public class OtelSpanBuilder implements SpanBuilder {
     } else if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(key) && value != null) {
       this.overriddenAnalyticsSampleRate = parseBoolean(value) ? 1 : 0;
       return this;
+    } else if (SPAN_KIND.equals(key) && value != null) {
+      this.spanKindSet = true;
     }
     // Store as object to prevent delegate to remove tag when value is empty
     this.delegate.withTag(key, (Object) value);
