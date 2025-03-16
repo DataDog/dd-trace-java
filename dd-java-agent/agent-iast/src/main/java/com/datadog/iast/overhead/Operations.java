@@ -18,6 +18,9 @@ public class Operations {
 
         @Override
         public boolean consumeQuota(@Nullable final OverheadContext context) {
+          //          if(Config.get().isCiVisibilityEnabled()){
+          //            return true;
+          //          }
           if (context == null) {
             return false;
           }
