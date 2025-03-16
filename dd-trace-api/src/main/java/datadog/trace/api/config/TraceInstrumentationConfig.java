@@ -159,6 +159,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
   public static final String SPARK_APP_NAME_AS_SERVICE = "spark.app-name-as-service";
+  public static final String SPARK_DATA_LINEAGE_ENABLED = "spark.data.lineage.enabled";
+  public static final String SPARK_DATA_LINEAGE_LIMIT = "spark.data.lineage.limit";
 
   public static final String TRACE_WEBSOCKET_MESSAGES_ENABLED = "trace.websocket.messages.enabled";
   public static final String TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING =
