@@ -8,7 +8,6 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;

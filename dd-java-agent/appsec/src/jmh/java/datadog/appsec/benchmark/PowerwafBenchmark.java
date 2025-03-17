@@ -8,7 +8,6 @@ import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
 import java.io.IOException;
