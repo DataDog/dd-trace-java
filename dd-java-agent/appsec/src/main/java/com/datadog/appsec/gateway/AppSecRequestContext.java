@@ -596,7 +596,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /**
    * Close the context and release all resources. This method is idempotent and can be called
    * multiple times. For each root span, this method is always called from
-   * CoreTracer#onRootSpaPublished.
+   * CoreTracer#onRootSpanPublished.
    */
   @Override
   public void close() {
