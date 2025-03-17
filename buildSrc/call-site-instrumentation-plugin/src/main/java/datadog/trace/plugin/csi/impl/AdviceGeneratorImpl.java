@@ -2,6 +2,7 @@ package datadog.trace.plugin.csi.impl;
 
 import static com.github.javaparser.ast.Modifier.Keyword.PUBLIC;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
+import static datadog.trace.plugin.csi.util.CallSiteConstants.ADVICE_TYPE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.AUTO_SERVICE_FQDN;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITES_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.CALL_SITES_FQCN;
@@ -11,7 +12,6 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.HAS_ENABLED_PROPER
 import static datadog.trace.plugin.csi.util.CallSiteConstants.METHOD_HANDLER_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.OPCODES_FQDN;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.STACK_DUP_MODE_CLASS;
-import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_CLASS;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.deleteFile;
 import static datadog.trace.plugin.csi.util.JavaParserUtils.getPrimaryType;
@@ -213,7 +213,8 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
             .setArguments(
                 new NodeList<>(
                     new FieldAccessExpr()
-                        .setScope(new TypeExpr(new ClassOrInterfaceType().setName(TYPE_CLASS)))
+                        .setScope(
+                            new TypeExpr(new ClassOrInterfaceType().setName(ADVICE_TYPE_CLASS)))
                         .setName(type),
                     new StringLiteralExpr(pointCut.getOwner().getInternalName()),
                     new StringLiteralExpr(pointCut.getMethodName()),

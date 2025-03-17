@@ -1,4 +1,4 @@
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.Type.BEFORE;
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.BEFORE;
 
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSites;

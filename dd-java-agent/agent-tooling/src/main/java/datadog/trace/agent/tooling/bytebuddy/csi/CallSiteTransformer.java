@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
-import static datadog.trace.agent.tooling.csi.CallSiteAdvice.Type.BEFORE;
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.AFTER;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
@@ -380,8 +380,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final boolean isInterface) {
-      if (isSuperCall && advices.typeOf(advice) == BEFORE) {
-        // TODO APPSEC-57009 calls to super are not instrumented by before callsites
+      if (isSuperCall && advices.typeOf(advice) != AFTER) {
+        // TODO APPSEC-57009 calls to super are only instrumented by after call sites
         // just ignore the advice and keep on
         mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       } else {
