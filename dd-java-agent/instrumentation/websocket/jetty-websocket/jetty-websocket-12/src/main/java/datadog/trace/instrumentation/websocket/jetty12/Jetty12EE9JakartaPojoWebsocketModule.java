@@ -14,6 +14,11 @@ public class Jetty12EE9JakartaPojoWebsocketModule extends Jetty10JavaxPojoWebSoc
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jetty-websocket-12e9";
+  }
+
+  @Override
   public Map<String, String> adviceShading() {
     final Map<String, String> ret = new HashMap<>();
     ret.put("javax", "jakarta");

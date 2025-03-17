@@ -2,6 +2,30 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
+muzzle {
+  pass {
+    name = 'jetty-websocket-12ee8'
+    group = 'org.eclipse.jetty.ee8.websocket'
+    module = 'jetty-ee8-websocket-javax-server'
+    versions = "[12,)"
+    javaVersion = "17"
+  }
+  pass {
+    name = 'jetty-websocket-12ee9'
+    group = 'org.eclipse.jetty.ee9.websocket'
+    module = 'jetty-ee9-websocket-jakarta-server'
+    versions = "[12,)"
+    javaVersion = "17"
+  }
+  pass {
+    name = 'jetty-websocket-12ee10'
+    group = 'org.eclipse.jetty.ee10.websocket'
+    module = 'jetty-ee10-websocket-jakarta-server'
+    versions = "[12,)"
+    javaVersion = "17"
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir("latestDepTest", "test")

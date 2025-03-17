@@ -2,9 +2,20 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+muzzle {
+  pass {
+    name = 'jetty-websocket-10'
+    group = 'org.eclipse.jetty.websocket'
+    module = 'websocket-javax-server'
+    versions = "[10,11)"
+    javaVersion = "11"
+    assertInverse = true
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir("latestDepTest", "test")
+addTestSuite("latestDepTest")
 
 compileMain_java11Java.configure {
   setJavaVersion(it, 11)

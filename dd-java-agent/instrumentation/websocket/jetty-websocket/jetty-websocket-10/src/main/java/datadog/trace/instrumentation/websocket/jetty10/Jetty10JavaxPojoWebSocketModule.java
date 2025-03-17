@@ -47,6 +47,11 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jetty-websocket-10";
+  }
+
+  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new JavaxWebSocketFrameHandlerFactoryInstrumentation(jettyNamespace),

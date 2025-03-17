@@ -39,6 +39,8 @@ dependencies {
   testFixturesCompileOnly "org.eclipse.jetty:jetty-server:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty:jetty-servlet:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
+  testFixturesImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-client-api', version: '2.0.0'
+
 
 
   testFixturesImplementation(project(':dd-java-agent:testing')) {

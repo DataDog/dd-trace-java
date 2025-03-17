@@ -14,6 +14,11 @@ public class Jetty12EE8JavaxPojoWebsocketModule extends Jetty10JavaxPojoWebSocke
   }
 
   @Override
+  public String muzzleDirective() {
+    return "jetty-websocket-12ee8";
+  }
+
+  @Override
   public Map<String, String> adviceShading() {
     return Collections.singletonMap(
         "org.eclipse.jetty.websocket.javax.common.Javax",
