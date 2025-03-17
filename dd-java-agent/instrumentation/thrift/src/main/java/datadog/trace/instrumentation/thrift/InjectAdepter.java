@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.thrift;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-
+import datadog.context.propagation.CarrierSetter;
 import java.util.Map;
 
-public class InjectAdepter implements AgentPropagation.Setter<Map<String, String>> {
+public class InjectAdepter implements CarrierSetter<Map<String, String>> {
 
   public static final InjectAdepter SETTER = new InjectAdepter();
 

@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.hsf;
 
 import com.taobao.hsf.context.RPCContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HSFInjectAdapter implements AgentPropagation.Setter<RPCContext> {
+public class HSFInjectAdapter implements CarrierSetter<RPCContext> {
   public static final HSFInjectAdapter SETTER = new HSFInjectAdapter();
   private static final Logger log = LoggerFactory.getLogger(HSFInjectAdapter.class);
   @Override

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq5;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.rocketmq5.MessageMapSetter.SETTER;
@@ -62,7 +63,7 @@ public class MessageImplInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = startSpan("message build send");
       span.setSpanType("rocketmq");
       AgentScope scope = activateSpan(span);
-      propagate().inject(span,impl,SETTER);
+      defaultPropagator().inject(span,impl,SETTER);
       return scope;
     }
 

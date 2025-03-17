@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.alibaba.dubbo;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.alibaba.dubbo.DubboConstants.*;
 import static datadog.trace.instrumentation.alibaba.dubbo.DubboHeadersExtractAdapter.GETTER;
@@ -65,7 +67,7 @@ public class DubboDecorator extends BaseDecorator {
       span = startSpan(DUBBO_REQUEST);
     }else{
       // this is provider
-      AgentSpanContext parentContext = propagate().extract(rpcContext, GETTER);
+      AgentSpanContext parentContext = extractContextAndGetSpanContext(rpcContext, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
     }
     span.setTag(TAG_URL, url.toString());
@@ -76,9 +78,9 @@ public class DubboDecorator extends BaseDecorator {
     afterStart(span);
 
     withMethod(span, resourceName);
-//    if (isConsumer){
-      propagate().inject(span, rpcContext, SETTER);
-//    }
+    //propagate().inject(span, rpcContext, SETTER);
+    defaultPropagator().inject(span, rpcContext, SETTER);
+
     return span;
   }
 

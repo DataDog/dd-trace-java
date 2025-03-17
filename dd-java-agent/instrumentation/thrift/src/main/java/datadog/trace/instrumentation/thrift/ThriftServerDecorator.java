@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.thrift;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.thrift.ExtractAdepter.GETTER;
 import static datadog.trace.instrumentation.thrift.ThriftConstants.*;
@@ -34,7 +34,7 @@ public class ThriftServerDecorator extends ThriftBaseDecorator {
   }
 
   public AgentSpan createSpan(Map<String, String> header,AbstractContext context) {
-    AgentSpanContext parentContext = propagate().extract(header, GETTER);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(header, GETTER);
 //    AgentSpan span = startSpan(spanName(),parentContext,context.startTime);
     AgentSpan span = startSpan(spanName(),parentContext);
     withMethod(span, context.methodName);

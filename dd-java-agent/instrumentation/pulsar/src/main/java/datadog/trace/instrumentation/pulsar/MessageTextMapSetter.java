@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.pulsar;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import org.apache.pulsar.client.impl.MessageImpl;
 
-public class MessageTextMapSetter implements AgentPropagation.Setter<PulsarRequest>{
+public class MessageTextMapSetter implements CarrierSetter<PulsarRequest>{
   public static final MessageTextMapSetter SETTER = new MessageTextMapSetter();
   @Override
   public void set(PulsarRequest carrier, String key, String value) {

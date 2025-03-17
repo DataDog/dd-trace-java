@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.rocketmq;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import org.apache.rocketmq.client.hook.SendMessageContext;
 
-import java.util.Map;
-
-public class TextMapInjectAdapter implements AgentPropagation.Setter<SendMessageContext>{
+public class TextMapInjectAdapter implements CarrierSetter<SendMessageContext>{
 
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 

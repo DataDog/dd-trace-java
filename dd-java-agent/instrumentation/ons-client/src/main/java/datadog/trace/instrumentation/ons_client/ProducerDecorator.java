@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.ons_client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.ons_client.InjectAdapter.SETTER;
+
 import com.aliyun.openservices.ons.api.Message;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.ons_client.InjectAdapter.SETTER;
 
 public class ProducerDecorator extends BaseDecorator {
   public static final CharSequence ROCKETMQ_NAME = UTF8BytesString.create("rocketmq");
@@ -49,7 +50,7 @@ public class ProducerDecorator extends BaseDecorator {
     }
     span.setTag("topic",topic);
     //span.setTag(MESSAGE_ID,message.getMsgID());
-    propagate().inject(span,message,SETTER); // 传递链路信息
+    defaultPropagator().inject(span,message,SETTER); // 传递链路信息
     afterStart(span);
     return activateSpan(span);
   }

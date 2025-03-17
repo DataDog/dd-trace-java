@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq5;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.rocketmq5.MessageViewGetter.GetterView;
 
@@ -34,7 +35,7 @@ public class ReceiveSpanFinishingCallback implements FutureCallback<ReceiveMessa
 
     for (MessageViewImpl messageView : messageViews) {
     //  propagate().inject(span.context(),messageView,setterView);
-      AgentSpanContext parentContext = propagate().extract(messageView,GetterView);
+      AgentSpanContext parentContext = extractContextAndGetSpanContext(messageView,GetterView);
       AgentSpan childSpan ;
       if (null != parentContext){
         childSpan = startSpan("receive_message",parentContext);

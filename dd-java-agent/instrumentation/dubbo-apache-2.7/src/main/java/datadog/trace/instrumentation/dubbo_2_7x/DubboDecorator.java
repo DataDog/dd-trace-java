@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboConstants.*;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersInjectAdapter.SETTER;
+
 import com.google.gson.Gson;
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,11 +19,6 @@ import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.rpc.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboConstants.*;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersInjectAdapter.SETTER;
 
 public class DubboDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(DubboDecorator.class);
@@ -75,13 +75,13 @@ public class DubboDecorator extends BaseDecorator {
     if (isConsumer){
       // this is consumer
       span = startSpan(DUBBO_REQUEST);
-      propagate().inject(span, dubboTraceInfo, SETTER);
+      defaultPropagator().inject(span, dubboTraceInfo, SETTER);
     }else{
       // this is provider
-      AgentSpanContext parentContext = propagate().extract(dubboTraceInfo, GETTER);
+      AgentSpanContext parentContext = extractContextAndGetSpanContext(dubboTraceInfo, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
       if (Config.get().isDubboProviderPropagateEnabled()){
-        propagate().inject(span, dubboTraceInfo, SETTER);
+        defaultPropagator().inject(span, dubboTraceInfo, SETTER);
       }
     }
     span.setTag(TAG_URL, url.toString());

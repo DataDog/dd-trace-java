@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq5;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.rocketmq5.MessageViewGetter.GetterView;
 
@@ -21,7 +22,7 @@ public class MessageListenerWrapper implements MessageListener {
   public ConsumeResult consume(MessageView messageView) {
     ConsumeResult consumeResult = null;
     // todo  start span and end
-    AgentSpanContext parentContext =propagate().extract(messageView, GetterView);
+    AgentSpanContext parentContext =extractContextAndGetSpanContext(messageView, GetterView);
 
     AgentSpan span ;
     if (null != parentContext){

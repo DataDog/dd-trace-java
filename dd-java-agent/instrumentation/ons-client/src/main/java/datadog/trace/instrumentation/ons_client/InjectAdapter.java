@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.ons_client;
 
 import com.aliyun.openservices.ons.api.Message;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 
-public class InjectAdapter implements AgentPropagation.Setter<Message>{
+public class InjectAdapter implements CarrierSetter<Message>{
 
   public static final InjectAdapter SETTER = new InjectAdapter();
   

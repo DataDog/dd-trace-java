@@ -1,17 +1,16 @@
 package datadog.trace.instrumentation.thrift;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.instrumentation.thrift.InjectAdepter.SETTER;
+import static datadog.trace.instrumentation.thrift.ThriftConstants.*;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.*;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.instrumentation.thrift.InjectAdepter.SETTER;
-import static datadog.trace.instrumentation.thrift.ThriftConstants.*;
 
 /**
  * Wrapping client output protocol for injecting and propagating the trace header. This is also safe even if the server
@@ -38,7 +37,7 @@ public class ClientOutProtocolWrapper extends TProtocolDecorator {
     if (!injected && Optional.ofNullable(span).isPresent()) {
       try {
         Map<String, String> map = new HashMap<>();
-        propagate().inject(span, map, SETTER);
+        defaultPropagator().inject(span, map, SETTER);
         writeHeader(map);
       } catch (Throwable throwable) {
         if (log.isDebugEnabled()) {

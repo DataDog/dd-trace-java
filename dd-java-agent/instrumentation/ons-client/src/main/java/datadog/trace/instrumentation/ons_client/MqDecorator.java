@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.ons_client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.ons_client.ExtractAdapter.GETTER;
 
@@ -38,7 +39,7 @@ public class MqDecorator extends BaseDecorator {
   }
 
   public AgentScope OnStart(Message message) {
-    AgentSpanContext parentContext = propagate().extract(message,GETTER);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(message,GETTER);
     String topic = message.getTopic();
     UTF8BytesString spanName = UTF8BytesString.create("producer send");
     AgentSpan span;

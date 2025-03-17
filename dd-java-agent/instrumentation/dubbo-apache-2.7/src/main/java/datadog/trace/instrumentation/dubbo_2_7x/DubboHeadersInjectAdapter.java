@@ -1,14 +1,10 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.RpcContext;
+import datadog.context.propagation.CarrierSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-public class DubboHeadersInjectAdapter implements AgentPropagation.Setter<DubboTraceInfo> {
+public class DubboHeadersInjectAdapter implements CarrierSetter<DubboTraceInfo> {
   public static final DubboHeadersInjectAdapter SETTER = new DubboHeadersInjectAdapter();
   private static final Logger log = LoggerFactory.getLogger(DubboHeadersInjectAdapter.class);
   @Override

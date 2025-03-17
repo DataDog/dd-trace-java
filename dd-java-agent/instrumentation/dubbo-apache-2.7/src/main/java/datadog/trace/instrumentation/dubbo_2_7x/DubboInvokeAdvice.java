@@ -1,5 +1,10 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboDecorator.DECORATE;
+import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
@@ -7,10 +12,6 @@ import org.apache.dubbo.rpc.Filter;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.RpcContext;
 import org.apache.dubbo.rpc.RpcInvocation;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboDecorator.DECORATE;
-import static datadog.trace.instrumentation.dubbo_2_7x.DubboHeadersExtractAdapter.GETTER;
 
 public class DubboInvokeAdvice {
 
@@ -22,7 +23,7 @@ public class DubboInvokeAdvice {
       return scope;
     }
     if (null == scope) {
-      AgentSpanContext parentContext = propagate().extract(dubboTraceInfo, GETTER);
+      AgentSpanContext parentContext = extractContextAndGetSpanContext(dubboTraceInfo, GETTER);
       if (null != parentContext) {
         hasSpan = true;
         return activateSpan(startSpan("dubbo/filter",parentContext));

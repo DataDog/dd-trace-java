@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.hsf;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hsf.HSFExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.hsf.HSFInjectAdapter.SETTER;
@@ -46,12 +47,12 @@ public class HSFDecorator extends BaseDecorator {
     afterStart(span);
     span.setTag("args",methodArgs(invocation));
     span.setTag("argsV",methodArgsV(invocation));
-    propagate().inject(span, RPCContext.getClientContext(), SETTER);
+    defaultPropagator().inject(span, RPCContext.getClientContext(), SETTER);
     return span;
   }
 
   public AgentSpan buildServerSpan(Invocation invocation){
-    AgentSpanContext parentContext = propagate().extract(RPCContext.getServerContext(), GETTER);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(RPCContext.getServerContext(), GETTER);
     AgentSpan span = startSpan(component(),parentContext);
 
     span.setResourceName(invocation.getServerInvocationContext().getMetadata().getUniqueName());

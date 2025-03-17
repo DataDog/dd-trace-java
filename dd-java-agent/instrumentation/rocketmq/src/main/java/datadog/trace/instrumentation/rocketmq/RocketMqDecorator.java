@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
 import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
@@ -55,7 +57,7 @@ public class RocketMqDecorator extends BaseDecorator {
 
   public AgentScope start(ConsumeMessageContext context) {
     MessageExt ext = context.getMsgList().get(0);
-    AgentSpanContext parentContext = propagate().extract(ext, GETTER);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(ext, GETTER);
     UTF8BytesString name = UTF8BytesString.create(ext.getTopic() + " receive");
     final AgentSpan span = startSpan(name, parentContext);
     span.setResourceName(name);
@@ -128,7 +130,7 @@ public class RocketMqDecorator extends BaseDecorator {
       span.setTag(MESSAGING_ROCKETMQ_BROKER_ADDRESS, brokerAddr);
     }
 
-    propagate().inject(span, context, SETTER);
+    defaultPropagator().inject(span, context, SETTER);
     AgentScope scope = activateSpan(span);
     afterStart(span);
     if (log.isDebugEnabled()){

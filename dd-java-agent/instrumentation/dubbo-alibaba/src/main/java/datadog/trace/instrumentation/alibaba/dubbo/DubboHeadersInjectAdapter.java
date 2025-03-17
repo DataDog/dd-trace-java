@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.alibaba.dubbo;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import com.alibaba.dubbo.rpc.RpcContext;
+import datadog.context.propagation.CarrierSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DubboHeadersInjectAdapter implements AgentPropagation.Setter<RpcContext> {
+public class DubboHeadersInjectAdapter implements CarrierSetter<RpcContext> {
   public static final DubboHeadersInjectAdapter SETTER = new DubboHeadersInjectAdapter();
   private static final Logger log = LoggerFactory.getLogger(DubboHeadersInjectAdapter.class);
   @Override

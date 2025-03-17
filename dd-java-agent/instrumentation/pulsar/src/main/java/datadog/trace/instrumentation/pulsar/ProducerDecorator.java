@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.pulsar;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.pulsar.MessageTextMapSetter.SETTER;
 
@@ -43,7 +43,7 @@ public class ProducerDecorator extends BaseDecorator {
     span.setTag("messaging.id",request.getMessage().getMessageId());
     // afterStart(span);
     span.setSpanType("queue");
-    propagate().inject(span,request, SETTER);
+    defaultPropagator().inject(span,request, SETTER);
     return  activateSpan(span);
   } 
 

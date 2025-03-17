@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.mqttv5;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
+import java.util.List;
 import org.eclipse.paho.mqttv5.common.packet.UserProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
-public class UserPropertyInjectAdapter implements AgentPropagation.Setter<List<UserProperty>> {
+public class UserPropertyInjectAdapter implements CarrierSetter<List<UserProperty>> {
   public static final UserPropertyInjectAdapter SETTER = new UserPropertyInjectAdapter();
   private static final Logger log = LoggerFactory.getLogger(UserPropertyInjectAdapter.class);
   @Override
