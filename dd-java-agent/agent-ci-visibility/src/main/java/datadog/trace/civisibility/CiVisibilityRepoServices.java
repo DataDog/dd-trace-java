@@ -121,8 +121,8 @@ public class CiVisibilityRepoServices {
     // check if it was set manually
     return new PullRequestInfo(
         null,
-        environment.get(Constants.DD_TARGET_BRANCH_HEAD_SHA),
-        environment.get(Constants.DD_FEATURE_BRANCH_HEAD_SHA));
+        environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
+        environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {

@@ -12,14 +12,14 @@ public interface Constants {
   String CI_VISIBILITY_INSTRUMENTATION_NAME = "civisibility";
 
   /**
-   * Env var containing SHA of the feature branch HEAD commit when running in a PR. Can be set
-   * manually if the necessary data is not exposed by the CI provider
+   * Env var containing SHA of the feature branch HEAD commit when running in a PR. Set manually if
+   * the necessary data is not exposed by the CI provider
    */
-  String DD_FEATURE_BRANCH_HEAD_SHA = "DD_FEATURE_BRANCH_HEAD_SHA";
+  String DDCI_PULL_REQUEST_SOURCE_SHA = "DDCI_PULL_REQUEST_SOURCE_SHA";
 
   /**
-   * Env var containing SHA of the target branch HEAD commit when running in a PR. Can be set
-   * manually if the necessary data is not exposed by the CI provider
+   * Env var containing SHA of the target branch HEAD commit when running in a PR. Set manually if
+   * the necessary data is not exposed by the CI provider
    */
-  String DD_TARGET_BRANCH_HEAD_SHA = "DD_TARGET_BRANCH_HEAD_SHA";
+  String DDCI_PULL_REQUEST_TARGET_SHA = "DDCI_PULL_REQUEST_TARGET_SHA";
 }
