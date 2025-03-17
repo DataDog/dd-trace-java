@@ -1,3 +1,5 @@
+import org.testcontainers.utility.DockerImageName
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -17,7 +19,7 @@ import spock.lang.Shared
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
-  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME).waitingFor(Wait.forListeningPort())
+  RedisServer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6")).waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()
