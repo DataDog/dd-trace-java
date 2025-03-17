@@ -94,6 +94,7 @@ public final class GeneralConfig {
   public static final String AGENTLESS_LOG_SUBMISSION_LEVEL = "agentless.log.submission.level";
   public static final String AGENTLESS_LOG_SUBMISSION_URL = "agentless.log.submission.url";
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
+  public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
   private GeneralConfig() {}
 }
