@@ -88,14 +88,15 @@ default:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
   variables:
-    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     MAVEN_OPTS: "-Xms64M -Xmx512M"
     GRADLE_WORKERS: 2
+    GRADLE_MEM: 2560M
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    BUILD_CACHE_TYPE: lib #default
   cache:
-    - key: '$CI_SERVER_VERSION-v2' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+    - key: '$CI_SERVER_VERSION-$BUILD_CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
       paths:
         # Cached dependencies and wrappers for gradle
         - .gradle/wrapper
@@ -111,6 +112,7 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     - export GRADLE_USER_HOME=`pwd`/.gradle
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx$GRADLE_MEM -Xms$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS -PmavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -147,8 +149,32 @@ build:
     reports:
       dotenv: build.env
 
+build_tests:
+  extends: .gradle_build
+  variables:
+    BUILD_CACHE_POLICY: push
+    BUILD_CACHE_TYPE: test
+    DEPENDENCY_CACHE_POLICY: pull
+    GRADLE_MEM: 4G
+    GRADLE_WORKERS: 4
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
+  script:
+    - ./gradlew clean :baseTest :instrumentationTest :instrumentationLatestDepTest :instrumentationTest :profilingTest -PskipTests $GRADLE_ARGS
+
 build_and_populate_dep_cache:
   extends: build
+  variables:
+    BUILD_CACHE_POLICY: push
+    DEPENDENCY_CACHE_POLICY: push
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+    - when: manual
+      allow_failure: true
+
+build_and_populate_test_dep_cache:
+  extends: build_tests
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: push
@@ -241,11 +267,11 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
-  needs: [ build ]
+  needs: [ build_tests ]
   stage: tests
   parallel: 8
   variables:
-    BUILD_CACHE_TYPE: lib
+    BUILD_CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
@@ -265,7 +291,7 @@ muzzle:
 
 muzzle-dep-report:
   extends: .gradle_build
-  needs: [ build ]
+  needs: [ build_tests ]
   stage: tests
   variables:
     BUILD_CACHE_TYPE: test
@@ -299,14 +325,14 @@ muzzle-dep-report:
   extends: .gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
-  needs: [ build ]
+  needs: [ build_tests ]
   stage: tests
   variables:
     KUBERNETES_MEMORY_REQUEST: 16Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
-    BUILD_CACHE_TYPE: lib
+    BUILD_CACHE_TYPE: test
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -319,6 +345,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
+    - exit 1
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
@@ -338,6 +365,8 @@ muzzle-dep-report:
       - ./profiles.tar
       - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
 
 .test_job_with_test_agent:
   extends: .test_job
