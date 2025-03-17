@@ -345,6 +345,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
   def "build context from ExtractedContext with TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart"() {
     setup:
     injectSysConfig("trace.propagation.behavior.extract", "restart")
+    def extractedContext = new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null, DATADOG)
     final DDSpan span = tracer.buildSpan("test", "op name")
       .asChildOf(extractedContext).start()
 
@@ -360,10 +361,6 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     link.traceId() == extractedContext.traceId
     link.spanId() == extractedContext.spanId
     link.traceState() == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.W3C)
-
-    where:
-    extractedContext                                                                                                                                                                                                                         | _
-    new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null, DATADOG) | _
   }
 
   def "TagContext should populate default span details"() {

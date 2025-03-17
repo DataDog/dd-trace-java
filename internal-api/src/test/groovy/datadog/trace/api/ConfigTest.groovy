@@ -2674,4 +2674,16 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
     config.tracePropagationStylesToExtract.toList() == []
   }
+
+  def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "test")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
+  }
 }

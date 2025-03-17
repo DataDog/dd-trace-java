@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.TracePropagationBehaviorExtract
+
 import static datadog.trace.api.DDTags.PARENT_ID
 import static datadog.trace.api.TracePropagationStyle.NONE
 
@@ -33,7 +35,6 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
       isTracePropagationExtractFirst() >> extractFirst
-      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create()
       .setHeaderTags(["SOME_HEADER": "some-tag"])
@@ -120,7 +121,6 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
-      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })
@@ -173,7 +173,6 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
-      getTracePropagationBehaviorExtract() >> "continue"
     }
     DynamicConfig dynamicConfig = DynamicConfig.create().apply()
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, { dynamicConfig.captureTraceConfig() })

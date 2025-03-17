@@ -53,6 +53,11 @@ public interface AgentSpanContext {
 
   default void mergePathwayContext(PathwayContext pathwayContext) {}
 
+  /**
+   * Gets whether the span context used is part of the local trace or from another service
+   *
+   * @return boolean representing if the span context is part of the local trace
+   */
   boolean isRemote();
 
   interface Extracted extends AgentSpanContext {

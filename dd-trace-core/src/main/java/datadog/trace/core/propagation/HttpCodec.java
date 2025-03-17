@@ -171,6 +171,8 @@ public class HttpCodec {
     switch (extractors.size()) {
       case 0:
         return StubExtractor.INSTANCE;
+      case 1:
+        return extractors.get(0);
       default:
         return new CompoundExtractor(extractors, config.isTracePropagationExtractFirst());
     }

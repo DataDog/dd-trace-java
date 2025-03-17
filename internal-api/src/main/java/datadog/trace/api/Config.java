@@ -940,13 +940,20 @@ public class Config {
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
-    tracePropagationBehaviorExtract =
-        TracePropagationBehaviorExtract.valueOf(
-            configProvider
-                .getString(
-                    TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
-                    DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
-                .toUpperCase(Locale.ROOT));
+    TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
+    try {
+      tmpTracePropagationBehaviorExtract =
+          TracePropagationBehaviorExtract.valueOf(
+              configProvider
+                  .getString(
+                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                  .toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
+      log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
+    }
+    tracePropagationBehaviorExtract = tmpTracePropagationBehaviorExtract;
 
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in

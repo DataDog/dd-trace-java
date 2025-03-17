@@ -45,6 +45,6 @@ public final class NotSampledSpanContext implements AgentSpanContext {
 
   @Override
   public boolean isRemote() {
-    return false;
+    return delegate.isRemote();
   }
 }

@@ -1511,27 +1511,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String parentServiceName = null;
       boolean isRemote = false;
 
-      if (parentContext != null && parentContext.isRemote()) {
-        if (Config.get().getTracePropagationBehaviorExtract()
-            == TracePropagationBehaviorExtract.RESTART) {
-          SpanLink link;
-          if (parentContext instanceof ExtractedContext) {
-            ExtractedContext pc = (ExtractedContext) parentContext;
-            link =
-                DDSpanLink.from(
-                    pc,
-                    SpanAttributes.builder()
-                        .put("reason", "propagation_behavior_extract")
-                        .put("context_headers", pc.getPropagationStyle().toString())
-                        .build());
-          } else {
-            link = SpanLink.from(parentContext);
-          }
-          // reset links that may have come terminated span links
-          links = new ArrayList<>();
-          links.add(link);
-          parentContext = null;
+      if (parentContext != null
+          && parentContext.isRemote()
+          && Config.get().getTracePropagationBehaviorExtract()
+              == TracePropagationBehaviorExtract.RESTART) {
+        SpanLink link;
+        if (parentContext instanceof ExtractedContext) {
+          ExtractedContext pc = (ExtractedContext) parentContext;
+          link =
+              DDSpanLink.from(
+                  pc,
+                  SpanAttributes.builder()
+                      .put("reason", "propagation_behavior_extract")
+                      .put("context_headers", pc.getPropagationStyle().toString())
+                      .build());
+        } else {
+          link = SpanLink.from(parentContext);
         }
+        // reset links that may have come terminated span links
+        links = new ArrayList<>();
+        links.add(link);
+        parentContext = null;
       }
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
