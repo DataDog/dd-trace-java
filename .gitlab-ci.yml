@@ -49,23 +49,19 @@ variables:
 # These blocks emulate "parallel" by including it in the matrix
 .test_matrix_4: &test_matrix_4
   - testJvm: *test_jvms
-    CI_NODE_INDEX: ["1", "2", "3", "4"]
-    CI_NODE_TOTAL: 4
+    CI_SPLIT: ["1/4", "2/4", "3/4", "4/4"]
 
 .test_matrix_6: &test_matrix_6
   - testJvm: *test_jvms
-    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6"]
-    CI_NODE_TOTAL: 6
+    CI_SPLIT: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 .test_matrix_8: &test_matrix_8
   - testJvm: *test_jvms
-    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6", "7", "8"]
-    CI_NODE_TOTAL: 8
+    CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
 
 .test_matrix_12: &test_matrix_12
   - testJvm: *test_jvms
-    CI_NODE_INDEX: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
-    CI_NODE_TOTAL: 12
+    CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
 
 default:
   tags: [ "arch:amd64" ]
@@ -82,6 +78,7 @@ default:
 
 # CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
 .normalize_node_index: &normalize_node_index
+  - if [ -n "$CI_SPLIT" ]; then CI_NODE_INDEX="${CI_SPLIT%%/*}"; CI_NODE_TOTAL="${CI_SPLIT##*/}"; fi
   - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
   - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
   - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
@@ -401,8 +398,7 @@ test_inst_latest:
       - testJvm: ["8", "17", "21" ]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
-        CI_NODE_INDEX: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" ]
-        CI_NODE_TOTAL: 12
+        CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
 
 test_flaky:
   extends: .test_job_with_test_agent
@@ -415,8 +411,7 @@ test_flaky:
       - GRADLE_TARGET: [":baseTest", ":instrumentationTest", ":smokeTest", ":debuggerTest"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
-        CI_NODE_INDEX: [ "1", "2", "3", "4" ]
-        CI_NODE_TOTAL: 4
+        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_flaky_inst:
   extends: .test_job
@@ -429,8 +424,7 @@ test_flaky_inst:
     matrix:
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
-      - CI_NODE_INDEX: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" ]
-        CI_NODE_TOTAL: 12
+      - CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
 
 test_profiling:
   extends: .test_job
