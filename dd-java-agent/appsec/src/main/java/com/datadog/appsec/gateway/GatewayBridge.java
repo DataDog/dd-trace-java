@@ -771,9 +771,6 @@ public class GatewayBridge {
 
     maybeExtractSchemas(ctx);
 
-    // WAF call
-    ctx.closeAdditive();
-
     TraceSegment traceSeg = ctx_.getTraceSegment();
 
     // AppSec report metric and events for web span only
