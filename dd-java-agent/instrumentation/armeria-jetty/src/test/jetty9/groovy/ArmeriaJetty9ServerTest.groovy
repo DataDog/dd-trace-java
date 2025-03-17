@@ -2,8 +2,8 @@ import com.linecorp.armeria.server.Server
 import com.linecorp.armeria.server.jetty.JettyService
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.instrumentation.jetty9.JettyServer
-import datadog.trace.instrumentation.jetty9.TestHandler
+import test.JettyServer
+import test.TestHandler
 
 import java.util.concurrent.TimeoutException
 

@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 
 public class DebuggerTracer implements DebuggerContext.Tracer {
   public static final String OPERATION_NAME = "dd.dynamic.span";
@@ -36,7 +35,7 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
         dynamicSpan.setTag(tag.substring(0, idx), tag.substring(idx + 1));
       }
     }
-    AgentScope scope = tracerAPI.activateSpan(dynamicSpan, ScopeSource.MANUAL);
+    AgentScope scope = tracerAPI.activateManualSpan(dynamicSpan);
     return new DebuggerSpanImpl(dynamicSpan, scope, probeStatusSink, encodedProbeId);
   }
 

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.googlehttpclient;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
@@ -60,17 +60,16 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.This HttpRequest request, @Advice.Local("inherited") boolean inheritedScope) {
-      AgentScope scope = activeScope();
-      // detect if scope was propagated here by java-concurrent handling
+        @Advice.This HttpRequest request, @Advice.Local("inherited") AgentSpan inheritedSpan) {
+      AgentSpan activeSpan = activeSpan();
+      // detect if span was propagated here by java-concurrent handling
       // of async requests
-      if (null != scope) {
-        AgentSpan span = scope.span();
+      if (null != activeSpan) {
         // reference equality to check this instrumentation created the span,
         // not some other HTTP client
-        if (HTTP_REQUEST == span.getOperationName()) {
-          inheritedScope = true;
-          return scope;
+        if (HTTP_REQUEST == activeSpan.getOperationName()) {
+          inheritedSpan = activeSpan;
+          return null;
         }
       }
       return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
@@ -79,18 +78,18 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter AgentScope scope,
-        @Advice.Local("inherited") boolean inheritedScope,
+        @Advice.Local("inherited") AgentSpan inheritedSpan,
         @Advice.Return final HttpResponse response,
         @Advice.Thrown final Throwable throwable) {
       try {
-        AgentSpan span = scope.span();
+        AgentSpan span = scope != null ? scope.span() : inheritedSpan;
         DECORATE.onError(span, throwable);
         DECORATE.onResponse(span, response);
 
         DECORATE.beforeFinish(span);
         span.finish();
       } finally {
-        if (!inheritedScope) {
+        if (scope != null) {
           scope.close();
         }
       }

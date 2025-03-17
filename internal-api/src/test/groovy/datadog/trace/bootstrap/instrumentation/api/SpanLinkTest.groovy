@@ -142,4 +142,18 @@ class SpanLinkTest extends Specification {
     then:
     notThrown(NullPointerException)
   }
+
+  def "test span link attributes equals and hashcode"() {
+    when:
+    def a = SpanAttributes.builder().put("test", "value").build()
+    def b = SpanAttributes.builder().put("test", "value").build()
+    def c = SpanAttributes.builder().build()
+
+    then:
+    assert a == b
+    assert a != c
+    assert !c.equals(null)
+    assert a.hashCode() == b.hashCode()
+    assert a.hashCode() !=  c.hashCode()
+  }
 }

@@ -14,9 +14,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
-import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
@@ -82,10 +80,7 @@ public abstract class BaseIntegrationTest {
   protected static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
   private static final ByteString DIAGNOSTICS_STR = ByteString.encodeUtf8("diagnostics");
-  private static final String LD_CONFIG_ID = UUID.randomUUID().toString();
-  private static final String APM_CONFIG_ID = UUID.randomUUID().toString();
-  public static final String LIVE_DEBUGGING_PRODUCT = "LIVE_DEBUGGING";
-  public static final String APM_TRACING_PRODUCT = "APM_TRACING";
+  private static final String CONFIG_ID = UUID.randomUUID().toString();
 
   protected MockWebServer datadogAgentServer;
   private MockDispatcher probeMockDispatcher;
@@ -95,7 +90,6 @@ public abstract class BaseIntegrationTest {
   protected Path logFilePath;
   protected Process targetProcess;
   private Configuration currentConfiguration;
-  private ConfigOverrides configOverrides;
   private boolean configProvided;
   protected final Object configLock = new Object();
   protected final List<Consumer<JsonSnapshotSerializer.IntakeRequest>> intakeRequestListeners =
@@ -153,7 +147,6 @@ public abstract class BaseIntegrationTest {
             "-Ddd.profiling.enabled=false",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
             "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
-            "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
@@ -420,12 +413,10 @@ public abstract class BaseIntegrationTest {
     return EMPTY_200_RESPONSE;
   }
 
-  protected MockResponse handleConfigRequests() {
+  private MockResponse handleConfigRequests() {
     Configuration configuration;
-    ConfigOverrides configOverrides;
     synchronized (configLock) {
       configuration = getCurrentConfiguration();
-      configOverrides = getConfigOverrides();
       configProvided = true;
       configLock.notifyAll();
     }
@@ -435,22 +426,9 @@ public abstract class BaseIntegrationTest {
     try {
       JsonAdapter<Configuration> adapter =
           MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
-      String liveDebuggingJson = adapter.toJson(configuration);
-      LOG.info("Sending Live Debugging json: {}", liveDebuggingJson);
-      List<RemoteConfigHelper.RemoteConfig> remoteConfigs = new ArrayList<>();
-      remoteConfigs.add(
-          new RemoteConfigHelper.RemoteConfig(
-              LIVE_DEBUGGING_PRODUCT, liveDebuggingJson, LD_CONFIG_ID));
-      if (configOverrides != null) {
-        JsonAdapter<ConfigOverrides> configAdapter =
-            new Moshi.Builder().build().adapter(ConfigOverrides.class);
-        String configOverridesJson = configAdapter.toJson(configOverrides);
-        LOG.info("Sending configOverrides json: {}", configOverridesJson);
-        remoteConfigs.add(
-            new RemoteConfigHelper.RemoteConfig(
-                APM_TRACING_PRODUCT, configOverridesJson, APM_CONFIG_ID));
-      }
-      String remoteConfigJson = RemoteConfigHelper.encode(remoteConfigs);
+      String json = adapter.toJson(configuration);
+      LOG.info("Sending json config: {}", json);
+      String remoteConfigJson = RemoteConfigHelper.encode(json, CONFIG_ID);
       return new MockResponse().setResponseCode(200).setBody(remoteConfigJson);
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -460,12 +438,6 @@ public abstract class BaseIntegrationTest {
   private Configuration getCurrentConfiguration() {
     synchronized (configLock) {
       return currentConfiguration;
-    }
-  }
-
-  private ConfigOverrides getConfigOverrides() {
-    synchronized (configLock) {
-      return configOverrides;
     }
   }
 
@@ -486,12 +458,6 @@ public abstract class BaseIntegrationTest {
     synchronized (configLock) {
       this.currentConfiguration = configuration;
       configProvided = false;
-    }
-  }
-
-  protected void setConfigOverrides(ConfigOverrides configOverrides) {
-    synchronized (configLock) {
-      this.configOverrides = configOverrides;
     }
   }
 
@@ -647,24 +613,5 @@ public abstract class BaseIntegrationTest {
     int getPort() {
       return socket.getLocalPort();
     }
-  }
-
-  static final class ConfigOverrides {
-    @Json(name = "lib_config")
-    public LibConfig libConfig;
-  }
-
-  static final class LibConfig {
-    @Json(name = "dynamic_instrumentation_enabled")
-    public Boolean dynamicInstrumentationEnabled;
-
-    @Json(name = "exception_replay_enabled")
-    public Boolean exceptionReplayEnabled;
-
-    @Json(name = "code_origin_enabled")
-    public Boolean codeOriginEnabled;
-
-    @Json(name = "live_debugging_enabled")
-    public Boolean liveDebuggingEnabled;
   }
 }

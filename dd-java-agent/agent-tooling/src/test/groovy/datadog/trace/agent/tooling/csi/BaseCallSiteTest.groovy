@@ -24,18 +24,19 @@ import java.security.MessageDigest
 import java.lang.reflect.Method
 import java.security.ProtectionDomain
 
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.BEFORE
 import static net.bytebuddy.matcher.ElementMatchers.any
 import static net.bytebuddy.matcher.ElementMatchers.named
 
 @CompileDynamic
 class BaseCallSiteTest extends DDSpecification {
 
-  protected CallSites mockCallSites(final CallSiteAdvice advice, final Pointcut target, final String... helpers) {
+  protected CallSites mockCallSites(final byte type = BEFORE, final CallSiteAdvice advice, final Pointcut target, final String... helpers) {
     return Stub(CallSites) {
       accept(_ as CallSites.Container) >> {
         final container = it[0] as CallSites.Container
         container.addHelpers(helpers)
-        container.addAdvice(target.type, target.method, target.descriptor, advice)
+        container.addAdvice(type, target.type, target.method, target.descriptor, advice)
       }
     }
   }
@@ -44,10 +45,16 @@ class BaseCallSiteTest extends DDSpecification {
     final advices = [:] as Map<String, Map<String, Map<String, CallSiteAdvice>>>
     final helpers = [] as Set<String>
     final container = Stub(CallSites.Container) {
-      addAdvice(_ as String, _ as String, _ as String, _ as CallSiteAdvice) >> {
-        advices.computeIfAbsent(it[0] as String, t -> [:])
-        .computeIfAbsent(it[1] as String, m -> [:])
-        .put(it[2] as String, it[3] as CallSiteAdvice)
+      addAdvice(_, _ as String, _ as String, _ as String, _ as CallSiteAdvice) >> {
+        final type = it[0] as byte
+        final owner = it[1] as String
+        final method = it[2] as String
+        final descriptor = it[3] as String
+        final advice = it[4] as CallSiteAdvice
+        advices
+        .computeIfAbsent(owner, t -> [:])
+        .computeIfAbsent(method, m -> [:])
+        .put(descriptor, advice)
       }
       addHelpers(_ as String[]) >> {
         Collections.addAll(helpers, it[0] as String[])

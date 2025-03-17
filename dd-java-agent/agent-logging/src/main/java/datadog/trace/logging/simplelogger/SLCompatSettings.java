@@ -33,6 +33,7 @@ public class SLCompatSettings {
     public static final String SHOW_THREAD_NAME = "showThreadName";
     public static final String DATE_TIME_FORMAT = "dateTimeFormat";
     public static final String SHOW_DATE_TIME = "showDateTime";
+    public static final String JSON_ENABLED = "jsonEnabled";
     public static final String DEFAULT_LOG_LEVEL = "defaultLogLevel";
     public static final String EMBED_EXCEPTION = "embedException";
     public static final String CONFIGURATION_FILE = "configurationFile";
@@ -53,6 +54,7 @@ public class SLCompatSettings {
     public static final String SHOW_THREAD_NAME = PREFIX + Names.SHOW_THREAD_NAME;
     public static final String DATE_TIME_FORMAT = PREFIX + Names.DATE_TIME_FORMAT;
     public static final String SHOW_DATE_TIME = PREFIX + Names.SHOW_DATE_TIME;
+    public static final String JSON_ENABLED = PREFIX + Names.JSON_ENABLED;
     public static final String DEFAULT_LOG_LEVEL = PREFIX + Names.DEFAULT_LOG_LEVEL;
     public static final String EMBED_EXCEPTION = PREFIX + Names.EMBED_EXCEPTION;
 
@@ -70,6 +72,7 @@ public class SLCompatSettings {
     public static final boolean SHOW_THREAD_NAME = true;
     public static final String DATE_TIME_FORMAT = null;
     public static final boolean SHOW_DATE_TIME = false;
+    public static final boolean JSON_ENABLED = false;
     public static final String DEFAULT_LOG_LEVEL = "INFO";
     public static final boolean EMBED_EXCEPTION = false;
 
@@ -271,6 +274,7 @@ public class SLCompatSettings {
   final boolean showThreadName;
   final DTFormatter dateTimeFormatter;
   final boolean showDateTime;
+  final boolean jsonEnabled;
   final LogLevel defaultLogLevel;
   final boolean embedException;
 
@@ -304,6 +308,7 @@ public class SLCompatSettings {
             getString(
                 properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)),
         getBoolean(properties, fileProperties, Keys.SHOW_DATE_TIME, Defaults.SHOW_DATE_TIME),
+        getBoolean(properties, fileProperties, Keys.JSON_ENABLED, Defaults.JSON_ENABLED),
         LogLevel.fromString(
             getString(
                 properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)),
@@ -321,6 +326,7 @@ public class SLCompatSettings {
       boolean showThreadName,
       DTFormatter dateTimeFormatter,
       boolean showDateTime,
+      boolean jsonEnabled,
       LogLevel defaultLogLevel,
       boolean embedException) {
     this.properties = properties;
@@ -333,6 +339,7 @@ public class SLCompatSettings {
     this.showThreadName = showThreadName;
     this.dateTimeFormatter = dateTimeFormatter;
     this.showDateTime = showDateTime;
+    this.jsonEnabled = jsonEnabled;
     this.defaultLogLevel = defaultLogLevel;
     this.embedException = embedException;
   }
@@ -375,6 +382,7 @@ public class SLCompatSettings {
     settingsDescription.put(Names.SHOW_SHORT_LOG_NAME, showShortLogName);
     settingsDescription.put(Names.SHOW_THREAD_NAME, showThreadName);
     settingsDescription.put(Names.SHOW_DATE_TIME, showDateTime);
+    settingsDescription.put(Names.JSON_ENABLED, jsonEnabled);
     String dateTimeFormat =
         getString(properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT);
     settingsDescription.put(

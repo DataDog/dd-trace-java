@@ -320,6 +320,7 @@ class ConfigurationApiImplTest extends Specification {
     .repositoryUrl("https://github.com/DataDog/foo")
     .branch("prod")
     .sha("d64185e45d1722ab3a53c45be47accae")
+    .commitMessage("full commit message")
     .osPlatform("linux")
     .osArchitecture("amd64")
     .osVersion("bionic")

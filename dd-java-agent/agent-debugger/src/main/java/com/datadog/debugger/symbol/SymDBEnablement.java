@@ -84,10 +84,7 @@ public class SymDBEnablement implements ProductListener {
 
   public void stopSymbolExtraction() {
     LOGGER.debug("Stopping symbol extraction.");
-    if (symbolExtractionTransformer != null) {
-      instrumentation.removeTransformer(symbolExtractionTransformer);
-      symbolExtractionTransformer = null;
-    }
+    instrumentation.removeTransformer(symbolExtractionTransformer);
   }
 
   long getLastUploadTimestamp() {

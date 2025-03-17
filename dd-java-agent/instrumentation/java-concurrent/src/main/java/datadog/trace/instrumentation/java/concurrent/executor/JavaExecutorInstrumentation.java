@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
@@ -38,7 +37,6 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State enterJobSubmit(
-        @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       if (task instanceof RunnableFuture) {
         return null;
@@ -51,7 +49,7 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
         // It is important to check potentially wrapped task if we can instrument task in this
         // executor. Some executors do not support wrapped tasks.
-        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
+        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, span)) {
           task = newTask;
           final ContextStore<Runnable, State> contextStore =
               InstrumentationContext.get(Runnable.class, State.class);
@@ -63,10 +61,8 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exitJobSubmit(
-        @Advice.This final Executor executor,
-        @Advice.Enter final State state,
-        @Advice.Thrown final Throwable throwable) {
-      ExecutorInstrumentationUtils.cleanUpOnMethodExit(executor, state, throwable);
+        @Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
+      ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
     }
   }
 }

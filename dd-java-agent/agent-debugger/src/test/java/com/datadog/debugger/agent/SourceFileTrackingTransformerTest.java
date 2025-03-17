@@ -1,7 +1,7 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.probe.LogProbe;
 import java.lang.instrument.IllegalClassFormatException;
@@ -58,12 +58,22 @@ class SourceFileTrackingTransformerTest {
         null,
         null,
         getClassFileBytes(InnerHelper.MyInner.class));
+    sourceFileTrackingTransformer.transform(
+        null,
+        getInternalName(InnerHelper.MySecondInner.class),
+        null,
+        null,
+        getClassFileBytes(InnerHelper.MySecondInner.class));
     changedClasses =
         finder.getAllLoadedChangedClasses(
-            new Class[] {InnerHelper.class, InnerHelper.MyInner.class}, comparer);
-    assertEquals(2, changedClasses.size());
+            new Class[] {
+              InnerHelper.class, InnerHelper.MyInner.class, InnerHelper.MySecondInner.class
+            },
+            comparer);
+    assertEquals(3, changedClasses.size());
     assertEquals(InnerHelper.class, changedClasses.get(0));
     assertEquals(InnerHelper.MyInner.class, changedClasses.get(1));
+    assertEquals(InnerHelper.MySecondInner.class, changedClasses.get(2));
   }
 
   private ConfigurationComparer createComparer(String sourceFile) {

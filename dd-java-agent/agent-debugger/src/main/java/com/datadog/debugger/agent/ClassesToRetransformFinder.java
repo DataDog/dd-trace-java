@@ -9,9 +9,11 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ProbeDefinition;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -19,21 +21,20 @@ import org.slf4j.LoggerFactory;
 
 public class ClassesToRetransformFinder {
   private static final Logger LOGGER = LoggerFactory.getLogger(ClassesToRetransformFinder.class);
+  private static final Pattern COMMA_PATTERN = Pattern.compile(",");
 
-  private final ConcurrentMap<String, List<String>> classNamesBySourceFile =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, String> classNamesBySourceFile = new ConcurrentHashMap<>();
 
   public void register(String sourceFile, String className) {
     // store only the class name that are different from SourceFile name
     // (Inner or non-public Top-Level classes)
     classNamesBySourceFile.compute(
         sourceFile,
-        (key, list) -> {
-          if (list == null) {
-            list = new ArrayList<>();
+        (key, classNames) -> {
+          if (classNames == null) {
+            return className;
           }
-          list.add(className);
-          return list;
+          return classNames + "," + className;
         });
   }
 
@@ -89,13 +90,11 @@ public class ClassesToRetransformFinder {
 
   private void processAdditionalClasses(String sourceFile, Trie changedClasses) {
     sourceFile = stripPackagePath(sourceFile);
-    // need to clone the list to avoid concurrent modification during iteration
-    List<String> additionalClasses =
-        classNamesBySourceFile.computeIfPresent(
-            sourceFile, (k, classNames) -> new ArrayList<>(classNames));
-    if (additionalClasses == null) {
+    String classNames = classNamesBySourceFile.get(sourceFile);
+    if (classNames == null) {
       return;
     }
+    List<String> additionalClasses = Arrays.asList(COMMA_PATTERN.split(classNames));
     for (String additionalClass : additionalClasses) {
       additionalClass = normalizeFilePath(additionalClass);
       changedClasses.insert(reverseStr(additionalClass));

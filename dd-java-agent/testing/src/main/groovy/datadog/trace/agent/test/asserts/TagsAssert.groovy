@@ -56,6 +56,21 @@ class TagsAssert {
     tag(name, { it != null })
   }
 
+  def arePresent(Collection<String> tags) {
+    for (String name : tags) {
+      isPresent(name)
+    }
+  }
+
+  def isNotPresent(String name) {
+    tag(name, { it == null })
+  }
+
+  def areNotPresent(Collection<String> tags) {
+    for (String name : tags) {
+      isNotPresent(name)
+    }
+  }
 
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered 'root' for current service
@@ -76,6 +91,7 @@ class TagsAssert {
     assertedTags.add(DDTags.DSM_ENABLED)
     assertedTags.add(DDTags.DJM_ENABLED)
     assertedTags.add(DDTags.PARENT_ID)
+    assertedTags.add(DDTags.SPAN_LINKS) // this is checked by LinksAsserter
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null

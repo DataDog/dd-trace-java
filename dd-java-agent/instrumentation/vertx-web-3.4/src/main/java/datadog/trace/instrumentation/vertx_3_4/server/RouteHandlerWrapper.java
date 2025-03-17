@@ -55,7 +55,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
       updateRoutingContextWithRoute(routingContext);
     }
-    try (final AgentScope scope = span != null ? activateSpan(span, true) : noopScope()) {
+    try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {

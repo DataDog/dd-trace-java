@@ -1,7 +1,6 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
-import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
@@ -16,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static utils.TestHelper.assertWithTimeout;
 
 import com.datadog.debugger.agent.ConfigurationAcceptor;
 import com.datadog.debugger.agent.ConfigurationUpdater;

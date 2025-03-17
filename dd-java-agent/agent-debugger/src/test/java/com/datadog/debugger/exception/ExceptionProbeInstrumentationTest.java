@@ -6,18 +6,17 @@ import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_E
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
-import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.TestHelper.assertWithTimeout;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.ClassesToRetransformFinder;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ConfigurationUpdater;
-import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -57,7 +56,6 @@ import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -84,11 +82,6 @@ public class ExceptionProbeInstrumentationTest {
   private MockSampler probeSampler;
   private MockSampler globalSampler;
 
-  @BeforeAll
-  public static void beforeAll() {
-    setFieldInConfig(Config.get(), "agentUrl", "http://localhost:8126");
-  }
-
   @BeforeEach
   public void before() {
     CoreTracer tracer = CoreTracer.builder().build();
@@ -99,7 +92,6 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    DebuggerAgent.startExceptionReplay();
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
     setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
   }

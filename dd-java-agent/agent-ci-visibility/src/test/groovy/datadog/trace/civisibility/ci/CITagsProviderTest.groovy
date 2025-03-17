@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ci
 
 import datadog.trace.api.Config
-import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.api.git.UserSuppliedGitInfoBuilder
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -9,6 +8,7 @@ import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder
 import datadog.trace.civisibility.git.tree.GitClient
+import datadog.trace.util.Strings
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
@@ -69,7 +69,7 @@ abstract class CITagsProviderTest extends Specification {
       environmentVariables.set(it.key, it.value)
     }
 
-    environmentVariables.set(GitInfo.DD_GIT_COMMIT_SHA, "1234567890123456789012345678901234567890")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "1234567890123456789012345678901234567890")
 
     when:
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
@@ -88,7 +88,7 @@ abstract class CITagsProviderTest extends Specification {
       environmentVariables.set(it.key, it.value)
     }
 
-    environmentVariables.set(GitInfo.DD_GIT_REPOSITORY_URL, "local supplied repo url")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "local supplied repo url")
 
     when:
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))

@@ -15,6 +15,7 @@ import org.example.TestSucceed
 import org.example.TestSucceedFlatSpec
 import org.example.TestSucceedMoreCases
 import org.example.TestSucceedParameterized
+import org.example.TestSucceedSkipEfd
 import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.scalatest.tools.Runner
@@ -83,6 +84,7 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-test"                 | [TestSucceed]          | []
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | []
+    "test-efd-skip-new-test"            | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -176,6 +178,14 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(ScalatestUtils.CAPABILITIES, 4)
   }
 
   @Override

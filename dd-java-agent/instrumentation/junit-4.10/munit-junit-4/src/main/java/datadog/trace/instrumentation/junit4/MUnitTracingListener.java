@@ -10,11 +10,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Strings;
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.List;
 import munit.Suite;
-import munit.Tag;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
@@ -44,7 +41,7 @@ public class MUnitTracingListener extends TracingListener {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     Class<?> testClass = description.getTestClass();
     String testSuiteName = description.getClassName();
-    List<String> categories = getCategories(description);
+    List<String> categories = MUnitUtils.getCategories(description);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.MUNIT)
         .onTestSuiteStart(
@@ -78,7 +75,7 @@ public class MUnitTracingListener extends TracingListener {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
-    List<String> categories = getCategories(description);
+    List<String> categories = MUnitUtils.getCategories(description);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.MUNIT)
         .onTestStart(
@@ -165,7 +162,7 @@ public class MUnitTracingListener extends TracingListener {
         // earlier versions of MUnit (e.g. 0.7.28) trigger "testStarted" event for ignored tests,
         // while newer versions don't
         TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
-        List<String> categories = getCategories(description);
+        List<String> categories = MUnitUtils.getCategories(description);
         TestEventsHandlerHolder.HANDLERS
             .get(TestFrameworkInstrumentation.MUNIT)
             .onTestStart(
@@ -194,7 +191,7 @@ public class MUnitTracingListener extends TracingListener {
       if (!suiteStarted) {
         // there is a bug in MUnit 1.0.1+: start/finish events are not fired for skipped suites
         String testSuiteName = description.getClassName();
-        List<String> categories = getCategories(description);
+        List<String> categories = MUnitUtils.getCategories(description);
         TestEventsHandlerHolder.HANDLERS
             .get(TestFrameworkInstrumentation.MUNIT)
             .onTestSuiteStart(
@@ -237,7 +234,7 @@ public class MUnitTracingListener extends TracingListener {
     TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
     String testName = description.getMethodName();
-    List<String> categories = getCategories(description);
+    List<String> categories = MUnitUtils.getCategories(description);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.MUNIT)
         .onTestIgnore(
@@ -263,16 +260,5 @@ public class MUnitTracingListener extends TracingListener {
       }
     }
     return false;
-  }
-
-  private static List<String> getCategories(Description description) {
-    List<String> categories = new ArrayList<>();
-    for (Annotation annotation : description.getAnnotations()) {
-      if (annotation.annotationType() == Tag.class) {
-        Tag tag = (Tag) annotation;
-        categories.add(tag.value());
-      }
-    }
-    return categories;
   }
 }
