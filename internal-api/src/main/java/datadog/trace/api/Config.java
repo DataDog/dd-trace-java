@@ -563,6 +563,8 @@ public class Config {
   private final boolean apmTracingEnabled;
   private final Set<String> experimentalFeaturesEnabled;
 
+  private final boolean jdkSocketEnabled;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -1958,6 +1960,8 @@ public class Config {
     }
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
+
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
     log.debug("New instance: {}", this);
   }
@@ -3537,6 +3541,10 @@ public class Config {
     return apmTracingEnabled;
   }
 
+  public boolean isJdkSocketEnabled() {
+    return jdkSocketEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -4784,6 +4792,8 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
+        + ", jdkSocketEnabled="
+        + jdkSocketEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
