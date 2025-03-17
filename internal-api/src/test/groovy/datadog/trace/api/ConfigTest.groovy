@@ -1905,7 +1905,7 @@ class ConfigTest extends DDSpecification {
     config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION", "DD_TAGS"].toSet()
 
     //verify expected behavior enabled under feature flag
-    config.logsInjectionEnabled == DEFAULT_LOGS_INJECTION_ENABLED
+    config.logsInjectionEnabled == false
     config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
   }
 

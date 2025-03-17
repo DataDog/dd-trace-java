@@ -1043,11 +1043,11 @@ public class Config {
     if (experimentalFeaturesEnabled.contains(
         propertyNameToEnvironmentVariableName(LOGS_INJECTION))) {
       logsInjectionEnabled =
-          configProvider.getBoolean(
-              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+          configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
     } else {
       logsInjectionEnabled =
-          configProvider.getBoolean(LOGS_INJECTION_ENABLED, true, LOGS_INJECTION);
+          configProvider.getBoolean(
+              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
     }
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
