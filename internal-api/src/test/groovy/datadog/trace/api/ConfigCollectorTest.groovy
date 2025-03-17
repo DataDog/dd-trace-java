@@ -185,7 +185,7 @@ class ConfigCollectorTest extends DDSpecification {
     "data.streams.enabled"   | "false"
     "trace.tags"             | ""
     "trace.header.tags"      | ""
-    "logs.injection.enabled" | "false"
+    "logs.injection.enabled" | "true"
     // defaults to null meaning sample everything but not exactly the same as when explicitly set to 1.0
     "trace.sample.rate"      | null
   }
