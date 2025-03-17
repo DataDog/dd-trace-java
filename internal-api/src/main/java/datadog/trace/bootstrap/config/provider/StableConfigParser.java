@@ -133,8 +133,7 @@ public class StableConfigParser {
         }
         return false;
       case "process_arguments":
-        // TODO: export getVMArgumentsThroughReflection to a utility class and cache its results, so
-        // as not to re-run this query
+        // TODO: use CLIHelper once merged
         return true;
       case "tags":
         // TODO: Determine where tags are sourced from
