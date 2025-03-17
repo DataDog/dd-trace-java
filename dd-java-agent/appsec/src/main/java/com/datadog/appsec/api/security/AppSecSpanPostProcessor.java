@@ -41,7 +41,6 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     }
 
     if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
-      log.debug("Request context not marked for API security post-processing");
       return;
     }
 
