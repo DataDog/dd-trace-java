@@ -1,7 +1,5 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.api.TracePropagationBehaviorExtract
-
 import static datadog.trace.api.DDTags.PARENT_ID
 import static datadog.trace.api.TracePropagationStyle.NONE
 
