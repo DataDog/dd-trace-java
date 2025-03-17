@@ -54,23 +54,19 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
   public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
     final String route = ctx.getRoute();
     if (route == null) {
-      log.debug("Route is null, skipping API security sampling");
       return false;
     }
     final String method = ctx.getMethod();
     if (method == null) {
-      log.debug("Method is null, skipping API security sampling");
       return false;
     }
     final int statusCode = ctx.getResponseStatus();
-    if (statusCode == 0) {
-      log.debug("Status code is 0, skipping API security sampling");
+    if (statusCode <= 0) {
       return false;
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
     if (!isApiAccessExpired(hash)) {
-      log.debug("API security sampling is not required for this request");
       return false;
     }
     if (counter.tryAcquire()) {
