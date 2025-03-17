@@ -1073,6 +1073,7 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
+    // Enable tracer computed trace metrics by default for Azure Functions
     tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
