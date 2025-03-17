@@ -107,7 +107,7 @@ public class CurrentAppSecConfig {
     if (dirtyStatus.data) {
       final AppSecData data = mergedAsmData.getMergedData();
       mso.put("rules_data", data.getRules());
-      mso.put("exclusion_data", data.getExclusion());
+      mso.put("exclusions", data.getExclusion());
     }
     if (dirtyStatus.actions) {
       mso.put("actions", getMergedActions());
@@ -122,13 +122,12 @@ public class CurrentAppSecConfig {
     if (log.isDebugEnabled()) {
       log.debug(
           "Providing WAF config with: "
-              + "rules: {}, custom_rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, exclusion_data: {}, actions: {}",
+              + "rules: {}, custom_rules: {}, exclusions: {}, ruleOverrides: {}, rules_data: {}, actions: {}",
           debugRuleSummary(mso),
           debugCustomRuleSummary(mso),
           debugExclusionsSummary(mso),
           debugRuleOverridesSummary(mso),
           debugRulesDataSummary(mso),
-          debugExclusionDataSummary(mso),
           debugActionsSummary(mso));
     }
     return AppSecConfig.valueOf(mso);
@@ -155,20 +154,6 @@ public class CurrentAppSecConfig {
         + rulesData.size()
         + " rules data sets with ids "
         + rulesData.stream()
-            .map(rd -> String.valueOf(rd.get("id")))
-            .collect(Collectors.joining(", "))
-        + "]";
-  }
-
-  private static String debugExclusionDataSummary(Map<String, Object> mso) {
-    List<Map<String, Object>> exclusionData = (List<Map<String, Object>>) mso.get("exclusion_data");
-    if (exclusionData == null) {
-      return "<absent>";
-    }
-    return "["
-        + exclusionData.size()
-        + " exclusion data sets with ids "
-        + exclusionData.stream()
             .map(rd -> String.valueOf(rd.get("id")))
             .collect(Collectors.joining(", "))
         + "]";

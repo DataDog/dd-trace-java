@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LibSqreenInitialization {
-  public static final boolean ONLINE = initWAF();
+  public static final boolean WAF = initWAF();
 
   private static boolean initWAF() {
     try {
@@ -21,7 +21,6 @@ public class LibSqreenInitialization {
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
       return false;
     }
-
     return true;
   }
 

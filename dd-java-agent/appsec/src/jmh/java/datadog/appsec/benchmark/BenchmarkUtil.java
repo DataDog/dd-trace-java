@@ -1,13 +1,12 @@
 package datadog.appsec.benchmark;
 
 import ch.qos.logback.classic.Logger;
-import com.datadog.ddwaf.Waf;
-import com.datadog.ddwaf.exception.AbstractWafException;
-import com.datadog.ddwaf.exception.UnsupportedVMException;
-import java.lang.reflect.UndeclaredThrowableException;
+import com.datadog.appsec.ddwaf.LibSqreenInitialization;
 import org.slf4j.LoggerFactory;
 
 public class BenchmarkUtil {
+  private static final org.slf4j.Logger log = LoggerFactory.getLogger(BenchmarkUtil.class);
+
   public static void disableLogging() {
     org.slf4j.Logger root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
     if (root instanceof Logger) {
@@ -17,12 +16,8 @@ public class BenchmarkUtil {
   }
 
   public static void initializeWaf() {
-    try {
-      Waf.initialize(false);
-    } catch (AbstractWafException e) {
-      throw new UndeclaredThrowableException(e);
-    } catch (UnsupportedVMException e) {
-      throw new UndeclaredThrowableException(e);
+    if (!LibSqreenInitialization.WAF) {
+      log.info("Waf initialization encountered an error");
     }
   }
 }

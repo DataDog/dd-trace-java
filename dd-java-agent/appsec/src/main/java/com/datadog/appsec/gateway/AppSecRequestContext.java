@@ -7,8 +7,6 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
@@ -117,9 +115,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
 
-  // should be guarded by this
-  private volatile WafContext wafContext;
-  private volatile boolean additiveClosed;
   // set after wafContext is set
   private volatile WafMetrics wafMetrics;
   private volatile WafMetrics raspMetrics;
@@ -286,44 +281,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         return wafInvalidArgumentErrors;
       default:
         return 0;
-    }
-  }
-
-  public WafContext getOrCreateAdditive(WafHandle ctx, boolean createMetrics, boolean isRasp) {
-
-    if (createMetrics) {
-      if (wafMetrics == null) {
-        this.wafMetrics = ctx.createMetrics();
-      }
-      if (isRasp && raspMetrics == null) {
-        this.raspMetrics = ctx.createMetrics();
-      }
-    }
-
-    WafContext curAdditive;
-    synchronized (this) {
-      curAdditive = this.wafContext;
-      if (curAdditive != null) {
-        return curAdditive;
-      }
-      curAdditive = ctx.openContext();
-      this.wafContext = curAdditive;
-    }
-    return curAdditive;
-  }
-
-  public void closeAdditive() {
-    if (wafContext != null) {
-      synchronized (this) {
-        if (wafContext != null) {
-          try {
-            additiveClosed = true;
-            wafContext.close();
-          } finally {
-            wafContext = null;
-          }
-        }
-      }
     }
   }
 
@@ -590,11 +547,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-    if (wafContext != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
-    }
     derivatives = null;
 
     // check if we might need to further post process data related to the span in order to not free
@@ -700,10 +652,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       throttled = rateLimiter.isThrottled();
     }
     return throttled;
-  }
-
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
   }
 
   /** Must be called during request end event processing. */

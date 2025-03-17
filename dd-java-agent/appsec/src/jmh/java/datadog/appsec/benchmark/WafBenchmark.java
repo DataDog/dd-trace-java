@@ -6,9 +6,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.ddwaf.NativeWafHandle;
+import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
-import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
 import java.io.IOException;
@@ -44,39 +45,38 @@ public class WafBenchmark {
     BenchmarkUtil.initializeWaf();
   }
 
-  WafHandle ctx;
+  WafBuilder wafBuilder;
   Map<String, Object> wafData = new HashMap<>();
   Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
-    WafMetrics metricsCollector = ctx.createMetrics();
-    WafContext add = ctx.openWafContext();
-    try {
-      add.run(wafData, limits, metricsCollector);
-    } finally {
-      add.close();
+    WafMetrics metricsCollector = new WafMetrics();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    Waf.runRules(wafData, limits, metricsCollector, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
     }
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    WafContext add = ctx.openWafContext();
-    try {
-      add.run(wafData, limits, null);
-    } finally {
-      add.close();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    Waf.runRules(wafData, limits, null, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
     }
   }
 
   @Setup(Level.Trial)
-  public void setUp() throws AbstractWafException, IOException {
+  public void setUp() throws IOException, AbstractWafException {
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
-    AppSecConfig waf = cfg.get("waf");
-    ctx = Waf.createContext("waf", waf.getRawConfig());
-
+    AppSecConfig wafRules = cfg.get("waf");
+    wafBuilder = new WafBuilder();
+    RuleSetInfo[] infoRef = new RuleSetInfo[1];
+    wafBuilder.addOrUpdateRuleConfig(wafRules.getRawConfig(), infoRef);
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
         KnownAddresses.REQUEST_URI_RAW.getKey(), "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
@@ -112,6 +112,8 @@ public class WafBenchmark {
 
   @TearDown(Level.Trial)
   public void teardown() {
-    ctx.close();
+    if (wafBuilder != null && wafBuilder.isOnline()) {
+      wafBuilder.destroy();
+    }
   }
 }

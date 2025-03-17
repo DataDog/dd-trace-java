@@ -1,19 +1,13 @@
 package com.datadog.appsec.gateway
 
-
-import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
-import com.datadog.ddwaf.WafContext
-import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
@@ -203,16 +197,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
       'accept': ['application/json', 'application/xml']] as Map
   }
 
-  private WafContext createWafContext() {
-    Waf.initialize false
-    def service = new StubAppSecConfigService()
-    service.init()
-    CurrentAppSecConfig config = service.lastConfig['waf']
-    String uniqueId = UUID.randomUUID() as String
-    config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new WafContext(context)
-  }
 
   void 'close closes the wafContext'() {
     setup:
