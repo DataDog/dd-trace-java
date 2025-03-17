@@ -8,11 +8,13 @@ import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
-import static TagsAssert.assertTags
+import static datadog.trace.agent.test.asserts.LinksAssert.assertLinks
+import static datadog.trace.agent.test.asserts.TagsAssert.assertTags
 
 class SpanAssert {
   private final DDSpan span
   private final DDSpan previous
+  private boolean checkLinks = true
   private final checked = [:]
 
   private SpanAssert(span, DDSpan previous) {
@@ -167,6 +169,11 @@ class SpanAssert {
     if (!checked.errored) {
       errored(false)
     }
+    if (checkLinks) {
+      if (!checked.links) {
+        assert span.tags['_dd.span_links'] == null
+      }
+    }
     hasServiceName()
   }
 
@@ -179,6 +186,23 @@ class SpanAssert {
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTags(span, spec, checkAllTags)
+  }
+
+  void ignoreSpanLinks() {
+    this.checkLinks = false
+  }
+
+  void links(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.LinksAssert'])
+    @DelegatesTo(value = LinksAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    checked.links = true
+    assertLinks(span, spec)
+  }
+
+  void links(boolean checkAllLinks,
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.LinksAssert'])
+    @DelegatesTo(value = LinksAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    checked.links = true
+    assertLinks(span, spec, checkAllLinks)
   }
 
   DDSpan getSpan() {

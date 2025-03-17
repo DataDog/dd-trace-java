@@ -5,6 +5,7 @@ import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.MUnitTracingListener
+import datadog.trace.instrumentation.junit4.MUnitUtils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
@@ -146,8 +147,16 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
   }
 
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceedMUnit], true)
+
+    expect:
+    assertCapabilities(MUnitUtils.CAPABILITIES, 4)
+  }
+
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT)
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT, MUnitUtils.CAPABILITIES)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)

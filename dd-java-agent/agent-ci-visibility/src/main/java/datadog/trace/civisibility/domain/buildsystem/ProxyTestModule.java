@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -60,6 +61,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
+  private final Collection<LibraryCapability> capabilities;
 
   public ProxyTestModule(
       AgentSpanContext parentProcessModuleContext,
@@ -73,7 +75,8 @@ public class ProxyTestModule implements TestFrameworkModule {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
-      SignalClient.Factory signalClientFactory) {
+      SignalClient.Factory signalClientFactory,
+      Collection<LibraryCapability> capabilities) {
     this.parentProcessModuleContext = parentProcessModuleContext;
     this.moduleName = moduleName;
     this.executionStrategy = executionStrategy;
@@ -87,6 +90,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.codeowners = codeowners;
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -211,6 +215,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         this::propagateTestFrameworkData);
   }
 

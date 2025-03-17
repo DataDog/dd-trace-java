@@ -2,6 +2,7 @@ package datadog.trace.civisibility.events;
 
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -14,7 +15,6 @@ import datadog.trace.civisibility.execution.Regular;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 public class NoOpTestEventsHandler<SuiteKey, TestKey>
     implements TestEventsHandler<SuiteKey, TestKey> {
@@ -98,7 +98,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     return null;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public TestExecutionPolicy executionPolicy(
       TestIdentifier test, TestSourceData source, Collection<String> testTags) {
@@ -131,7 +131,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
     public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        @Nullable ContextStore<TestKey, DDTest> testStore) {
+        @Nullable ContextStore<TestKey, DDTest> testStore,
+        Collection<LibraryCapability> capabilities) {
       return new NoOpTestEventsHandler<>();
     }
   }

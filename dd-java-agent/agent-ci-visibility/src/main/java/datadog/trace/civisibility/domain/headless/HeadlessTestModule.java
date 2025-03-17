@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.headless;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -44,6 +45,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -57,6 +59,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
+      Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -73,6 +76,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
+    this.capabilities = capabilities;
   }
 
   @Override
@@ -183,6 +187,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }
