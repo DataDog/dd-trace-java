@@ -24,6 +24,6 @@ public class JavaxWebSocketFrameHandlerFactoryInstrumentation
         named("createMessageSink")
             .and(takesArgument(0, named(namespace + "WebSocketSession")))
             .and(takesArgument(1, named(namespace + "WebSocketMessageMetadata"))),
-        "datadog.trace.instrumentation.websocket.jetty10.WebsocketAdvices$MessageSinkAdvice");
+        "datadog.trace.instrumentation.websocket.jetty10.WebSocketAdvices$MessageSinkAdvice");
   }
 }
