@@ -35,7 +35,7 @@ class ObjectInputStreamCallSiteTest extends AgentTestRunner {
     new TestCustomObjectInputStream(inputStream())
 
     then:
-    // TODO APPSEC-57009 calls to super are not instrumented by before callsites
+    // TODO APPSEC-57009 calls to super are only instrumented by after callsites
     0 * iastModule.onObject(_)
   }
 

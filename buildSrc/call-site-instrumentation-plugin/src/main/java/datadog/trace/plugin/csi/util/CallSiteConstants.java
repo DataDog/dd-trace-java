@@ -30,7 +30,7 @@ public abstract class CallSiteConstants {
 
   public static final String HAS_ENABLED_PROPERTY_CLASS = CALL_SITES_CLASS + ".HasEnabledProperty";
 
-  public static final String TYPE_CLASS = "Type";
+  public static final String ADVICE_TYPE_CLASS = "AdviceType";
 
   public static final String STACK_DUP_MODE_CLASS = "StackDupMode";
 

@@ -145,7 +145,7 @@ public class Advices {
 
   /** Gets the type of advice we are dealing with */
   public byte typeOf(final CallSiteAdvice advice) {
-    return ((HasType) advice).getType();
+    return ((TypedAdvice) advice).getType();
   }
 
   public String[] getHelpers() {
@@ -193,7 +193,7 @@ public class Advices {
       final Map<String, CallSiteAdvice> methodAdvices =
           typeAdvices.computeIfAbsent(method, k -> new HashMap<>());
       final CallSiteAdvice oldAdvice =
-          methodAdvices.put(descriptor, HasType.withType(advice, type));
+          methodAdvices.put(descriptor, TypedAdvice.withType(advice, type));
       if (oldAdvice != null) {
         throw new UnsupportedOperationException(
             String.format(
@@ -370,7 +370,7 @@ public class Advices {
         @Nonnull TypeDescription type, @Nonnull ConstantPool pool, final byte[] classFile);
   }
 
-  private interface HasType {
+  private interface TypedAdvice {
     byte getType();
 
     static CallSiteAdvice withType(final CallSiteAdvice advice, final byte type) {
@@ -382,7 +382,7 @@ public class Advices {
     }
   }
 
-  private static class InvokeWithType implements InvokeAdvice, HasType {
+  private static class InvokeWithType implements InvokeAdvice, TypedAdvice {
     private final InvokeAdvice advice;
     private final byte type;
 
@@ -408,7 +408,7 @@ public class Advices {
     }
   }
 
-  private static class InvokeDynamicWithType implements InvokeDynamicAdvice, HasType {
+  private static class InvokeDynamicWithType implements InvokeDynamicAdvice, TypedAdvice {
     private final InvokeDynamicAdvice advice;
     private final byte type;
 

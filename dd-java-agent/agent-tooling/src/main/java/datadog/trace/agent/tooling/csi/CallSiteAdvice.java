@@ -73,9 +73,9 @@ public interface CallSiteAdvice {
     APPEND_ARRAY
   }
 
-  abstract class Type {
+  abstract class AdviceType {
 
-    private Type() {}
+    private AdviceType() {}
 
     public static final byte BEFORE = -1;
     public static final byte AROUND = 0;
