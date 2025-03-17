@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.websocket.jetty10;
 
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.util.Arrays;
@@ -37,6 +41,19 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
     map.put(jettyNamespace + "WebSocketSession", Boolean.class.getName());
     map.put(jsrNamespace + ".websocket.Session", HandlerContext.Sender.class.getName());
     return map;
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {
+      new Reference.Builder(jettyNamespace + "WebSocketMessageMetadata")
+          .withMethod(
+              new String[0],
+              EXPECTS_NON_STATIC | EXPECTS_PUBLIC,
+              "getMethodHandle",
+              "Ljava/lang/invoke/MethodHandle;")
+          .build(),
+    };
   }
 
   @Override

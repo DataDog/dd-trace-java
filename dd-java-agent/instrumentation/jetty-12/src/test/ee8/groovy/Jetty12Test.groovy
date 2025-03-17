@@ -82,6 +82,7 @@ class Jetty12AsyncTest extends Jetty12Test {
   }
   @Override
   protected boolean useWebsocketPojoEndpoint() {
-    true
+    // advices for pojo won't apply for latest alpha 12.1.+. It has to be adapted once jetty codebase will be stable
+    !isLatestDepTest
   }
 }

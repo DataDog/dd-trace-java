@@ -49,6 +49,7 @@ class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNa
   boolean hasExtraErrorInformation() {
     true
   }
+
   protected boolean useWebsocketPojoEndpoint() {
     false
   }
@@ -56,6 +57,7 @@ class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNa
 
 class Jetty12PojoWebsocketTest extends Jetty12Test {
   protected boolean useWebsocketPojoEndpoint() {
-    true
+    // advices for pojo won't apply for latest alpha 12.1.+. It has to be adapted once jetty codebase will be stable
+    !isLatestDepTest
   }
 }
