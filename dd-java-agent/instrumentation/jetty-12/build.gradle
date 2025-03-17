@@ -38,7 +38,11 @@ addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-
+[ee8LatestDepTest, ee9LatestDepTest, ee10LatestDepTest].each {
+  it.configure {
+    it.jvmArgs += ['-Dtest.dd.latestDepTest=true']
+  }
+}
 forbiddenApisMain_java17 {
   failOnMissingClasses = false
 }
