@@ -1,5 +1,6 @@
 package datadog.cli;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -27,6 +28,7 @@ public class CLIHelper {
     return this.args.contains(argument);
   }
 
+  @SuppressForbidden
   private static List<String> initJvmArgs() {
     // If linux OS, use procfs
     // TODO: equals, or contains?
