@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.trace.api.TracePropagationStyle.NONE;
-import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
+import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
