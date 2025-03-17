@@ -9,6 +9,7 @@ import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
@@ -39,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +66,7 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    PullRequestInfo pullRequestInfo = ciProviderInfo.buildPullRequestInfo();
+    PullRequestInfo pullRequestInfo = buildPullRequestInfo(services.environment, ciProviderInfo);
 
     if (pullRequestInfo.isNotEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
@@ -105,6 +107,22 @@ public class CiVisibilityRepoServices {
               pullRequestInfo,
               repoRoot);
     }
+  }
+
+  @Nonnull
+  private static PullRequestInfo buildPullRequestInfo(
+      CiEnvironment environment, CIProviderInfo ciProviderInfo) {
+    PullRequestInfo ciProviderPrInfo = ciProviderInfo.buildPullRequestInfo();
+    if (ciProviderPrInfo.isNotEmpty()) {
+      return ciProviderPrInfo;
+    }
+
+    // could not get PR info from CI provider,
+    // check if it was set manually
+    return new PullRequestInfo(
+        null,
+        environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
+        environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
