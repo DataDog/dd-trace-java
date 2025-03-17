@@ -67,6 +67,7 @@ public class CiVisibilityServices {
   final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
   final JvmInfoFactory jvmInfoFactory;
+  final CiEnvironment environment;
   final CIProviderInfoFactory ciProviderInfoFactory;
   final GitClient.Factory gitClientFactory;
   final GitInfoProvider gitInfoProvider;
@@ -87,7 +88,7 @@ public class CiVisibilityServices {
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = buildGitClientFactory(config, metricCollector);
 
-    CiEnvironment environment = buildCiEnvironment(config, sco);
+    this.environment = buildCiEnvironment(config, sco);
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
     this.linesResolver =
         new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
