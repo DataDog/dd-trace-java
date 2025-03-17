@@ -39,7 +39,10 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
-      log.debug("Stable configuration file not readable at specified path: {}", file);
+      log.error(
+          "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs: {}",
+          file,
+          e.getMessage());
       cfg = StableConfig.EMPTY;
     }
     this.config = cfg;
