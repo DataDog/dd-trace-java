@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider
 
+import static java.util.Collections.singletonMap
+
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationValue
@@ -13,10 +15,9 @@ import org.yaml.snakeyaml.introspector.Property
 import org.yaml.snakeyaml.nodes.NodeTuple
 import org.yaml.snakeyaml.nodes.Tag
 import org.yaml.snakeyaml.representer.Representer
-import spock.lang.Shared
 
-import java.nio.file.Path
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
 class StableConfigSourceTest extends DDSpecification {
@@ -128,8 +129,8 @@ class StableConfigSourceTest extends DDSpecification {
     '''
 
   // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
-  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap((Map<String, ConfigurationValue>)Map.of("DD_KEY_THREE", new ConfigurationValue("three"))))
-  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap((Map<String, ConfigurationValue>)Map.of("DD_KEY_FOUR", new ConfigurationValue("four"))))
+  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap(singletonMap("DD_KEY_THREE", new ConfigurationValue("three"))))
+  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap(singletonMap("DD_KEY_FOUR", new ConfigurationValue("four"))))
 
   // Helper functions
   static Path tempFile() {
