@@ -248,7 +248,6 @@ dependencies {
   testImplementation libs.commons.math
   testImplementation libs.bundles.mockito
   testImplementation libs.truth
-  testImplementation 'org.yaml:snakeyaml:2.0'
 }
 
 jmh {
