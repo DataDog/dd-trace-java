@@ -50,4 +50,13 @@ class EmbeddedGitInfoBuilderTest extends Specification {
     gitInfo.commit.committer.email == "nikita.tkachenko@datadoghq.com"
     gitInfo.commit.committer.iso8601Date == "2023-03-22T14:43:21+0100"
   }
+
+  def "test embedded gitinfo has a lower priority than user supplied gitinfo"() {
+    when:
+    def embeddedGitInfoBuilder = new EmbeddedGitInfoBuilder()
+    def userSuppliedGitInfoBuilder = new UserSuppliedGitInfoBuilder()
+
+    then:
+    embeddedGitInfoBuilder.order() > userSuppliedGitInfoBuilder.order()
+  }
 }
