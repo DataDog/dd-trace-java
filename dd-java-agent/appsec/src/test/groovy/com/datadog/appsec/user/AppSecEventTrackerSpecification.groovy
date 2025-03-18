@@ -133,7 +133,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
   def 'test track user (SDK)'() {
     when:
-    setUser(USER_ID, ['key1': 'value1', 'key2': 'value2'], propagated)
+    setUser(USER_ID, ['key1': 'value1', 'key2': 'value2'])
 
     then:
     1 * traceSegment.setTagTop('usr.id', USER_ID)
@@ -141,18 +141,8 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', SDK.fullName())
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-    if (propagated) {
-      1 * traceSegment.setTagTop('_dd.p.usr.id', USER_ID.bytes.encodeBase64().toString())
-    } else {
-      0 * traceSegment.setTagTop('_dd.p.usr.id', _)
-    }
     1 * user.apply(_ as RequestContext, USER_ID) >> NoopFlow.INSTANCE
     0 * _
-
-    where:
-    propagated | _
-    true       | _
-    false      | _
   }
 
   def 'test wrong event argument validation (SDK)'() {

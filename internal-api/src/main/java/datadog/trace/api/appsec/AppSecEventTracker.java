@@ -75,12 +75,11 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   @Override
-  public void trackUserEvent(
-      final String userId, final Map<String, String> metadata, final boolean propagated) {
+  public void trackUserEvent(final String userId, final Map<String, String> metadata) {
     if (userId == null || userId.isEmpty()) {
       throw new IllegalArgumentException("UserId is null or empty");
     }
-    onUserEvent(SDK, userId, metadata, propagated);
+    onUserEvent(SDK, userId, metadata);
   }
 
   public void onUserNotFound(final UserIdCollectionMode mode) {
@@ -103,14 +102,11 @@ public class AppSecEventTracker extends EventTracker implements UserService {
   }
 
   public void onUserEvent(final UserIdCollectionMode mode, final String userId) {
-    onUserEvent(mode, userId, emptyMap(), false);
+    onUserEvent(mode, userId, emptyMap());
   }
 
   public void onUserEvent(
-      final UserIdCollectionMode mode,
-      final String userId,
-      final Map<String, String> metadata,
-      final boolean propagated) {
+      final UserIdCollectionMode mode, final String userId, final Map<String, String> metadata) {
     if (!isEnabled(mode)) {
       return;
     }
@@ -128,9 +124,6 @@ public class AppSecEventTracker extends EventTracker implements UserService {
     }
     if (mode != SDK) {
       segment.setTagTop("_dd.appsec.usr.id", finalUserId);
-    } else if (propagated) {
-      // only the SDK can propagate usr.id
-      segment.setTagTop("_dd.p.usr.id", encodeBase64(finalUserId));
     }
     if (isNewUser(mode, segment)) {
       segment.setTagTop("usr.id", finalUserId);
