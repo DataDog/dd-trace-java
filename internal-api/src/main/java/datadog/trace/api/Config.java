@@ -3467,10 +3467,12 @@ public class Config {
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, Object> getLocalRootSpanTags() {
+  public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
+    
+    final TagMap result = new TagMap();
     result.putAll(runtimeTags);
+    
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
@@ -3491,7 +3493,7 @@ public class Config {
 
     result.putAll(getProcessIdTag());
 
-    return Collections.unmodifiableMap(result);
+    return result.freeze();
   }
 
   public WellKnownTags getWellKnownTags() {

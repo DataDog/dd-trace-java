@@ -27,6 +27,7 @@ import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -57,7 +58,7 @@ public class DefaultExceptionDebuggerTest {
   private ConfigurationUpdater configurationUpdater;
   private DefaultExceptionDebugger exceptionDebugger;
   private TestSnapshotListener listener;
-  private Map<String, Object> spanTags = new HashMap<>();
+  private TagMap spanTags = new TagMap();
 
   @BeforeEach
   public void setUp() {

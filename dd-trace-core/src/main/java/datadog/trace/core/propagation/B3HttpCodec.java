@@ -186,10 +186,7 @@ class B3HttpCodec {
 
     protected void setSpanId(final String sId) {
       spanId = DDSpanId.fromHex(sId);
-      if (tags.isEmpty()) {
-        tags = new TreeMap<>();
-      }
-      tags.put(B3_SPAN_ID, sId);
+      tagBuilder().put(B3_SPAN_ID, sId);
     }
 
     protected boolean setTraceId(final String tId) {
@@ -202,10 +199,7 @@ class B3HttpCodec {
         B3TraceId b3TraceId = B3TraceId.fromHex(tId);
         traceId = b3TraceId.toLong() == 0 ? DDTraceId.ZERO : b3TraceId;
       }
-      if (tags.isEmpty()) {
-        tags = new TreeMap<>();
-      }
-      tags.put(B3_TRACE_ID, tId);
+      tagBuilder().put(B3_TRACE_ID, tId);
       return true;
     }
   }

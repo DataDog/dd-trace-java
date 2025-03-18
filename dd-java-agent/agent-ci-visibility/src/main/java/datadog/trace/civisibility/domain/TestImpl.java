@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
@@ -101,7 +102,7 @@ public class TestImpl implements DDTest {
     this.context = new TestContextImpl(coverageStore);
 
     AgentSpanContext traceContext =
-        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
+        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")

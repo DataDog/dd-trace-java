@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AW
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OBJECT_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
 
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
@@ -20,7 +21,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpanPointersProcessor implements TagsPostProcessor {
+public final class SpanPointersProcessor extends TagsPostProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(SpanPointersProcessor.class);
 
   // The pointer direction will always be down. The serverless agent handles cases where the
@@ -30,18 +31,20 @@ public class SpanPointersProcessor implements TagsPostProcessor {
   static final String LINK_KIND = "span-pointer";
 
   @Override
-  public Map<String, Object> processTags(
-      Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    String eTag = asString(unsafeTags.remove(S3_ETAG));
-    if (eTag == null) {
-      return unsafeTags;
+  public void processTags(
+      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+	TagMap.Entry eTagEntry = unsafeTags.removeEntry(S3_ETAG);
+    if (eTagEntry == null) {
+      return;
     }
-    String bucket = asString(unsafeTags.get(AWS_BUCKET_NAME));
-    String key = asString(unsafeTags.get(AWS_OBJECT_KEY));
+    String bucket = unsafeTags.getString(AWS_BUCKET_NAME);
+    String key = unsafeTags.getString(AWS_OBJECT_KEY);
     if (bucket == null || key == null) {
       LOG.debug("Unable to calculate span pointer hash because could not find bucket or key tags.");
-      return unsafeTags;
+      return;
     }
+    
+    String eTag = eTagEntry.stringValue();
 
     // Hash calculation rules:
     // https://github.com/DataDog/dd-span-pointer-rules/blob/main/AWS/S3/Object/README.md
@@ -63,8 +66,6 @@ public class SpanPointersProcessor implements TagsPostProcessor {
     } catch (Exception e) {
       LOG.debug("Failed to add span pointer: {}", e.getMessage());
     }
-
-    return unsafeTags;
   }
 
   private static String asString(Object o) {
