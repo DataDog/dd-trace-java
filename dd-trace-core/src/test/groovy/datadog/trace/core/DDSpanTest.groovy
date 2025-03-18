@@ -462,7 +462,7 @@ class DDSpanTest extends DDCoreSpecification {
     span.isError()
   }
 
-  def "span events functionality"() {
+  def "span events are attached"() {
     setup:
     def span = tracer.buildSpan("test").start()
     def eventName = "test-event"
