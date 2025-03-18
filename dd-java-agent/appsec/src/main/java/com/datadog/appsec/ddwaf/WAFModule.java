@@ -153,17 +153,18 @@ public class WAFModule implements AppSecModule {
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
   private final RateLimiter rateLimiter;
   private WafBuilder wafBuilder;
-  private Waf waf;
+  private final Waf waf;
 
   private String currentRulesVersion;
 
-  public WAFModule() {
+  public WAFModule() throws AbstractWafException, UnsupportedVMException {
     this(null);
   }
 
-  public WAFModule(Monitoring monitoring) {
+  public WAFModule(Monitoring monitoring) throws AbstractWafException, UnsupportedVMException {
     this.rateLimiter = getRateLimiter(monitoring);
     this.wafBuilder = new WafBuilder(); // builder is initially configured with default config
+    this.waf = new Waf();
   }
 
   @Override
