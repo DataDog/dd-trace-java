@@ -40,10 +40,9 @@ public final class StableConfigSource extends ConfigProvider.Source {
       cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
       log.error(
-          "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs. Exception type: {}, message: {}",
+          "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs.\n",
           file,
-          e.getClass().getName(),
-          e.getMessage());
+          e);
       cfg = StableConfig.EMPTY;
     }
     this.config = cfg;

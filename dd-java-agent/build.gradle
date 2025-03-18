@@ -64,6 +64,8 @@ ext.generalShadowJarConfig = {
     relocate 'org.yaml.snakeyaml', 'datadog.snakeyaml'
     relocate 'okhttp3', 'datadog.okhttp3'
     relocate 'okio',  'datadog.okio'
+    // Include the YAML config classes in bootstrap
+    relocate 'datadog.trace.bootstrap.config.provider.StableConfigYaml', 'datadog.trace.bootstrap.config.provider.stableconfigyaml'
   }
 
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
