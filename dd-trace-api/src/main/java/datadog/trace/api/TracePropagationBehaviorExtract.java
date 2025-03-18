@@ -4,22 +4,21 @@ import java.util.Locale;
 
 /** Trace propagation styles for injecting and extracting trace propagation headers. */
 public enum TracePropagationBehaviorExtract {
-  CONTINUE("continue"),
-  RESTART("restart"),
-  IGNORE("ignore");
+  CONTINUE,
+  RESTART,
+  IGNORE;
 
   private String displayName;
 
-  TracePropagationBehaviorExtract(String displayName) {
-    this.displayName = displayName;
+  TracePropagationBehaviorExtract() {
+    this.displayName = name().toLowerCase(Locale.ROOT);
   }
 
   @Override
   public String toString() {
-    String string = displayName;
     if (displayName == null) {
-      string = displayName = name().toLowerCase(Locale.ROOT);
+      displayName = name().toLowerCase(Locale.ROOT);
     }
-    return string;
+    return displayName;
   }
 }
