@@ -9,7 +9,6 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
@@ -156,7 +155,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "non-ddspan activation results in a continuable scope"() {
     when:
-    def scope = scopeManager.activate(noopSpan(), ScopeSource.INSTRUMENTATION)
+    def scope = scopeManager.activateSpan(noopSpan())
 
     then:
     scopeManager.active() == scope
@@ -443,14 +442,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     def state = Mock(Stateful)
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
     1 * profilingContext.newScopeState(_) >> state
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -542,7 +541,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "closing scope out of order - complex"() {
     // Events are checked twice in each case to ensure a call to
-    // tracer.activeScope() or tracer.activeSpan() doesn't change the count
+    // scopeManager.active() or tracer.activeSpan() doesn't change the count
 
     when:
     AgentSpan firstSpan = tracer.buildSpan("test", "foo").start()
@@ -551,7 +550,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
     assertEvents([ACTIVATE])
     1 * profilingContext.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
@@ -566,7 +565,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
-    tracer.activeScope() == secondScope
+    scopeManager.active() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("bar")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -579,7 +578,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -591,7 +590,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     0 * _
 
@@ -601,7 +600,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     0 * _
@@ -619,7 +618,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
-    tracer.activeScope() == null
+    scopeManager.active() == null
     assertEvents([
       ACTIVATE,
       ACTIVATE,
@@ -638,13 +637,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -657,7 +656,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -874,7 +873,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
@@ -904,7 +903,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])

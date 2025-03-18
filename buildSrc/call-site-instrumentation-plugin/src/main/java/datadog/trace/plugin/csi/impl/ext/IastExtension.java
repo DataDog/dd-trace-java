@@ -364,19 +364,19 @@ public class IastExtension implements Extension {
     final MethodType pointcut = spec.getPointcut();
     for (final MethodCallExpr add : addAdvices) {
       final NodeList<Expression> arguments = add.getArguments();
-      final String owner = arguments.get(0).asStringLiteralExpr().asString();
+      final String owner = arguments.get(1).asStringLiteralExpr().asString();
       if (!owner.equals(pointcut.getOwner().getInternalName())) {
         continue;
       }
-      final String method = arguments.get(1).asStringLiteralExpr().asString();
+      final String method = arguments.get(2).asStringLiteralExpr().asString();
       if (!method.equals(pointcut.getMethodName())) {
         continue;
       }
-      final String description = arguments.get(2).asStringLiteralExpr().asString();
+      final String description = arguments.get(3).asStringLiteralExpr().asString();
       if (!description.equals(pointcut.getMethodType().getDescriptor())) {
         continue;
       }
-      return arguments.get(3).asLambdaExpr();
+      return arguments.get(4).asLambdaExpr();
     }
     throw new IllegalArgumentException("Cannot find lambda expression for pointcut " + pointcut);
   }

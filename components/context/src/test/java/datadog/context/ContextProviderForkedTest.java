@@ -43,11 +43,6 @@ class ContextProviderForkedTest {
     ContextManager.register(
         new ContextManager() {
           @Override
-          public Context root() {
-            return EmptyContext.INSTANCE;
-          }
-
-          @Override
           public Context current() {
             return root();
           }

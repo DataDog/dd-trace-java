@@ -51,6 +51,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
@@ -263,6 +264,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
+    prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
     when:
     Config config = Config.get(prop)
@@ -357,6 +359,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == true
     config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
+    config.jdkSocketEnabled == false
 
     config.xDatadogTagsMaxLength == 128
   }
