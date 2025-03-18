@@ -1499,7 +1499,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
       TagMap.Builder tagBuilder = this.tagBuilder;
       if (tagBuilder == null) {
-        this.tagBuilder = tagBuilder = TagMap.builder(); // Insertion order is important
+    	// Insertion order is important, so using TagBuilder which builds up a set 
+    	// of Entry modifications in order
+        this.tagBuilder = tagBuilder = TagMap.builder();
       }
       if (value == null) {
         tagBuilder.remove(tag);
@@ -1557,13 +1559,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final int samplingPriority;
       final CharSequence origin;
       final TagMap coreTags;
-      boolean coreTagsNeedsIntercept;      
+      final boolean coreTagsNeedsIntercept;      
       final TagMap rootSpanTags;
-      boolean rootSpanTagsNeedsIntercept;
+      final boolean rootSpanTagsNeedsIntercept;
       final DDSpanContext context;
-      Object requestContextDataAppSec;
-      Object requestContextDataIast;
-      Object ciVisibilityContextData;
+      final Object requestContextDataAppSec;
+      final Object requestContextDataIast;
+      final Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
