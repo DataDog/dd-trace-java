@@ -6,6 +6,7 @@ import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -72,7 +73,7 @@ public abstract class AbstractTestSession {
     AgentSpanContext traceContext =
         new TagContext(
             CIConstants.CIAPP_TEST_ORIGIN,
-            Collections.emptyMap(),
+            null,
             null,
             null,
             PrioritySampling.UNSET,

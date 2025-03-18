@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
@@ -108,19 +109,18 @@ class ExtractedSpan extends ImmutableSpan {
   @Override
   public Object getTag(final String tag) {
     if (this.spanContext instanceof TagContext) {
-      return ((TagContext) this.spanContext).getTags().get(tag);
+      return ((TagContext) this.spanContext).getTags().getObject(tag);
     }
     return null;
   }
 
   @Override
-  public Map<String, Object> getTags() {
+  public TagMap getTags() {
     if (this.spanContext instanceof TagContext) {
-      Map<String, String> tags = ((TagContext) this.spanContext).getTags();
-      //noinspection unchecked,rawtypes
-      return (Map) tags;
+      return ((TagContext) this.spanContext).getTags();
+    } else {
+      return TagMap.EMPTY;
     }
-    return Collections.emptyMap();
   }
 
   @Override

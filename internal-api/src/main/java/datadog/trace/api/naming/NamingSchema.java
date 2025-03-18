@@ -1,5 +1,6 @@
 package datadog.trace.api.naming;
 
+import datadog.trace.api.TagMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -229,11 +230,10 @@ public interface NamingSchema {
     /**
      * Calculate the tags to be added to a span to represent the peer service
      *
-     * @param unsafeTags the span tags. Map che be mutated
-     * @return the input tags
+     * @param unsafeTags the span tags. Map to be mutated
      */
     @Nonnull
-    Map<String, Object> tags(@Nonnull Map<String, Object> unsafeTags);
+    void tags(@Nonnull TagMap unsafeTags);
   }
 
   interface ForServer {

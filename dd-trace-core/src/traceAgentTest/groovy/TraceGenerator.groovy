@@ -2,6 +2,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
@@ -155,7 +156,7 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel, null, null, 0)
+        UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0)
     }
 
     @Override
@@ -297,7 +298,7 @@ class TraceGenerator {
       return metadata.getBaggage()
     }
 
-    Map<String, Object> getTags() {
+    TagMap getTags() {
       return metadata.getTags()
     }
 
