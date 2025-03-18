@@ -26,7 +26,7 @@ dependencies {
   }
   muzzleBootstrap('org.yaml:snakeyaml') {
     version {
-      strictly '1.+'
+      strictly '1.33'
     }
   }
 
