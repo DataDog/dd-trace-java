@@ -461,4 +461,92 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     span.isError()
   }
+
+  def "span events functionality"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+    def eventName = "test-event"
+    def attributes = ["key1": "value1", "key2": 123]
+    def timestamp = System.currentTimeMillis()
+
+    when:
+    span.addEvent(eventName)
+    def events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == null || events[0].attributes.isEmpty()
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(eventName, attributes)
+    events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == attributes
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(eventName, attributes, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.size() == 1
+    events[0].name == eventName
+    events[0].attributes == attributes
+    events[0].timestampNanos == TimeUnit.MILLISECONDS.toNanos(timestamp)
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent("event1")
+    span.addEvent("event2", ["key": "value"])
+    span.addEvent("event3", null, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.size() == 3
+    events[0].name == "event1"
+    events[1].name == "event2"
+    events[2].name == "event3"
+    events[0].attributes == null || events[0].attributes.isEmpty()
+    events[1].attributes == ["key": "value"]
+    events[2].attributes == null || events[2].attributes.isEmpty()
+
+    when:
+    span = tracer.buildSpan("test").start()
+    span.addEvent(null)
+    span.addEvent(null, ["key": "value"])
+    span.addEvent(null, null, timestamp, TimeUnit.MILLISECONDS)
+    events = span.getEvents()
+
+    then:
+    events.isEmpty()
+  }
+
+  def "span events added as tag are preserved"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+    def eventsJson = """[{
+      "time_unix_nano": 1234567890000000,
+      "name": "manual-event",
+      "attributes": {
+        "foo": "bar",
+        "count": 42
+      }
+    }]"""
+
+    when:
+    span.setTag("_dd.span_events", eventsJson)
+    def events = span.getEvents()
+
+    then:
+    span.getTag("_dd.span_events") == eventsJson
+    events.isEmpty() // The events list should be empty since we're bypassing addEvent()
+
+    cleanup:
+    span.finish()
+  }
 }

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
+  private static final String SPAN_EVENTS = "_dd.span_events";
   private final boolean hexIds;
 
   DDSpanJsonAdapter(final boolean hexIds) {
