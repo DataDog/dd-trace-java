@@ -37,21 +37,12 @@ import javax.annotation.Nullable;
  */
 public interface Context {
   /**
-   * Returns the empty context.
-   *
-   * @return the context containing no values at all.
-   */
-  static Context empty() {
-    return EmptyContext.INSTANCE;
-  }
-
-  /**
    * Returns the root context.
    *
    * @return the initial local context that all contexts extend.
    */
   static Context root() {
-    return manager().root();
+    return EmptyContext.INSTANCE;
   }
 
   /**
