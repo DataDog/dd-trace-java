@@ -170,7 +170,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
         }
         eventsJson.append(events.get(i).toJson());
       }
-      eventsJson.append("]");
+      eventsJson.append(']');
       setTag(SPAN_EVENTS, eventsJson.toString());
     }
     if (!externalClock) {

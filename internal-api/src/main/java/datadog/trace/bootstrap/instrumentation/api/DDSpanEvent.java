@@ -65,7 +65,7 @@ public class DDSpanEvent {
       json.append("}");
     }
 
-    json.append("}");
+    json.append('}');
     return json.toString();
   }
 }
