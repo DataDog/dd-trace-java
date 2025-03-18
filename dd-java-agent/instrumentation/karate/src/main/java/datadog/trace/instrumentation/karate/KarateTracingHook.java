@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.karate;
 
-import com.intuit.karate.FileUtils;
 import com.intuit.karate.KarateException;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.Suite;
@@ -14,7 +13,7 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
@@ -33,8 +32,8 @@ import java.util.List;
 public class KarateTracingHook implements RuntimeHook {
 
   private static final String FRAMEWORK_NAME = "karate";
-  private static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
-  private static final String KARATE_STEP_SPAN_NAME = "karate.step";
+  public static final String FRAMEWORK_VERSION = KarateUtils.getKarateVersion();
+  public static final String KARATE_STEP_SPAN_NAME = "karate.step";
 
   private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
 
@@ -121,7 +120,7 @@ public class KarateTracingHook implements RuntimeHook {
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
-              && categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG))) {
+              && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -221,11 +220,7 @@ public class KarateTracingHook implements RuntimeHook {
       return;
     }
 
-    AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
+    AgentTracer.closeActive();
     span.finish();
   }
 

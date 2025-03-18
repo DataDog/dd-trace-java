@@ -129,7 +129,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -3,6 +3,7 @@ package datadog.common.socket;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.File;
 import java.io.IOException;
@@ -24,6 +25,8 @@ import org.slf4j.LoggerFactory;
 public final class UnixDomainSocketFactory extends SocketFactory {
   private static final Logger log = LoggerFactory.getLogger(UnixDomainSocketFactory.class);
 
+  private static final boolean JDK_SUPPORTS_UDS = Platform.isJavaVersionAtLeast(16);
+
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, MINUTES);
 
   private final File path;
@@ -35,8 +38,14 @@ public final class UnixDomainSocketFactory extends SocketFactory {
   @Override
   public Socket createSocket() throws IOException {
     try {
-      final UnixSocketChannel channel = UnixSocketChannel.open();
-      return new TunnelingUnixSocket(path, channel);
+      if (JDK_SUPPORTS_UDS && Config.get().isJdkSocketEnabled()) {
+        try {
+          return new TunnelingJdkSocket(path.toPath());
+        } catch (Throwable ignore) {
+          // fall back to jnr-unixsocket library
+        }
+      }
+      return new TunnelingUnixSocket(path, UnixSocketChannel.open());
     } catch (Throwable e) {
       if (Config.get().isAgentConfiguredUsingDefault()) {
         // fall back to port if we previously auto-discovered this socket file

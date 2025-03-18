@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.test;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -18,6 +19,7 @@ import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -117,7 +119,8 @@ public class ExecutionStrategy {
   }
 
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
     if (test == null) {
       return Regular.INSTANCE;
     }
@@ -129,7 +132,7 @@ public class ExecutionStrategy {
           RetryReason.attemptToFix);
     }
 
-    if (isEFDApplicable(test, testSource)) {
+    if (isEFDApplicable(test, testSource, testTags)) {
       // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
@@ -163,11 +166,14 @@ public class ExecutionStrategy {
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }
 
-  private boolean isEFDApplicable(@Nonnull TestIdentifier test, TestSourceData testSource) {
+  private boolean isEFDApplicable(
+      @Nonnull TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
     EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
     return efdSettings.isEnabled()
         && !isEFDLimitReached()
-        && (isNew(test) || isModified(testSource));
+        && (isNew(test) || isModified(testSource))
+        // endsWith matching is needed for JUnit4-based frameworks, where tags are classes
+        && testTags.stream().noneMatch(t -> t.endsWith(CIConstants.Tags.EFD_DISABLE_TAG));
   }
 
   public boolean isEFDLimitReached() {

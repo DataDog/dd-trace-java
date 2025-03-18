@@ -16,7 +16,7 @@ public class DatadogWrapperHelper {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);
 
-    return activateSpan(span, true);
+    return activateSpan(span);
   }
 
   public static void finishSpan(final AgentSpan span, final HttpResponse response) {

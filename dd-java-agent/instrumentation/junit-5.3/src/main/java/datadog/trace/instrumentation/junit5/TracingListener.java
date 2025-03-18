@@ -23,7 +23,7 @@ public class TracingListener implements EngineExecutionListener {
   public TracingListener(TestEngine testEngine) {
     String engineId = testEngine.getId();
     testFramework = engineId == null || engineId.startsWith("junit") ? "junit5" : engineId;
-    testFrameworkVersion = testEngine.getVersion().orElse(null);
+    testFrameworkVersion = JUnitPlatformUtils.getFrameworkVersion(testEngine);
   }
 
   @Override
@@ -120,8 +120,7 @@ public class TracingListener implements EngineExecutionListener {
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
     TestEventsHandlerHolder.HANDLERS

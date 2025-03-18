@@ -1,8 +1,8 @@
-import com.intuit.karate.FileUtils
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.karate.KarateUtils
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.*
 import org.junit.jupiter.api.Assumptions
@@ -33,7 +33,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     testcaseName            | success | tests                          | assumption
     "test-succeed"          | true    | [TestSucceedKarate]            | true
     "test-succeed-parallel" | true    | [TestSucceedParallelKarate]    | true
-    "test-with-setup"       | true    | [TestWithSetupKarate]          | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-with-setup"       | true    | [TestWithSetupKarate]          | KarateUtils.isSetupTagSupported(KarateUtils.getKarateVersion())
     "test-parameterized"    | true    | [TestParameterizedKarate]      | true
     "test-failed"           | false   | [TestFailedKarate]             | true
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]     | true
@@ -41,7 +41,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion()))
 
     givenSkippableTests(skippedTests)
 
@@ -94,6 +94,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
     "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
+    "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []
   }
 
   def "test quarantined #testcaseName"() {
@@ -142,7 +143,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test disabled #testcaseName"() {
-    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+    Assumptions.assumeTrue(KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion()))
 
     givenDisabledTests(disabled)
 
@@ -172,6 +173,19 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []
     "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedKarate]  | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]  | []                                                                         | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedKarate] | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")] | []                                                                         | [new TestFQN("[org/example/test_succeed] test succeed", "first scenario")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
+    runTests([TestSucceedOneCaseKarate], true)
+
+    assertCapabilities(capabilities, 5)
+
+    where:
+    testcaseName                 | capabilities                      | assumption
+    "test-capabilities-base"     | KarateUtils.CAPABILITIES_BASE     | !KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
+    "test-capabilities-skipping" | KarateUtils.CAPABILITIES_SKIPPING | KarateUtils.isSkippingSupported(KarateUtils.getKarateVersion())
   }
 
   private void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
@@ -220,16 +234,7 @@ class KarateTest extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    return FileUtils.KARATE_VERSION
-  }
-
-  boolean isSkippingSupported(String frameworkVersion) {
-    // earlier Karate version contain a bug that does not allow skipping scenarios
-    frameworkVersion >= "1.2.0"
-  }
-
-  boolean isSetupTagSupported(String frameworkVersion) {
-    frameworkVersion >= "1.3.0"
+    return KarateUtils.getKarateVersion()
   }
 
   private static final class TestResultListener implements TestExecutionListener {

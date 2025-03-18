@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import java.lang.invoke.MethodHandle;
@@ -72,7 +72,7 @@ public class SpockUtils {
   public static boolean isItrUnskippable(SpockNode<?> spockNode) {
     Collection<TestTag> tags = getTags(spockNode);
     for (TestTag tag : tags) {
-      if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+      if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
         return true;
       }
     }

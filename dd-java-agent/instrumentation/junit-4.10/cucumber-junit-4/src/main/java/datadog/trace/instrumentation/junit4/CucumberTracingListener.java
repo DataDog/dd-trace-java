@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -206,11 +205,6 @@ public class CucumberTracingListener extends TracingListener {
 
   private List<String> getCategories(Description description) {
     Pickle pickle = pickleById.get(JUnit4Utils.getUniqueId(description));
-    List<String> pickleTags = pickle.getTags();
-    List<String> categories = new ArrayList<>(pickleTags.size());
-    for (String tag : pickleTags) {
-      categories.add(tag.substring(1)); // remove leading "@"
-    }
-    return categories;
+    return CucumberUtils.getCategories(pickle);
   }
 }

@@ -22,7 +22,7 @@ public class SpockTracingListener implements EngineExecutionListener {
 
   public SpockTracingListener(TestEngine testEngine) {
     testFramework = testEngine.getId();
-    testFrameworkVersion = testEngine.getVersion().orElse(null);
+    testFrameworkVersion = JUnitPlatformUtils.getFrameworkVersion(testEngine);
   }
 
   @Override
@@ -120,8 +120,7 @@ public class SpockTracingListener implements EngineExecutionListener {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
 
     TestEventsHandlerHolder.HANDLERS

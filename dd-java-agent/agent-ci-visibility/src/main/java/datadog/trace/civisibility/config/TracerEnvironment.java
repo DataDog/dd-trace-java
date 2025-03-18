@@ -16,6 +16,9 @@ public class TracerEnvironment {
   private final String branch;
   private final String sha;
 
+  @Json(name = "commit_message")
+  private final String commitMessage;
+
   @Json(name = "test_level")
   private final String testLevel = "test";
 
@@ -27,17 +30,23 @@ public class TracerEnvironment {
       String repositoryUrl,
       String branch,
       String sha,
+      String commitMessage,
       Configurations configurations) {
     this.service = service;
     this.env = env;
     this.repositoryUrl = repositoryUrl;
     this.branch = branch;
     this.sha = sha;
+    this.commitMessage = commitMessage;
     this.configurations = configurations;
   }
 
   public String getSha() {
     return sha;
+  }
+
+  public String getCommitMessage() {
+    return commitMessage;
   }
 
   public String getService() {
@@ -82,6 +91,9 @@ public class TracerEnvironment {
         + ", sha='"
         + sha
         + '\''
+        + ", commitMessage='"
+        + commitMessage
+        + '\''
         + ", testLevel='"
         + testLevel
         + '\''
@@ -100,6 +112,7 @@ public class TracerEnvironment {
     private String repositoryUrl;
     private String branch;
     private String sha;
+    private String commitMessage;
     private String osPlatform;
     private String osArchitecture;
     private String osVersion;
@@ -132,6 +145,11 @@ public class TracerEnvironment {
 
     public Builder sha(String sha) {
       this.sha = sha;
+      return this;
+    }
+
+    public Builder commitMessage(String commitMessage) {
+      this.commitMessage = commitMessage;
       return this;
     }
 
@@ -187,6 +205,7 @@ public class TracerEnvironment {
           repositoryUrl,
           branch,
           sha,
+          commitMessage,
           new Configurations(
               osPlatform,
               osArchitecture,

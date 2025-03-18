@@ -514,6 +514,7 @@ public class Config {
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
+  private final boolean azureFunctions;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -536,7 +537,9 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
-
+  private final boolean websocketMessagesInheritSampling;
+  private final boolean websocketMessagesSeparateTraces;
+  private final boolean websocketTagSessionId;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
@@ -558,6 +561,9 @@ public class Config {
   private final long dependecyResolutionPeriodMillis;
 
   private final boolean apmTracingEnabled;
+  private final Set<String> experimentalFeaturesEnabled;
+
+  private final boolean jdkSocketEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -622,6 +628,10 @@ public class Config {
     rootContextServiceName =
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+
+    experimentalFeaturesEnabled =
+        configProvider.getSet(
+            TRACE_EXPERIMENTAL_FEATURES_ENABLED, DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED);
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
@@ -767,7 +777,14 @@ public class Config {
 
     {
       final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
-      tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      if (experimentalFeaturesEnabled.contains("DD_TAGS")) {
+        tags.putAll(configProvider.getMergedTagsMap(TRACE_TAGS, TAGS));
+      } else {
+        tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      }
+      if (serviceNameSetByUser) { // prioritize service name set by DD_SERVICE over DD_TAGS config
+        tags.remove("service");
+      }
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 
@@ -797,6 +814,9 @@ public class Config {
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
 
     baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
+
+    azureFunctions =
+        getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -1843,6 +1863,15 @@ public class Config {
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
 
+    websocketMessagesInheritSampling =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING);
+    websocketMessagesSeparateTraces =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES);
+    websocketTagSessionId =
+        configProvider.getBoolean(TRACE_WEBSOCKET_TAG_SESSION_ID, DEFAULT_WEBSOCKET_TAG_SESSION_ID);
+
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
             TracerConfig.TRACE_FLUSH_INTERVAL, ConfigDefaults.DEFAULT_TRACE_FLUSH_INTERVAL);
@@ -1932,6 +1961,8 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
     log.debug("New instance: {}", this);
   }
 
@@ -1996,6 +2027,10 @@ public class Config {
 
   public String getRootContextServiceName() {
     return rootContextServiceName;
+  }
+
+  public Set<String> getExperimentalFeaturesEnabled() {
+    return experimentalFeaturesEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -3482,6 +3517,18 @@ public class Config {
     return axisPromoteResourceName;
   }
 
+  public boolean isWebsocketMessagesInheritSampling() {
+    return websocketMessagesInheritSampling;
+  }
+
+  public boolean isWebsocketMessagesSeparateTraces() {
+    return websocketMessagesSeparateTraces;
+  }
+
+  public boolean isWebsocketTagSessionId() {
+    return websocketTagSessionId;
+  }
+
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
   }
@@ -3492,6 +3539,10 @@ public class Config {
 
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
+  }
+
+  public boolean isJdkSocketEnabled() {
+    return jdkSocketEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3777,8 +3828,14 @@ public class Config {
   }
 
   private int schemaVersionFromConfig() {
-    String versionStr =
-        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    String defaultVersion;
+    // use v1 so Azure Functions operation name is consistent with that of other tracers
+    if (azureFunctions) {
+      defaultVersion = "v1";
+    } else {
+      defaultVersion = "v" + SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    String versionStr = configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, defaultVersion);
     Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
     int parsedVersion = -1;
     if (matcher.matches()) {
@@ -4334,6 +4391,8 @@ public class Config {
         + serviceNameSetByUser
         + ", rootContextServiceName="
         + rootContextServiceName
+        + ", experimentalFeaturesEnabled="
+        + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
         + ", writerType='"
@@ -4407,6 +4466,8 @@ public class Config {
         + dbClientSplitByHost
         + ", DBMPropagationMode="
         + DBMPropagationMode
+        + ", DBMTracePreparedStatements="
+        + DBMTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="
@@ -4731,6 +4792,8 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
+        + ", jdkSocketEnabled="
+        + jdkSocketEnabled
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="

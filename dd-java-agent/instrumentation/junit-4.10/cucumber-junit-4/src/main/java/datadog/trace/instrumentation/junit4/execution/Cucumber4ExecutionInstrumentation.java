@@ -20,6 +20,7 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -97,10 +98,11 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
 
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
+      Collection<String> testTags = CucumberUtils.getPickleRunnerTags(pickleRunner);
       TestExecutionPolicy executionPolicy =
           TestEventsHandlerHolder.HANDLERS
               .get(TestFrameworkInstrumentation.CUCUMBER)
-              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN);
+              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;

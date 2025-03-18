@@ -1,7 +1,6 @@
 package com.datadog.appsec.config
 
 import com.datadog.appsec.AppSecSystem
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.util.AbortStartupException
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
@@ -45,9 +44,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   ConfigurationPoller poller = Mock()
   def config = Mock(Class.forName('datadog.trace.api.Config'))
-  ApiSecurityRequestSampler sampler = Mock(ApiSecurityRequestSampler)
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
-  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, sampler, reconf)
+  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
 
   void cleanup() {
     appSecConfigService?.close()
@@ -204,7 +202,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
@@ -241,7 +239,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -275,7 +273,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
       | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -395,7 +392,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -429,7 +426,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
       | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -533,35 +529,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     thrown IOException
   }
 
-  void 'update sample rate via remote-config'() {
-    given:
-    def newConfig = new AppSecFeatures().tap { features ->
-      features.apiSecurity = new AppSecFeatures.ApiSecurity().tap { api ->
-        api.requestSampleRate = 0.2
-      }
-    }
-    def listeners = new SavedListeners()
-
-    when:
-    appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
-
-    then:
-    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
-      listeners.savedFeaturesDeserializer = it[1]
-      listeners.savedFeaturesListener = it[2]
-    }
-    1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
-    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-
-    when:
-    listeners.savedFeaturesListener.accept('asm_api_security', newConfig, null)
-    listeners.savedConfEndListener.onConfigurationEnd()
-
-    then:
-    1 * sampler.setSampling(0.2F)
-  }
-
   void 'update auto user instrum mode via remote-config'() {
     given:
     def listeners = new SavedListeners()
@@ -593,6 +560,67 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     autoUserInstrum('anonymization')  | ANONYMIZATION
     autoUserInstrum('disabled')       | DISABLED
     autoUserInstrum('yolo')           | DISABLED
+  }
+
+  void 'RASP capabilities for LFI  is not sent when RASP is not fully enabled '() {
+    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
+    SavedListeners listeners = new SavedListeners()
+    Optional<CurrentAppSecConfig> initialWafConfig
+
+    when:
+    AppSecSystem.active = false
+    appSecConfigService.init()
+    appSecConfigService.maybeSubscribeConfigPolling()
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.commit()
+
+    then:
+    1 * config.isAppSecRaspEnabled() >> true
+    1 * config.getAppSecRulesFile() >> null
+    2 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    1 * poller.addListener(Product.ASM_DD, _, _) >> {
+      listeners.savedConfDeserializer = it[1]
+      listeners.savedConfChangesListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
+      listeners.savedWafDataDeserializer = it[1]
+      listeners.savedWafDataChangesListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM, _, _) >> {
+      listeners.savedWafRulesOverrideDeserializer = it[1]
+      listeners.savedWafRulesOverrideListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+    1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_IP_BLOCKING
+      | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
+      | CAPABILITY_ASM_REQUEST_BLOCKING
+      | CAPABILITY_ASM_USER_BLOCKING
+      | CAPABILITY_ASM_CUSTOM_RULES
+      | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+      | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_CMDI
+      | CAPABILITY_ASM_RASP_SHI
+      | CAPABILITY_ASM_RASP_LFI
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+    0 * _._
+    initialWafConfig.get() != null
+
+    cleanup:
+    AppSecSystem.active = true
   }
 
   private static AppSecFeatures autoUserInstrum(String mode) {

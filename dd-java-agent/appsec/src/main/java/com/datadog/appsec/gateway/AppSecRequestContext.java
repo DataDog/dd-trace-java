@@ -8,7 +8,6 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
-import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -136,12 +135,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // keep a reference to the last published usr.id
   private volatile String userId;
-  private volatile UserIdCollectionMode userIdSource;
   // keep a reference to the last published usr.login
   private volatile String userLogin;
-  private volatile UserIdCollectionMode userLoginSource;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
+
+  // Used to detect missing request-end event at close.
+  private volatile boolean requestEndCalled;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
@@ -533,36 +533,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.respDataPublished = respDataPublished;
   }
 
-  public String getUserId() {
-    return userId;
-  }
-
-  public void setUserId(String userId) {
+  /**
+   * Updates the current used usr.id
+   *
+   * @return {@code false} if the user id has not been updated
+   */
+  public boolean updateUserId(String userId) {
+    if (Objects.equals(this.userId, userId)) {
+      return false;
+    }
     this.userId = userId;
+    return true;
   }
 
-  public UserIdCollectionMode getUserIdSource() {
-    return userIdSource;
-  }
-
-  public void setUserIdSource(UserIdCollectionMode userIdSource) {
-    this.userIdSource = userIdSource;
-  }
-
-  public String getUserLogin() {
-    return userLogin;
-  }
-
-  public void setUserLogin(String userLogin) {
+  /**
+   * Updates current used usr.login
+   *
+   * @return {@code false} if the user login has not been updated
+   */
+  public boolean updateUserLogin(String userLogin) {
+    if (Objects.equals(this.userLogin, userLogin)) {
+      return false;
+    }
     this.userLogin = userLogin;
-  }
-
-  public UserIdCollectionMode getUserLoginSource() {
-    return userLoginSource;
-  }
-
-  public void setUserLoginSource(UserIdCollectionMode userLoginSource) {
-    this.userLoginSource = userLoginSource;
+    return true;
   }
 
   public void setSessionId(String sessionId) {
@@ -584,12 +578,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /* Should be accessible from the modules */
 
   public void close(boolean requiresPostProcessing) {
-    if (additive != null || derivatives != null) {
+    if (!requestEndCalled) {
+      log.debug(SEND_TELEMETRY, "Request end event was not called before close");
+    }
+    if (additive != null) {
       log.debug(
           SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
-      derivatives = null;
     }
+    derivatives = null;
 
     // check if we might need to further post process data related to the span in order to not free
     // related data
@@ -698,5 +695,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isAdditiveClosed() {
     return additiveClosed;
+  }
+
+  /** Must be called during request end event processing. */
+  void setRequestEndCalled() {
+    requestEndCalled = true;
   }
 }

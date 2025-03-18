@@ -48,7 +48,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent, true)) {
+    try (final AgentScope scope = activateSpan(parent)) {
       ctx.sendUpstream(msg);
     }
   }
@@ -76,7 +76,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent, true)) {
+    try (final AgentScope scope = activateSpan(parent)) {
       super.exceptionCaught(ctx, e);
     }
   }

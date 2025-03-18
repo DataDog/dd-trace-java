@@ -29,7 +29,7 @@ public class PromiseHelper {
    */
   public static AgentSpan getSpan() {
     final AgentSpan span = activeSpan();
-    if (null != span && isAsyncPropagationEnabled()) {
+    if (null != span && span.isValid() && isAsyncPropagationEnabled()) {
       return span;
     }
     return null;

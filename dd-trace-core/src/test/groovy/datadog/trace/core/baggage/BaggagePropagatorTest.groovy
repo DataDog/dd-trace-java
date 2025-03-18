@@ -3,20 +3,19 @@ package datadog.trace.core.baggage
 import datadog.context.Context
 import datadog.context.propagation.CarrierSetter
 import datadog.context.propagation.CarrierVisitor
-import datadog.trace.bootstrap.instrumentation.api.BaggageContext
+import datadog.trace.bootstrap.instrumentation.api.Baggage
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
-import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.test.util.DDSpecification
 
 import java.util.function.BiConsumer
 
 import static datadog.trace.core.baggage.BaggagePropagator.BAGGAGE_KEY
 
-class BaggagePropagatorTest extends DDCoreSpecification {
+class BaggagePropagatorTest extends DDSpecification {
   BaggagePropagator propagator
   CarrierSetter setter
   Map<String, String> carrier
   Context context
-
 
   static class MapCarrierAccessor
   implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
@@ -35,14 +34,14 @@ class BaggagePropagatorTest extends DDCoreSpecification {
 
   def setup() {
     this.propagator = new BaggagePropagator(true, true)
-    setter = new MapCarrierAccessor()
-    carrier = [:]
-    context = Context.root()
+    this.setter = new MapCarrierAccessor()
+    this.carrier = [:]
+    this.context = Context.root()
   }
 
   def 'test baggage propagator context injection'() {
     setup:
-    context = BaggageContext.create(baggageMap).storeInto(context)
+    this.context = Baggage.create(baggageMap).storeInto(this.context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -66,7 +65,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = BaggageContext.create(baggage).storeInto(context)
+    context = Baggage.create(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -84,7 +83,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
-    context = BaggageContext.create(baggage).storeInto(context)
+    context = Baggage.create(baggage).storeInto(context)
 
     when:
     this.propagator.inject(context, carrier, setter)
@@ -109,7 +108,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
 
     then:
-    BaggageContext.fromContext(context).asMap() == baggageMap
+    Baggage.fromContext(context).asMap() == baggageMap
 
     where:
     baggageHeader                                                      | baggageMap
@@ -127,7 +126,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
 
     then:
-    BaggageContext.fromContext(context) == null
+    Baggage.fromContext(context) == null
 
     where:
     baggageHeader                                                       | _
@@ -150,7 +149,7 @@ class BaggagePropagatorTest extends DDCoreSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
 
     then:
-    BaggageContext baggageContext = BaggageContext.fromContext(context)
+    Baggage baggageContext = Baggage.fromContext(context)
     baggageContext.asMap() == baggageMap
 
     when:

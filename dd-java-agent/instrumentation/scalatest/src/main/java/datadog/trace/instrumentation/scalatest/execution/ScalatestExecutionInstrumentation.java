@@ -87,7 +87,8 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
         TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
         TestExecutionPolicy executionPolicy =
-            context.getOrCreateExecutionPolicy(testIdentifier, testSourceData);
+            context.getOrCreateExecutionPolicy(
+                testIdentifier, testSourceData, context.tags(testIdentifier));
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, executionPolicy);
       }

@@ -1,5 +1,6 @@
 package datadog.context;
 
+import static datadog.context.Context.empty;
 import static datadog.context.Context.root;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +21,17 @@ class ContextTest {
   static final ContextKey<Boolean> BOOLEAN_KEY = ContextKey.named("boolean-key");
   static final ContextKey<Float> FLOAT_KEY = ContextKey.named("float-key");
   static final ContextKey<Long> LONG_KEY = ContextKey.named("long-key");
+
+  @Test
+  void testEmpty() {
+    // Test empty is always the same
+    Context empty = empty();
+    assertEquals(empty, empty(), "Empty context should be consistent");
+    // Test empty is not mutated
+    String stringValue = "value";
+    empty.with(STRING_KEY, stringValue);
+    assertEquals(empty, empty(), "Empty context should be immutable");
+  }
 
   @Test
   void testRoot() {

@@ -6,7 +6,7 @@ import org.apache.pekko.util.Timeout
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
   activateSpan,
-  activeScope,
+  setAsyncPropagationEnabled,
   activeSpan,
   startSpan
 }
@@ -55,7 +55,7 @@ class PekkoActors extends AutoCloseable {
   @Trace
   def send(name: String, who: String): Unit = {
     val actor = actors(name)
-    activeScope().setAsyncPropagation(true)
+    setAsyncPropagationEnabled(true)
     activeSpan().setSpanName(name)
     actor ! WhoToGreet(who)
     if (name == "ask") {
@@ -67,7 +67,7 @@ class PekkoActors extends AutoCloseable {
 
   @Trace
   def leak(who: String, leak: String): Unit = {
-    activeScope().setAsyncPropagation(true)
+    setAsyncPropagationEnabled(true)
     activeSpan().setSpanName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)

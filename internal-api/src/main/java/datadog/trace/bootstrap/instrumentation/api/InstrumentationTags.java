@@ -36,7 +36,13 @@ public class InstrumentationTags {
   public static final String TABLE_NAME = "tablename";
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
+
+  // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
+  public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";
+  public static final String DYNAMO_PRIMARY_KEY_1_VALUE = "dynamodb.primary_key_1_value";
+  public static final String DYNAMO_PRIMARY_KEY_2 = "dynamodb.primary_key_2";
+  public static final String DYNAMO_PRIMARY_KEY_2_VALUE = "dynamodb.primary_key_2_value";
 
   public static final String BUCKET = "bucket";
   public static final String CASSANDRA_CONTACT_POINTS = "db.cassandra.contact.points";
@@ -122,4 +128,12 @@ public class InstrumentationTags {
 
   public static final String MULE_CORRELATION_ID = "mule.correlation_id";
   public static final String MULE_LOCATION = "mule.location";
+
+  public static final String WEBSOCKET_SESSION_ID = "websocket.session.id";
+  public static final String WEBSOCKET_MESSAGE_TYPE = "websocket.message.type";
+  public static final String WEBSOCKET_MESSAGE_LENGTH = "websocket.message.length";
+  public static final String WEBSOCKET_MESSAGE_FRAMES = "websocket.message.frames";
+  public static final String WEBSOCKET_MESSAGE_RECEIVE_TIME = "websocket.message.receive_time";
+  public static final String WEBSOCKET_CLOSE_CODE = "websocket.close.code";
+  public static final String WEBSOCKET_CLOSE_REASON = "websocket.close.reason";
 }

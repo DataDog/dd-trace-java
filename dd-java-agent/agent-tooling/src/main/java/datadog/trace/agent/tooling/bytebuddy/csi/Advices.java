@@ -6,6 +6,8 @@ import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_ME
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSites;
+import datadog.trace.agent.tooling.csi.InvokeAdvice;
+import datadog.trace.agent.tooling.csi.InvokeDynamicAdvice;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
@@ -141,6 +143,11 @@ public class Advices {
     return methodAdvices.get(descriptor);
   }
 
+  /** Gets the type of advice we are dealing with */
+  public byte typeOf(final CallSiteAdvice advice) {
+    return ((TypedAdvice) advice).getType();
+  }
+
   public String[] getHelpers() {
     return helpers;
   }
@@ -176,15 +183,17 @@ public class Advices {
 
     @Override
     public void addAdvice(
-        final String type,
+        final byte type,
+        final String owner,
         final String method,
         final String descriptor,
         final CallSiteAdvice advice) {
       final Map<String, Map<String, CallSiteAdvice>> typeAdvices =
-          advices.computeIfAbsent(type, k -> new HashMap<>());
+          advices.computeIfAbsent(owner, k -> new HashMap<>());
       final Map<String, CallSiteAdvice> methodAdvices =
           typeAdvices.computeIfAbsent(method, k -> new HashMap<>());
-      final CallSiteAdvice oldAdvice = methodAdvices.put(descriptor, advice);
+      final CallSiteAdvice oldAdvice =
+          methodAdvices.put(descriptor, TypedAdvice.withType(advice, type));
       if (oldAdvice != null) {
         throw new UnsupportedOperationException(
             String.format(
@@ -359,5 +368,68 @@ public class Advices {
   public interface Listener {
     void onConstantPool(
         @Nonnull TypeDescription type, @Nonnull ConstantPool pool, final byte[] classFile);
+  }
+
+  private interface TypedAdvice {
+    byte getType();
+
+    static CallSiteAdvice withType(final CallSiteAdvice advice, final byte type) {
+      if (advice instanceof InvokeAdvice) {
+        return new InvokeWithType((InvokeAdvice) advice, type);
+      } else {
+        return new InvokeDynamicWithType((InvokeDynamicAdvice) advice, type);
+      }
+    }
+  }
+
+  private static class InvokeWithType implements InvokeAdvice, TypedAdvice {
+    private final InvokeAdvice advice;
+    private final byte type;
+
+    private InvokeWithType(InvokeAdvice advice, byte type) {
+      this.advice = advice;
+      this.type = type;
+    }
+
+    @Override
+    public byte getType() {
+      return type;
+    }
+
+    @Override
+    public void apply(
+        final MethodHandler handler,
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor,
+        final boolean isInterface) {
+      advice.apply(handler, opcode, owner, name, descriptor, isInterface);
+    }
+  }
+
+  private static class InvokeDynamicWithType implements InvokeDynamicAdvice, TypedAdvice {
+    private final InvokeDynamicAdvice advice;
+    private final byte type;
+
+    private InvokeDynamicWithType(final InvokeDynamicAdvice advice, final byte type) {
+      this.advice = advice;
+      this.type = type;
+    }
+
+    @Override
+    public byte getType() {
+      return type;
+    }
+
+    @Override
+    public void apply(
+        final MethodHandler handler,
+        final String name,
+        final String descriptor,
+        final Handle bootstrapMethodHandle,
+        final Object... bootstrapMethodArguments) {
+      advice.apply(handler, name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+    }
   }
 }
