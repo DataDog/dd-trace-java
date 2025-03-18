@@ -949,7 +949,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
-    return new CoreSpanBuilder(instrumentationName, operationName, this);
+    return new CoreSpanBuilder(this, instrumentationName, operationName);
   }
 
   @Override
@@ -1360,7 +1360,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   /** Spans are built using this builder */
-  public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+  public static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final String instrumentationName;
     private final CharSequence operationName;
     private final CoreTracer tracer;
@@ -1381,7 +1381,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private long spanId;
 
     CoreSpanBuilder(
-        final String instrumentationName, final CharSequence operationName, CoreTracer tracer) {
+        final CoreTracer tracer, 
+        final String instrumentationName,
+        final CharSequence operationName)
+    {
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
       this.tracer = tracer;
@@ -1422,7 +1425,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     public AgentSpan start() {
       AgentSpanContext pc = parent;
       if (pc == null && !ignoreScope) {
-        final AgentSpan span = activeSpan();
+        final AgentSpan span = tracer.activeSpan();
         if (span != null) {
           pc = span.context();
         }
@@ -1563,14 +1566,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final TagMap rootSpanTags;
       final boolean rootSpanTagsNeedsIntercept;
       final DDSpanContext context;
-      final Object requestContextDataAppSec;
-      final Object requestContextDataIast;
-      final Object ciVisibilityContextData;
+      Object requestContextDataAppSec;
+      Object requestContextDataIast;
+      Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
       if (this.spanId == 0) {
-        spanId = idGenerationStrategy.generateSpanId();
+        spanId = tracer.idGenerationStrategy.generateSpanId();
       } else {
         spanId = this.spanId;
       }
@@ -1578,7 +1581,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
-        final AgentSpan activeSpan = scopeManager.activeSpan();
+        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
         if (activeSpan != null) {
           parentContext = activeSpan.context();
         }
@@ -1638,7 +1641,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataIast = null;
           ciVisibilityContextData = null;
         }
-        propagationTags = propagationTagsFactory.empty();
+        propagationTags = tracer.propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
 
@@ -1654,19 +1657,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         } else if (parentContext != null) {
           traceId =
               parentContext.getTraceId() == DDTraceId.ZERO
-                  ? idGenerationStrategy.generateTraceId()
+                  ? tracer.idGenerationStrategy.generateTraceId()
                   : parentContext.getTraceId();
           parentSpanId = parentContext.getSpanId();
           samplingPriority = parentContext.getSamplingPriority();
           endToEndStartTime = 0;
-          propagationTags = propagationTagsFactory.empty();
+          propagationTags = tracer.propagationTagsFactory.empty();
         } else {
           // Start a new trace
-          traceId = idGenerationStrategy.generateTraceId();
+          traceId = tracer.idGenerationStrategy.generateTraceId();
           parentSpanId = DDSpanId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           endToEndStartTime = 0;
-          propagationTags = propagationTagsFactory.empty();
+          propagationTags = tracer.propagationTagsFactory.empty();
         }
 
         ConfigSnapshot traceConfig;
@@ -1693,10 +1696,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           ciVisibilityContextData = null;
         }
 
-        rootSpanTags = localRootSpanTags;
-        rootSpanTagsNeedsIntercept = localRootSpanTagsNeedIntercept;
+        rootSpanTags = tracer.localRootSpanTags;
+        rootSpanTagsNeedsIntercept = tracer.localRootSpanTagsNeedIntercept;
 
-        parentTraceCollector = createTraceCollector(traceId, traceConfig);
+        parentTraceCollector = tracer.createTraceCollector(traceId, traceConfig);
 
         if (endToEndStartTime > 0) {
           parentTraceCollector.beginEndToEnd(endToEndStartTime);
@@ -1711,11 +1714,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
                   && parentContext.getPathwayContext() != null
                   && parentContext.getPathwayContext().isStarted()
               ? parentContext.getPathwayContext()
-              : dataStreamsMonitoring.newPathwayContext();
+              : tracer.dataStreamsMonitoring.newPathwayContext();
 
       // when removing fake services the best upward service name to pick is the local root one
       // since a split by tag (i.e. servlet context) might have happened on it.
-      if (!allowInferredServices) {
+      if (!tracer.allowInferredServices) {
         final DDSpan rootSpan = parentTraceCollector.getRootSpan();
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
@@ -1739,7 +1742,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (serviceName == null) {
         // it could be on the initial snapshot but may be overridden to null and service name
         // cannot be null
-        serviceName = CoreTracer.this.serviceName;
+        serviceName = tracer.serviceName;
       }
 
       final CharSequence operationName =
@@ -1787,10 +1790,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               requestContextDataIast,
               ciVisibilityContextData,
               pathwayContext,
-              disableSamplingMechanismValidation,
+              tracer.disableSamplingMechanismValidation,
               propagationTags,
-              profilingContextIntegration,
-              injectBaggageAsTags,
+              tracer.profilingContextIntegration,
+              tracer.injectBaggageAsTags,
               isRemote);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
