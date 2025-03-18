@@ -26,19 +26,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
-import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
-import org.apache.kafka.common.record.RecordBatch;
 
 public class ProducerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-      @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
       @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
       @Advice.FieldValue("sender") Sender sender,
       @Advice.FieldValue("metadata") Metadata metadata,
@@ -64,8 +61,9 @@ public class ProducerAdvice {
     // This can help in mixed client environments where clients < 0.11 that do not support
     // headers attempt to read messages that were produced by clients > 0.11 and the magic
     // value of the broker(s) is >= 2
-    if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
-        && Config.get().isKafkaClientPropagationEnabled()
+
+    // Please note that the minimum magic for kafka 3.8+ is 2 so there is no need to check this
+    if (Config.get().isKafkaClientPropagationEnabled()
         && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
       setter = TextMapInjectAdapter.SETTER;
     }

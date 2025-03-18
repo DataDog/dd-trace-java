@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
@@ -54,7 +53,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
-  @Flaky
   def "test kafka client header propagation with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
@@ -162,7 +160,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
 
-  @Flaky
   def "test consumer with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)

@@ -541,7 +541,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "closing scope out of order - complex"() {
     // Events are checked twice in each case to ensure a call to
-    // tracer.activeScope() or tracer.activeSpan() doesn't change the count
+    // scopeManager.active() or tracer.activeSpan() doesn't change the count
 
     when:
     AgentSpan firstSpan = tracer.buildSpan("test", "foo").start()
@@ -550,7 +550,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
     assertEvents([ACTIVATE])
     1 * profilingContext.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
@@ -565,7 +565,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
-    tracer.activeScope() == secondScope
+    scopeManager.active() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("bar")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -578,7 +578,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -590,7 +590,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     0 * _
 
@@ -600,7 +600,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     0 * _
@@ -618,7 +618,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
-    tracer.activeScope() == null
+    scopeManager.active() == null
     assertEvents([
       ACTIVATE,
       ACTIVATE,
@@ -656,7 +656,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)

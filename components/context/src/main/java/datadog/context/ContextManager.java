@@ -3,16 +3,9 @@ package datadog.context;
 /** Manages context across execution units. */
 public interface ContextManager {
   /**
-   * Returns the root context.
-   *
-   * @return the initial local context that all contexts extend.
-   */
-  Context root();
-
-  /**
    * Returns the context attached to the current execution unit.
    *
-   * @return the attached context; {@link #root()} if there is none.
+   * @return the attached context; {@link Context#root()} if there is none.
    */
   Context current();
 
@@ -28,7 +21,7 @@ public interface ContextManager {
    * Swaps the given context with the one attached to current execution unit.
    *
    * @param context the context to swap.
-   * @return the previously attached context; {@link #root()} if there was none.
+   * @return the previously attached context; {@link Context#root()} if there was none.
    */
   Context swap(Context context);
 
