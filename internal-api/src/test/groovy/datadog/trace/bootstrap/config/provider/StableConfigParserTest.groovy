@@ -13,7 +13,7 @@ class StableConfigParserTest extends DDSpecification {
       throw new AssertionError("Failed to create test file")
     }
     injectEnvConfig("DD_SERVICE", "mysvc")
-    // From the below yaml, only apm_configuration_default and the second selector should be applied
+    // From the below yaml, only apm_configuration_default and the second selector should be applied: We use the first matching rule and discard the rest
     String yaml = """
 config_id: 12345
 apm_configuration_default:
@@ -95,6 +95,7 @@ apm_configuration_rules:
     "environment_variables" | ["svc"] | "ends_with" | "DD_SERVICE" | true
     "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
     "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
+    "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
   }
 
   def "test duplicate entries"() {

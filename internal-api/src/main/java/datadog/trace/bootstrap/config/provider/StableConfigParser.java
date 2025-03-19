@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,6 +99,25 @@ public class StableConfigParser {
     }
   }
 
+  private static boolean checkMatches(
+      String envValue, List<String> matches, BiPredicate<String, String> compareFunc) {
+    // envValue shouldn't be null, but doing an extra check to avoid NullPointerException on
+    // compareFunc.test
+    if (envValue == null) {
+      return false;
+    }
+    for (String value : matches) {
+      if (value == null) {
+        continue;
+      }
+      System.out.println("MTOFF: matching against " + value);
+      if (compareFunc.test(envValue, value.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // TODO: Make this private again after testing?
   // We do all of the case insensitivity modifications in this function, because each selector will
   // be viewed just once
@@ -115,46 +135,31 @@ public class StableConfigParser {
           }
         }
       case "environment_variables":
+        if (key == null) {
+          return false;
+        }
+        System.out.println("MTOFF: LOOKING FOR ENV " + key.toUpperCase());
         String envValue = System.getenv(key.toUpperCase());
         if (envValue == null) {
           return false;
         }
         envValue = envValue.toLowerCase();
+        System.out.println("MTOFF: ENV VALUE IS " + envValue);
         switch (operator.toLowerCase()) {
           case "exists":
             // We don't care about the value
             return true;
           case "equals":
-            for (String value : matches) {
-              if (value.equalsIgnoreCase(envValue)) {
-                return true;
-              }
-            }
-            break;
+            return checkMatches(envValue, matches, String::equalsIgnoreCase);
           case "starts_with":
-            for (String value : matches) {
-              if (envValue.startsWith(value.toLowerCase())) {
-                return true;
-              }
-            }
-            break;
+            return checkMatches(envValue, matches, String::startsWith);
           case "ends_with":
-            for (String value : matches) {
-              if (envValue.endsWith(value.toLowerCase())) {
-                return true;
-              }
-            }
-            break;
+            return checkMatches(envValue, matches, String::endsWith);
           case "contains":
-            for (String value : matches) {
-              if (envValue.contains(value.toLowerCase())) {
-                return true;
-              }
-            }
+            return checkMatches(envValue, matches, String::contains);
           default:
             return false;
         }
-        return false;
       case "process_arguments":
         // TODO: use CLIHelper once merged
         return true;
