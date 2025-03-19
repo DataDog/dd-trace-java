@@ -5,6 +5,7 @@ import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -15,21 +16,56 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * A super simple hash map designed for... - fast copy from one map to another - compatibility with
- * Builder idioms - building small maps as fast as possible - storing primitives without boxing -
- * minimal memory footprint
+ * A super simple hash map designed for...
+ * <ul>
+ * <li>fast copy from one map to another
+ * <li>compatibility with Builder idioms
+ * <li>building small maps as fast as possible
+ * <li>storing primitives without boxing
+ * <li>minimal memory footprint
+ * </ul>
  *
  * <p>This is mainly accomplished by using immutable entry objects that can reference an object or a
  * primitive. By using immutable entries, the entry objects can be shared between builders & maps
  * freely.
  *
- * <p>This map lacks some features of a regular java.util.Map... - Entry object mutation - size
- * tracking - falls back to computeSize - manipulating Map through the entrySet() or values()
+ * <p>This map lacks some features of a regular java.util.Map... 
+ * <ul>
+ * <li>Entry object mutation
+ * <li>size tracking - falls back to computeSize
+ * <li>manipulating Map through the entrySet() or values()
+ * </ul>
  *
- * <p>Also lacks features designed for handling large maps... - bucket array expansion - adaptive
- * collision
+ * <p>Also lacks features designed for handling large maps...
+ * <ul>
+ * <li>bucket array expansion
+ * <li>adaptive collision
+ * </ul>
+ */
+
+/*
+ * For memory efficiency, TagMap uses a rather complicated bucket system.
+ * <p>
+ * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
+ * <p>
+ * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot contain 
+ * form a link list to handle collisions.
+ * <p>
+ * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
+ * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
+ * <p>
+ * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed 
+ * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
+ * <p>
+ * This does introduce some inefficiencies when Entry-s are removed.
+ * In the current system, given that removals are rare, BucketGroups are never consolidated.
+ * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be 
+ * removed from the collision chain.
  */
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry> {
+  /**
+   * Immutable empty TagMap - similar to {@link Collections#emptyMap()}
+   */
   public static final TagMap EMPTY = createEmpty();
 
   private static final TagMap createEmpty() {
@@ -1555,10 +1591,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * BucketGroup is compromise for performance over a linked list or array - linked list - would
-   * prevent TagEntry-s from being immutable and would limit sharing opportunities - array -
-   * wouldn't be able to store hashes close together - parallel arrays (one for hashes & another for
-   * entries) would require more allocation
+   * BucketGroup is compromise for performance over a linked list or array
+   * - linked list - would prevent TagEntry-s from being immutable and would limit sharing opportunities
+   * - arrays - wouldn't be able to store hashes close together 
+   * - parallel arrays (one for hashes & another for entries) would require more allocation
+   * 
+   * BucketGroups are 
    */
   static final class BucketGroup {
     static final int LEN = 4;
@@ -1566,10 +1604,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     /*
      * To make search operations on BucketGroups fast, the hashes for each entry are held inside 
      * the BucketGroup.  This avoids pointer chasing to inspect each Entry object.
-     * 
+     * <p>
      * As a further optimization, the hashes are deliberated placed next to each other.
      * The intention is that the hashes will all end up in the same cache line, so loading 
      * one hash effectively loads the others for free.
+     * <p>
+     * A hash of zero indicates an available slot, the hashes passed to BucketGroup must be "adjusted"  
+     * hashes which can never be zero.  The zero handling is done by TagMap#hash.
      */
     int hash0 = 0;
     int hash1 = 0;
