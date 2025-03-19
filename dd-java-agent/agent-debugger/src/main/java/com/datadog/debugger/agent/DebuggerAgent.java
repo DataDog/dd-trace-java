@@ -74,7 +74,7 @@ public class DebuggerAgent {
     Config config = Config.get();
     DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
-    setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    // setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
