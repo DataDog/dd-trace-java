@@ -17,16 +17,18 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import org.testcontainers.containers.KafkaContainer
-import org.testcontainers.utility.DockerImageName
+
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -51,6 +53,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       ["randomTopic", true, true, true, true]
     ]
   }
+
+  @Rule
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC)
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
   @Override
   boolean useStrictTraceWrites() {
@@ -150,49 +156,48 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def "test kafka produce and consume"() {
     setup:
-    // Create and start a Kafka container using Testcontainers
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
-
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     if (isDataStreamsEnabled()) {
-      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+      producerProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
+    // set a low max request size, so that we can crash it
     TEST_WRITER.setFilter(dropEmptyKafkaPoll)
-    KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
-    String clusterId = ""
-    if (isDataStreamsEnabled()) {
-      producer.flush()
+    KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps, new StringSerializer(), new StringSerializer())
+    String clusterId = null
+    while (clusterId == null || clusterId.isEmpty()) {
+      Thread.sleep(1500)
       clusterId = producer.metadata.fetch().clusterResource().clusterId()
-      while (clusterId == null || clusterId.isEmpty()) {
-        Thread.sleep(1500)
-        clusterId = producer.metadata.fetch().clusterResource().clusterId()
-      }
     }
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
+
     // set the topic that needs to be consumed
     def containerProperties = new ContainerProperties(SHARED_TOPIC)
+
     // create a Kafka MessageListenerContainer
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
+
     // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
+
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1)
-          // ensure consistent ordering of traces
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
+
     // start the container and underlying message listener
     container.start()
+
     // wait until the container has the required number of assigned partitions
-    ContainerTestUtils.waitForAssignment(container, container.assignedPartitions.size())
+    ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
     when:
     String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
@@ -241,7 +246,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
-        producerSpan(it, senderProps, span(0), false)
+        producerSpan(it, producerProps, span(0), false)
       }
     }
     def headers = received.headers()
@@ -287,19 +292,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producer.close()
     container?.stop()
-    kafkaContainer.stop()
   }
 
   def "test producing message too large"() {
     setup:
-    // set a low max request size, so that we can crash it
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    producerProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10)
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
-    senderProps.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10)
-    KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
-
+    KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps, new StringSerializer(), new StringSerializer())
 
     when:
     String greeting = "Hello Spring Kafka"
@@ -314,10 +314,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def "test spring kafka template produce and consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
@@ -329,7 +327,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -452,20 +450,17 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
-    kafkaContainer.stop()
   }
 
   def "test pass through tombstone"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -522,22 +517,18 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
-    kafkaContainer.stop()
 
   }
 
   def "test records(TopicPartition) kafka consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
-
     // set up the Kafka consumer properties
     def kafkaPartition = 0
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
     consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
     def consumer = new KafkaConsumer<String, String>(consumerProperties)
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producer = new KafkaProducer(senderProps)
 
     consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
@@ -581,7 +572,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-    kafkaContainer.stop()
 
 
   }
@@ -589,11 +579,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test records(TopicPartition).subList kafka consume"() {
     setup:
 
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
-
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // set up the Kafka consumer properties
     def kafkaPartition = 0
@@ -644,17 +631,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-    kafkaContainer.stop()
 
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // set up the Kafka consumer properties
     def kafkaPartition = 0
@@ -705,17 +689,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-    kafkaContainer.stop()
 
   }
 
   def "test iteration backwards over ConsumerRecords"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     def kafkaPartition = 0
     consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
@@ -819,17 +800,14 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-    kafkaContainer.stop()
 
   }
 
   def "test kafka client header propagation manual config"() {
     setup:
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
@@ -880,7 +858,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
-    kafkaContainer.stop()
 
     where:
     value   | expected

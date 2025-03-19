@@ -7,14 +7,15 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
+import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import org.testcontainers.containers.KafkaContainer
-import org.testcontainers.utility.DockerImageName
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -26,6 +27,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 class KafkaCodeOriginForkedTest extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
   static final String MESSAGE = "Testing without headers for certain topics"
+
+  @Rule
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC)
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
   @Override
   boolean useStrictTraceWrites() {
@@ -111,17 +116,15 @@ class KafkaCodeOriginForkedTest extends VersionedNamingTestBase {
   def "test with code origin"() {
     setup:
     // Create and start a Kafka container using Testcontainers
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS", SHARED_TOPIC)
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
     TEST_WRITER.setFilter(dropEmptyKafkaPoll)
     KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
     // set the topic that needs to be consumed
@@ -173,7 +176,6 @@ class KafkaCodeOriginForkedTest extends VersionedNamingTestBase {
     cleanup:
     producer.close()
     container?.stop()
-    kafkaContainer.stop()
   }
 
   @Override
