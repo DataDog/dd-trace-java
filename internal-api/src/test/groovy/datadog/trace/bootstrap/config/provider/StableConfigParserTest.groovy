@@ -78,12 +78,14 @@ apm_configuration_rules:
     where:
     origin | matches | operator | key | expectMatch
     "language" | ["java"] | "equals" | "" | true
+    "LANGUAGE" | ["JaVa"] | "EQUALS" | "" | true // check case insensitivity
     "language" | ["java", "golang"] | "equals" | "" | true
-    "language" | ["java"] | "starts_with" | "" | false
+    "language" | ["java"] | "starts_with" | "" | true
     "language" | ["golang"] | "equals" | "" | false
     "environment_variables" | [] | "exists" | "DD_TAGS" | true
-    "environment_variables" | ["team:apm"] | "equals" | "DD_TAGS" | false
     "environment_variables" | ["team:apm"] | "contains" | "DD_TAGS" | true
+    "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"] | "CoNtAiNs" | "Dd_TaGs" | true // check case insensitivity
+    "environment_variables" | ["team:apm"] | "equals" | "DD_TAGS" | false
     "environment_variables" | ["team:apm"] | "starts_with" | "DD_TAGS" | true
     "environment_variables" | ["true"] | "equals" | "DD_PROFILING_ENABLED" | true
     "environment_variables" | ["abcdefg"] | "equals" | "DD_PROFILING_ENABLED" | false
