@@ -1718,12 +1718,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
       final int tagsSize = 0;
-      //      final int tagsSize =
-      //          mergedTracerTags.computeSize()
-      //              + (null == tagBuilder ? 0 : tagBuilder.estimateSize())
-      //              + (null == coreTags ? 0 : coreTags.size())
-      //              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-      //              + (null == contextualTags ? 0 : contextualTags.size());
 
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
