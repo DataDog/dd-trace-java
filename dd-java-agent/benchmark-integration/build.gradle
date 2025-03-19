@@ -1,5 +1,11 @@
 buildscript {
   repositories {
+    mavenLocal()
+    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url project.rootProject.property("mavenRepositoryProxy")
+      }
+    }
     mavenCentral()
     gradlePluginPortal()
   }

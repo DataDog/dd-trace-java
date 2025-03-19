@@ -1,3 +1,16 @@
+pluginManagement {
+  repositories {
+    mavenLocal()
+    if (settings.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url settings["mavenRepositoryProxy"]
+      }
+    }
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
 plugins {
   id 'com.gradle.develocity' version '3.18'
 }
