@@ -1592,7 +1592,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
     
     boolean _isEmpty() {
-      return (this.hash0 | this.hash1 | this.hash2 | this.hash3) != 0;
+      return (this.hash0 | this.hash1 | this.hash2 | this.hash3) == 0;
       // return (this.hashFilter == 0);
     }
     
