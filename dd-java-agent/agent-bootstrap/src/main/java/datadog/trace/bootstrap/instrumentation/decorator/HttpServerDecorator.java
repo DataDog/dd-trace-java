@@ -358,6 +358,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+      // TODO
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
     return span;
