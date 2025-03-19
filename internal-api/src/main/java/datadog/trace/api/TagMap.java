@@ -32,24 +32,36 @@ import java.util.stream.StreamSupport;
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry> {
   public static final TagMap EMPTY = createEmpty();
 
-  static final TagMap createEmpty() {
+  private static final TagMap createEmpty() {
     return new TagMap().freeze();
   }
 
+  /**
+   * Creates a new TagMap.Builder
+   */
   public static final Builder builder() {
     return new Builder();
   }
 
+  /**
+   * Creates a new TagMap.Builder which handles <code>size</code> modifications before expansion
+   */
   public static final Builder builder(int size) {
     return new Builder(size);
   }
 
+  /**
+   * Creates a new mutable TagMap that contains the contents of <code>map</code>
+   */
   public static final TagMap fromMap(Map<String, ?> map) {
     TagMap tagMap = new TagMap();
     tagMap.putAll(map);
     return tagMap;
   }
 
+  /**
+   * Creates a new immutable TagMap that contains the contents <code>map</code>
+   */
   public static final TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
@@ -107,6 +119,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return this.checkIfEmpty();
   }
 
+  /**
+   * Checks if TagMap is empty
+   *
+   * <p>checkIfEmpty is fast but is an O(n) operation.
+   */
   public final boolean checkIfEmpty() {
     Object[] thisBuckets = this.buckets;
 
@@ -165,11 +182,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return this.getObject((String) tag);
   }
 
+  /**
+   * Provides the corresponding entry value as an Object - boxing if necessary
+   */
   public final Object getObject(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
+  /**
+   * Provides the corresponding entry value as a String - calling toString if necessary
+   */
   public final String getString(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.stringValue();
@@ -200,6 +223,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return entry == null ? 0D : entry.doubleValue();
   }
 
+  /**
+   * Provides the corresponding Entry object - preferable if the Entry needs to have its type checked
+   */
   public final Entry getEntry(String tag) {
     Object[] thisBuckets = this.buckets;
 
@@ -227,10 +253,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return entry == null ? null : entry.objectValue();
   }
 
+  /**
+   * Similar to {@link Map#put(Object, Object)}, but returns the prior Entry rather than the prior value
+   * 
+   * Preferred to put because avoids having to box prior primitive value
+   */
   public final Entry set(String tag, Object value) {
     return this.putEntry(Entry.newAnyEntry(tag, value));
   }
 
+  /**
+   * Similar to {@link TagMap#set(String, Object)} but more efficient when working with CharSequences and Strings.
+   * Depending on this situation, this methods avoids having to do type resolution later on
+   */
   public final Entry set(String tag, CharSequence value) {
     return this.putEntry(Entry.newObjectEntry(tag, value));
   }
@@ -255,6 +290,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return this.putEntry(Entry.newDoubleEntry(tag, value));
   }
 
+  /**
+   * TagMap specific method that places an Entry directly into the TagMap avoiding needing to allocate a new Entry object
+   */
   public final Entry putEntry(Entry newEntry) {
     this.checkWriteAccess();
 
@@ -324,6 +362,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
+  /**
+   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from TagMap to another
+   * 
+   * This method takes advantage of the consistent Map layout to optimize the handling of each bucket.
+   * And similar to {@link TagMap#putEntry(Entry)} this method shares Entry objects from the source TagMap
+   */
   public final void putAll(TagMap that) {
     this.checkWriteAccess();
 
@@ -468,6 +512,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return entry == null ? null : entry.objectValue();
   }
 
+  /**
+   * Similar to {@link Map#remove(Object)} but returns the prior Entry object rather than the prior value
+   * This is preferred because it avoids boxing a prior primitive value
+   */
   public final Entry removeEntry(String tag) {
     this.checkWriteAccess();
 
@@ -504,12 +552,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return null;
   }
 
+  /**
+   * Returns a mutable copy of this TagMap
+   */
   public final TagMap copy() {
     TagMap copy = new TagMap();
     copy.putAll(this);
     return copy;
   }
 
+  /**
+   * Returns an immutable copy of this TagMap
+   * This method is more efficient than <code>map.copy().freeze()</code> when called on an immutable TagMap
+   */
   public final TagMap immutableCopy() {
     if (this.frozen) {
       return this;
@@ -523,6 +578,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return new TagMap(this.buckets);
   }
 
+  /**
+   * Provides an Iterator over the Entry-s of the TagMap
+   * Equivalent to <code>entrySet().iterator()</code>, but with less allocation
+   */
   @Override
   public final Iterator<Entry> iterator() {
     return new EntryIterator(this);
@@ -532,6 +591,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return StreamSupport.stream(spliterator(), false);
   }
 
+  /**
+   * Visits each Entry in this TagMap
+   * This method is more efficient than {@link TagMap#iterator()}
+   */
   public final void forEach(Consumer<? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
 
@@ -550,6 +613,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
+  /**
+   * Version of forEach that takes an extra context object that is passed as the 
+   * first argument to the consumer
+   * 
+   * The intention is to use this method to avoid using a capturing lambda
+   */
   public final <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
 
@@ -568,6 +637,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
+  /**
+   * Version of forEach that takes two extra context objects that are passed as the 
+   * first two argument to the consumer
+   * 
+   * The intention is to use this method to avoid using a capturing lambda
+   */
   public final <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
@@ -587,20 +662,36 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
+  /**
+   * Clears the TagMap
+   */
   public final void clear() {
     this.checkWriteAccess();
 
     Arrays.fill(this.buckets, null);
   }
 
+  /**
+   * Freeze the TagMap preventing further modification - returns <code>this</code> TagMap
+   */
   public final TagMap freeze() {
     this.frozen = true;
 
     return this;
   }
 
+  /**
+   * Indicates if this map is frozen
+   */
   public boolean isFrozen() {
     return this.frozen;
+  }
+  
+  /**
+   * Checks if the TagMap is writable - if not throws {@link IllegalStateException}
+   */
+  public final void checkWriteAccess() {
+    if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
 
   //  final void check() {
@@ -638,11 +729,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   //  }
 
   @Override
-  public String toString() {
-    return toInternalString();
+  public final String toString() {
+    return toPrettyString();
   }
 
-  String toPrettyString() {
+  /**
+   * Standard toString implementation - output is similar to {@link java.util.HashMap#toString()}
+   */
+  final String toPrettyString() {
     boolean first = true;
 
     StringBuilder builder = new StringBuilder(128);
@@ -660,7 +754,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return builder.toString();
   }
 
-  String toInternalString() {
+  /**
+   * toString that more visibility into the internal structure of TagMap - primarily for deep debugging
+   */
+  final String toInternalString() {
     Object[] thisBuckets = this.buckets;
 
     StringBuilder builder = new StringBuilder(128);
@@ -682,10 +779,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       builder.append('\n');
     }
     return builder.toString();
-  }
-
-  public final void checkWriteAccess() {
-    if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
 
   static final int _hash(String tag) {
