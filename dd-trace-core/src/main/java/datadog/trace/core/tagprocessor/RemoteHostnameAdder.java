@@ -4,7 +4,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpanContext;
-
 import java.util.List;
 import java.util.function.Supplier;
 

@@ -83,21 +83,21 @@ public class TagInterceptor {
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
   }
-  
+
   public boolean needsIntercept(TagMap map) {
-	for ( TagMap.Entry entry: map ) {
-	  if ( needsIntercept(entry.tag()) ) return true;
-	}
-	return false;
+    for (TagMap.Entry entry : map) {
+      if (needsIntercept(entry.tag())) return true;
+    }
+    return false;
   }
-  
+
   public boolean needsIntercept(Map<String, ?> map) {
-	for ( String tag: map.keySet() ) {
-	  if ( needsIntercept(tag) ) return true;
-	}
-	return false;
+    for (String tag : map.keySet()) {
+      if (needsIntercept(tag)) return true;
+    }
+    return false;
   }
-  
+
   public boolean needsIntercept(String tag) {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
@@ -120,10 +120,10 @@ public class TagInterceptor {
       case HTTP_URL:
       case ORIGIN_KEY:
       case MEASURED:
-      return true;
-    	 
+        return true;
+
       default:
-      return splitServiceTags.contains(tag);
+        return splitServiceTags.contains(tag);
     }
   }
 

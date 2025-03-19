@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +58,8 @@ public final class QueryObfuscator extends TagsPostProcessor {
   }
 
   @Override
-  public void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+  public void processTags(
+      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
     Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       query = obfuscate(query.toString());

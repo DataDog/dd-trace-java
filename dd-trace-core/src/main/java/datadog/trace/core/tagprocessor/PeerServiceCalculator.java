@@ -8,7 +8,6 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
-
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;

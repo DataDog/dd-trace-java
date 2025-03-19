@@ -5,7 +5,6 @@ import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
-
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -24,6 +23,6 @@ public final class BaseServiceAdder extends TagsPostProcessor {
         && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       unsafeTags.put(DDTags.BASE_SERVICE, ddService);
       unsafeTags.remove("version");
-    }    
+    }
   }
 }

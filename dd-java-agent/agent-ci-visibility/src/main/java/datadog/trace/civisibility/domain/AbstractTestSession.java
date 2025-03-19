@@ -6,7 +6,6 @@ import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMEN
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;

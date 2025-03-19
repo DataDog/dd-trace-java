@@ -5,7 +5,6 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
-import java.util.Collections;
 import java.util.Map;
 
 /**

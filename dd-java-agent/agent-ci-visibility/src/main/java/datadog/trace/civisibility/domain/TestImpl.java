@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
@@ -45,7 +44,6 @@ import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -101,8 +99,7 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
-    AgentSpanContext traceContext =
-        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
+    AgentSpanContext traceContext = new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")

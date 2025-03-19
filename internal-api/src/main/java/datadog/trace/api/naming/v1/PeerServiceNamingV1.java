@@ -71,8 +71,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     resolveBy(unsafeTags, DEFAULT_PRECURSORS);
   }
 
-  private boolean resolveBy(
-      @Nonnull final TagMap unsafeTags, @Nullable final String[] precursors) {
+  private boolean resolveBy(@Nonnull final TagMap unsafeTags, @Nullable final String[] precursors) {
     if (precursors == null) {
       return false;
     }

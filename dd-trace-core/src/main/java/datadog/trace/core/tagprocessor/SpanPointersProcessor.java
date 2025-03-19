@@ -17,7 +17,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +32,7 @@ public final class SpanPointersProcessor extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-	TagMap.Entry eTagEntry = unsafeTags.removeEntry(S3_ETAG);
+    TagMap.Entry eTagEntry = unsafeTags.removeEntry(S3_ETAG);
     if (eTagEntry == null) {
       return;
     }
@@ -43,7 +42,7 @@ public final class SpanPointersProcessor extends TagsPostProcessor {
       LOG.debug("Unable to calculate span pointer hash because could not find bucket or key tags.");
       return;
     }
-    
+
     String eTag = eTagEntry.stringValue();
 
     // Hash calculation rules:

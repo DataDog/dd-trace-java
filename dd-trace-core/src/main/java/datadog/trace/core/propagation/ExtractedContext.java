@@ -64,7 +64,7 @@ public class ExtractedContext extends TagContext {
     this.endToEndStartTime = endToEndStartTime;
     this.propagationTags = propagationTags;
   }
-  
+
   /*
    * DQH - kept for testing purposes only
    */
@@ -81,7 +81,18 @@ public class ExtractedContext extends TagContext {
       final PropagationTags propagationTags,
       final TraceConfig traceConfig,
       final TracePropagationStyle propagationStyle) {
-	  this(traceId, spanId, samplingPriority, origin, endToEndStartTime, baggage, tags == null ? null : TagMap.fromMap(tags), httpHeaders, propagationTags, traceConfig, propagationStyle);
+    this(
+        traceId,
+        spanId,
+        samplingPriority,
+        origin,
+        endToEndStartTime,
+        baggage,
+        tags == null ? null : TagMap.fromMap(tags),
+        httpHeaders,
+        propagationTags,
+        traceConfig,
+        propagationStyle);
   }
 
   @Override

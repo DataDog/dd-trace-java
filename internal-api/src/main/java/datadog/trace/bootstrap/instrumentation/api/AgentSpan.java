@@ -2,18 +2,16 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
 
-import datadog.trace.api.TagMap;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
-
-import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -96,7 +94,7 @@ public interface AgentSpan
 
   @Override
   TagMap getTags();
-  
+
   Object getTag(String key);
 
   @Override
