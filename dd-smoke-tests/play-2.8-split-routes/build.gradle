@@ -31,6 +31,7 @@ repositories {
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
+      allowInsecureProtocol true
     }
   }
   mavenCentral()

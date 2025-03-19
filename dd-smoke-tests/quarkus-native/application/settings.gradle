@@ -4,6 +4,7 @@ pluginManagement {
     if (settings.hasProperty("mavenRepositoryProxy")) {
       maven {
         url settings["mavenRepositoryProxy"]
+        allowInsecureProtocol true
       }
     }
     mavenCentral()
