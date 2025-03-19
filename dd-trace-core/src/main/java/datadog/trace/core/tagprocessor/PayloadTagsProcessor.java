@@ -82,7 +82,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
         if (unsafeTags.remove(tagPrefix) != null) {
           spanMaxTags -= 1;
         }
-        
+
         PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
         PayloadTagsCollector payloadTagsCollector =
             new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, unsafeTags);

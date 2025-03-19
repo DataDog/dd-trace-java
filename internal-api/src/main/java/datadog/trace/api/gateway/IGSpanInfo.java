@@ -1,9 +1,8 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.TagMap;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 
 public interface IGSpanInfo {
   DDTraceId getTraceId();

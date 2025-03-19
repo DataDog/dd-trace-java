@@ -1,7 +1,6 @@
 package datadog.trace.api.naming;
 
 import datadog.trace.api.TagMap;
-import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

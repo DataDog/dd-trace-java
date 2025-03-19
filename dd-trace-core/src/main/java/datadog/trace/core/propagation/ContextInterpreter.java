@@ -15,10 +15,6 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.TreeMap;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -32,6 +28,9 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import java.util.Collections;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * When adding new context fields to the ContextInterpreter class remember to clear them in the
@@ -78,12 +77,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.propagationTagsFactory = PropagationTags.factory(config);
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
   }
-  
+
   final TagMap.Builder tagBuilder() {
-	if ( tagBuilder == null ) {
-	  tagBuilder = TagMap.builder();
-	}
-	return tagBuilder;
+    if (tagBuilder == null) {
+      tagBuilder = TagMap.builder();
+    }
+    return tagBuilder;
   }
 
   /**
@@ -198,10 +197,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     final String lowerCaseKey = toLowerCase(key);
     final String mappedKey = headerTags.get(lowerCaseKey);
     if (null != mappedKey) {
-      tagBuilder().put(
-          mappedKey,
-          HttpCodec.decode(
-              requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)));
+      tagBuilder()
+          .put(
+              mappedKey,
+              HttpCodec.decode(
+                  requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)));
       return true;
     }
     return false;
@@ -230,7 +230,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     samplingPriority = PrioritySampling.UNSET;
     origin = null;
     endToEndStartTime = 0;
-    if ( tagBuilder != null ) tagBuilder.reset();
+    if (tagBuilder != null) tagBuilder.reset();
     baggage = Collections.emptyMap();
     valid = true;
     fullContext = true;

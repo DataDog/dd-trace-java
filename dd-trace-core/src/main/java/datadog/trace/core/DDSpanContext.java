@@ -8,7 +8,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.TagMap;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -343,7 +342,7 @@ public class DDSpanContext
     this.pathwayContext = pathwayContext;
 
     this.unsafeTags = new TagMap();
-    
+
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
@@ -749,42 +748,45 @@ public class DDSpanContext
       }
     }
   }
-  
+
   void setAllTags(final TagMap map, boolean needsIntercept) {
-    if ( map == null ) {
+    if (map == null) {
       return;
     }
-    
+
     synchronized (unsafeTags) {
-      if ( needsIntercept ) {
-        map.forEach(this, traceCollector.getTracer().getTagInterceptor(), (ctx, tagInterceptor, tagEntry) -> {
-    	  String tag = tagEntry.tag();
-    	  Object value = tagEntry.objectValue();
-    	
-    	  if (!tagInterceptor.interceptTag(ctx, tag, value)) {
-    	    ctx.unsafeTags.putEntry(tagEntry);
-    	  }
-        });
+      if (needsIntercept) {
+        map.forEach(
+            this,
+            traceCollector.getTracer().getTagInterceptor(),
+            (ctx, tagInterceptor, tagEntry) -> {
+              String tag = tagEntry.tag();
+              Object value = tagEntry.objectValue();
+
+              if (!tagInterceptor.interceptTag(ctx, tag, value)) {
+                ctx.unsafeTags.putEntry(tagEntry);
+              }
+            });
       } else {
-    	unsafeTags.putAll(map);
+        unsafeTags.putAll(map);
       }
     }
   }
-  
+
   void setAllTags(final TagMap.Builder builder) {
-    if ( builder == null ) {
+    if (builder == null) {
       return;
     }
-   
+
     TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final TagMap.Entry tagEntry : builder) {
-        if ( tagEntry.isRemoval() ) {
+        if (tagEntry.isRemoval()) {
           unsafeTags.removeEntry(tagEntry.tag());
         } else {
-    	  String tag = tagEntry.tag();
+          String tag = tagEntry.tag();
           Object value = tagEntry.objectValue();
-         
+
           if (!tagInterceptor.interceptTag(this, tag, value)) {
             unsafeTags.putEntry(tagEntry);
           }
@@ -794,11 +796,11 @@ public class DDSpanContext
   }
 
   void setAllTags(final Map<String, ?> map) {
-	if ( map == null ) {
-	  return;
-	} else if ( map instanceof TagMap ) {
-	  setAllTags((TagMap)map);
-	} else if ( !map.isEmpty() ) {
+    if (map == null) {
+      return;
+    } else if (map instanceof TagMap) {
+      setAllTags((TagMap) map);
+    } else if (!map.isEmpty()) {
       TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
       synchronized (unsafeTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
@@ -807,7 +809,7 @@ public class DDSpanContext
           }
         }
       }
-	}
+    }
   }
 
   void unsafeSetTag(final String tag, final Object value) {
@@ -848,7 +850,7 @@ public class DDSpanContext
   public TagMap getTags() {
     synchronized (unsafeTags) {
       TagMap tags = unsafeTags.copy();
-      
+
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
@@ -896,7 +898,7 @@ public class DDSpanContext
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.instance().processTags(unsafeTags, this, links);
-      
+
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {
         unsafeTags.put(SPAN_LINKS, linksTag);

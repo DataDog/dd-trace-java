@@ -46,7 +46,7 @@ class PostProcessorChainTest extends DDSpecification {
         void processTags(TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
           if (unsafeTags.containsKey("test")) {
             unsafeTags.put("found", "true")
-          }          
+          }
         }
       }
 

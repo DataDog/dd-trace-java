@@ -2,11 +2,9 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Map;
 
 public final class Metadata {
   private final long threadId;

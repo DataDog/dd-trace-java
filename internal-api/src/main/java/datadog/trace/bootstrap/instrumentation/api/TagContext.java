@@ -3,9 +3,9 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.TracePropagationStyle.NONE;
 import static java.util.Collections.emptyList;
 
-import datadog.trace.api.TagMap;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
@@ -55,9 +54,9 @@ public class TagContext implements AgentSpanContext.Extracted {
       final TraceConfig traceConfig,
       final TracePropagationStyle propagationStyle,
       final DDTraceId traceId) {
-	  
-	//if ( tags != null ) tags.checkWriteAccess();
-	
+
+    // if ( tags != null ) tags.checkWriteAccess();
+
     this.origin = origin;
     this.tags = tags;
     this.terminatedContextLinks = null;
@@ -169,15 +168,15 @@ public class TagContext implements AgentSpanContext.Extracted {
   }
 
   public final TagMap getTags() {
-	// DQH - Because of the lazy in putTag, this method effectively returns an immutable map
-	return ( this.tags == null ) ? TagMap.EMPTY: this.tags;
+    // DQH - Because of the lazy in putTag, this method effectively returns an immutable map
+    return (this.tags == null) ? TagMap.EMPTY : this.tags;
   }
 
   public void putTag(final String key, final String value) {
-	if ( this.tags == null ) {
-	  this.tags = new TagMap();
-	}
-	this.tags.set(key, value);
+    if (this.tags == null) {
+      this.tags = new TagMap();
+    }
+    this.tags.set(key, value);
   }
 
   @Override

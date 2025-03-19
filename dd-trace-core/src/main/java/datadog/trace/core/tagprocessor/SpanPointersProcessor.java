@@ -39,6 +39,7 @@ public class SpanPointersProcessor extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+	// DQH - TODO - There's a lot room to optimize this using TagMap's capabilities
     AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
     if (s3Link != null) {
       spanLinks.add(s3Link);
@@ -48,8 +49,6 @@ public class SpanPointersProcessor extends TagsPostProcessor {
     if (dynamoDbLink != null) {
       spanLinks.add(dynamoDbLink);
     }
-
-    return unsafeTags;
   }
 
   private static AgentSpanLink handleS3SpanPointer(Map<String, Object> unsafeTags) {
