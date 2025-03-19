@@ -85,46 +85,69 @@ public class StableConfigParser {
     return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
   }
 
+  private static boolean validOperatorForLanguageOrigin(String operator) {
+    operator = operator.toLowerCase();
+    switch (operator) {
+      case "equals":
+      case "starts_with":
+      case "ends_with":
+      case "contains":
+        return true;
+      default:
+        return false;
+    }
+  }
+
   // TODO: Make this private again after testing?
+  // We do all of the case insensitivity modifications in this function, because each selector will
+  // be viewed just once
   public static boolean selectorMatch(
       String origin, List<String> matches, String operator, String key) {
-    switch (origin) {
+    switch (origin.toLowerCase()) {
       case "language":
-        return matches.contains("Java") || matches.contains("java") && operator.equals("equals");
+        if (!validOperatorForLanguageOrigin(operator)) {
+          return false;
+        }
+        for (String entry : matches) {
+          // loose match on any reference to "*java*"
+          if (entry.toLowerCase().contains("java")) {
+            return true;
+          }
+        }
       case "environment_variables":
-        String envValue = System.getenv(key);
+        String envValue = System.getenv(key.toUpperCase());
         if (envValue == null) {
           return false;
         }
-        switch (operator) {
+        envValue = envValue.toLowerCase();
+        switch (operator.toLowerCase()) {
           case "exists":
             // We don't care about the value
             return true;
-            // TODO: Determine if substrings are case insensitive
           case "equals":
             for (String value : matches) {
-              if (value.equals(envValue)) {
+              if (value.equalsIgnoreCase(envValue)) {
                 return true;
               }
             }
             break;
           case "starts_with":
             for (String value : matches) {
-              if (envValue.startsWith(value)) {
+              if (envValue.startsWith(value.toLowerCase())) {
                 return true;
               }
             }
             break;
           case "ends_with":
             for (String value : matches) {
-              if (envValue.endsWith(value)) {
+              if (envValue.endsWith(value.toLowerCase())) {
                 return true;
               }
             }
             break;
           case "contains":
             for (String value : matches) {
-              if (envValue.contains(value)) {
+              if (envValue.contains(value.toLowerCase())) {
                 return true;
               }
             }
