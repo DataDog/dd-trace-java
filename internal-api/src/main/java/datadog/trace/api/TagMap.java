@@ -876,6 +876,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     final String tag;
+    
+    /*
+     * hash is stored in line for fast handling of Entry-s coming another Tag
+     * However, hash is lazily computed using the same trick as {@link java.lang.String}.
+     */
     int hash;
 
     // To optimize construction of Entry around boxed primitives and Object entries,
@@ -890,6 +895,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     // However, internally, it is important to remember that this type must be thread safe.
     // That includes multiple threads racing to resolve an ANY entry at the same time.
 
+    // Type and prim cannot use the same trick as hash because during ANY resolution the order of writes is important
     volatile byte type;
     volatile long prim;
     volatile Object obj;
@@ -909,6 +915,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     int hash() {
+      // If value of hash read in this thread is zero, then hash is computed.
+      // hash is not held as a volatile, since this computation can safely be repeated as any time
       int hash = this.hash;
       if (hash != 0) return hash;
 
@@ -1555,9 +1563,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   static final class BucketGroup {
     static final int LEN = 4;
 
-    // int hashFilter = 0;
-
-    // want the hashes together in the same cache line
+    /*
+     * To make search operations on BucketGroups fast, the hashes for each entry are held inside 
+     * the BucketGroup.  This avoids pointer chasing to inspect each Entry object.
+     * 
+     * As a further optimization, the hashes are deliberated placed next to each other.
+     * The intention is that the hashes will all end up in the same cache line, so loading 
+     * one hash effectively loads the others for free.
+     */
     int hash0 = 0;
     int hash1 = 0;
     int hash2 = 0;
@@ -1578,8 +1591,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       this.entry0 = entry0;
 
       this.prev = prev;
-
-      // this.hashFilter = hash0;
     }
 
     /** New group composed of two entries */
@@ -1589,8 +1600,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
       this.hash1 = hash1;
       this.entry1 = entry1;
-
-      // this.hashFilter = hash0 | hash1;
     }
 
     /** New group composed of 4 entries - used for cloning */
@@ -1614,8 +1623,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
       this.hash3 = hash3;
       this.entry3 = entry3;
-
-      // this.hashFilter = hash0 | hash1 | hash2 | hash3;
     }
 
     Entry _entryAt(int index) {
@@ -1678,7 +1685,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
     boolean _isEmpty() {
       return (this.hash0 | this.hash1 | this.hash2 | this.hash3) == 0;
-      // return (this.hashFilter == 0);
     }
 
     BucketGroup findContainingGroupInChain(int hash, String tag) {
@@ -1687,10 +1693,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       }
       return null;
     }
-
-    //    boolean _mayContain(int hash) {
-    //      return ((hash & this.hashFilter) == hash);
-    //    }
 
     Entry findInChain(int hash, String tag) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
@@ -1759,28 +1761,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           // so each unhandled entry from the source group is simply placed in
           // the same slot in the new group
           BucketGroup thisNewHashGroup = new BucketGroup();
-          int hashFilter = 0;
           if (!handled0) {
             thisNewHashGroup.hash0 = thatCurGroup.hash0;
             thisNewHashGroup.entry0 = thatCurGroup.entry0;
-            hashFilter |= thatCurGroup.hash0;
           }
           if (!handled1) {
             thisNewHashGroup.hash1 = thatCurGroup.hash1;
             thisNewHashGroup.entry1 = thatCurGroup.entry1;
-            hashFilter |= thatCurGroup.hash1;
           }
           if (!handled2) {
             thisNewHashGroup.hash2 = thatCurGroup.hash2;
             thisNewHashGroup.entry2 = thatCurGroup.entry2;
-            hashFilter |= thatCurGroup.hash2;
           }
           if (!handled3) {
             thisNewHashGroup.hash3 = thatCurGroup.hash3;
             thisNewHashGroup.entry3 = thatCurGroup.entry3;
-            hashFilter |= thatCurGroup.hash3;
           }
-          // thisNewHashGroup.hashFilter = hashFilter;
           thisNewHashGroup.prev = thisNewestHeadGroup;
 
           thisNewestHeadGroup = thisNewHashGroup;
@@ -1821,7 +1817,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         this.entry3 = entry;
       }
 
-      // no need to update this.hashFilter, since the hash is already included
       return prevEntry;
     }
 
@@ -1838,25 +1833,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         this.hash0 = hash;
         this.entry0 = entry;
 
-        // this.hashFilter |= hash;
         inserted = true;
       } else if (this.hash1 == 0) {
         this.hash1 = hash;
         this.entry1 = entry;
 
-        // this.hashFilter |= hash;
         inserted = true;
       } else if (this.hash2 == 0) {
         this.hash2 = hash;
         this.entry2 = entry;
 
-        // this.hashFilter |= hash;
         inserted = true;
       } else if (this.hash3 == 0) {
         this.hash3 = hash;
         this.entry3 = entry;
 
-        // this.hashFilter |= hash;
         inserted = true;
       }
       return inserted;
