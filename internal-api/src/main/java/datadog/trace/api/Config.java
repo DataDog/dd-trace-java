@@ -189,6 +189,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
@@ -940,6 +941,22 @@ public class Config {
 
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+
+    TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
+    try {
+      tmpTracePropagationBehaviorExtract =
+          TracePropagationBehaviorExtract.valueOf(
+              configProvider
+                  .getString(
+                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                  .toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
+      log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
+    }
+    tracePropagationBehaviorExtract = tmpTracePropagationBehaviorExtract;
+
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -1011,8 +1028,16 @@ public class Config {
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
       // Now we can check if we should pick the default injection/extraction
+
+      if (extract.isEmpty()) {
+        extract = DEFAULT_TRACE_PROPAGATION_STYLE;
+      }
+
       tracePropagationStylesToExtract =
-          extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
+              ? new HashSet<>()
+              : extract;
+
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
@@ -2290,6 +2315,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public TracePropagationBehaviorExtract getTracePropagationBehaviorExtract() {
+    return tracePropagationBehaviorExtract;
   }
 
   public boolean isTracePropagationExtractFirst() {
@@ -4491,6 +4520,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationBehaviorExtract="
+        + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
         + ", clockSyncPeriod="

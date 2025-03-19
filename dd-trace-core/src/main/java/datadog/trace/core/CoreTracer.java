@@ -32,6 +32,7 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -61,6 +62,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -1506,6 +1509,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String parentServiceName = null;
       boolean isRemote = false;
 
+      if (parentContext != null
+          && parentContext.isRemote()
+          && Config.get().getTracePropagationBehaviorExtract()
+              == TracePropagationBehaviorExtract.RESTART) {
+        SpanLink link;
+        if (parentContext instanceof ExtractedContext) {
+          ExtractedContext pc = (ExtractedContext) parentContext;
+          link =
+              DDSpanLink.from(
+                  pc,
+                  SpanAttributes.builder()
+                      .put("reason", "propagation_behavior_extract")
+                      .put("context_headers", pc.getPropagationStyle().toString())
+                      .build());
+        } else {
+          link = SpanLink.from(parentContext);
+        }
+        // reset links that may have come terminated span links
+        links = new ArrayList<>();
+        links.add(link);
+        parentContext = null;
+      }
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
