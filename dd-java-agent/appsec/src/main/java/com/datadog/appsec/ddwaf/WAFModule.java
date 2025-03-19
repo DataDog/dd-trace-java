@@ -25,6 +25,7 @@ import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafConfig;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
+import com.datadog.ddwaf.exception.InternalWafException;
 import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import com.datadog.ddwaf.exception.TimeoutWafException;
 import com.datadog.ddwaf.exception.UnclassifiedWafException;
@@ -153,7 +154,6 @@ public class WAFModule implements AppSecModule {
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
   private final RateLimiter rateLimiter;
   private WafBuilder wafBuilder;
-  private final Waf waf;
 
   private String currentRulesVersion;
 
@@ -162,9 +162,11 @@ public class WAFModule implements AppSecModule {
   }
 
   public WAFModule(Monitoring monitoring) throws AbstractWafException, UnsupportedVMException {
+    if (!LibSqreenInitialization.WAF) {
+      throw new InternalWafException("In-app WAF initialization failed. See previous log entries");
+    }
     this.rateLimiter = getRateLimiter(monitoring);
     this.wafBuilder = new WafBuilder(); // builder is initially configured with default config
-    this.waf = new Waf();
   }
 
   @Override
@@ -203,7 +205,7 @@ public class WAFModule implements AppSecModule {
 
     CtxAndAddresses curCtxAndAddresses = this.ctxAndAddresses.get();
 
-    if (!Waf.isInitialized()) {
+    if (!LibSqreenInitialization.WAF) {
       throw new AppSecModuleActivationException(
           "In-app WAF initialization failed. See previous log entries");
     }
@@ -637,7 +639,7 @@ public class WAFModule implements AppSecModule {
       }
       NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
       log.debug("Running rules {} with limits {} and metrics {}", newData, LIMITS, metrics);
-      return waf.runRules(
+      return Waf.runRules(
           new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
           LIMITS,
           metrics,

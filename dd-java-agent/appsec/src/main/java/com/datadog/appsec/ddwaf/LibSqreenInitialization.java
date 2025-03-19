@@ -9,18 +9,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LibSqreenInitialization {
-  public static final Waf WAF = initWAF();
+  public static final boolean WAF = initWAF();
 
-  private static Waf initWAF() {
+  private static boolean initWAF() {
     try {
       boolean simpleLoad = System.getProperty("POWERWAF_SIMPLE_LOAD") != null;
-      return new Waf(simpleLoad);
+      Waf.initialize(simpleLoad);
     } catch (Exception e) {
       Logger logger = LoggerFactory.getLogger(LibSqreenInitialization.class);
       logger.warn("Error initializing WAF library", e);
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
-      return null;
+      return false;
     }
+    return true;
   }
 
   private static String getLibc() {

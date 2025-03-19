@@ -55,13 +55,13 @@ public class WafBenchmark {
     WafMetrics metricsCollector = new WafMetrics();
 
     NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
-    waf.runRules(wafData, limits, metricsCollector, nativeWafHandle); // consumes nativeWafHandle
+    Waf.runRules(wafData, limits, metricsCollector, nativeWafHandle); // consumes nativeWafHandle
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
     NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
-    waf.runRules(wafData, limits, null, nativeWafHandle); // consumes nativeWafHandle
+    Waf.runRules(wafData, limits, null, nativeWafHandle); // consumes nativeWafHandle
   }
 
   @Setup(Level.Trial)
@@ -70,7 +70,7 @@ public class WafBenchmark {
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig wafRules = cfg.get("waf");
-    waf = new Waf();
+    Waf.initialize(false);
     wafBuilder = new WafBuilder();
     wafBuilder.addOrUpdateRuleConfig(wafRules.getRawConfig(), null);
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");

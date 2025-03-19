@@ -78,11 +78,6 @@ class WAFModuleSpecification extends DDSpecification {
   void cleanup() {
     WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
     AgentTracer.forceRegister(ORIGINAL_TRACER)
-    release pwafModule
-  }
-
-  private static void release(WAFModule pwafModule) {
-    pwafModule?.ctxAndAddresses?.get()?.ctx?.close()
   }
 
   private void setupWithStubConfigService(String location = "test_multi_config.json") {
