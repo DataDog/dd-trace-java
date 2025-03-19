@@ -4,7 +4,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config
-import datadog.trace.api.GlobalTracer
 import datadog.trace.api.appsec.AppSecEventTracker
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
@@ -26,8 +25,7 @@ abstract class AppSecHttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     sco.createRemaining(config)
     assert sco.configurationPoller(config) == null
     assert sco.monitoring instanceof Monitoring.DisabledMonitoring
-
-    GlobalTracer.setEventTracker(new AppSecEventTracker())
+    AppSecEventTracker.install()
 
     AppSecSystem.start(ss, sco)
   }

@@ -8,8 +8,11 @@ import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE;
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS;
 import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP;
 import static datadog.trace.util.Strings.toHexString;
+import static java.util.Collections.emptyMap;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.appsec.api.user.User;
+import datadog.appsec.api.user.UserService;
 import datadog.trace.api.EventTracker;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.ProductTraceSource;
@@ -27,10 +30,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-public class AppSecEventTracker extends EventTracker {
+public class AppSecEventTracker extends EventTracker implements UserService {
 
   private static final int HASH_SIZE_BYTES = 16; // 128 bits
   private static final String ANON_PREFIX = "anon_";
@@ -40,7 +44,9 @@ public class AppSecEventTracker extends EventTracker {
   private static final String SIGNUP_TAG = "users.signup";
 
   public static void install() {
-    GlobalTracer.setEventTracker(new AppSecEventTracker());
+    final AppSecEventTracker tracker = new AppSecEventTracker();
+    GlobalTracer.setEventTracker(tracker);
+    User.setUserService(tracker);
   }
 
   @Override
@@ -68,6 +74,14 @@ public class AppSecEventTracker extends EventTracker {
     onCustomEvent(SDK, eventName, metadata);
   }
 
+  @Override
+  public void trackUserEvent(final String userId, final Map<String, String> metadata) {
+    if (userId == null || userId.isEmpty()) {
+      throw new IllegalArgumentException("UserId is null or empty");
+    }
+    onUserEvent(SDK, userId, metadata);
+  }
+
   public void onUserNotFound(final UserIdCollectionMode mode) {
     if (!isEnabled(mode)) {
       return;
@@ -88,6 +102,11 @@ public class AppSecEventTracker extends EventTracker {
   }
 
   public void onUserEvent(final UserIdCollectionMode mode, final String userId) {
+    onUserEvent(mode, userId, emptyMap());
+  }
+
+  public void onUserEvent(
+      final UserIdCollectionMode mode, final String userId, final Map<String, String> metadata) {
     if (!isEnabled(mode)) {
       return;
     }
@@ -108,6 +127,9 @@ public class AppSecEventTracker extends EventTracker {
     }
     if (isNewUser(mode, segment)) {
       segment.setTagTop("usr.id", finalUserId);
+      if (metadata != null && !metadata.isEmpty()) {
+        segment.setTagTop("usr", metadata);
+      }
       segment.setTagTop("_dd.appsec.user.collection_mode", mode.fullName());
       segment.setTagTop(Tags.ASM_KEEP, true);
       segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
@@ -355,6 +377,10 @@ public class AppSecEventTracker extends EventTracker {
       hash = temp;
     }
     return ANON_PREFIX + toHexString(hash);
+  }
+
+  protected static String encodeBase64(final String userId) {
+    return Base64.getEncoder().encodeToString(userId.getBytes());
   }
 
   protected boolean isEnabled(final UserIdCollectionMode mode) {
