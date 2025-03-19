@@ -136,8 +136,8 @@ public class StableConfigParser {
         // TODO: use CLIHelper once merged
         return true;
       case "tags":
-        // TODO: Determine where tags are sourced from
-        return true;
+        // TODO: Support this down the line (Must define the source of "tags" first)
+        return false;
       default:
         return false;
     }
