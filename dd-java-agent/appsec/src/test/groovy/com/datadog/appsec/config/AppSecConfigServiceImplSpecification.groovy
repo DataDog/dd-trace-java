@@ -592,7 +592,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesListener = it[2]
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
-    1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
