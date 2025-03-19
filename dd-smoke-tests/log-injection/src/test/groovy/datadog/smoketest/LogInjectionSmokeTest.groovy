@@ -41,7 +41,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   boolean noTags = false
 
   @Shared
-  boolean trace128bits = false
+  boolean trace128bits = true
 
   @Shared
   @AutoCleanup
@@ -88,9 +88,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       command.add("-Ddd.version=" as String)
       command.add("-Ddd.service.name=" as String)
     }
-    if (trace128bits) {
-      command.add("-Ddd.$TRACE_128_BIT_TRACEID_GENERATION_ENABLED=true" as String)
-      command.add("-Ddd.$TRACE_128_BIT_TRACEID_LOGGING_ENABLED=true" as String)
+    if (!trace128bits) {
+      command.add("-Ddd.$TRACE_128_BIT_TRACEID_GENERATION_ENABLED=false" as String)
+      command.add("-Ddd.$TRACE_128_BIT_TRACEID_LOGGING_ENABLED=false" as String)
     }
     if (supportsDirectLogSubmission()) {
       command.add("-Ddd.$GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED=true" as String)

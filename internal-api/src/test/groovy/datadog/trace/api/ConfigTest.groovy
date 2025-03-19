@@ -1899,16 +1899,17 @@ class ConfigTest extends DDSpecification {
 
   def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
     setup:
-    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_TAGS")
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_LOGS_INJECTION, DD_TAGS")
     environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
 
     when:
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION", "DD_TAGS"].toSet()
 
     //verify expected behavior enabled under feature flag
+    config.logsInjectionEnabled == false
     config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
   }
 
@@ -1923,6 +1924,7 @@ class ConfigTest extends DDSpecification {
     config.experimentalFeaturesEnabled == [].toSet()
 
     //verify expected behavior when not enabled under feature flag
+    config.logsInjectionEnabled == true
     config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
   }
 
