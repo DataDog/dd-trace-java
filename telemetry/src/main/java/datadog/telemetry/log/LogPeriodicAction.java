@@ -23,7 +23,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
     "jdk.",
     "sun.",
     "com.sun.",
-    "io.sqreen.powerwaf."
+    "com.datadog.ddwaf."
   };
 
   private static final String UNKNOWN = "<unknown>";
@@ -137,7 +137,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
     }
     return cn.startsWith("datadog.")
         || cn.startsWith("com.datadog.")
-        || cn.startsWith("io.sqreen.powerwaf.");
+        || cn.startsWith("com.datadog.ddwaf.");
   }
 
   private static boolean shouldRedactClass(final String className) {

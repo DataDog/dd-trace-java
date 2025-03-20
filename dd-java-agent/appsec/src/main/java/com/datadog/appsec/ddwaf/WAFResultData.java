@@ -1,9 +1,9 @@
-package com.datadog.appsec.powerwaf;
+package com.datadog.appsec.ddwaf;
 
 import java.util.List;
 import java.util.Map;
 
-public class PowerWAFResultData {
+public class WAFResultData {
   Rule rule;
   List<RuleMatch> rule_matches;
   String stack_id;

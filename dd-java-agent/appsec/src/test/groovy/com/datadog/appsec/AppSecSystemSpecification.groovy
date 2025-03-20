@@ -42,7 +42,7 @@ class AppSecSystemSpecification extends DDSpecification {
     AppSecSystem.start(subService, sharedCommunicationObjects())
 
     then:
-    'powerwaf' in AppSecSystem.startedModulesInfo
+    'ddwaf' in AppSecSystem.startedModulesInfo
   }
 
   void 'throws if custom config does not exist'() {
