@@ -1,6 +1,12 @@
 pluginManagement {
   repositories {
     mavenLocal()
+    if (settings.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url settings["mavenRepositoryProxy"]
+        allowInsecureProtocol true
+      }
+    }
     mavenCentral()
     gradlePluginPortal()
   }

@@ -1,5 +1,9 @@
 package datadog.smoketest;
 
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_FILE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_LINE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_METHOD;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.api.DDTags;
@@ -11,15 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest {
-
-  private static final String DD_CODE_ORIGIN_FRAMES_0_FILE =
-      String.format(DDTags.DD_CODE_ORIGIN_FRAME, 0, "file");
-  private static final String DD_CODE_ORIGIN_FRAMES_0_METHOD =
-      String.format(DDTags.DD_CODE_ORIGIN_FRAME, 0, "method");
-  private static final String DD_CODE_ORIGIN_FRAMES_0_SIGNATURE =
-      String.format(DDTags.DD_CODE_ORIGIN_FRAME, 0, "signature");
-  private static final String DD_CODE_ORIGIN_FRAMES_0_LINE =
-      String.format(DDTags.DD_CODE_ORIGIN_FRAME, 0, "line");
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -46,11 +41,11 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
                 assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
                 assertEquals(
                     "ServerDebuggerTestApplication.java",
-                    span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_FILE));
-                assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_METHOD));
+                    span.getMeta().get(DD_CODE_ORIGIN_FRAME_FILE));
+                assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
                 assertEquals(
-                    "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_SIGNATURE));
-                assertEquals("134", span.getMeta().get(DD_CODE_ORIGIN_FRAMES_0_LINE));
+                    "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
+                assertEquals("134", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
                 codeOrigin.set(true);
               }
             }

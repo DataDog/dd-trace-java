@@ -23,7 +23,7 @@ variables:
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
-  MAVEN_REPOSITORY_PROXY: "https://artifactual.us1.prod.dog/repository/maven-central/"
+  MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/global-maven-proxy/"
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   PROFILE_TESTS:
