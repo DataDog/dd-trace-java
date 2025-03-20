@@ -156,11 +156,11 @@ public class WAFModule implements AppSecModule {
 
   private String currentRulesVersion;
 
-  public WAFModule() throws AbstractWafException, UnsupportedVMException {
+  public WAFModule() throws AbstractWafException {
     this(null);
   }
 
-  public WAFModule(Monitoring monitoring) throws AbstractWafException, UnsupportedVMException {
+  public WAFModule(Monitoring monitoring) throws AbstractWafException {
     if (!LibSqreenInitialization.WAF) {
       throw new InternalWafException("In-app WAF initialization failed. See previous log entries");
     }

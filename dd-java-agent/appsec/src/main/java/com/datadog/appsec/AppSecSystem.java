@@ -11,7 +11,6 @@ import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.exception.AbstractWafException;
-import com.datadog.ddwaf.exception.UnsupportedVMException;
 import datadog.appsec.api.blocking.Blocking;
 import datadog.appsec.api.blocking.BlockingService;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -146,7 +145,7 @@ public class AppSecSystem {
     final List<AppSecModule> modules;
     try {
       modules = Collections.singletonList(new WAFModule(monitoring));
-    } catch (AbstractWafException | UnsupportedVMException e) {
+    } catch (AbstractWafException e) {
       log.debug("Failed to load modules, appsec module encountered an error ", e);
       return;
     }
