@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class Endpoint {
+  private boolean fist;
   private String type;
   private String method;
   private String path;
@@ -20,6 +21,15 @@ public class Endpoint {
   private List<Integer> responseCode;
   private List<String> authentication;
   private Map<String, String> metadata;
+
+  public boolean isFirst() {
+    return fist;
+  }
+
+  public Endpoint first(boolean first) {
+    this.fist = first;
+    return this;
+  }
 
   public String getType() {
     return type;

@@ -13,7 +13,7 @@ public enum RequestType {
   LOGS("logs"),
   DISTRIBUTIONS("distributions"),
   MESSAGE_BATCH("message-batch"),
-  ASM_ENDPOINTS("asm-endpoints");
+  APP_ENDPOINTS("app-endpoints");
 
   private final String value;
 

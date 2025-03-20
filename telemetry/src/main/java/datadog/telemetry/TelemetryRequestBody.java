@@ -305,7 +305,7 @@ public class TelemetryRequestBody extends RequestBody {
   }
 
   public void beginEndpoints() throws IOException {
-    beginMessageIfBatch(RequestType.ASM_ENDPOINTS);
+    beginMessageIfBatch(RequestType.APP_ENDPOINTS);
     bodyWriter.name("endpoints");
     bodyWriter.beginArray();
   }
@@ -334,9 +334,10 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  public void endEndpoints() throws IOException {
+  public void endEndpoints(final boolean first) throws IOException {
     bodyWriter.endArray();
-    endMessageIfBatch(RequestType.ASM_ENDPOINTS);
+    bodyWriter.name("is_first").value(first);
+    endMessageIfBatch(RequestType.APP_ENDPOINTS);
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)

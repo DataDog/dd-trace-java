@@ -17,8 +17,6 @@ import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
-import static datadog.trace.api.telemetry.Endpoint.Type.REST
-
 class TelemetryServiceSpecification extends DDSpecification {
   def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)
   def configuration = [confkey: confKeyValue]
@@ -28,7 +26,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423).count(1)
   def productChange = new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(true)
-  def endpoint = new Endpoint().type('REST').method("GET").operation('http.request').path("/test")
+  def endpoint = new Endpoint().first(true).type('REST').method("GET").operation('http.request').path("/test")
 
   def 'happy path without data'() {
     setup:
@@ -99,7 +97,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
-      .assertNextMessage(RequestType.ASM_ENDPOINTS).hasPayload().endpoint(endpoint)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
@@ -163,7 +161,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
-      .assertNextMessage(RequestType.ASM_ENDPOINTS).hasPayload().endpoint(endpoint)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
@@ -251,7 +249,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
-      .assertNextMessage(RequestType.ASM_ENDPOINTS).hasPayload().endpoint(endpoint)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
@@ -355,18 +353,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
-      .assertNextMessage(RequestType.ASM_ENDPOINTS).hasPayload().endpoint() // no endpoints fit in this request
-      .assertNoMoreMessages()
-
-    when: 'sending third part of data'
-    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    !telemetryService.sendTelemetryEvents()
-
-    then:
-    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(2)
-      .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
-      .assertNextMessage(RequestType.ASM_ENDPOINTS).hasPayload().endpoint(endpoint)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
