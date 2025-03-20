@@ -6,7 +6,25 @@ public class DDTags {
 
   public static final String DD_CODE_ORIGIN_TYPE = DD_CODE_ORIGIN_PREFIX + "type";
   // _dd.code_origin.frames.%d.file|line|method|type|snapshot_id
-  public static final String DD_CODE_ORIGIN_FRAME = DD_CODE_ORIGIN_PREFIX + "frames.%d.%s";
+  public static final String DD_CODE_ORIGIN_FRAME_FILE = DD_CODE_ORIGIN_PREFIX + "frames.0.file";
+  public static final String DD_CODE_ORIGIN_FRAME_TYPE = DD_CODE_ORIGIN_PREFIX + "frames.0.type";
+  public static final String DD_CODE_ORIGIN_FRAME_METHOD =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.method";
+  public static final String DD_CODE_ORIGIN_FRAME_SIGNATURE =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.signature";
+  public static final String DD_CODE_ORIGIN_FRAME_LINE = DD_CODE_ORIGIN_PREFIX + "frames.0.line";
+  public static final String DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.snapshot_id";
+
+  public static final String[] REQUIRED_CODE_ORIGIN_TAGS =
+      new String[] {
+        DD_CODE_ORIGIN_TYPE,
+        DD_CODE_ORIGIN_FRAME_FILE,
+        DD_CODE_ORIGIN_FRAME_METHOD,
+        DD_CODE_ORIGIN_FRAME_LINE,
+        DD_CODE_ORIGIN_FRAME_TYPE,
+        DD_CODE_ORIGIN_FRAME_SIGNATURE,
+      };
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
