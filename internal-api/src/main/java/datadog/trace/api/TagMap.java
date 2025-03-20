@@ -17,29 +17,32 @@ import java.util.stream.StreamSupport;
 
 /**
  * A super simple hash map designed for...
+ *
  * <ul>
- * <li>fast copy from one map to another
- * <li>compatibility with Builder idioms
- * <li>building small maps as fast as possible
- * <li>storing primitives without boxing
- * <li>minimal memory footprint
+ *   <li>fast copy from one map to another
+ *   <li>compatibility with Builder idioms
+ *   <li>building small maps as fast as possible
+ *   <li>storing primitives without boxing
+ *   <li>minimal memory footprint
  * </ul>
  *
  * <p>This is mainly accomplished by using immutable entry objects that can reference an object or a
  * primitive. By using immutable entries, the entry objects can be shared between builders & maps
  * freely.
  *
- * <p>This map lacks some features of a regular java.util.Map... 
+ * <p>This map lacks some features of a regular java.util.Map...
+ *
  * <ul>
- * <li>Entry object mutation
- * <li>size tracking - falls back to computeSize
- * <li>manipulating Map through the entrySet() or values()
+ *   <li>Entry object mutation
+ *   <li>size tracking - falls back to computeSize
+ *   <li>manipulating Map through the entrySet() or values()
  * </ul>
  *
  * <p>Also lacks features designed for handling large maps...
+ *
  * <ul>
- * <li>bucket array expansion
- * <li>adaptive collision
+ *   <li>bucket array expansion
+ *   <li>adaptive collision
  * </ul>
  */
 
@@ -48,56 +51,46 @@ import java.util.stream.StreamSupport;
  * <p>
  * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
  * <p>
- * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot contain 
+ * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot contain
  * form a link list to handle collisions.
  * <p>
  * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
  * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
  * <p>
- * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed 
+ * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed
  * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
  * <p>
  * This does introduce some inefficiencies when Entry-s are removed.
  * In the current system, given that removals are rare, BucketGroups are never consolidated.
- * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be 
+ * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
  * removed from the collision chain.
  */
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry> {
-  /**
-   * Immutable empty TagMap - similar to {@link Collections#emptyMap()}
-   */
+  /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   public static final TagMap EMPTY = createEmpty();
 
   private static final TagMap createEmpty() {
     return new TagMap().freeze();
   }
 
-  /**
-   * Creates a new TagMap.Builder
-   */
+  /** Creates a new TagMap.Builder */
   public static final Builder builder() {
     return new Builder();
   }
 
-  /**
-   * Creates a new TagMap.Builder which handles <code>size</code> modifications before expansion
-   */
+  /** Creates a new TagMap.Builder which handles <code>size</code> modifications before expansion */
   public static final Builder builder(int size) {
     return new Builder(size);
   }
 
-  /**
-   * Creates a new mutable TagMap that contains the contents of <code>map</code>
-   */
+  /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMap(Map<String, ?> map) {
     TagMap tagMap = new TagMap();
     tagMap.putAll(map);
     return tagMap;
   }
 
-  /**
-   * Creates a new immutable TagMap that contains the contents <code>map</code>
-   */
+  /** Creates a new immutable TagMap that contains the contents <code>map</code> */
   public static final TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
@@ -218,17 +211,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return this.getObject((String) tag);
   }
 
-  /**
-   * Provides the corresponding entry value as an Object - boxing if necessary
-   */
+  /** Provides the corresponding entry value as an Object - boxing if necessary */
   public final Object getObject(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.objectValue();
   }
 
-  /**
-   * Provides the corresponding entry value as a String - calling toString if necessary
-   */
+  /** Provides the corresponding entry value as a String - calling toString if necessary */
   public final String getString(String tag) {
     Entry entry = this.getEntry(tag);
     return entry == null ? null : entry.stringValue();
@@ -260,7 +249,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Provides the corresponding Entry object - preferable if the Entry needs to have its type checked
+   * Provides the corresponding Entry object - preferable if the Entry needs to have its type
+   * checked
    */
   public final Entry getEntry(String tag) {
     Object[] thisBuckets = this.buckets;
@@ -290,17 +280,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Similar to {@link Map#put(Object, Object)}, but returns the prior Entry rather than the prior value
-   * 
-   * Preferred to put because avoids having to box prior primitive value
+   * Similar to {@link Map#put(Object, Object)}, but returns the prior Entry rather than the prior
+   * value
+   *
+   * <p>Preferred to put because avoids having to box prior primitive value
    */
   public final Entry set(String tag, Object value) {
     return this.putEntry(Entry.newAnyEntry(tag, value));
   }
 
   /**
-   * Similar to {@link TagMap#set(String, Object)} but more efficient when working with CharSequences and Strings.
-   * Depending on this situation, this methods avoids having to do type resolution later on
+   * Similar to {@link TagMap#set(String, Object)} but more efficient when working with
+   * CharSequences and Strings. Depending on this situation, this methods avoids having to do type
+   * resolution later on
    */
   public final Entry set(String tag, CharSequence value) {
     return this.putEntry(Entry.newObjectEntry(tag, value));
@@ -327,7 +319,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * TagMap specific method that places an Entry directly into the TagMap avoiding needing to allocate a new Entry object
+   * TagMap specific method that places an Entry directly into the TagMap avoiding needing to
+   * allocate a new Entry object
    */
   public final Entry putEntry(Entry newEntry) {
     this.checkWriteAccess();
@@ -400,9 +393,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
   /**
    * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from TagMap to another
-   * 
-   * This method takes advantage of the consistent Map layout to optimize the handling of each bucket.
-   * And similar to {@link TagMap#putEntry(Entry)} this method shares Entry objects from the source TagMap
+   *
+   * <p>This method takes advantage of the consistent Map layout to optimize the handling of each
+   * bucket. And similar to {@link TagMap#putEntry(Entry)} this method shares Entry objects from the
+   * source TagMap
    */
   public final void putAll(TagMap that) {
     this.checkWriteAccess();
@@ -549,8 +543,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Similar to {@link Map#remove(Object)} but returns the prior Entry object rather than the prior value
-   * This is preferred because it avoids boxing a prior primitive value
+   * Similar to {@link Map#remove(Object)} but returns the prior Entry object rather than the prior
+   * value This is preferred because it avoids boxing a prior primitive value
    */
   public final Entry removeEntry(String tag) {
     this.checkWriteAccess();
@@ -588,9 +582,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return null;
   }
 
-  /**
-   * Returns a mutable copy of this TagMap
-   */
+  /** Returns a mutable copy of this TagMap */
   public final TagMap copy() {
     TagMap copy = new TagMap();
     copy.putAll(this);
@@ -598,8 +590,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Returns an immutable copy of this TagMap
-   * This method is more efficient than <code>map.copy().freeze()</code> when called on an immutable TagMap
+   * Returns an immutable copy of this TagMap This method is more efficient than <code>
+   * map.copy().freeze()</code> when called on an immutable TagMap
    */
   public final TagMap immutableCopy() {
     if (this.frozen) {
@@ -615,8 +607,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Provides an Iterator over the Entry-s of the TagMap
-   * Equivalent to <code>entrySet().iterator()</code>, but with less allocation
+   * Provides an Iterator over the Entry-s of the TagMap Equivalent to <code>entrySet().iterator()
+   * </code>, but with less allocation
    */
   @Override
   public final Iterator<Entry> iterator() {
@@ -628,8 +620,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Visits each Entry in this TagMap
-   * This method is more efficient than {@link TagMap#iterator()}
+   * Visits each Entry in this TagMap This method is more efficient than {@link TagMap#iterator()}
    */
   public final void forEach(Consumer<? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
@@ -650,10 +641,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Version of forEach that takes an extra context object that is passed as the 
-   * first argument to the consumer
-   * 
-   * The intention is to use this method to avoid using a capturing lambda
+   * Version of forEach that takes an extra context object that is passed as the first argument to
+   * the consumer
+   *
+   * <p>The intention is to use this method to avoid using a capturing lambda
    */
   public final <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
     Object[] thisBuckets = this.buckets;
@@ -674,10 +665,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Version of forEach that takes two extra context objects that are passed as the 
-   * first two argument to the consumer
-   * 
-   * The intention is to use this method to avoid using a capturing lambda
+   * Version of forEach that takes two extra context objects that are passed as the first two
+   * argument to the consumer
+   *
+   * <p>The intention is to use this method to avoid using a capturing lambda
    */
   public final <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer) {
@@ -698,34 +689,26 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  /**
-   * Clears the TagMap
-   */
+  /** Clears the TagMap */
   public final void clear() {
     this.checkWriteAccess();
 
     Arrays.fill(this.buckets, null);
   }
 
-  /**
-   * Freeze the TagMap preventing further modification - returns <code>this</code> TagMap
-   */
+  /** Freeze the TagMap preventing further modification - returns <code>this</code> TagMap */
   public final TagMap freeze() {
     this.frozen = true;
 
     return this;
   }
 
-  /**
-   * Indicates if this map is frozen
-   */
+  /** Indicates if this map is frozen */
   public boolean isFrozen() {
     return this.frozen;
   }
-  
-  /**
-   * Checks if the TagMap is writable - if not throws {@link IllegalStateException}
-   */
+
+  /** Checks if the TagMap is writable - if not throws {@link IllegalStateException} */
   public final void checkWriteAccess() {
     if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
@@ -791,7 +774,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * toString that more visibility into the internal structure of TagMap - primarily for deep debugging
+   * toString that more visibility into the internal structure of TagMap - primarily for deep
+   * debugging
    */
   final String toInternalString() {
     Object[] thisBuckets = this.buckets;
@@ -912,7 +896,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     final String tag;
-    
+
     /*
      * hash is stored in line for fast handling of Entry-s coming another Tag
      * However, hash is lazily computed using the same trick as {@link java.lang.String}.
@@ -931,7 +915,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     // However, internally, it is important to remember that this type must be thread safe.
     // That includes multiple threads racing to resolve an ANY entry at the same time.
 
-    // Type and prim cannot use the same trick as hash because during ANY resolution the order of writes is important
+    // Type and prim cannot use the same trick as hash because during ANY resolution the order of
+    // writes is important
     volatile byte type;
     volatile long prim;
     volatile Object obj;
@@ -1591,26 +1576,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * BucketGroup is compromise for performance over a linked list or array
-   * - linked list - would prevent TagEntry-s from being immutable and would limit sharing opportunities
-   * - arrays - wouldn't be able to store hashes close together 
-   * - parallel arrays (one for hashes & another for entries) would require more allocation
-   * 
-   * BucketGroups are 
+   * BucketGroup is a compromise for performance over a linked list or array
+   *
+   * <ul>
+   *   <li>linked list - would prevent TagEntry-s from being immutable and would limit sharing
+   *       opportunities
+   *   <li>arrays - wouldn't be able to store hashes close together
+   *   <li>parallel arrays (one for hashes & another for entries) would require more allocation
+   * </ul>
    */
   static final class BucketGroup {
     static final int LEN = 4;
 
     /*
-     * To make search operations on BucketGroups fast, the hashes for each entry are held inside 
+     * To make search operations on BucketGroups fast, the hashes for each entry are held inside
      * the BucketGroup.  This avoids pointer chasing to inspect each Entry object.
      * <p>
-     * As a further optimization, the hashes are deliberated placed next to each other.
-     * The intention is that the hashes will all end up in the same cache line, so loading 
+     * As a further optimization, the hashes are deliberately placed next to each other.
+     * The intention is that the hashes will all end up in the same cache line, so loading
      * one hash effectively loads the others for free.
      * <p>
-     * A hash of zero indicates an available slot, the hashes passed to BucketGroup must be "adjusted"  
-     * hashes which can never be zero.  The zero handling is done by TagMap#hash.
+     * A hash of zero indicates an available slot, the hashes passed to BucketGroup must be "adjusted"
+     * hashes which can never be zero.  The zero handling is done by TagMap#_hash.
      */
     int hash0 = 0;
     int hash1 = 0;
