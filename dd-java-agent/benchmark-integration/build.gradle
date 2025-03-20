@@ -1,14 +1,20 @@
 buildscript {
   repositories {
     mavenLocal()
+    if (project.rootProject.hasProperty("gradlePluginProxy")) {
+      maven {
+        url project.rootProject.property("gradlePluginProxy")
+        allowInsecureProtocol true
+      }
+    }
     if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
       maven {
         url project.rootProject.property("mavenRepositoryProxy")
         allowInsecureProtocol true
       }
     }
-    mavenCentral()
     gradlePluginPortal()
+    mavenCentral()
   }
   dependencies {
     classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
