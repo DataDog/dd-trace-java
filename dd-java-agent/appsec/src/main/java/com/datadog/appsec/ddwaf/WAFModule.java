@@ -47,7 +47,6 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.RandomUtils;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -240,18 +239,18 @@ public class WAFModule implements AppSecModule {
     NativeWafHandle nativeWafHandle;
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
     try {
-      String uniqueId = RandomUtils.randomUUID().toString();
-
       if (prevContextAndAddresses == null) {
         WafConfig pwConfig = createWafConfig();
-        // new config available, default config builder is no longer in use
+        // new config available, old builder with old config is no longer in use,
+        // it must be removed from ddwaf environment
         if (wafBuilder != null && wafBuilder.isOnline()) {
           wafBuilder.destroy();
         }
-
         wafBuilder = new WafBuilder(pwConfig);
       }
-      wafBuilder.addOrUpdateRuleConfig(ruleConfig.getRawConfig(), initReportMap);
+      wafBuilder.addOrUpdateRuleConfig(
+          ruleConfig.getRawConfig(), initReportMap); // initial rule load
+      // the handle allows to update rule configurations during rule run
       nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
 
       initReport = initReportMap[0];
@@ -286,9 +285,6 @@ public class WAFModule implements AppSecModule {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractWafException e) {
-      if (wafBuilder != null && wafBuilder.isOnline()) {
-        wafBuilder.destroy();
-      }
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
       if (initReport != null) {
@@ -297,9 +293,6 @@ public class WAFModule implements AppSecModule {
     }
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
-      if (wafBuilder != null && wafBuilder.isOnline()) {
-        wafBuilder.destroy();
-      }
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
     reconf.reloadSubscriptions();
@@ -482,7 +475,9 @@ public class WAFModule implements AppSecModule {
           }
         }
       }
-
+      if (wafBuilder != null && wafBuilder.isOnline()) {
+        wafBuilder.destroy(); // once the rules are run, the builder is done with its lifecycle
+      }
       StandardizedLogging.inAppWafReturn(log, resultWithData);
 
       if (resultWithData
@@ -639,11 +634,17 @@ public class WAFModule implements AppSecModule {
       }
       NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
       log.debug("Running rules {} with limits {} and metrics {}", newData, LIMITS, metrics);
-      return Waf.runRules(
-          new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
-          LIMITS,
-          metrics,
-          nativeWafHandle);
+      try {
+        return Waf.runRules(
+            new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
+            LIMITS,
+            metrics,
+            nativeWafHandle);
+      } finally {
+        if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+          nativeWafHandle.destroy();
+        }
+      }
     }
   }
 

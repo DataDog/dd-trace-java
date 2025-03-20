@@ -7,11 +7,11 @@ import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.ddwaf.NativeWafHandle;
+import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
-import com.datadog.ddwaf.exception.UnsupportedVMException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -46,33 +46,37 @@ public class WafBenchmark {
   }
 
   WafBuilder wafBuilder;
-  Waf waf;
   Map<String, Object> wafData = new HashMap<>();
   Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
     WafMetrics metricsCollector = new WafMetrics();
-
     NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
-    Waf.runRules(wafData, limits, metricsCollector, nativeWafHandle); // consumes nativeWafHandle
+    Waf.runRules(wafData, limits, metricsCollector, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
+    }
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
     NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
-    Waf.runRules(wafData, limits, null, nativeWafHandle); // consumes nativeWafHandle
+    Waf.runRules(wafData, limits, null, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
+    }
   }
 
   @Setup(Level.Trial)
-  public void setUp() throws IOException, AbstractWafException, UnsupportedVMException {
+  public void setUp() throws IOException, AbstractWafException {
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig wafRules = cfg.get("waf");
-    Waf.initialize(false);
     wafBuilder = new WafBuilder();
-    wafBuilder.addOrUpdateRuleConfig(wafRules.getRawConfig(), null);
+    RuleSetInfo[] infoRef = new RuleSetInfo[1];
+    wafBuilder.addOrUpdateRuleConfig(wafRules.getRawConfig(), infoRef);
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
         KnownAddresses.REQUEST_URI_RAW.getKey(), "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
