@@ -13,12 +13,16 @@ import org.opensearch.node.Node
 import org.opensearch.transport.Netty4Plugin
 import org.opensearch.transport.TransportService
 import org.opensearch.transport.client.PreBuiltTransportClient
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.opensearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Flaky
+@IgnoreIf(reason="AIDM-522", value = {
+  System.getenv("CI") != null
+})
 class OpensearchTransportClientTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000 // 10 seconds
 
