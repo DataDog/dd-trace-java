@@ -59,7 +59,7 @@ public class Elasticsearch5RestClientInstrumentation extends InstrumenterModule.
         @Advice.Argument(1) final String endpoint,
         @Advice.Argument(value = 5, readOnly = false) ResponseListener responseListener) {
 
-      final AgentSpan span = startSpan(OPERATION_NAME);
+      final AgentSpan span = startSpan("elasticsearch", OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, method, endpoint, null, null);
 

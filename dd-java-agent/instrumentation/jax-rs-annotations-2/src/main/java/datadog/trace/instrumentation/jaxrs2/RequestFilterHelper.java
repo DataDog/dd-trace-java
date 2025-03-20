@@ -25,7 +25,7 @@ public class RequestFilterHelper {
 
       if (span == null) {
         parent = activeSpan();
-        span = startSpan(JAX_RS_REQUEST_ABORT);
+        span = startSpan("jax-rs", JAX_RS_REQUEST_ABORT);
 
         final AgentScope scope = activateSpan(span);
 

@@ -76,6 +76,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
             if (timeInQueueStart > 0) {
               queueSpan =
                   startSpan(
+                      "sqs",
                       SQS_TIME_IN_QUEUE_OPERATION,
                       spanContext,
                       MILLISECONDS.toMicros(timeInQueueStart));
@@ -89,7 +90,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           // re-use this context for any other messages received in this batch
           batchContext = spanContext;
         }
-        AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
+        AgentSpan span = startSpan("sqs", SQS_INBOUND_OPERATION, batchContext);
 
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_IN);

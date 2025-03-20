@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 public class StateAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.This final Object stateInstance) {
-    final AgentSpan span = startSpan(AXWAY_TRY_TRANSACTION);
+    final AgentSpan span = startSpan("axway", AXWAY_TRY_TRANSACTION);
     final AgentScope scope = activateSpan(span);
     span.setMeasured(true);
     DECORATE.onTransaction(span, stateInstance);

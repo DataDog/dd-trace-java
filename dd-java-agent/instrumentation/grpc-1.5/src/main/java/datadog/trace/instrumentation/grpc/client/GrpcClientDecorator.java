@@ -96,7 +96,7 @@ public class GrpcClientDecorator extends ClientDecorator {
       return null;
     }
     AgentSpan span =
-        startSpan(OPERATION_NAME)
+        startSpan("grpc", OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method))
             // method.getServiceName() may not be available on some grpc versions

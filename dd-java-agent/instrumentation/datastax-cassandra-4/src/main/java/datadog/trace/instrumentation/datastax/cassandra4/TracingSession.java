@@ -54,7 +54,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private ResultSet wrapSyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan("cassandra", OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());
@@ -78,7 +78,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private CompletionStage<AsyncResultSet> wrapAsyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan("cassandra", OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());

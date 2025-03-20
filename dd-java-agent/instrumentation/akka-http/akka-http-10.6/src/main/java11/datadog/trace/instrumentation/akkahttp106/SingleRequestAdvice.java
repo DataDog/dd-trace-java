@@ -24,7 +24,10 @@ public class SingleRequestAdvice {
       return null;
     }
 
-    final AgentSpan span = startSpan(AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST);
+    final AgentSpan span =
+        startSpan(
+            AkkaHttpClientDecorator.AKKA_HTTP_CLIENT.toString(),
+            AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST);
     AkkaHttpClientDecorator.DECORATE.afterStart(span);
     AkkaHttpClientDecorator.DECORATE.onRequest(span, request);
 

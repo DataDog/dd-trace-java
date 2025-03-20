@@ -14,7 +14,7 @@ public class HTTPPluginAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
-    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span = startSpan("axway", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
     DECORATE.onRequest(span, serverTransaction, serverTransaction, null);

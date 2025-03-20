@@ -11,11 +11,12 @@ import java.util.Set;
 public class HibernateDecorator extends OrmClientDecorator {
   public static final CharSequence HIBERNATE_SESSION = UTF8BytesString.create("hibernate.session");
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
+  public static final String HIBERNATE = "hibernate";
 
   @Override
   protected String service() {
-    return "hibernate";
-  }
+    return HIBERNATE;
+  } // FIXME: don't set service name in v1
 
   @Override
   protected String[] instrumentationNames() {

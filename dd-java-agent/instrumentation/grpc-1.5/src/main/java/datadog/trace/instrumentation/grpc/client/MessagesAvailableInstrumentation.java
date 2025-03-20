@@ -74,7 +74,8 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
-            startSpan(GRPC_MESSAGE).setTag("message.type", clientSpan.getTag("response.type"));
+            startSpan("grpc", GRPC_MESSAGE)
+                .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
       }

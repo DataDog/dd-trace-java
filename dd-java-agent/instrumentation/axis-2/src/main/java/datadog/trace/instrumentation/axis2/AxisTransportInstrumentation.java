@@ -64,7 +64,7 @@ public final class AxisTransportInstrumentation extends InstrumenterModule.Traci
     public static AgentScope beginTransport(@Advice.Argument(0) final MessageContext message) {
       // only create a span if the message has a clear action and there's a surrounding request
       if (DECORATE.shouldTrace(message)) {
-        AgentSpan span = startSpan(AXIS2_TRANSPORT);
+        AgentSpan span = startSpan(AxisMessageDecorator.AXIS2.toString(), AXIS2_TRANSPORT);
         DECORATE.afterStart(span);
         DECORATE.onTransport(span, message);
         DECORATE.onMessage(span, message);

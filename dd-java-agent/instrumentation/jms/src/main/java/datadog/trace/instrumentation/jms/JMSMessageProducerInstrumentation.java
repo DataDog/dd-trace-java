@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
@@ -88,7 +89,7 @@ public final class JMSMessageProducerInstrumentation
         }
       }
 
-      final AgentSpan span = startSpan(JMS_PRODUCE);
+      final AgentSpan span = startSpan(JMS.toString(), JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
       if (JMSDecorator.canInject(message)) {
@@ -135,7 +136,7 @@ public final class JMSMessageProducerInstrumentation
       String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
       CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
-      final AgentSpan span = startSpan(JMS_PRODUCE);
+      final AgentSpan span = startSpan(JMS.toString(), JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
       if (JMSDecorator.canInject(message)) {

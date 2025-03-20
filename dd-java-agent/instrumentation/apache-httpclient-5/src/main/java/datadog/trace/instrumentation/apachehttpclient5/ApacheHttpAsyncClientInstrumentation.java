@@ -97,7 +97,7 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
       final AgentScope.Continuation parentContinuation = captureActiveSpan();
-      final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
+      final AgentSpan clientSpan = startSpan("apache-http-client", HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
 

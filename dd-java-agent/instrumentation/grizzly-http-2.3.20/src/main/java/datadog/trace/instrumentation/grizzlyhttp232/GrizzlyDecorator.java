@@ -115,7 +115,7 @@ public class GrizzlyDecorator
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
     AgentSpanContext.Extracted context = DECORATE.extract(httpRequest);
-    AgentSpan span = DECORATE.startSpan(httpRequest, context);
+    AgentSpan span = DECORATE.startSpan("grizzly-http-server", httpRequest, context);
     AgentScope scope = activateSpan(span);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);

@@ -10,6 +10,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
+import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
 import static java.util.Collections.singletonList;
@@ -69,7 +70,7 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope before(
         @Advice.Argument(value = 0, readOnly = false) PubsubMessage msg,
         @Advice.This Publisher publisher) {
-      final AgentSpan span = startSpan(PUBSUB_PRODUCE);
+      final AgentSpan span = startSpan(PUBSUB, PUBSUB_PRODUCE);
 
       final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
       PRODUCER_DECORATE.afterStart(span);

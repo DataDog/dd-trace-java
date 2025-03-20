@@ -78,7 +78,7 @@ public class ClientListenerInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast", SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, null, correlationId);
 

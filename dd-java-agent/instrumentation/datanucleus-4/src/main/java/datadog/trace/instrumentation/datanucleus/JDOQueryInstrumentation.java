@@ -70,8 +70,8 @@ public class JDOQueryInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan span =
           methodName.startsWith("execute")
-              ? startSpan(DATANUCLEUS_QUERY_EXECUTE)
-              : startSpan(DATANUCLEUS_QUERY_DELETE);
+              ? startSpan("datanucleus", DATANUCLEUS_QUERY_EXECUTE)
+              : startSpan("datanucleaus", DATANUCLEUS_QUERY_DELETE);
 
       DECORATE.afterStart(span);
 

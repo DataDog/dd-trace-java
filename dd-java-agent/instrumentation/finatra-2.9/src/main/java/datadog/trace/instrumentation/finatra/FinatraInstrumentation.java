@@ -72,7 +72,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       parent.setTag(Tags.COMPONENT, "finatra");
       parent.setSpanName(DECORATE.spanName());
 
-      final AgentSpan span = startSpan(FINATRA_CONTROLLER);
+      final AgentSpan span = startSpan("finatra", FINATRA_CONTROLLER);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(clazz));
 

@@ -71,7 +71,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       // WARNING: this might be a chain...so we only have to trace the first in the chain.
       final boolean isRootClientHandler = null == request.getProperties().get(DD_SPAN_ATTRIBUTE);
       if (isRootClientHandler) {
-        final AgentSpan span = startSpan(JAX_RS_CLIENT_CALL);
+        final AgentSpan span = startSpan("jax-rs-client", JAX_RS_CLIENT_CALL);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);

@@ -93,7 +93,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   public AgentSpan startAerospikeSpan(final String methodName) {
-    final AgentSpan span = startSpan(OPERATION_NAME);
+    final AgentSpan span = startSpan("aerospike", OPERATION_NAME);
     afterStart(span);
     withMethod(span, methodName);
     return span;

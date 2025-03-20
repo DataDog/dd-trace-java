@@ -53,7 +53,7 @@ public class UrlInstrumentation extends InstrumenterModule.Tracing
         String protocol = url.getProtocol();
         protocol = protocol != null ? protocol : "url";
 
-        final AgentSpan span = startSpan(DECORATE.operationName(protocol));
+        final AgentSpan span = startSpan("http-url-connection", DECORATE.operationName(protocol));
 
         try (final AgentScope scope = activateSpan(span)) {
           DECORATE.afterStart(span);

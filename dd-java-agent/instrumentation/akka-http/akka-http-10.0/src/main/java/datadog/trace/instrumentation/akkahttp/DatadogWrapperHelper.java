@@ -12,7 +12,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
     final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
-    final AgentSpan span = DECORATE.startSpan(request, extractedContext);
+    final AgentSpan span =
+        DECORATE.startSpan(
+            AkkaHttpServerDecorator.AKKA_HTTP_SERVER.toString(), request, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);
 
