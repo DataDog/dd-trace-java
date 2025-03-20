@@ -1,6 +1,6 @@
 package com.datadog.appsec.user
 
-
+import datadog.appsec.api.user.User
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.UserIdCollectionMode
 import datadog.trace.api.appsec.AppSecEventTracker
@@ -26,7 +26,7 @@ class EventTrackerAppSecDisabledForkedTest extends DDSpecification {
   void setup() {
     tracker = new AppSecEventTracker()
     GlobalTracer.setEventTracker(tracker)
-
+    User.setUserService(tracker)
     traceSegment = Mock(TraceSegment)
     final tracer = Stub(AgentTracer.TracerAPI) {
       getTraceSegment() >> traceSegment

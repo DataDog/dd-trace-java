@@ -1,8 +1,7 @@
 package com.datadog.debugger.codeorigin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.CODE_ORIGIN;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
-import static java.lang.String.format;
+import static datadog.trace.api.DDTags.*;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
@@ -172,10 +171,9 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     @Override
     public void accept(Snapshot snapshot) {
       AgentSpan span = AgentTracer.get().activeSpan();
-      String snapshotId = format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id");
-      span.setTag(snapshotId, snapshot.getId());
+      span.setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
       if (entrySpanProbe) {
-        span.getLocalRootSpan().setTag(snapshotId, snapshot.getId());
+        span.getLocalRootSpan().setTag(DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID, snapshot.getId());
       }
     }
   }
