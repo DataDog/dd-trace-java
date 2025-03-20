@@ -1,4 +1,4 @@
-import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.base.HttpClientTest2
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpResponse
@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 @Timeout(5)
-class ApacheHttpAsyncClientCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+class ApacheHttpAsyncClientCallbackTest extends HttpClientTest2 implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
@@ -31,11 +31,9 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest implements Testin
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = new HttpUriRequest(method, uri)
-    headers.entrySet().each {
-      request.addHeader(new BasicHeader(it.key, it.value))
-    }
+    headers.each { request.addHeader(new BasicHeader(it[0], it[1])) }
 
     def responseFuture = new CompletableFuture<>()
 
