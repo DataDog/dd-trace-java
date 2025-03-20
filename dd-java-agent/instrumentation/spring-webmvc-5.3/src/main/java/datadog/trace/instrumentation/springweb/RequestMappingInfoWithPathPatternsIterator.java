@@ -23,6 +23,7 @@ public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endp
   private final Map<RequestMappingInfo, HandlerMethod> mappings;
   private final Queue<Endpoint> queue = new LinkedList<>();
   private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator;
+  private boolean first = true;
 
   public RequestMappingInfoWithPathPatternsIterator(
       final Map<RequestMappingInfo, HandlerMethod> mappings) {
@@ -80,6 +81,10 @@ public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endp
           final Map<String, String> metadata = new HashMap<>();
           metadata.put("handler", nextHandler.toString());
           endpoint.metadata(metadata);
+        }
+        if (first) {
+          endpoint.first(true);
+          first = false;
         }
         queue.add(endpoint);
       }

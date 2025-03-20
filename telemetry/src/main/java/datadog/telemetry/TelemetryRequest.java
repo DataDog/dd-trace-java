@@ -234,12 +234,19 @@ public class TelemetryRequest {
     try {
       log.debug("Writing endpoints");
       requestBody.beginEndpoints();
-      while (eventSource.hasEndpoint() && isWithinSizeLimits()) {
-        Endpoint event = eventSource.nextEndpoint();
+      boolean first = false;
+      while (eventSource.hasEndpoint()) {
+        final Endpoint event = eventSource.nextEndpoint();
+        if (event.isFirst()) {
+          first = true;
+        }
         requestBody.writeEndpoint(event);
         eventSink.addEndpointEvent(event);
+        if (!isWithinSizeLimits()) {
+          break;
+        }
       }
-      requestBody.endEndpoints();
+      requestBody.endEndpoints(first);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("asm-endpoints", e);
     }

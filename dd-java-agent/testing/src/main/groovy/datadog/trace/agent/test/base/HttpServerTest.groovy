@@ -462,7 +462,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
-    WEBSOCKET("websocket", 101, null)
+    WEBSOCKET("websocket", 101, null),
 
     ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
@@ -2117,11 +2117,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
 
     then:
+    !endpoints.isEmpty()
+    endpoints.eachWithIndex { Endpoint entry, int i ->
+      assert entry.first == (i == 0)
+    }
+
     !discovered.isEmpty()
-    discovered.each {
-      assert it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
-      assert it.type == Endpoint.Type.REST
-      assert it.operation == Endpoint.Operation.HTTP_REQUEST
+    discovered.eachWithIndex { endpoint, index ->
+      assert endpoint.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert endpoint.type == Endpoint.Type.REST
+      assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
     }
     assertEndpointDiscovery(discovered)
   }
