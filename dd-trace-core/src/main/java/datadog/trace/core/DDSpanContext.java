@@ -756,6 +756,9 @@ public class DDSpanContext
 
     synchronized (unsafeTags) {
       if (needsIntercept) {
+        // forEach out-performs the iterator of TagMap
+        // Taking advantage of ability to pass through other context arguments
+        // to avoid using a capturing lambda
         map.forEach(
             this,
             traceCollector.getTracer().getTagInterceptor(),

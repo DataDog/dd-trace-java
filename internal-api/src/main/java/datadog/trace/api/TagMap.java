@@ -1666,8 +1666,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case 3:
           return this.entry3;
-          
-       // Do not use default case, that creates a 5% cost on entry handling
+
+          // Do not use default case, that creates a 5% cost on entry handling
       }
 
       return null;
@@ -1686,10 +1686,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case 3:
           return this.hash3;
-          
-        // Do not use default case, that creates a 5% cost on entry handling 
+
+          // Do not use default case, that creates a 5% cost on entry handling
       }
-      
+
       return 0;
     }
 
