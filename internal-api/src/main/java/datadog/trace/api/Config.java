@@ -4844,6 +4844,8 @@ public class Config {
         + apmTracingEnabled
         + ", jdkSocketEnabled="
         + jdkSocketEnabled
+        + ", cloudPayloadTaggingServices="
+        + cloudPayloadTaggingServices
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
