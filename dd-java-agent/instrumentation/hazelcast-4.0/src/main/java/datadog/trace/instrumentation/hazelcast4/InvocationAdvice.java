@@ -36,7 +36,7 @@ public class InvocationAdvice {
       return null;
     }
 
-    final AgentSpan span = startSpan(HazelcastConstants.SPAN_NAME);
+    final AgentSpan span = startSpan("hazelcast", HazelcastConstants.SPAN_NAME);
 
     span.setTag(
         HazelcastConstants.HAZELCAST_INSTANCE,

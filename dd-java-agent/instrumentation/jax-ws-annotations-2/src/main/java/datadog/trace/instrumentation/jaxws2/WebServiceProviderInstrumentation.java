@@ -74,7 +74,7 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
         return null;
       }
 
-      AgentSpan span = startSpan(JAX_WS_REQUEST);
+      AgentSpan span = startSpan("jax-ws", JAX_WS_REQUEST);
       span.setMeasured(true);
       DECORATE.onJaxWsSpan(span, thiz.getClass(), method);
       DECORATE.afterStart(span);
