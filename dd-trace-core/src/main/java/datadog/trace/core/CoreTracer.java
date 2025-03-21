@@ -1551,6 +1551,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     static final long determineSpanId(CoreTracer tracer, long spanId) {
       return (spanId != 0) ? tracer.idGenerationStrategy.generateSpanId() : spanId;
     }
+    
+    static final CharSequence determineOperationName(CharSequence operationName, CharSequence resourceName) {
+      return operationName != null ? operationName : resourceName;
+    }
 
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
@@ -1592,6 +1596,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       String parentServiceName = null;
       boolean isRemote = false;
+      
+      requestContextDataAppSec = thisBuilder.builderRequestContextDataAppSec;
+      requestContextDataIast = thisBuilder.builderRequestContextDataIast;
+      ciVisibilityContextData = thisBuilder.builderCiVisibilityContextData;
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
@@ -1614,13 +1622,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
         RequestContext requestContext = ((DDSpanContext) parentContext).getRequestContext();
         if (requestContext != null) {
-          requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
-          requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
-          ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
-        } else {
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
+          if ( requestContextDataAppSec == null ) {
+        	requestContextDataAppSec = requestContext.getData(RequestContextSlot.APPSEC);
+          }
+          if ( requestContextDataIast == null ) {
+        	requestContextDataIast = requestContext.getData(RequestContextSlot.IAST);
+          }
+          if ( ciVisibilityContextData == null ) {
+        	ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
+          }
         }
         propagationTags = thisBuilder.tracer.propagationTagsFactory.empty();
       } else {
@@ -1663,18 +1673,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           coreTagsNeedsIntercept = true; // may intercept isn't needed?
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
-          requestContextDataAppSec = tc.getRequestContextDataAppSec();
-          requestContextDataIast = tc.getRequestContextDataIast();
-          ciVisibilityContextData = tc.getCiVisibilityContextData();
+          
+          if ( requestContextDataAppSec == null ) {
+        	requestContextDataAppSec = tc.getRequestContextDataAppSec();
+          }
+          if ( requestContextDataIast == null ) {
+        	requestContextDataIast = tc.getRequestContextDataIast();
+          }
+          if ( ciVisibilityContextData == null ) {
+            ciVisibilityContextData = tc.getCiVisibilityContextData();
+          }
         } else {
           traceConfig = null;
           coreTags = null;
           coreTagsNeedsIntercept = false;
           origin = null;
           baggage = null;
-          requestContextDataAppSec = null;
-          requestContextDataIast = null;
-          ciVisibilityContextData = null;
         }
 
         rootSpanTags = tracer.localRootSpanTags;
@@ -1703,9 +1717,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         final DDSpan rootSpan = parentTraceCollector.getRootSpan();
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
+      
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
       }
+      
       Map<String, Object> contextualTags = null;
       if (parentServiceName == null) {
         // only fetch this on local root spans
@@ -1720,29 +1736,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           contextualTags = contextualInfo.getTags();
         }
       }
+      
       if (serviceName == null) {
         // it could be on the initial snapshot but may be overridden to null and service name
         // cannot be null
         serviceName = tracer.serviceName;
       }
 
-      final CharSequence operationName =
-          thisBuilder.operationName != null ? thisBuilder.operationName : thisBuilder.resourceName;
+      final CharSequence operationName = determineOperationName(thisBuilder.operationName, thisBuilder.resourceName);
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
       final int tagsSize = 0;
-
-      if (thisBuilder.builderRequestContextDataAppSec != null) {
-        requestContextDataAppSec = thisBuilder.builderRequestContextDataAppSec;
-      }
-      if (thisBuilder.builderCiVisibilityContextData != null) {
-        ciVisibilityContextData = thisBuilder.builderCiVisibilityContextData;
-      }
-      if (thisBuilder.builderRequestContextDataIast != null) {
-        requestContextDataIast = thisBuilder.builderRequestContextDataIast;
-      }
 
       // some attributes are inherited from the parent
       context =
