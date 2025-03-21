@@ -1589,15 +1589,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         spanId = this.spanId;
       }
 
-//      AgentSpanContext parentContext = parent;
-//      if (parentContext == null && !ignoreScope) {
-//        // use the Scope as parent unless overridden or ignored.
-//        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
-//        if (activeSpan != null) {
-//          parentContext = activeSpan.context();
-//        }
-//      }
-
       String parentServiceName = null;
       boolean isRemote = false;
 
