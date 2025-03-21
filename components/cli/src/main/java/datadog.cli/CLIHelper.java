@@ -131,41 +131,20 @@ public class CLIHelper {
 
       // Handle system properties (-Dkey=value)
       if (arg.startsWith("-D")) {
-        int equalsIndex = arg.indexOf('=');
-        if (equalsIndex >= 0) {
-          String key = arg.substring(0, equalsIndex);
-          String value = arg.substring(equalsIndex + 1);
-          parsedArgs.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-        } else {
-          parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
-        }
+        addEntryToMap('=', arg, parsedArgs);
         continue;
       }
 
       // Handle -XX flags
       if (arg.startsWith("-XX:")) {
         // -XX flags can have values after = (like -XX:MaxMetaspaceSize=128m)
-        int equalsIndex = arg.indexOf('=');
-        if (equalsIndex >= 0) {
-          String key = arg.substring(0, equalsIndex);
-          String value = arg.substring(equalsIndex + 1);
-          parsedArgs.computeIfAbsent("-XX:" + key, k -> new ArrayList<>()).add(value);
-        } else {
-          parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
-        }
+        addEntryToMap('=', arg, parsedArgs);
+        continue;
       }
 
       // Handle -javaagent
       if (arg.startsWith("-javaagent:")) {
-        String keyValue = arg.substring(11); // Remove "-javaagent:" prefix
-        int equalsIndex = keyValue.indexOf('=');
-        if (equalsIndex >= 0) {
-          String key = keyValue.substring(0, equalsIndex);
-          String value = keyValue.substring(equalsIndex + 1);
-          parsedArgs.computeIfAbsent("-javaagent:" + key, k -> new ArrayList<>()).add(value);
-        } else {
-          parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
-        }
+        addEntryToMap(':', arg, parsedArgs);
         continue;
       }
 
@@ -173,17 +152,22 @@ public class CLIHelper {
       // Note that -X flags will not be parsed into key-vals; they'll be caught by the value-less
       // case and stored as a key. Therefore, duplicate keys are not supported for -X flags
       if (arg.startsWith("-")) {
-        int equalsIndex = arg.indexOf('=');
-        if (equalsIndex >= 0) {
-          String key = arg.substring(0, equalsIndex);
-          String value = arg.substring(equalsIndex + 1);
-          parsedArgs.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-        } else {
-          parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
-        }
+        addEntryToMap('=', arg, parsedArgs);
       }
     }
 
     return parsedArgs;
+  }
+
+  private static void addEntryToMap(
+      char equalsOperator, String arg, Map<String, List<String>> parsedArgs) {
+    int equalsIndex = arg.indexOf(equalsOperator);
+    if (equalsIndex >= 0 && equalsIndex < (arg.length() - 1)) {
+      String key = arg.substring(0, equalsIndex);
+      String value = arg.substring(equalsIndex + 1);
+      parsedArgs.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+    } else {
+      parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
+    }
   }
 }
