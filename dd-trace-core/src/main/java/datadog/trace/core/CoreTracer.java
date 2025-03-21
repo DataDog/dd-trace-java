@@ -1408,16 +1408,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
     }
-
-    @Override
-    public AgentSpan start() {
-      AgentSpanContext pc = parent;
-      if (pc == null && !ignoreScope) {
-        final AgentSpan span = tracer.activeSpan();
+    
+    AgentSpanContext resolveParentContext() {
+      AgentSpanContext pc = this.parent;
+      if (pc == null && !this.ignoreScope) {
+        final AgentSpan span = this.tracer.activeSpan();
         if (span != null) {
           pc = span.context();
         }
       }
+      return pc;
+    }
+
+    @Override
+    public AgentSpan start() {
+      AgentSpanContext pc = this.resolveParentContext();
 
       if (pc == BlackHoleSpan.Context.INSTANCE) {
         return new BlackHoleSpan(pc.getTraceId());
@@ -1534,11 +1539,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.spanId = spanId;
       return this;
     }
+    
+    static final long determineSpanId(CoreTracer tracer, long spanId) {
+      return (spanId != 0) ? tracer.idGenerationStrategy.generateSpanId() : spanId;
+    }
 
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
-     * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
-     *
+     * propagated:
+     * <ul>
+     * <li>ServiceName
+     * <li>Baggage
+     * <li>Trace (a list of all spans related)
+     * <li>SpanType
+     * </ul>
+     * 
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
