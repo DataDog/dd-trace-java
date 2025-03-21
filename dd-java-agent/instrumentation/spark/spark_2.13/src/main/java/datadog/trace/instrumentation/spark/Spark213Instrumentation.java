@@ -41,6 +41,22 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
+      if (!sparkContext.conf().contains("spark.extraListeners")) {
+        sparkContext
+            .conf()
+            .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
+      } else {
+        String extraListeners = sparkContext.conf().get("spark.extraListeners");
+        if (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
+          sparkContext
+              .conf()
+              .set(
+                  "spark.extraListeners",
+                  extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener");
+        }
+      }
+
+      // We want to add the Datadog listener as the first listener
       AbstractDatadogSparkListener.listener =
           new DatadogSpark213Listener(
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
