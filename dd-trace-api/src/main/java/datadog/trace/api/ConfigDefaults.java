@@ -272,7 +272,14 @@ public final class ConfigDefaults {
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
           Arrays.asList(
-              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
+              "ApiGateway",
+              "ApiGatewayV2",
+              "EventBridge",
+              "Sqs",
+              "Sns",
+              "S3",
+              "Kinesis",
+              "DynamoDB"));
 
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";
