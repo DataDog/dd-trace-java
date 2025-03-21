@@ -1039,10 +1039,10 @@ public class Config {
         extract = DEFAULT_TRACE_PROPAGATION_STYLE;
       }
 
-      tracePropagationStylesToExtract =
-          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-              ? new HashSet<>()
-              : extract;
+      tracePropagationStylesToExtract =extract;
+//          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
+//              ? new HashSet<>()
+//              : extract;
 
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 

@@ -1511,23 +1511,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (parentContext != null
           && parentContext.isRemote()
           && Config.get().getTracePropagationBehaviorExtract()
-              == TracePropagationBehaviorExtract.RESTART) {
-        SpanLink link;
-        if (parentContext instanceof ExtractedContext) {
-          ExtractedContext pc = (ExtractedContext) parentContext;
-          link =
-              DDSpanLink.from(
-                  pc,
-                  SpanAttributes.builder()
-                      .put("reason", "propagation_behavior_extract")
-                      .put("context_headers", pc.getPropagationStyle().toString())
-                      .build());
-        } else {
-          link = SpanLink.from(parentContext);
-        }
+              != TracePropagationBehaviorExtract.CONTINUE) {
         // reset links that may have come terminated span links
         links = new ArrayList<>();
-        links.add(link);
+
+        if(Config.get().getTracePropagationBehaviorExtract()
+            == TracePropagationBehaviorExtract.RESTART){
+          SpanLink link;
+          if (parentContext instanceof ExtractedContext) {
+            ExtractedContext pc = (ExtractedContext) parentContext;
+            link =
+                DDSpanLink.from(
+                    pc,
+                    SpanAttributes.builder()
+                        .put("reason", "propagation_behavior_extract")
+                        .put("context_headers", pc.getPropagationStyle().toString())
+                        .build());
+          } else {
+            link = SpanLink.from(parentContext);
+          }
+          links.add(link);
+        }
         parentContext = null;
       }
       // Propagate internal trace.
