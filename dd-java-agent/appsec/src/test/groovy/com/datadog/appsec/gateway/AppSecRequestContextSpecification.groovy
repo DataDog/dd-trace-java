@@ -251,7 +251,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
   void 'test that internal data is cleared on close'() {
     setup:
     final ctx = new AppSecRequestContext()
-    final fullCleanup = !postProcessing
 
     when:
     ctx.requestHeaders.put('Accept', ['*'])
@@ -260,19 +259,17 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
     ctx.derivatives = ['a': 'b']
     ctx.additive = createAdditive()
-    ctx.close(postProcessing)
+    ctx.close()
 
     then:
     ctx.additive == null
     ctx.derivatives == null
+    ctx.additive == null
 
-    ctx.requestHeaders.isEmpty() == fullCleanup
-    ctx.responseHeaders.isEmpty() == fullCleanup
-    ctx.cookies.isEmpty() == fullCleanup
-    ctx.persistentData.isEmpty() == fullCleanup
-
-    where:
-    postProcessing << [true, false]
+    ctx.requestHeaders.isEmpty()
+    ctx.responseHeaders.isEmpty()
+    ctx.cookies.isEmpty()
+    ctx.persistentData.isEmpty()
   }
 
   def "test increase and get WafTimeouts"() {
