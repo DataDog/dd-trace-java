@@ -1564,7 +1564,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * 
      * @return the context
      */
-    private DDSpanContext buildSpanContext(AgentSpanContext parentContext) {
+    private final DDSpanContext buildSpanContext(AgentSpanContext parentContext) {
+      return buildSpanContext(this.tracer, this, parentContext);
+    }
+    
+    private static final DDSpanContext buildSpanContext(CoreTracer tracer, CoreSpanBuilder thisBuilder, AgentSpanContext parentContext) {
       final DDTraceId traceId;
       final long spanId;
       final long parentSpanId;
@@ -1582,12 +1586,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
-
-      if (this.spanId == 0) {
-        spanId = tracer.idGenerationStrategy.generateSpanId();
-      } else {
-        spanId = this.spanId;
-      }
+      
+      String serviceName = thisBuilder.serviceName;
+      spanId = determineSpanId(tracer, thisBuilder.spanId);
 
       String parentServiceName = null;
       boolean isRemote = false;
@@ -1621,7 +1622,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataIast = null;
           ciVisibilityContextData = null;
         }
-        propagationTags = tracer.propagationTagsFactory.empty();
+        propagationTags = thisBuilder.tracer.propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
 
@@ -1726,21 +1727,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
 
       final CharSequence operationName =
-          this.operationName != null ? this.operationName : resourceName;
+          thisBuilder.operationName != null ? thisBuilder.operationName : thisBuilder.resourceName;
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
       final int tagsSize = 0;
 
-      if (builderRequestContextDataAppSec != null) {
-        requestContextDataAppSec = builderRequestContextDataAppSec;
+      if (thisBuilder.builderRequestContextDataAppSec != null) {
+        requestContextDataAppSec = thisBuilder.builderRequestContextDataAppSec;
       }
-      if (builderCiVisibilityContextData != null) {
-        ciVisibilityContextData = builderCiVisibilityContextData;
+      if (thisBuilder.builderCiVisibilityContextData != null) {
+        ciVisibilityContextData = thisBuilder.builderCiVisibilityContextData;
       }
-      if (builderRequestContextDataIast != null) {
-        requestContextDataIast = builderRequestContextDataIast;
+      if (thisBuilder.builderRequestContextDataIast != null) {
+        requestContextDataIast = thisBuilder.builderRequestContextDataIast;
       }
 
       // some attributes are inherited from the parent
@@ -1752,12 +1753,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentServiceName,
               serviceName,
               operationName,
-              resourceName,
+              thisBuilder.resourceName,
               samplingPriority,
               origin,
               baggage,
-              errorFlag,
-              spanType,
+              thisBuilder.errorFlag,
+              thisBuilder.spanType,
               tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
@@ -1774,7 +1775,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      context.setAllTags(tagBuilder);
+      context.setAllTags(thisBuilder.tagBuilder);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
