@@ -10,10 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class CLIHelper {
   public static final CLIHelper ARGS = new CLIHelper();
@@ -24,16 +22,8 @@ public class CLIHelper {
     this.args = parseJvmArgs(initJvmArgs());
   }
 
-  public Set<String> getJvmArgs() {
-    return new HashSet<>(args.keySet());
-  }
-
-  public boolean contains(String argument) {
-    return args.containsKey(argument);
-  }
-
-  public List<String> getValues(String key) {
-    return args.getOrDefault(key, Collections.emptyList());
+  public List<String> getValues(String jvmArg) {
+    return this.args.get(jvmArg);
   }
 
   @SuppressForbidden
