@@ -298,6 +298,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public ScopeState newScopeState() {
     return scopeManager.newScopeState();
   }
+  
+  final void onSpanStarted(DDSpan span) {
+    if (span.isLocalRootSpan()) {
+      EndpointTracker tracker = this.onRootSpanStarted(span);
+      if (tracker != null) {
+        span.setEndpointTracker(tracker);
+      }
+    }
+  }
 
   public static class CoreTracerBuilder {
 
@@ -1387,14 +1396,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DDSpan buildSpan() {
       addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
-      if (span.isLocalRootSpan()) {
-        EndpointTracker tracker = tracer.onRootSpanStarted(span);
-        if (tracker != null) {
-          span.setEndpointTracker(tracker);
-        }
-      }
+      
+      // onSpanStarted only acts on local root spans, there's probably an opportunity optimization here
+      this.tracer.onSpanStarted(span);
       return span;
-    }
+    }    
 
     private void addTerminatedContextAsLinks() {
       if (this.parent instanceof TagContext) {
@@ -1409,7 +1415,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
     
-    AgentSpanContext resolveParentContext() {
+    private AgentSpanContext resolveParentContext() {
       AgentSpanContext pc = this.parent;
       if (pc == null && !this.ignoreScope) {
         final AgentSpan span = this.tracer.activeSpan();
