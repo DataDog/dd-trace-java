@@ -67,6 +67,7 @@ apm_configuration_rules:
   // TODO: This test will fail if we make selectorMatch private again
   def "test selectorMatch"() {
     when:
+    // Env vars
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
     injectEnvConfig("DD_SERVICE", "mysvc")
     injectEnvConfig("DD_TAGS", "team:apm,component:web")
@@ -96,6 +97,7 @@ apm_configuration_rules:
     "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
     "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
     "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
+    //    "process_arguments" | ["true"] | "equals" | "some.property" | true
   }
 
   def "test duplicate entries"() {
