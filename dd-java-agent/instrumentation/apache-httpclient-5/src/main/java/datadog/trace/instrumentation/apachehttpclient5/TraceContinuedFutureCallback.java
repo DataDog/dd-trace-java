@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -40,7 +39,6 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
       completeDelegate(result);
     } else {
       try (final AgentScope scope = parentContinuation.activate()) {
-        setAsyncPropagationEnabled(true);
         completeDelegate(result);
       }
     }
@@ -57,7 +55,6 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
       failDelegate(ex);
     } else {
       try (final AgentScope scope = parentContinuation.activate()) {
-        setAsyncPropagationEnabled(true);
         failDelegate(ex);
       }
     }
@@ -73,7 +70,6 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
       cancelDelegate();
     } else {
       try (final AgentScope scope = parentContinuation.activate()) {
-        setAsyncPropagationEnabled(true);
         cancelDelegate();
       }
     }

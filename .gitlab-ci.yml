@@ -23,6 +23,7 @@ variables:
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
   GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
+  MAVEN_REPOSITORY_PROXY: "https://artifactual.us1.prod.dog/repository/maven-central/"
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   PROFILE_TESTS:
@@ -74,7 +75,7 @@ default:
       policy: $BUILD_CACHE_POLICY
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
-    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS -PmavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
@@ -199,10 +200,8 @@ muzzle:
   needs: [ build ]
   stage: tests
   parallel: 8
-  rules:
-    - when: never
   variables:
-    BUILD_CACHE_TYPE: test
+    BUILD_CACHE_TYPE: lib
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
@@ -456,22 +455,9 @@ requirements_json_test:
 package-oci:
   needs: [ build ]
 
-onboarding_tests_installer:
-  parallel:
-    matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-alpine]
-        SCENARIO: [ SIMPLE_INSTALLER_AUTO_INJECTION, SIMPLE_AUTO_INJECTION_PROFILING ]
-
-onboarding_tests_k8s_injection:
-  parallel:
-    matrix:
-      - WEBLOG_VARIANT: [dd-lib-java-init-test-app]
-        SCENARIO: [K8S_LIB_INJECTION, K8S_LIB_INJECTION_UDS, K8S_LIB_INJECTION_NO_AC, K8S_LIB_INJECTION_NO_AC_UDS, K8S_LIB_INJECTION_PROFILING_DISABLED, K8S_LIB_INJECTION_PROFILING_ENABLED, K8S_LIB_INJECTION_PROFILING_OVERRIDE]
-        K8S_CLUSTER_VERSION: ['7.56.2', '7.57.0', '7.59.0']
-
-      - WEBLOG_VARIANT: [dd-djm-spark-test-app]
-        SCENARIO: [K8S_LIB_INJECTION_SPARK_DJM]
-        K8S_CLUSTER_VERSION: ['7.57.0', '7.59.0']
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,docker-ssi,lib-injection"
 
 create_key:
   stage: generate-signing-key

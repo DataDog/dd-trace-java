@@ -34,7 +34,7 @@ public class ControllerAdvice {
     SpringWebHttpServerDecorator.DECORATE.afterStart(span);
     SpringWebHttpServerDecorator.DECORATE.onHandle(span, handler);
 
-    return activateSpan(span, true);
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

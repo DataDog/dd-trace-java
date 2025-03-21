@@ -37,7 +37,7 @@ public class CursorReadAdvice {
     }
     handler = new QueryResultHandlerWrapper<>(handler, clientSpan, parentContinuation);
 
-    return activateSpan(clientSpan, true);
+    return activateSpan(clientSpan);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -23,6 +23,7 @@ public class CLIHelper {
   }
 
   public List<String> getValues(String jvmArg) {
+    System.out.println("MTOFF: arg IS " + jvmArg);
     return this.args.get(jvmArg);
   }
 

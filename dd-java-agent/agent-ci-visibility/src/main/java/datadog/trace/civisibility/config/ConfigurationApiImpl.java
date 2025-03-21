@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.FromJson;
+import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
@@ -65,6 +66,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<TestManagementDto>> testManagementRequestAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
   private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
@@ -107,6 +109,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
     testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
+
+    ParameterizedType testManagementRequestType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, TestManagementDto.class);
+    testManagementRequestAdapter = moshi.adapter(testManagementRequestType);
 
     ParameterizedType testManagementTestsResponseType =
         Types.newParameterizedTypeWithOwner(
@@ -329,9 +336,16 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .build();
 
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
-    String json = requestAdapter.toJson(request);
+    EnvelopeDto<TestManagementDto> request =
+        new EnvelopeDto<>(
+            new DataDto<>(
+                uuid,
+                "ci_app_libraries_tests_request",
+                new TestManagementDto(
+                    tracerEnvironment.getRepositoryUrl(),
+                    tracerEnvironment.getCommitMessage(),
+                    tracerEnvironment.getConfigurations().getTestBundle())));
+    String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     TestManagementTestsDto testManagementTestsDto =
         backendApi.post(
@@ -517,6 +531,22 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
       this.tests = tests;
+    }
+  }
+
+  private static final class TestManagementDto {
+    @Json(name = "repository_url")
+    private final String repositoryUrl;
+
+    @Json(name = "commit_message")
+    private final String commitMessage;
+
+    private final String module;
+
+    private TestManagementDto(String repositoryUrl, String commitMessage, String module) {
+      this.repositoryUrl = repositoryUrl;
+      this.commitMessage = commitMessage;
+      this.module = module;
     }
   }
 

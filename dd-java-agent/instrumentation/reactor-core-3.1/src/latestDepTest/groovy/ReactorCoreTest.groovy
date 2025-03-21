@@ -483,7 +483,7 @@ class ReactorCoreTest extends AgentTestRunner {
   def assemblePublisherUnderTrace(def publisherSupplier) {
     def span = startSpan("publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
-    def scope = activateSpan(span, true)
+    def scope = activateSpan(span)
 
     Publisher<Integer> publisher = publisherSupplier()
     try {
@@ -504,7 +504,7 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {

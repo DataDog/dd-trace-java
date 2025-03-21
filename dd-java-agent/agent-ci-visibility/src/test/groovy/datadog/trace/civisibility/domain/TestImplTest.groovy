@@ -35,11 +35,11 @@ class TestImplTest extends SpanWriterTest {
           parent()
           spanType DDSpanTypes.TEST
           tags(false) {
-            "${LibraryCapability.TIA.asTag()}" true
-            "${LibraryCapability.EFD.asTag()}" false
-            "${LibraryCapability.QUARANTINE.asTag()}" true
-            "${LibraryCapability.DISABLED.asTag()}" false
-            "${LibraryCapability.ATTEMPT_TO_FIX.asTag()}" true
+            "${LibraryCapability.TIA.asTag()}" "${LibraryCapability.TIA.getVersion()}"
+            "${LibraryCapability.EFD.asTag()}" "${LibraryCapability.EFD.getVersion()}"
+            "${LibraryCapability.QUARANTINE.asTag()}" "${LibraryCapability.QUARANTINE.getVersion()}"
+            "${LibraryCapability.DISABLED.asTag()}" "${LibraryCapability.DISABLED.getVersion()}"
+            "${LibraryCapability.ATTEMPT_TO_FIX.asTag()}" "${LibraryCapability.ATTEMPT_TO_FIX.getVersion()}"
           }
         }
       }
@@ -114,11 +114,12 @@ class TestImplTest extends SpanWriterTest {
 
     def codeowners = NoCodeowners.INSTANCE
     def libraryCapabilities = [
-      (LibraryCapability.TIA)           : true,
-      (LibraryCapability.EFD)           : false,
-      (LibraryCapability.QUARANTINE)    : true,
-      (LibraryCapability.DISABLED)      : false,
-      (LibraryCapability.ATTEMPT_TO_FIX): true]
+      LibraryCapability.TIA,
+      LibraryCapability.EFD,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX
+    ]
 
     new TestImpl(
       moduleSpanContext,

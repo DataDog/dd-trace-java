@@ -189,8 +189,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
-  // BaggageContext class tested in BaggagePropagatorTest in dd-trace-core
-  'datadog.trace.bootstrap.instrumentation.api.BaggageContext',
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
@@ -223,7 +221,11 @@ excludedClassesBranchCoverage = [
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
-excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
+excludedClassesInstructionCoverage = [
+  'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
+  'datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
@@ -231,13 +233,16 @@ dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
   api libs.slf4j
+  api project(':components:cli')
   api project(':components:context')
+  api project(':components:yaml')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
+  testImplementation("org.yaml:snakeyaml:2.4")
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5
@@ -245,7 +250,6 @@ dependencies {
   testImplementation libs.commons.math
   testImplementation libs.bundles.mockito
   testImplementation libs.truth
-  testImplementation 'org.yaml:snakeyaml:2.0'
 }
 
 jmh {

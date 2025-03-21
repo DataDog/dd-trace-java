@@ -47,7 +47,7 @@ class TraceUtils {
     final AgentSpan span = inheritCurrent ? startSpan(rootOperationName) : startSpan(rootOperationName, null)
     DECORATOR.afterStart(span)
 
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
 
     try {
       return r.call()

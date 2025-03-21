@@ -42,7 +42,7 @@ public interface Context {
    * @return the initial local context that all contexts extend.
    */
   static Context root() {
-    return manager().root();
+    return EmptyContext.INSTANCE;
   }
 
   /**

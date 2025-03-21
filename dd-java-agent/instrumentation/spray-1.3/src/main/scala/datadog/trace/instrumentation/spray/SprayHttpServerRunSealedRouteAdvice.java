@@ -27,7 +27,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
       extractedContext = null;
       span = startSpan(DECORATE.spanName());
     }
-    final AgentScope scope = activateSpan(span, true);
+    final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);
 

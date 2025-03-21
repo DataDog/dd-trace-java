@@ -115,9 +115,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
-      capabilities |= CAPABILITY_ASM_RASP_LFI;
       capabilities |= CAPABILITY_ASM_RASP_CMDI;
       capabilities |= CAPABILITY_ASM_RASP_SHI;
+      // RASP LFI is only available in fully enabled mode as it's implemented using callsite
+      // instrumentation
+      if (tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
+        capabilities |= CAPABILITY_ASM_RASP_LFI;
+      }
     }
     this.configurationPoller.addCapabilities(capabilities);
   }

@@ -35,7 +35,7 @@ final class RepositoryInterceptor implements MethodInterceptor {
     DECORATOR.afterStart(span);
     DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
 
-    final AgentScope scope = activateSpan(span, true);
+    final AgentScope scope = activateSpan(span);
 
     Object result = null;
     try {

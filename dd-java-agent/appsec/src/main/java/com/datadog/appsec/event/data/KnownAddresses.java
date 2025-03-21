@@ -133,6 +133,9 @@ public interface KnownAddresses {
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
 
+  /** Signup business event */
+  Address<String> SIGN_UP = new Address<>("server.business_logic.users.signup");
+
   /** The Exec command being executed */
   Address<String> EXEC_CMD = new Address<>("server.sys.exec.cmd");
 
@@ -215,6 +218,8 @@ public interface KnownAddresses {
         return LOGIN_SUCCESS;
       case "server.business_logic.users.login.failure":
         return LOGIN_FAILURE;
+      case "server.business_logic.users.signup":
+        return SIGN_UP;
       case "server.sys.exec.cmd":
         return EXEC_CMD;
       case "server.sys.shell.cmd":

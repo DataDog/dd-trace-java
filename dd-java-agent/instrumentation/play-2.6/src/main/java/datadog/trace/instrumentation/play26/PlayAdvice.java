@@ -38,7 +38,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
     }
-    final AgentScope scope = activateSpan(span, true);
+    final AgentScope scope = activateSpan(span);
     span.setMeasured(true);
     DECORATE.afterStart(span);
 

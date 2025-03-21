@@ -3,6 +3,7 @@ muzzle {
     group = "org.apache.kafka"
     module = "connect-runtime"
     versions = "[0.11.0.0,)"
+    javaVersion = "17"
     assertInverse = true
   }
 }

@@ -54,14 +54,13 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
   public static class AddListenerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State addListenerEnter(
-        @Advice.Argument(value = 0, readOnly = false) Runnable task,
-        @Advice.Argument(1) final Executor executor) {
+        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final AgentSpan span = activeSpan();
       if (null != span) {
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
         // It is important to check potentially wrapped task if we can instrument task in this
         // executor. Some executors do not support wrapped tasks.
-        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
+        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, span)) {
           task = newTask;
           final ContextStore<Runnable, State> contextStore =
               InstrumentationContext.get(Runnable.class, State.class);
@@ -73,10 +72,8 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addListenerExit(
-        @Advice.Argument(1) final Executor executor,
-        @Advice.Enter final State state,
-        @Advice.Thrown final Throwable throwable) {
-      ExecutorInstrumentationUtils.cleanUpOnMethodExit(executor, state, throwable);
+        @Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
+      ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
     }
 
     private static void muzzleCheck(final AbstractFuture<?> future) {

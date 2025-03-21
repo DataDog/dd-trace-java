@@ -47,7 +47,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
           // can only be aborted inside the filter method
         }
 
-        final AgentScope scope = activateSpan(span, true);
+        final AgentScope scope = activateSpan(span);
 
         DECORATE.afterStart(span);
         DECORATE.onJakartaRsSpan(span, parent, filterClass, method);

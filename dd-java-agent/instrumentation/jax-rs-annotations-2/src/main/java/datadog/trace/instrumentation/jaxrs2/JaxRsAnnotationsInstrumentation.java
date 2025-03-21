@@ -131,7 +131,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
 
       if (contextStore != null && asyncResponse != null) {
         contextStore.put(asyncResponse, span);

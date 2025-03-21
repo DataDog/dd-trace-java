@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.play24;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
@@ -29,7 +28,6 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
         }
       }
       DECORATE.beforeFinish(span);
-      setAsyncPropagationEnabled(false);
     } catch (final Throwable t) {
       log.debug("error in play instrumentation", t);
     } finally {
