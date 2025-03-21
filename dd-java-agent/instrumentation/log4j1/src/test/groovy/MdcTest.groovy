@@ -16,8 +16,16 @@ class MdcTest extends AgentTestRunner {
     then:
     assert event.getMDC("data") == "dog"
     where:
-    injectionEnabled | _
-    "true"           | _
-    "false"          | _
+    injectionEnabled << ["true", "false"]
+  }
+
+  def "should prevent NPE when MDC context doesn't exist and getMDCCopy"() {
+    setup:
+    injectSysConfig("logs.injection", "true")
+    def event = new LoggingEvent("test", Category.getRoot(), Priority.INFO, "hello world", null)
+    when:
+    event.getMDCCopy()
+    then:
+    noExceptionThrown()
   }
 }

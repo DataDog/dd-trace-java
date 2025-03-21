@@ -57,7 +57,6 @@ public class BaggagePropagator implements Propagator {
 
     Baggage baggage = Baggage.fromContext(context);
     if (baggage == null) {
-      LOG.debug("Baggage instance is missing from the following context {}", context);
       return;
     }
 
