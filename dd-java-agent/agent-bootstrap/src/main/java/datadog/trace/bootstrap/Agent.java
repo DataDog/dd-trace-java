@@ -31,6 +31,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.git.EmbeddedGitInfoBuilder;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -223,6 +225,12 @@ public class Agent {
         throw new IllegalArgumentException(
             "Could not create URI from agent JAR URL: " + agentJarURL, e);
       }
+    }
+
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
     }
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
