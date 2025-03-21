@@ -74,7 +74,10 @@ public class DebuggerAgent {
     Config config = Config.get();
     DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
-    setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    if (config.isDynamicInstrumentationEnabled() || config.isDebuggerExceptionEnabled()) {
+      // only activate Source File Tracking if DI or ER is enabled from the start
+      setupSourceFileTracking(instrumentation, classesToRetransformFinder);
+    }
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
