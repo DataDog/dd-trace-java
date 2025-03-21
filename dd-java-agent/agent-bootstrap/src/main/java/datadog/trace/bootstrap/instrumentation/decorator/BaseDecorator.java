@@ -119,7 +119,7 @@ public abstract class BaseDecorator {
   public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
-      if (resolved) {
+      if (resolved && Config.get().isPeerHostNameEnabled()) {
         span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
       }
       if (remoteAddress instanceof Inet4Address) {
