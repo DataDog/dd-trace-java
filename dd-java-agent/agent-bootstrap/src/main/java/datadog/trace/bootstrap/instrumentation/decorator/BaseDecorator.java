@@ -6,6 +6,8 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,6 +38,8 @@ public abstract class BaseDecorator {
             }
           },
           Functions.PrefixJoin.of("."));
+
+  private static final DDCache<String, String> HOSTNAME_CACHE = DDCaches.newFixedSizeCache(64);
 
   protected final boolean traceAnalyticsEnabled;
   protected final Double traceAnalyticsSampleRate;
@@ -114,13 +118,14 @@ public abstract class BaseDecorator {
 
   public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
-      if (resolved) {
-        span.setTag(Tags.PEER_HOSTNAME, remoteAddress.getHostName());
+      String ip = remoteAddress.getHostAddress();
+      if (resolved && Config.get().isPeerHostNameEnabled()) {
+        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
       }
       if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
+        span.setTag(Tags.PEER_HOST_IPV4, ip);
       } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, remoteAddress.getHostAddress());
+        span.setTag(Tags.PEER_HOST_IPV6, ip);
       }
     }
     return span;
@@ -186,5 +191,12 @@ public abstract class BaseDecorator {
   public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
     return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
+  }
+
+  private static String hostName(InetAddress remoteAddress, String ip) {
+    if (null != ip) {
+      return HOSTNAME_CACHE.computeIfAbsent(ip, _ip -> remoteAddress.getHostName());
+    }
+    return remoteAddress.getHostName();
   }
 }
