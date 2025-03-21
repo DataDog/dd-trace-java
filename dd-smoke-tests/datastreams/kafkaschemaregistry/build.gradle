@@ -4,14 +4,6 @@ plugins {
   id 'org.springframework.boot' version '2.6.3'
 }
 
-repositories {
-  mavenCentral()
-  maven {
-    url 'https://packages.confluent.io/maven/'
-  }
-  maven { url 'https://repo.spring.io/libs-milestone' }
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Kafka Smoke Tests.'
 
