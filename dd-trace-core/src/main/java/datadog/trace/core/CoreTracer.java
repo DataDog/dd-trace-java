@@ -1393,11 +1393,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-    private DDSpan buildSpan() {
+    private DDSpan buildSpan(AgentSpanContext parentContext) {
       addTerminatedContextAsLinks();
-      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(parentContext), links);
       
-      // onSpanStarted only acts on local root spans, there's probably an opportunity optimization here
+      // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
       this.tracer.onSpanStarted(span);
       return span;
     }    
@@ -1433,7 +1433,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (pc == BlackHoleSpan.Context.INSTANCE) {
         return new BlackHoleSpan(pc.getTraceId());
       }
-      return buildSpan();
+      return buildSpan(pc);
     }
 
     @Override
@@ -1562,7 +1562,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * 
      * @return the context
      */
-    private DDSpanContext buildSpanContext() {
+    private DDSpanContext buildSpanContext(AgentSpanContext parentContext) {
       final DDTraceId traceId;
       final long spanId;
       final long parentSpanId;
@@ -1587,14 +1587,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         spanId = this.spanId;
       }
 
-      AgentSpanContext parentContext = parent;
-      if (parentContext == null && !ignoreScope) {
-        // use the Scope as parent unless overridden or ignored.
-        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
-        if (activeSpan != null) {
-          parentContext = activeSpan.context();
-        }
-      }
+//      AgentSpanContext parentContext = parent;
+//      if (parentContext == null && !ignoreScope) {
+//        // use the Scope as parent unless overridden or ignored.
+//        final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
+//        if (activeSpan != null) {
+//          parentContext = activeSpan.context();
+//        }
+//      }
 
       String parentServiceName = null;
       boolean isRemote = false;
