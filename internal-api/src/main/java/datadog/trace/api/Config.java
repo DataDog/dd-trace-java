@@ -632,8 +632,9 @@ public class Config {
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
     experimentalFeaturesEnabled =
-        configProvider.getSet(
-            TRACE_EXPERIMENTAL_FEATURES_ENABLED, DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED);
+        configProvider.getString(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "").equals("all")
+            ? DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED
+            : configProvider.getSet(TRACE_EXPERIMENTAL_FEATURES_ENABLED, new HashSet<>());
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
