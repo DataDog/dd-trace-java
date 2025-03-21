@@ -1359,9 +1359,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Spans are built using this builder */
   public static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+    private final CoreTracer tracer;
     private final String instrumentationName;
     private final CharSequence operationName;
-    private final CoreTracer tracer;
 
     // Builder attributes
     private TagMap.Builder tagBuilder;
@@ -1382,9 +1382,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         final CoreTracer tracer,
         final String instrumentationName,
         final CharSequence operationName) {
+      this.tracer = tracer;
       this.instrumentationName = instrumentationName;
       this.operationName = operationName;
-      this.tracer = tracer;
     }
 
     @Override
@@ -1394,7 +1394,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan(AgentSpanContext parentContext) {
+      // there's probably an opportunity to optimize link resolution, since it is only needed with a TagContext
       addTerminatedContextAsLinks();
+      
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(parentContext), links);
       
       // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
