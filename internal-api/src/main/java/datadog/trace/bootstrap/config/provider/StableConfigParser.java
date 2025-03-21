@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.cli.CLIHelper;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
@@ -100,19 +101,20 @@ public class StableConfigParser {
   }
 
   private static boolean checkMatches(
-      String envValue, List<String> matches, BiPredicate<String, String> compareFunc) {
+      List<String> values, List<String> matches, BiPredicate<String, String> compareFunc) {
     // envValue shouldn't be null, but doing an extra check to avoid NullPointerException on
     // compareFunc.test
-    if (envValue == null) {
+    if (values == null) {
       return false;
     }
-    for (String value : matches) {
-      if (value == null) {
+    for (String match : matches) {
+      if (match == null) {
         continue;
       }
-      System.out.println("MTOFF: matching against " + value);
-      if (compareFunc.test(envValue, value.toLowerCase())) {
-        return true;
+      for (String value : values) {
+        if (compareFunc.test(value, match.toLowerCase())) {
+          return true;
+        }
       }
     }
     return false;
@@ -138,31 +140,47 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        System.out.println("MTOFF: LOOKING FOR ENV " + key.toUpperCase());
         String envValue = System.getenv(key.toUpperCase());
         if (envValue == null) {
           return false;
         }
         envValue = envValue.toLowerCase();
-        System.out.println("MTOFF: ENV VALUE IS " + envValue);
         switch (operator.toLowerCase()) {
           case "exists":
             // We don't care about the value
             return true;
           case "equals":
-            return checkMatches(envValue, matches, String::equalsIgnoreCase);
+            return checkMatches(
+                Collections.singletonList(envValue), matches, String::equalsIgnoreCase);
           case "starts_with":
-            return checkMatches(envValue, matches, String::startsWith);
+            return checkMatches(Collections.singletonList(envValue), matches, String::startsWith);
           case "ends_with":
-            return checkMatches(envValue, matches, String::endsWith);
+            return checkMatches(Collections.singletonList(envValue), matches, String::endsWith);
           case "contains":
-            return checkMatches(envValue, matches, String::contains);
+            return checkMatches(Collections.singletonList(envValue), matches, String::contains);
           default:
             return false;
         }
       case "process_arguments":
-        // TODO: use CLIHelper once merged
-        return true;
+        List<String> vals = CLIHelper.ARGS.getValues(key);
+        if (vals == null || vals.isEmpty()) {
+          return false;
+        }
+        switch (operator.toLowerCase()) {
+          case "exists":
+            // We don't care about the value
+            return true;
+          case "equals":
+            return checkMatches(vals, matches, String::equalsIgnoreCase);
+          case "starts_with":
+            return checkMatches(vals, matches, String::startsWith);
+          case "ends_with":
+            return checkMatches(vals, matches, String::endsWith);
+          case "contains":
+            return checkMatches(vals, matches, String::contains);
+          default:
+            return false;
+        }
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;

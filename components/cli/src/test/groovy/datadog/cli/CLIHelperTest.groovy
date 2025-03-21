@@ -11,9 +11,8 @@ class CLIHelperTest extends Specification {
       "-Dkey=value2",
       "-DdisableFeature",
       "-javaagent:/path/to/dd-java-agent.jar",
-      "-javaagent:/path/to/another-agent.jar",
       "-javaagent",
-      "-Xmx512",
+      "-Xmx256",
       "-Xdebug",
     ]
     Map<String,List<String>> args = CLIHelper.parseJvmArgs(input)
@@ -23,29 +22,31 @@ class CLIHelperTest extends Specification {
     args.containsKey("-Xdebug")
     args.get("-Xdebug") == [null]
 
-    // -Xmx512
-    args.containsKey("-Xmx512")
-    args.get("-Xmx512") == [null]
+    // -Xmx256
+    args.containsKey("-Xmx256")
+    args.get("-Xmx256") == [null]
 
     // -javaagent
     args.containsKey("-javaagent")
-    args.get("-javaagent") == ["/path/to/dd-java-agent.jar", "/path/to/another-agent.jar", null]
+    args.get("-javaagent") == ["/path/to/dd-java-agent.jar", null]
 
     // -DdisableFeature
     args.containsKey("-DdisableFeature")
     args.get("-DdisableFeature") == [null]
 
     // -Dkey
-    // CLIHelper does not discriminate against what types of jvm args can have duplicate values, it accepts all args found on the process
     args.containsKey("-Dkey")
+    // The data structure does not discriminate against what types of jvm args are allowed to have duplicate keys; even though typically `javaagent` is the only jvm arg that supports multiple entries
+    // Therefore, system properties `-Dkey=value -Dkey=value2` will be respected by CLIHelper
     args.get("-Dkey") == ["value1", "value2"]
 
     //-XX:+UseG1GC
     args.containsKey("-XX:+UseG1GC")
     args.get("-XX:+UseG1GC") == [null]
 
-    //-XX:MaxMetaspaceSize
+    //-XX:MaxMetaspaceSize=128m
     args.containsKey("-XX:MaxMetaspaceSize")
     args.get("-XX:MaxMetaspaceSize") == ["128m"]
+
   }
 }
