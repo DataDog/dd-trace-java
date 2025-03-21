@@ -61,12 +61,11 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
             .and(isDeclaredBy(named("org.apache.spark.deploy.yarn.ApplicationMaster"))),
         AbstractSparkInstrumentation.class.getName() + "$YarnFinishAdvice");
 
-    // LiveListenerBus class is used when running in a YARN cluster
+    // LiveListenerBus class is used to manage spark listeners
     transformer.applyAdvice(
         isMethod()
             .and(named("addToSharedQueue"))
-            //            .and(takesArgument(0,
-            // named("org.apache.spark.scheduler.SparkListenerInterface")))
+            .and(takesArgument(0, named("org.apache.spark.scheduler.SparkListenerInterface")))
             .and(isDeclaredBy(named("org.apache.spark.scheduler.LiveListenerBus"))),
         AbstractSparkInstrumentation.class.getName() + "$LiveListenerBusAdvice");
   }

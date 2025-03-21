@@ -52,7 +52,6 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
-import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -86,6 +85,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final String appId;
 
   private final AgentTracer.TracerAPI tracer;
+
+  // This is created by constructor, and used if we're not in other known
+  // parent context like Databricks, OpenLineage
+  private final PredeterminedTraceIdParentContext predeterminedTraceIdParentContext;
 
   private AgentSpan applicationSpan;
   private SparkListenerApplicationStart applicationStart;
@@ -142,6 +145,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+    predeterminedTraceIdParentContext =
+        new PredeterminedTraceIdParentContext(
+            Config.get().getIdGenerationStrategy().generateTraceId());
 
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
@@ -160,60 +166,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 }));
   }
 
-  static void setupSparkConf(SparkConf sparkConf) {
-    sparkConf.set("spark.openlineage.transport.type", "composite");
-    sparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
-    sparkConf.set("spark.openlineage.transport.transports.agent.type", "http");
-    sparkConf.set("spark.openlineage.transport.transports.agent.url", getAgentHttpUrl());
-    sparkConf.set("spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
-    sparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
-    sparkConf.set(
-        "spark.openlineage.run.tags",
-        "_dd.trace_id:"
-            + listener.applicationSpan.context().getTraceId().toString()
-            + ";_dd.ol_intake.emit_spans:false");
-    for (Tuple2<String, String> tuple : sparkConf.getAll()) {
-      log.error("Set Spark conf: Key: " + tuple._1 + ", Value: " + tuple._2);
-    }
-  }
-
-  public void setupOpenLineage() {
-    log.error("Setting up OpenLineage-Datadog integration");
+  public void setupOpenLineage(DDTraceId traceId) {
+    log.error("Setting up OpenLineage tags");
     if (openLineageSparkListener != null) {
-      log.error("No init needed");
-      setupSparkConf(openLineageSparkConf);
+      openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
+      openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
+      openLineageSparkConf.set("spark.openlineage.transport.transports.agent.type", "http");
+      openLineageSparkConf.set(
+          "spark.openlineage.transport.transports.agent.url", getAgentHttpUrl());
+      openLineageSparkConf.set(
+          "spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
+      openLineageSparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
+      openLineageSparkConf.set(
+          "spark.openlineage.run.tags",
+          "_dd.trace_id:" + traceId.toString() + ";_dd.ol_intake.emit_spans:false");
       return;
     }
-
-    String className = "io.openlineage.spark.agent.OpenLineageSparkListener";
-    Class clazz;
-    try {
-      try {
-        clazz = Class.forName(className, true, Thread.currentThread().getContextClassLoader());
-      } catch (ClassNotFoundException e) {
-        clazz = Class.forName(className, true, Utils.class.getClassLoader());
-      }
-    } catch (ClassNotFoundException e) {
-      log.info("OpenLineage integration is not present on the classpath");
-      return;
-    }
-
-    openLineageSparkConf = sparkConf;
-    if (clazz == null) {
-      log.info("OpenLineage integration is not present on the classpath: class is null");
-      return;
-    }
-    try {
-      setupSparkConf(openLineageSparkConf);
-      openLineageSparkListener =
-          (SparkListenerInterface)
-              clazz.getConstructor(SparkConf.class).newInstance(openLineageSparkConf);
-
-      log.info(
-          "Created OL spark listener: {}", openLineageSparkListener.getClass().getSimpleName());
-    } catch (Exception e) {
-      log.warn("Failed to instantiate OL Spark Listener: {}", e.toString());
-    }
+    log.error("No OpenLineageSparkListener!");
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -237,6 +206,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
+
+    setupOpenLineage(
+        OpenlineageParentContext.from(sparkConf)
+            .map(context -> context.getTraceId())
+            .orElse(predeterminedTraceIdParentContext.getTraceId()));
+    notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
 
   private void initApplicationSpanIfNotInitialized() {
@@ -260,38 +235,36 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
-    captureOpenlineageContextIfPresent(builder);
+
+    Optional<OpenlineageParentContext> openlineageParentContext =
+        OpenlineageParentContext.from(sparkConf);
+    // We know we're not in Databricks context
+    if (openlineageParentContext.isPresent()) {
+      captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
+    } else {
+      builder.asChildOf(predeterminedTraceIdParentContext);
+    }
 
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
-    // We need to set it up after we create application span to have correlation.
-    setupOpenLineage();
-    notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
 
-  private void captureOpenlineageContextIfPresent(AgentTracer.SpanBuilder builder) {
-    Optional<OpenlineageParentContext> openlineageParentContext =
-        OpenlineageParentContext.from(sparkConf);
+  private void captureOpenlineageContextIfPresent(
+      AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
+    builder.asChildOf(context);
 
-    if (openlineageParentContext.isPresent()) {
-      OpenlineageParentContext context = openlineageParentContext.get();
-      builder.asChildOf(context);
+    builder.withSpanId(context.getChildRootSpanId());
 
-      builder.withSpanId(context.getChildRootSpanId());
+    log.debug(
+        "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
+        context,
+        context.getTraceId(),
+        context.getChildRootSpanId());
 
-      log.debug(
-          "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
-          context,
-          context.getTraceId(),
-          context.getChildRootSpanId());
-
-      builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
-      builder.withTag("openlineage_parent_job_name", context.getParentJobName());
-      builder.withTag("openlineage_parent_run_id", context.getParentRunId());
-    } else {
-      log.debug("Openlineage context not found");
-    }
+    builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
+    builder.withTag("openlineage_parent_job_name", context.getParentJobName());
+    builder.withTag("openlineage_parent_run_id", context.getParentRunId());
   }
 
   @Override
@@ -779,15 +752,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private <T extends SparkListenerEvent> void notifyOl(Consumer<T> ol, T event) {
     if (isRunningOnDatabricks || isStreamingJob) {
-      log.error("Not emitting event when running on databricks or on streaming jobs");
+      log.debug("Not emitting event when running on databricks or on streaming jobs");
       return;
     }
-    initApplicationSpanIfNotInitialized();
     if (openLineageSparkListener != null) {
-      log.error("Notifying with event `{}`", event.getClass().getCanonicalName());
+      log.debug(
+          "Passing event `{}` to OpenLineageSparkListener", event.getClass().getCanonicalName());
       ol.accept(event);
     } else {
-      log.error("OpenLineageSparkListener is null");
+      log.trace("OpenLineageSparkListener is null");
     }
   }
 
