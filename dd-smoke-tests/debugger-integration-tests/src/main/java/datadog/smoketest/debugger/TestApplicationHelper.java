@@ -90,6 +90,17 @@ public class TestApplicationHelper {
         Duration.ofSeconds(TIMEOUT_S));
   }
 
+  public static String waitForSpecificLine(String logFileName, String specificLine, String fromLine)
+      throws IOException {
+    return waitForSpecificLogLine(
+        Paths.get(logFileName),
+        fromLine != null ? line -> line.contains(fromLine) : null,
+        line -> line.contains(specificLine),
+        () -> {},
+        Duration.ofMillis(SLEEP_MS),
+        Duration.ofSeconds(TIMEOUT_S));
+  }
+
   public static void waitForUpload(String logFileName, int expectedUploads) throws IOException {
     if (expectedUploads == -1) {
       System.out.println("wait for " + TIMEOUT_S + "s");
