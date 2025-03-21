@@ -1515,8 +1515,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         // reset links that may have come terminated span links
         links = new ArrayList<>();
 
-        if(Config.get().getTracePropagationBehaviorExtract()
-            == TracePropagationBehaviorExtract.RESTART){
+        if (Config.get().getTracePropagationBehaviorExtract()
+            == TracePropagationBehaviorExtract.RESTART) {
           SpanLink link;
           if (parentContext instanceof ExtractedContext) {
             ExtractedContext pc = (ExtractedContext) parentContext;
