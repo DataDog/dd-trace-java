@@ -26,7 +26,6 @@ import com.datadog.ddwaf.WafConfig;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
 import com.datadog.ddwaf.exception.InternalWafException;
-import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import com.datadog.ddwaf.exception.TimeoutWafException;
 import com.datadog.ddwaf.exception.UnclassifiedWafException;
 import com.datadog.ddwaf.exception.UnsupportedVMException;
@@ -103,12 +102,12 @@ public class WAFModule implements AppSecModule {
   }
 
   private static class CtxAndAddresses {
-    final Collection<Address<?>> addressesOfInterest;
+    final NativeWafHandle nativeWafHandle;
     final Map<String /* id */, ActionInfo> actionInfoMap;
 
     private CtxAndAddresses(
-        Collection<Address<?>> addressesOfInterest, Map<String, ActionInfo> actionInfoMap) {
-      this.addressesOfInterest = addressesOfInterest;
+        NativeWafHandle nativeWafHandle, Map<String, ActionInfo> actionInfoMap) {
+      this.nativeWafHandle = nativeWafHandle;
       this.actionInfoMap = actionInfoMap;
     }
   }
@@ -247,14 +246,23 @@ public class WAFModule implements AppSecModule {
           wafBuilder.destroy();
         }
         wafBuilder = new WafBuilder(pwConfig);
+
+        wafBuilder.addOrUpdateRuleConfig(
+            ruleConfig.getRawConfig(), initReportMap); // initial rule load
+        // the handle allows to update rule configurations during rule run
+        nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+      } else {
+        wafBuilder.removeRuleConfig();
+        wafBuilder.addOrUpdateRuleConfig(ruleConfig.getRawConfig(), initReportMap);
+        nativeWafHandle =
+            wafBuilder.buildNativeWafHandleInstance(prevContextAndAddresses.nativeWafHandle);
       }
-      wafBuilder.addOrUpdateRuleConfig(
-          ruleConfig.getRawConfig(), initReportMap); // initial rule load
-      // the handle allows to update rule configurations during rule run
-      nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+
+      if (nativeWafHandle == null) {
+        throw new InternalWafException("Error creating WAF handle");
+      }
 
       initReport = initReportMap[0];
-      Collection<Address<?>> addresses = getUsedAddresses(nativeWafHandle);
 
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
@@ -277,13 +285,10 @@ public class WAFModule implements AppSecModule {
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
 
-      newContextAndAddresses = new CtxAndAddresses(addresses, actionInfoMap);
+      newContextAndAddresses = new CtxAndAddresses(nativeWafHandle, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
-    } catch (InvalidRuleSetException irse) {
-      initReport = irse.ruleSetInfo;
-      throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractWafException e) {
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
@@ -396,7 +401,7 @@ public class WAFModule implements AppSecModule {
 
   private class WAFDataCallback extends DataSubscription {
     public WAFDataCallback() {
-      super(ctxAndAddresses.get().addressesOfInterest, Priority.DEFAULT);
+      super(getUsedAddresses(ctxAndAddresses.get().nativeWafHandle), Priority.DEFAULT);
     }
 
     @Override
@@ -632,17 +637,16 @@ public class WAFModule implements AppSecModule {
       } else {
         metrics = reqCtx.getWafMetrics();
       }
-      NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
       log.debug("Running rules {} with limits {} and metrics {}", newData, LIMITS, metrics);
       try {
         return Waf.runRules(
-            new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
+            new DataBundleMapWrapper(getUsedAddresses(ctxAndAddr.nativeWafHandle), newData),
             LIMITS,
             metrics,
-            nativeWafHandle);
+            ctxAndAddr.nativeWafHandle);
       } finally {
-        if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
-          nativeWafHandle.destroy();
+        if (ctxAndAddr.nativeWafHandle != null && ctxAndAddr.nativeWafHandle.isOnline()) {
+          ctxAndAddr.nativeWafHandle.destroy();
         }
       }
     }

@@ -107,7 +107,7 @@ public class CurrentAppSecConfig {
     if (dirtyStatus.data) {
       final AppSecData data = mergedAsmData.getMergedData();
       mso.put("rules_data", data.getRules());
-      mso.put("exclusion_data", data.getExclusion());
+      mso.put("exclusions", data.getExclusion());
     }
     if (dirtyStatus.actions) {
       mso.put("actions", getMergedActions());
