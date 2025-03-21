@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,7 +51,8 @@ class ClassNameFilteringTest {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Collections.singleton("com.datadog.debugger"),
-            Collections.singleton("com.datadog.debugger"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -60,7 +60,9 @@ class ClassNameFilteringTest {
   public void testIncludePrefixOverridesExclude() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Collections.singleton("com.datadog.debugger"), Collections.singleton("com.datadog"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.singleton("com.datadog"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -69,7 +71,8 @@ class ClassNameFilteringTest {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Stream.of("com.datadog.debugger", "org.junit").collect(Collectors.toSet()),
-            Collections.singleton("com.datadog.debugger"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
     assertTrue(classNameFiltering.isExcluded("org.junit.FooBar"));
   }
@@ -82,14 +85,15 @@ class ClassNameFilteringTest {
         "akka.Actor",
         "cats.Functor",
         "org.junit.jupiter.api.Test",
-        "org.datadog.jmxfetch.FooBar"
+        "org.datadog.jmxfetch.FooBar",
+        "shaded.org.junit.Test"
       })
   public void testExcludeDefaults(String input) {
     Config config = mock(Config.class);
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
-    ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config));
+    when(config.getThirdPartyShadingIdentifiers()).thenReturn(Collections.emptySet());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     assertTrue(classNameFiltering.isExcluded(input));
   }
 

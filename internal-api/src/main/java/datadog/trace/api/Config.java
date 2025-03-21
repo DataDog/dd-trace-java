@@ -430,6 +430,7 @@ public class Config {
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
+  private final Set<String> debuggerShadingIdentifiers;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1734,6 +1735,8 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerShadingIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3297,6 +3300,10 @@ public class Config {
 
   public Set<String> getThirdPartyExcludes() {
     return debuggerThirdPartyExcludes;
+  }
+
+  public Set<String> getThirdPartyShadingIdentifiers() {
+    return debuggerShadingIdentifiers;
   }
 
   private String getFinalDebuggerBaseUrl() {
