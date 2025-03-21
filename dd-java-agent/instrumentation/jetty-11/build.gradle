@@ -39,6 +39,8 @@ dependencies {
   testFixturesCompileOnly "org.eclipse.jetty:jetty-server:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty:jetty-servlet:11.0.0"
   testFixturesCompileOnly "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
+  testFixturesImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-client-api', version: '2.0.0'
+
 
 
   testFixturesImplementation(project(':dd-java-agent:testing')) {
@@ -64,6 +66,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.+',  {
     exclude group: 'org.slf4j', module: 'slf4j-api'
