@@ -28,30 +28,50 @@ import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketSession;
  * the handshake span. Instrumenting directly @OnMessage methods won't have in all case guarantee to
  * have that information since the Session parameter is optional.
  */
-public class SyntheticEndpoint {
+public class MethodHandleWrappers {
+  /**
+   * OnOpen method handles that takes more arguments comparing to the original. We inject at the
+   * beginning the original to delegate the call, the context stores we need to lookup the handler
+   * context and the original parameter jetty is already binding (the session and the endpoint
+   * config)
+   */
   public static final MethodHandle OPEN_METHOD_HANDLE =
-      new MethodHandles(SyntheticEndpoint.class.getClassLoader())
+      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
           .method(
-              SyntheticEndpoint.class,
+              MethodHandleWrappers.class,
               "onOpen",
               MethodHandle.class,
               ContextStore.class,
               ContextStore.class,
               JavaxWebSocketSession.class,
               EndpointConfig.class);
+
+  /**
+   * OnClose method handles that takes more arguments comparing to the original. We inject at the
+   * beginning the origin alto delegate the call, the context stores we need to lookup the handler
+   * context and the original parameter jetty is already binding (the session and the close reason)
+   */
   public static final MethodHandle CLOSE_METHOD_HANDLE =
-      new MethodHandles(SyntheticEndpoint.class.getClassLoader())
+      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
           .method(
-              SyntheticEndpoint.class,
+              MethodHandleWrappers.class,
               "onClose",
               MethodHandle.class,
               ContextStore.class,
               Session.class,
               CloseReason.class);
+
+  /**
+   * OnMessage method handles that takes more arguments comparing to the original. We inject at the
+   * beginning the origin alto delegate the call, the context stores we need to lookup the handler
+   * context, the session and the receiver handler context we create when the jetty message sink are
+   * instrumented. At the end we also accept the original method arguments as an object varargs
+   * since we cannot know in advance the one that will be passed.
+   */
   public static final MethodHandle MESSAGE_METHOD_HANDLE =
-      new MethodHandles(SyntheticEndpoint.class.getClassLoader())
+      new MethodHandles(MethodHandleWrappers.class.getClassLoader())
           .method(
-              SyntheticEndpoint.class,
+              MethodHandleWrappers.class,
               "onMessage",
               MethodHandle.class,
               JavaxWebSocketSession.class,

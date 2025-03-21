@@ -59,7 +59,7 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.websocket.jetty10.SyntheticEndpoint",
+      "datadog.trace.instrumentation.websocket.jetty10.MethodHandleWrappers",
     };
   }
 
