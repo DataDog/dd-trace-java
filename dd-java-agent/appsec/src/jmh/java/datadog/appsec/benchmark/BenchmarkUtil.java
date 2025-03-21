@@ -1,13 +1,12 @@
 package datadog.appsec.benchmark;
 
 import ch.qos.logback.classic.Logger;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.exception.AbstractPowerwafException;
-import io.sqreen.powerwaf.exception.UnsupportedVMException;
-import java.lang.reflect.UndeclaredThrowableException;
+import com.datadog.appsec.ddwaf.LibSqreenInitialization;
 import org.slf4j.LoggerFactory;
 
 public class BenchmarkUtil {
+  private static final org.slf4j.Logger log = LoggerFactory.getLogger(BenchmarkUtil.class);
+
   public static void disableLogging() {
     org.slf4j.Logger root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
     if (root instanceof Logger) {
@@ -16,13 +15,9 @@ public class BenchmarkUtil {
     }
   }
 
-  public static void initializePowerwaf() {
-    try {
-      Powerwaf.initialize(false);
-    } catch (AbstractPowerwafException e) {
-      throw new UndeclaredThrowableException(e);
-    } catch (UnsupportedVMException e) {
-      throw new UndeclaredThrowableException(e);
+  public static void initializeWaf() {
+    if (!LibSqreenInitialization.WAF) {
+      log.info("Waf initialization encountered an error");
     }
   }
 }

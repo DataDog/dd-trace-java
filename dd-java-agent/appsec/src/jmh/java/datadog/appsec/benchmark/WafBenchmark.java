@@ -6,11 +6,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.Powerwaf;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
-import io.sqreen.powerwaf.exception.AbstractPowerwafException;
+import com.datadog.ddwaf.NativeWafHandle;
+import com.datadog.ddwaf.RuleSetInfo;
+import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafBuilder;
+import com.datadog.ddwaf.WafMetrics;
+import com.datadog.ddwaf.exception.AbstractWafException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -37,46 +38,45 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
-public class PowerwafBenchmark {
+public class WafBenchmark {
 
   static {
     BenchmarkUtil.disableLogging();
-    BenchmarkUtil.initializePowerwaf();
+    BenchmarkUtil.initializeWaf();
   }
 
-  PowerwafContext ctx;
+  WafBuilder wafBuilder;
   Map<String, Object> wafData = new HashMap<>();
-  Powerwaf.Limits limits = new Powerwaf.Limits(50, 500, 1000, 5000000, 5000000);
+  Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
-    PowerwafMetrics metricsCollector = ctx.createMetrics();
-    Additive add = ctx.openAdditive();
-    try {
-      add.run(wafData, limits, metricsCollector);
-    } finally {
-      add.close();
+    WafMetrics metricsCollector = new WafMetrics();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    Waf.runRules(wafData, limits, metricsCollector, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
     }
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    Additive add = ctx.openAdditive();
-    try {
-      add.run(wafData, limits, null);
-    } finally {
-      add.close();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    Waf.runRules(wafData, limits, null, nativeWafHandle);
+    if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+      nativeWafHandle.destroy();
     }
   }
 
   @Setup(Level.Trial)
-  public void setUp() throws AbstractPowerwafException, IOException {
+  public void setUp() throws IOException, AbstractWafException {
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
-    AppSecConfig waf = cfg.get("waf");
-    ctx = Powerwaf.createContext("waf", waf.getRawConfig());
-
+    AppSecConfig wafRules = cfg.get("waf");
+    wafBuilder = new WafBuilder();
+    RuleSetInfo[] infoRef = new RuleSetInfo[1];
+    wafBuilder.addOrUpdateRuleConfig(wafRules.getRawConfig(), infoRef);
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
         KnownAddresses.REQUEST_URI_RAW.getKey(), "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
@@ -112,6 +112,8 @@ public class PowerwafBenchmark {
 
   @TearDown(Level.Trial)
   public void teardown() {
-    ctx.close();
+    if (wafBuilder != null && wafBuilder.isOnline()) {
+      wafBuilder.destroy();
+    }
   }
 }

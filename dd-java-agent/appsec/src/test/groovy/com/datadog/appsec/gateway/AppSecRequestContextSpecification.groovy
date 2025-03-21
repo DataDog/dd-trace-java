@@ -1,19 +1,13 @@
 package com.datadog.appsec.gateway
 
-
-import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
-import datadog.trace.util.stacktrace.StackTraceEvent
-import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.stacktrace.StackTraceEvent
 import datadog.trace.util.stacktrace.StackTraceFrame
-import io.sqreen.powerwaf.Additive
-import io.sqreen.powerwaf.Powerwaf
-import io.sqreen.powerwaf.PowerwafContext
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
@@ -203,28 +197,18 @@ class AppSecRequestContextSpecification extends DDSpecification {
       'accept': ['application/json', 'application/xml']] as Map
   }
 
-  private Additive createAdditive() {
-    Powerwaf.initialize false
-    def service = new StubAppSecConfigService()
-    service.init()
-    CurrentAppSecConfig config = service.lastConfig['waf']
-    String uniqueId = UUID.randomUUID() as String
-    config.dirtyStatus.markAllDirty()
-    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new Additive(context)
-  }
 
-  void 'close closes the additive'() {
+  void 'close closes the wafContext'() {
     setup:
-    def additive = createAdditive()
+    def wafContext = createWafContext()
 
     when:
-    ctx.additive = additive
+    ctx.wafContext = wafContext
     ctx.close()
 
     then:
-    ctx.additive == null
-    !additive.online
+    ctx.wafContext == null
+    !wafContext.online
   }
 
   void 'test isThrottled'(){
@@ -259,11 +243,11 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.collectedCookies = [cookie : ['test']]
     ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
     ctx.derivatives = ['a': 'b']
-    ctx.additive = createAdditive()
+    ctx.wafContext = createWafContext()
     ctx.close(postProcessing)
 
     then:
-    ctx.additive == null
+    ctx.wafContext == null
     ctx.derivatives == null
 
     ctx.requestHeaders.isEmpty() == fullCleanup

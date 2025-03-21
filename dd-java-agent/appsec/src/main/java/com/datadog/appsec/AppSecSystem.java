@@ -4,12 +4,13 @@ import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
+import com.datadog.appsec.ddwaf.WAFModule;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
-import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.exception.AbstractWafException;
 import datadog.appsec.api.blocking.Blocking;
 import datadog.appsec.api.blocking.BlockingService;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -138,7 +139,13 @@ public class AppSecSystem {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(monitoring));
+    final List<AppSecModule> modules;
+    try {
+      modules = Collections.singletonList(new WAFModule(monitoring));
+    } catch (AbstractWafException e) {
+      log.debug("Failed to load modules, appsec module encountered an error ", e);
+      return;
+    }
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {

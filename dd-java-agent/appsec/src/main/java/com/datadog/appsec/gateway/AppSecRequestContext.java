@@ -7,15 +7,13 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackTraceEvent;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -116,12 +114,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
 
-  // should be guarded by this
-  private volatile Additive additive;
-  private volatile boolean additiveClosed;
-  // set after additive is set
-  private volatile PowerwafMetrics wafMetrics;
-  private volatile PowerwafMetrics raspMetrics;
+  // set after wafContext is set
+  private volatile WafMetrics wafMetrics;
+  private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int wafTimeouts;
@@ -192,11 +187,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public PowerwafMetrics getWafMetrics() {
+  public WafMetrics getWafMetrics() {
     return wafMetrics;
   }
 
-  public PowerwafMetrics getRaspMetrics() {
+  public WafMetrics getRaspMetrics() {
     return raspMetrics;
   }
 
@@ -283,44 +278,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
         return wafInvalidArgumentErrors;
       default:
         return 0;
-    }
-  }
-
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
-
-    if (createMetrics) {
-      if (wafMetrics == null) {
-        this.wafMetrics = ctx.createMetrics();
-      }
-      if (isRasp && raspMetrics == null) {
-        this.raspMetrics = ctx.createMetrics();
-      }
-    }
-
-    Additive curAdditive;
-    synchronized (this) {
-      curAdditive = this.additive;
-      if (curAdditive != null) {
-        return curAdditive;
-      }
-      curAdditive = ctx.openAdditive();
-      this.additive = curAdditive;
-    }
-    return curAdditive;
-  }
-
-  public void closeAdditive() {
-    if (additive != null) {
-      synchronized (this) {
-        if (additive != null) {
-          try {
-            additiveClosed = true;
-            additive.close();
-          } finally {
-            additive = null;
-          }
-        }
-      }
     }
   }
 
@@ -581,11 +538,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-    if (additive != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
-    }
     derivatives = null;
 
     // check if we might need to further post process data related to the span in order to not free
@@ -691,10 +643,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       throttled = rateLimiter.isThrottled();
     }
     return throttled;
-  }
-
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
   }
 
   /** Must be called during request end event processing. */
