@@ -32,6 +32,9 @@ import org.springframework.kafka.test.utils.KafkaTestUtils
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
+
+import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
+
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -227,8 +230,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
     TEST_WRITER.waitForTraces(nTraces)
-    def traces = (Arrays.asList(TEST_WRITER.toArray()) as List<List<DDSpan>>)
-    Collections.sort(traces, new SortKafkaTraces())
+    def traces = new ArrayList<>(TEST_WRITER)
+    traces.sort(new SortKafkaTraces())
+    codeOriginTags(TEST_WRITER)
     assertTraces(nTraces, new SortKafkaTraces()) {
       if (hasQueueSpan()) {
         trace(2) {
@@ -1040,6 +1044,12 @@ class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
 }
 
 class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    codeOriginSetup()
+  }
+
   @Override
   int version() {
     1
