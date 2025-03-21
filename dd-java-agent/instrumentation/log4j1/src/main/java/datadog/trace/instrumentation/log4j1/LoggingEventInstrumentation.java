@@ -134,6 +134,10 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
       if (!injectionRequired) {
         return;
       }
+      if (mdc == null) {
+        // this.mdcCopy can be null when MDC.getContext() returns null
+        return;
+      }
       // at this point the mdc has been shallow copied. No need to replace with a new hashtable.
       // Just add our info
       String serviceName = Config.get().getServiceName();
