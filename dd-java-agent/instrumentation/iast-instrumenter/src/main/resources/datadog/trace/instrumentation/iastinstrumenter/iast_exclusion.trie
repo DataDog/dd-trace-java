@@ -224,6 +224,8 @@
 2 oracle.j2ee.*
 1 oracle.jdbc.*
 1 oracle.sql.*
+# APPSEC-57044
+1 oracle.ucp.util.OpaqueString
 1 org.ajax4jsf.*
 1 org.aopalliance.*
 1 org.antlr.*
