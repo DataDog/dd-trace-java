@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
+import org.apache.spark.util.Utils;
 
 @AutoService(InstrumenterModule.class)
 public class Spark213Instrumentation extends AbstractSparkInstrumentation {
@@ -17,6 +18,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark213Listener",
+      packageName + ".PredeterminedTraceIdContext",
       packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",
@@ -41,18 +43,23 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
-      if (!sparkContext.conf().contains("spark.extraListeners")) {
-        sparkContext
-            .conf()
-            .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
-      } else {
-        String extraListeners = sparkContext.conf().get("spark.extraListeners");
-        if (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
+      // checking whether OpenLineage integration is available and that it supports tags
+      if (Utils.classIsLoadable("io.openlineage.spark.agent.OpenLineageSparkListener")
+          && Utils.classIsLoadable(
+              "io.openlineage.spark.agent.facets.builder.TagsRunFacetBuilder")) {
+        if (!sparkContext.conf().contains("spark.extraListeners")) {
           sparkContext
               .conf()
-              .set(
-                  "spark.extraListeners",
-                  extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener");
+              .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
+        } else {
+          String extraListeners = sparkContext.conf().get("spark.extraListeners");
+          if (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
+            sparkContext
+                .conf()
+                .set(
+                    "spark.extraListeners",
+                    extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener");
+          }
         }
       }
 

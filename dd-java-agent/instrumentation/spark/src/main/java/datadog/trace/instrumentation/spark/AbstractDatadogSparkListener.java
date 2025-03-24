@@ -88,7 +88,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   // This is created by constructor, and used if we're not in other known
   // parent context like Databricks, OpenLineage
-  private final PredeterminedTraceIdParentContext predeterminedTraceIdParentContext;
+  private final PredeterminedTraceIdContext predeterminedTraceIdContext;
 
   private AgentSpan applicationSpan;
   private SparkListenerApplicationStart applicationStart;
@@ -145,9 +145,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
-    predeterminedTraceIdParentContext =
-        new PredeterminedTraceIdParentContext(
-            Config.get().getIdGenerationStrategy().generateTraceId());
+    predeterminedTraceIdContext =
+        new PredeterminedTraceIdContext(Config.get().getIdGenerationStrategy().generateTraceId());
 
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
@@ -167,7 +166,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
-    log.error("Setting up OpenLineage tags");
+    log.debug("Setting up OpenLineage tags");
     if (openLineageSparkListener != null) {
       openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
@@ -182,7 +181,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           "_dd.trace_id:" + traceId.toString() + ";_dd.ol_intake.emit_spans:false");
       return;
     }
-    log.error("No OpenLineageSparkListener!");
+    log.debug("No OpenLineageSparkListener!");
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -210,7 +209,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     setupOpenLineage(
         OpenlineageParentContext.from(sparkConf)
             .map(context -> context.getTraceId())
-            .orElse(predeterminedTraceIdParentContext.getTraceId()));
+            .orElse(predeterminedTraceIdContext.getTraceId()));
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
 
@@ -219,7 +218,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    log.error("Starting tracer application span.");
+    log.debug("Starting tracer application span.");
 
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
@@ -242,7 +241,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (openlineageParentContext.isPresent()) {
       captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
     } else {
-      builder.asChildOf(predeterminedTraceIdParentContext);
+      builder.asChildOf(predeterminedTraceIdContext);
     }
 
     applicationSpan = builder.start();

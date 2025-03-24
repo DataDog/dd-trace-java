@@ -32,6 +32,7 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       "org.apache.spark.SparkContext",
       "org.apache.spark.deploy.SparkSubmit",
       "org.apache.spark.deploy.yarn.ApplicationMaster",
+      "org.apache.spark.util.Utils",
       "org.apache.spark.util.SparkClassUtils",
       "org.apache.spark.scheduler.LiveListenerBus"
     };
@@ -125,7 +126,7 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
           .getCanonicalName()
           .equals("io.openlineage.spark.agent.OpenLineageSparkListener")) {
         LoggerFactory.getLogger(Config.class)
-            .debug("Detected OL listener, skipping initialization");
+            .debug("Detected OL listener, skipping adding to ListenerBus");
         return true;
       }
       return false;

@@ -29,6 +29,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".DatabricksParentContext",
       packageName + ".OpenlineageParentContext",
+      packageName + ".PredeterminedTraceIdContext",
       packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",

@@ -5,12 +5,13 @@ import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
 
-public class PredeterminedTraceIdParentContext implements AgentSpanContext {
+public class PredeterminedTraceIdContext implements AgentSpanContext {
   private final DDTraceId traceId;
 
-  public PredeterminedTraceIdParentContext(DDTraceId traceId) {
+  public PredeterminedTraceIdContext(DDTraceId traceId) {
     this.traceId = traceId;
   }
 
@@ -26,7 +27,7 @@ public class PredeterminedTraceIdParentContext implements AgentSpanContext {
 
   @Override
   public AgentTraceCollector getTraceCollector() {
-    return null;
+    return AgentTracer.NoopAgentTraceCollector.INSTANCE;
   }
 
   @Override
