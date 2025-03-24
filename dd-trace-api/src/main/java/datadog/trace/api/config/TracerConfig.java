@@ -93,6 +93,8 @@ public final class TracerConfig {
   public static final String TRACE_PROPAGATION_STYLE = "trace.propagation.style";
   public static final String TRACE_PROPAGATION_STYLE_EXTRACT = "trace.propagation.style.extract";
   public static final String TRACE_PROPAGATION_STYLE_INJECT = "trace.propagation.style.inject";
+  public static final String TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
+      "trace.propagation.behavior.extract";
   public static final String TRACE_PROPAGATION_EXTRACT_FIRST = "trace.propagation.extract.first";
   public static final String TRACE_BAGGAGE_MAX_ITEMS = "trace.baggage.max.items";
   public static final String TRACE_BAGGAGE_MAX_BYTES = "trace.baggage.max.bytes";
@@ -129,12 +131,13 @@ public final class TracerConfig {
       "trace.experimental.long-running.initial.flush.interval";
   public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
       "trace.experimental.long-running.flush.interval";
+
+  public static final String TRACE_PEER_HOSTNAME_ENABLED = "trace.peer.hostname.enabled";
+
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
       "trace.peer.service.defaults.enabled";
-
   public static final String TRACE_PEER_SERVICE_COMPONENT_OVERRIDES =
       "trace.peer.service.component.overrides";
-
   public static final String TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED =
       "trace.remove.integration-service-names.enabled";
 

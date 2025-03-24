@@ -2655,8 +2655,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             config,
             instr,
             new DebuggerSink(
-                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
-            null);
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }

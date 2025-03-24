@@ -8,7 +8,11 @@ import javax.websocket.CloseReason
 import javax.websocket.Endpoint
 import javax.websocket.EndpointConfig
 import javax.websocket.MessageHandler
+import javax.websocket.OnClose
+import javax.websocket.OnMessage
+import javax.websocket.OnOpen
 import javax.websocket.Session
+import javax.websocket.server.ServerEndpoint
 import javax.websocket.server.ServerEndpointConfig
 import java.nio.ByteBuffer
 
@@ -19,19 +23,20 @@ class JettyServer implements WebsocketServer {
   final server = new Server(0) // select random open port
   def websocketAvailable = true
 
-  JettyServer(AbstractHandler handler) {
+  JettyServer(AbstractHandler handler, final boolean usePojoWebsocketHandler = false) {
     server.setHandler(handler)
+    def endpointClass = usePojoWebsocketHandler ? PojoEndpoint : WsEndpoint
     try {
       def container = ("org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer" as Class)."configureContext"(handler)
-      container."addEndpoint"(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
+      container."addEndpoint"(ServerEndpointConfig.Builder.create(endpointClass, "/websocket").build())
 
-    } catch (Throwable t) {
+    } catch (Throwable ignored) {
       try {
         ("org.eclipse.jetty.websocket.javax.server.config.JavaxWebSocketServletContainerInitializer" as Class)."configure"(handler, { servletContext, container ->
-          container.addEndpoint(ServerEndpointConfig.Builder.create(WsEndpoint.class, "/websocket").build())
+          container.addEndpoint(ServerEndpointConfig.Builder.create(endpointClass, "/websocket").build())
         })
 
-      } catch (Throwable tt) {
+      } catch (Throwable ignored2) {
         websocketAvailable = false
       }
     }
@@ -62,9 +67,9 @@ class JettyServer implements WebsocketServer {
   @Override
   void serverSendText(String[] messages) {
     if (messages.length == 1) {
-      WsEndpoint.activeSession.getBasicRemote().sendText(messages[0])
+      Lock.activeSession.getBasicRemote().sendText(messages[0])
     } else {
-      def remoteEndpoint = WsEndpoint.activeSession.getBasicRemote()
+      def remoteEndpoint = Lock.activeSession.getBasicRemote()
       for (int i = 0; i < messages.length; i++) {
         remoteEndpoint.sendText(messages[i], i == messages.length - 1)
       }
@@ -74,9 +79,9 @@ class JettyServer implements WebsocketServer {
   @Override
   void serverSendBinary(byte[][] binaries) {
     if (binaries.length == 1) {
-      WsEndpoint.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+      Lock.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
     } else {
-      try (def stream = WsEndpoint.activeSession.getBasicRemote().getSendStream()) {
+      try (def stream = Lock.activeSession.getBasicRemote().getSendStream()) {
         binaries.each { stream.write(it) }
       }
     }
@@ -84,10 +89,10 @@ class JettyServer implements WebsocketServer {
 
   @Override
   synchronized void awaitConnected() {
-    synchronized (WsEndpoint) {
+    synchronized (Lock) {
       try {
-        while (WsEndpoint.activeSession == null) {
-          WsEndpoint.wait()
+        while (Lock.activeSession == null) {
+          Lock.wait()
         }
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt()
@@ -97,14 +102,14 @@ class JettyServer implements WebsocketServer {
 
   @Override
   void serverClose() {
-    WsEndpoint.activeSession?.close()
-    WsEndpoint.activeSession = null
+    Lock.activeSession?.close()
+    Lock.activeSession = null
   }
 
   @Override
   void setMaxPayloadSize(int size) {
-    WsEndpoint.activeSession?.setMaxTextMessageBufferSize(size)
-    WsEndpoint.activeSession?.setMaxBinaryMessageBufferSize(size)
+    Lock.activeSession?.setMaxTextMessageBufferSize(size)
+    Lock.activeSession?.setMaxBinaryMessageBufferSize(size)
   }
 
   @Override
@@ -112,33 +117,64 @@ class JettyServer implements WebsocketServer {
     false
   }
 
-  static class WsEndpoint extends Endpoint {
+  static class Lock {
     static Session activeSession
+  }
+
+  @ServerEndpoint("/websocket")
+  static class PojoEndpoint {
+
+    @OnOpen
+    void onOpen(Session session) {
+      Lock.activeSession = session
+      synchronized (Lock) {
+        Lock.notifyAll()
+      }
+    }
+
+    @OnMessage
+    void onText(String text, Session session, boolean last) {
+      runUnderTrace("onRead", {})
+
+    }
+
+    @OnMessage
+    void onBytes(byte[] binary) {
+      runUnderTrace("onRead", {})
+    }
+
+    @OnClose
+    void onClose() {
+      Lock.activeSession = null
+    }
+  }
+
+  static class WsEndpoint extends Endpoint {
 
     @Override
     void onOpen(Session session, EndpointConfig endpointConfig) {
       session.addMessageHandler(new MessageHandler.Partial<String>() {
           @Override
-          void onMessage(String s, boolean last) {
-            // jetty does not respect at all limiting the payload so we have to simulate it in few tests
+          void onMessage(String s, boolean b) {
             runUnderTrace("onRead", {})
           }
         })
-      session.addMessageHandler(new MessageHandler.Partial<byte[]>() {
+      session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+
           @Override
-          void onMessage(byte[] b, boolean last) {
+          void onMessage(ByteBuffer buffer) {
             runUnderTrace("onRead", {})
           }
         })
-      activeSession = session
-      synchronized (WsEndpoint) {
-        WsEndpoint.notifyAll()
+      Lock.activeSession = session
+      synchronized (Lock) {
+        Lock.notifyAll()
       }
     }
 
     @Override
     void onClose(Session session, CloseReason closeReason) {
-      activeSession = null
+      Lock.activeSession = null
     }
   }
 }

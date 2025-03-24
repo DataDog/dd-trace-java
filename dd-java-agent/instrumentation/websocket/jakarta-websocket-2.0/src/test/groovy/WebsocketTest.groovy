@@ -1,3 +1,21 @@
+import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
+import jakarta.websocket.ClientEndpointConfig
+import jakarta.websocket.CloseReason
+import jakarta.websocket.ContainerProvider
+import jakarta.websocket.Endpoint
+import jakarta.websocket.server.ServerApplicationConfig
+import jakarta.websocket.server.ServerEndpointConfig
+import net.bytebuddy.utility.RandomString
+import org.glassfish.tyrus.container.inmemory.InMemoryClientContainer
+import org.glassfish.tyrus.server.TyrusServerConfiguration
+
+import java.nio.ByteBuffer
+
 import static datadog.trace.agent.test.base.HttpServerTest.someBytes
 import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
@@ -10,24 +28,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
-import net.bytebuddy.utility.RandomString
-import org.glassfish.tyrus.container.inmemory.InMemoryClientContainer
-import org.glassfish.tyrus.server.TyrusServerConfiguration
-
-import jakarta.websocket.ClientEndpointConfig
-import jakarta.websocket.CloseReason
-import jakarta.websocket.ContainerProvider
-import jakarta.websocket.Endpoint
-import jakarta.websocket.server.ServerApplicationConfig
-import jakarta.websocket.server.ServerEndpointConfig
-import java.nio.ByteBuffer
 
 class WebsocketTest extends AgentTestRunner {
 
