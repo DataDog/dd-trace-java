@@ -8,7 +8,7 @@ import org.eclipse.jetty.server.Server
 abstract class Jetty11Test extends HttpServerTest<Server> {
   @Override
   HttpServer server() {
-    new JettyServer(handler())
+    new JettyServer(handler(), useWebsocketPojoEndpoint())
   }
 
   protected Handler handler() {
@@ -89,10 +89,17 @@ abstract class Jetty11Test extends HttpServerTest<Server> {
   boolean testSessionId() {
     true
   }
+
+  protected boolean useWebsocketPojoEndpoint() {
+    false
+  }
 }
 
 class Jetty11V0ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
 class Jetty11V1ForkedTest extends Jetty11Test implements TestingGenericHttpNamingConventions.ServerV1 {
+  protected boolean useWebsocketPojoEndpoint() {
+    true
+  }
 }
