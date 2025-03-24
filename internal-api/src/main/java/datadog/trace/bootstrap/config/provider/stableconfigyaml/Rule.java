@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 import java.util.ArrayList;
 import java.util.List;
 
-// TODO: Update this comment from "stable configuration" to whatever product decides on for the name
 // Rule represents a set of selectors and their corresponding configurations found in stable
 // configuration files
 public class Rule {

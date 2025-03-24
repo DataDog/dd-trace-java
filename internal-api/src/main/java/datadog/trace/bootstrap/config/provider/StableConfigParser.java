@@ -41,8 +41,10 @@ public class StableConfigParser {
 
       if (!rules.isEmpty()) {
         for (Rule rule : rules) {
+          // Use the first matching rule
           if (doesRuleMatch(rule)) {
-            // Merge configs found in apm_configuration_default and apm_configuration_rules
+            // Merge configs found in apm_configuration_rules with those found in
+            // apm_configuration_default
             configMap.putAll(rule.getConfiguration());
             return createStableConfig(configId, configMap);
           }
@@ -53,14 +55,12 @@ public class StableConfigParser {
         return createStableConfig(configId, configMap);
       }
 
-      // If there's a configId but no configMap, return an empty map
+      // If there's a configId but no configMap, use configId but return an empty map
       if (configId != null) {
         return new StableConfigSource.StableConfig(configId, Collections.emptyMap());
       }
 
     } catch (IOException e) {
-      // TODO: Update this log from "stable configuration" to the official name of the feature, once
-      // determined
       log.debug(
           "Stable configuration file either not found or not readable at filepath {}", filePath);
     }
@@ -89,6 +89,7 @@ public class StableConfigParser {
 
   private static boolean validOperatorForLanguageOrigin(String operator) {
     operator = operator.toLowerCase();
+    // "exists" is not valid
     switch (operator) {
       case "equals":
       case "starts_with":
@@ -100,7 +101,7 @@ public class StableConfigParser {
     }
   }
 
-  private static boolean checkMatches(
+  private static boolean checkEnvMatches(
       List<String> values, List<String> matches, BiPredicate<String, String> compareFunc) {
     // envValue shouldn't be null, but doing an extra check to avoid NullPointerException on
     // compareFunc.test
@@ -150,14 +151,15 @@ public class StableConfigParser {
             // We don't care about the value
             return true;
           case "equals":
-            return checkMatches(
+            return checkEnvMatches(
                 Collections.singletonList(envValue), matches, String::equalsIgnoreCase);
           case "starts_with":
-            return checkMatches(Collections.singletonList(envValue), matches, String::startsWith);
+            return checkEnvMatches(
+                Collections.singletonList(envValue), matches, String::startsWith);
           case "ends_with":
-            return checkMatches(Collections.singletonList(envValue), matches, String::endsWith);
+            return checkEnvMatches(Collections.singletonList(envValue), matches, String::endsWith);
           case "contains":
-            return checkMatches(Collections.singletonList(envValue), matches, String::contains);
+            return checkEnvMatches(Collections.singletonList(envValue), matches, String::contains);
           default:
             return false;
         }
@@ -165,25 +167,6 @@ public class StableConfigParser {
         // For now, always return true if `key` exists in the JVM Args
         // TODO: flesh out the meaning of each operator for process_arguments
         return CLIHelper.ARGS.contains(key);
-        //        List<String> vals = CLIHelper.ARGS.getValues(key);
-        //        if (vals == null || vals.isEmpty()) {
-        //          return false;
-        //        }
-        //        switch (operator.toLowerCase()) {
-        //          case "exists":
-        //            // We don't care about the value
-        //            return true;
-        //          case "equals":
-        //            return checkMatches(vals, matches, String::equalsIgnoreCase);
-        //          case "starts_with":
-        //            return checkMatches(vals, matches, String::startsWith);
-        //          case "ends_with":
-        //            return checkMatches(vals, matches, String::endsWith);
-        //          case "contains":
-        //            return checkMatches(vals, matches, String::contains);
-        //          default:
-        //            return false;
-        //        }
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;

@@ -3,7 +3,6 @@ package datadog.yaml;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO: Update this comment from "stable configuration" to whatever product decides on for the name
 // ConfigurationMap represents configuration key-values found in stable configuration files
 public class ConfigurationMap extends HashMap<String, ConfigurationValue> {
   public ConfigurationMap() {
