@@ -224,10 +224,8 @@
 2 oracle.j2ee.*
 1 oracle.jdbc.*
 # APPSEC-57044
-1 oracle.security.*
+1 oracle.security.o5logon.O5Logon
 1 oracle.sql.*
-# APPSEC-57044
-1 oracle.ucp.*
 1 org.ajax4jsf.*
 1 org.aopalliance.*
 1 org.antlr.*
@@ -281,9 +279,6 @@
 1 org.joda.*
 1 org.jooq.*
 1 org.jruby.*
-# APPSEC-57044
-1 org.jose4j.lang.*
-2 org.jose4j.lang.HashUtil
 1 org.json.*
 #Needed for JSON propagation
 2 org.json.JSONTokener
