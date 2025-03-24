@@ -146,6 +146,7 @@ public class Config {
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
+  private final boolean peerHostNameEnabled;
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
@@ -799,6 +800,8 @@ public class Config {
     baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
+
+    peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
     // following two only used in v0.
     // in v1+ defaults are always calculated regardless this feature flag
@@ -2092,6 +2095,10 @@ public class Config {
 
   public int getSpanAttributeSchemaVersion() {
     return spanAttributeSchemaVersion;
+  }
+
+  public boolean isPeerHostNameEnabled() {
+    return peerHostNameEnabled;
   }
 
   public boolean isPeerServiceDefaultsEnabled() {
@@ -4711,6 +4718,8 @@ public class Config {
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="
         + axisPromoteResourceName
+        + ", peerHostNameEnabled="
+        + peerHostNameEnabled
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="
