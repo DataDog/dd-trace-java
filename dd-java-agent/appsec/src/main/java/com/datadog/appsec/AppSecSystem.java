@@ -17,7 +17,6 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
@@ -96,8 +95,6 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
-
-    AppSecEventTracker.setEventTracker(new AppSecEventTracker());
 
     STARTED.set(true);
 

@@ -1,4 +1,9 @@
 repositories {
+  if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+    maven {
+      url project.rootProject.property("mavenRepositoryProxy")
+    }
+  }
   mavenLocal()
   mavenCentral()
   // add sonatype repository for snapshot dependencies

@@ -1,12 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,17 +17,17 @@ public final class ExecutorInstrumentationUtils {
    * Checks if given task should get state attached.
    *
    * @param task task object
-   * @param executor executor this task was scheduled on
+   * @param span active span
    * @return true iff given task object should be wrapped
    */
-  public static boolean shouldAttachStateToTask(final Object task, final Executor executor) {
+  public static boolean shouldAttachStateToTask(final Object task, final AgentSpan span) {
     if (task == null) {
       return false;
     }
     if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, task)) {
       return false;
     }
-    return activeSpan() != null && isAsyncPropagationEnabled();
+    return span != null && span.isValid() && isAsyncPropagationEnabled();
   }
 
   /**
@@ -57,12 +55,10 @@ public final class ExecutorInstrumentationUtils {
   /**
    * Clean up after job submission method has exited.
    *
-   * @param executor the current executor
    * @param state task instrumentation state
    * @param throwable throwable that may have been thrown
    */
-  public static void cleanUpOnMethodExit(
-      final Executor executor, final State state, final Throwable throwable) {
+  public static void cleanUpOnMethodExit(final State state, final Throwable throwable) {
     if (null != state && null != throwable) {
       /*
       Note: this may potentially close somebody else's continuation if we didn't set it

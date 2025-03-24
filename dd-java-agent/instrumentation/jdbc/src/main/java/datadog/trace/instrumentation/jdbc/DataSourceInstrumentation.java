@@ -69,7 +69,7 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
 
       span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -12,7 +12,7 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
 
   @Override
   HttpServer server() {
-    new JettyServer(handler())
+    new JettyServer(handler(), useWebsocketPojoEndpoint())
   }
 
   AbstractHandler handler() {
@@ -27,6 +27,11 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   @Override
   String expectedOperationName() {
     operation()
+  }
+
+  protected boolean useWebsocketPojoEndpoint() {
+    // only supported in jetty 10+
+    isLatestDepTest
   }
 
 
@@ -95,4 +100,8 @@ class Jetty9V0ForkedTest extends Jetty9Test implements TestingGenericHttpNamingC
 }
 
 class Jetty9V1ForkedTest extends Jetty9Test implements TestingGenericHttpNamingConventions.ServerV1 {
+  @Override
+  protected boolean useWebsocketPojoEndpoint() {
+    false
+  }
 }

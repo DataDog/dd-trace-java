@@ -1,8 +1,7 @@
 package com.datadog.debugger.probe;
 
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.*;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
-import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
@@ -66,11 +65,11 @@ public class CodeOriginProbe extends ProbeDefinition {
     for (AgentSpan s : agentSpans) {
       if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
         s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"), location.getFile());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "method"), location.getMethod());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "line"), location.getLines().get(0));
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "type"), location.getType());
-        s.setTag(format(DD_CODE_ORIGIN_FRAME, 0, "signature"), signature);
+        s.setTag(DD_CODE_ORIGIN_FRAME_FILE, location.getFile());
+        s.setTag(DD_CODE_ORIGIN_FRAME_METHOD, location.getMethod());
+        s.setTag(DD_CODE_ORIGIN_FRAME_LINE, location.getLines().get(0));
+        s.setTag(DD_CODE_ORIGIN_FRAME_TYPE, location.getType());
+        s.setTag(DD_CODE_ORIGIN_FRAME_SIGNATURE, signature);
       }
     }
   }
