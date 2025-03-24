@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.cli.CLIHelper;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
@@ -162,25 +161,26 @@ public class StableConfigParser {
             return false;
         }
       case "process_arguments":
-        List<String> vals = CLIHelper.ARGS.getValues(key);
-        if (vals == null || vals.isEmpty()) {
-          return false;
-        }
-        switch (operator.toLowerCase()) {
-          case "exists":
-            // We don't care about the value
-            return true;
-          case "equals":
-            return checkMatches(vals, matches, String::equalsIgnoreCase);
-          case "starts_with":
-            return checkMatches(vals, matches, String::startsWith);
-          case "ends_with":
-            return checkMatches(vals, matches, String::endsWith);
-          case "contains":
-            return checkMatches(vals, matches, String::contains);
-          default:
-            return false;
-        }
+        return true;
+        //        List<String> vals = CLIHelper.ARGS.getValues(key);
+        //        if (vals == null || vals.isEmpty()) {
+        //          return false;
+        //        }
+        //        switch (operator.toLowerCase()) {
+        //          case "exists":
+        //            // We don't care about the value
+        //            return true;
+        //          case "equals":
+        //            return checkMatches(vals, matches, String::equalsIgnoreCase);
+        //          case "starts_with":
+        //            return checkMatches(vals, matches, String::startsWith);
+        //          case "ends_with":
+        //            return checkMatches(vals, matches, String::endsWith);
+        //          case "contains":
+        //            return checkMatches(vals, matches, String::contains);
+        //          default:
+        //            return false;
+        //        }
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;

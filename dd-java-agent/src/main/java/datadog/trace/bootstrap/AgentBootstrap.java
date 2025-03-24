@@ -381,16 +381,20 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : CLIHelper.ARGS.getValues(JAVA_AGENT_ARGUMENT)) {
-        int index = argument.indexOf('=');
-        String agentPathname = argument.substring(0, index == -1 ? argument.length() : index);
-        File agentFile = new File(agentPathname);
-        if (agentFile.exists() && agentFile.isFile()) {
-          agentFiles.add(agentFile);
-        } else {
-          System.err.println(
-              "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
-                  + agentFile);
+      for (final String argument : CLIHelper.ARGS.getJvmArgs()) {
+        if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
+          int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
+          String agentPathname =
+              argument.substring(
+                  JAVA_AGENT_ARGUMENT.length(), index == -1 ? argument.length() : index);
+          File agentFile = new File(agentPathname);
+          if (agentFile.exists() && agentFile.isFile()) {
+            agentFiles.add(agentFile);
+          } else {
+            System.err.println(
+                "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
+                    + agentFile);
+          }
         }
       }
     }

@@ -97,7 +97,6 @@ apm_configuration_rules:
     "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
     "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
     "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
-    //    "process_arguments" | ["true"] | "equals" | "some.property" | true
   }
 
   def "test duplicate entries"() {

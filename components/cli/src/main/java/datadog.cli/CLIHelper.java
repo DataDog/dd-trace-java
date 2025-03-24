@@ -6,25 +6,26 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 public class CLIHelper {
-  public static final CLIHelper ARGS = new CLIHelper();
+  public static final CLIHelper ARGS = new CLIHelper(initJvmArgs());
 
-  private final Map<String, List<String>> args;
+  private final HashSet<String> args;
 
-  public CLIHelper() {
-    this.args = parseJvmArgs(initJvmArgs());
+  public CLIHelper(List<String> args) {
+    this.args = new HashSet<>(args);
   }
 
-  public List<String> getValues(String jvmArg) {
-    System.out.println("MTOFF: arg IS " + jvmArg);
-    return this.args.get(jvmArg);
+  public HashSet<String> getJvmArgs() {
+    return this.args;
+  }
+
+  public boolean contains(String argument) {
+    return this.args.contains(argument);
   }
 
   @SuppressForbidden
@@ -96,69 +97,6 @@ public class CLIHelper {
       return Arrays.asList(cmdLine.split("\0"));
     } else {
       return null;
-    }
-  }
-
-  /**
-   * Parses JVM arguments into a Map where the key is the argument name and the value is a List of
-   * values. This allows for multiple values for the same key.
-   *
-   * <p>Handles the following formats: - -Dkey=value (system properties) - -X flags (like -Xmx2g) -
-   * -XX flags (like -XX:+UseG1GC) - -javaagent with values - Other flags like -jar, -cp, etc.
-   *
-   * @param args List of JVM arguments to parse
-   * @return Map containing parsed arguments with lists of values
-   */
-  public static Map<String, List<String>> parseJvmArgs(List<String> args) {
-    Map<String, List<String>> parsedArgs = new HashMap<>();
-    if (args == null) {
-      return parsedArgs;
-    }
-
-    for (String arg : args) {
-      if (arg == null || arg.isEmpty()) {
-        continue;
-      }
-
-      // Handle system properties (-Dkey=value)
-      if (arg.startsWith("-D")) {
-        addEntryToMap('=', arg, parsedArgs);
-        continue;
-      }
-
-      // Handle -XX flags
-      if (arg.startsWith("-XX:")) {
-        // -XX flags can have values after = (like -XX:MaxMetaspaceSize=128m)
-        addEntryToMap('=', arg, parsedArgs);
-        continue;
-      }
-
-      // Handle -javaagent
-      if (arg.startsWith("-javaagent:")) {
-        addEntryToMap(':', arg, parsedArgs);
-        continue;
-      }
-
-      // Handle other flags that might have values
-      // Note that -X flags will not be parsed into key-vals; they'll be caught by the value-less
-      // case and stored as a key. Therefore, duplicate keys are not supported for -X flags
-      if (arg.startsWith("-")) {
-        addEntryToMap('=', arg, parsedArgs);
-      }
-    }
-
-    return parsedArgs;
-  }
-
-  private static void addEntryToMap(
-      char equalsOperator, String arg, Map<String, List<String>> parsedArgs) {
-    int equalsIndex = arg.indexOf(equalsOperator);
-    if (equalsIndex >= 0 && equalsIndex < (arg.length() - 1)) {
-      String key = arg.substring(0, equalsIndex);
-      String value = arg.substring(equalsIndex + 1);
-      parsedArgs.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-    } else {
-      parsedArgs.computeIfAbsent(arg, k -> new ArrayList<>()).add(null);
     }
   }
 }
