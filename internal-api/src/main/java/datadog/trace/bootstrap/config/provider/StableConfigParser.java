@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.cli.CLIHelper;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
@@ -161,7 +162,9 @@ public class StableConfigParser {
             return false;
         }
       case "process_arguments":
-        return true;
+        // For now, always return true if `key` exists in the JVM Args
+        // TODO: flesh out the meaning of each operator for process_arguments
+        return CLIHelper.ARGS.contains(key);
         //        List<String> vals = CLIHelper.ARGS.getValues(key);
         //        if (vals == null || vals.isEmpty()) {
         //          return false;

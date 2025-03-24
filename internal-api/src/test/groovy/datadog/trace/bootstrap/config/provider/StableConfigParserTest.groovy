@@ -71,6 +71,7 @@ apm_configuration_rules:
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
     injectEnvConfig("DD_SERVICE", "mysvc")
     injectEnvConfig("DD_TAGS", "team:apm,component:web")
+    //    injectSysConfig("--DCustomKey", "value")
     def match = StableConfigParser.selectorMatch(origin, matches, operator, key)
 
     then:
@@ -97,6 +98,7 @@ apm_configuration_rules:
     "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
     "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
     "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
+    //    "process_arguments" | null | "equals" | "-DCustomKey" | true
   }
 
   def "test duplicate entries"() {

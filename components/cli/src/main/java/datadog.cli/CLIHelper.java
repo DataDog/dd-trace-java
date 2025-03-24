@@ -24,6 +24,8 @@ public class CLIHelper {
     return this.args;
   }
 
+  // Returns true if argument is part of the current process' JVM Args. `contains` is
+  // case-sensitive.
   public boolean contains(String argument) {
     return this.args.contains(argument);
   }
