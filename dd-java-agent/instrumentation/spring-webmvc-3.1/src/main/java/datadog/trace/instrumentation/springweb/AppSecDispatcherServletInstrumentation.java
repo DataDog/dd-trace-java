@@ -57,22 +57,25 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
         AppSecDispatcherServletInstrumentation.class.getName() + "$AppSecHandlerMappingAdvice");
   }
 
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isApiSecurityEndpointCollectionEnabled();
+  }
+
   public static class AppSecHandlerMappingAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
-      if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
-        final RequestMappingHandlerMapping handler =
-            springCtx.getBean(RequestMappingHandlerMapping.class);
-        if (handler == null) {
-          return;
-        }
-        final Map<RequestMappingInfo, HandlerMethod> mappings = handler.getHandlerMethods();
-        if (mappings == null || mappings.isEmpty()) {
-          return;
-        }
-        EndpointCollector.get().supplier(new RequestMappingInfoIterator(mappings));
+      final RequestMappingHandlerMapping handler =
+          springCtx.getBean(RequestMappingHandlerMapping.class);
+      if (handler == null) {
+        return;
       }
+      final Map<RequestMappingInfo, HandlerMethod> mappings = handler.getHandlerMethods();
+      if (mappings == null || mappings.isEmpty()) {
+        return;
+      }
+      EndpointCollector.get().supplier(new RequestMappingInfoIterator(mappings));
     }
   }
 }

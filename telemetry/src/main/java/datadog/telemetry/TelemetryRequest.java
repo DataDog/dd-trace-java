@@ -235,8 +235,10 @@ public class TelemetryRequest {
       log.debug("Writing endpoints");
       requestBody.beginEndpoints();
       boolean first = false;
-      while (eventSource.hasEndpoint()) {
+      int remaining = Config.get().getApiSecurityEndpointCollectionMessageLimit();
+      while (eventSource.hasEndpoint() && remaining > 0) {
         final Endpoint event = eventSource.nextEndpoint();
+        remaining--;
         if (event.isFirst()) {
           first = true;
         }
