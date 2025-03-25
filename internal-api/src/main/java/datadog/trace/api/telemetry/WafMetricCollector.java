@@ -322,10 +322,6 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               new RaspError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
             return;
           }
-          if (!rawMetricsQueue.offer(
-              new WafError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
-            return;
-          }
         }
       }
     }
@@ -350,6 +346,19 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       if (counter > 0) {
         if (!rawMetricsQueue.offer(new MissingUserIdMetric(counter, framework.getTag()))) {
           return;
+        }
+      }
+    }
+
+    // WAF rule type for each possible error code
+    for (int i = -1 * ABSTRACT_POWERWAF_EXCEPTION_NUMBER; i < 0; i++) {
+      for (RuleType ruleType : RuleType.values()) {
+        long counter = wafErrorCodeCounter.get(i).getAndSet(ruleType.ordinal(), 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new WafError(counter, ruleType, WafMetricCollector.wafVersion, i))) {
+            return;
+          }
         }
       }
     }
@@ -549,19 +558,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       super(
           "waf.error",
           counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion,
-                "waf_error:" + ddwafRunError
-              }
-              : new String[] {
-                "rule_type:" + ruleType.type,
-                "waf_version:" + wafVersion,
-                "waf_error:" + ddwafRunError
-              });
+          "waf_version:" + wafVersion,
+          "event_rules_version:" + rulesVersion,
+          "waf_error:" + ddwafRunError);
     }
   }
 
