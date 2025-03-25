@@ -956,55 +956,94 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-	return buildSpan(instrumentationName, spanName).start();
+  public AgentSpan startSpan(final String instrumentationName, final CharSequence operationName) {
+	// return buildSpan(instrumentationName, operationName).start();
+	    
+	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
+	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
+	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
+	}
+    
+	long timestampMicro = 0L;
+	List<AgentSpanLink> links = Collections.emptyList();
+	
+    DDSpan span = DDSpan.create(
+      instrumentationName,
+      timestampMicro,
+      CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx, operationName),
+      links);
+
+    this.onSpanStarted(span);
+    return span;
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      final String instrumentationName, final CharSequence operationName, final long startTimeMicros) {
+	// return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
+
 	  
-//	AgentSpanContext parent = null;
-//	// DQH - 24 Mar 2025 - Maintaining the original semantics where links are only processed when 
-//	// this.parent is set to a TagContext
-//	ArrayList<AgentSpanLink> links = null;
-//	    
-//	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
-//	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
-//	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
-//	}
-//    
-//	long timestampMicro = 0L;
-//	List<AgentSpanLink> links = null;
-//	
-//    DDSpan span = DDSpan.create(
-//      instrumentationName,
-//      CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx),
-//      links);
-//      
-//    // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
-//    this.onSpanStarted(span);
-//    return span;
+	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
+	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
+	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
+	}
+	
+	List<AgentSpanLink> links = Collections.emptyList();
+		
+	DDSpan span = DDSpan.create(
+	  instrumentationName,
+	  startTimeMicros,
+	  CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx, operationName),
+	  links);
+
+	this.onSpanStarted(span);
+	return span;
   }
 
   @Override
   public AgentSpan startSpan(
-      final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
-  }
+      String instrumentationName, final CharSequence operationName, final AgentSpanContext parent) {
+	// return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();	  
+	  
+	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveParentContext(this, parent, true);
+	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
+	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
+	}
+		    
+	long timestampMicro = 0L;
+	List<AgentSpanLink> links = CoreSpanBuilder.addTerminatedContextAsLinks(parent);
+			
+	DDSpan span = DDSpan.create(
+	  instrumentationName,
+	  timestampMicro,
+	  CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx, operationName),
+	  links);
 
-  @Override
-  public AgentSpan startSpan(
-      String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
-    return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();
+	this.onSpanStarted(span);
+	return span;
   }
 
   @Override
   public AgentSpan startSpan(
       final String instrumentationName,
-      final CharSequence spanName,
+      final CharSequence operationName,
       final AgentSpanContext parent,
       final long startTimeMicros) {
-    return buildSpan(instrumentationName, spanName)
-        .ignoreActiveSpan()
-        .asChildOf(parent)
-        .withStartTimestamp(startTimeMicros)
-        .start();
+	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveParentContext(this, parent, true);
+	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
+	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
+	}
+	
+	List<AgentSpanLink> links = CoreSpanBuilder.addTerminatedContextAsLinks(parent);
+			
+	DDSpan span = DDSpan.create(
+	  instrumentationName,
+	  startTimeMicros,
+	  CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx, operationName),
+	  links);
+
+	this.onSpanStarted(span);
+	return span;
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -1419,14 +1458,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return resolveParentContext(this.tracer, this.parent, this.ignoreScope);
     }
     
-    private static final AgentSpanContext resolveDefaultParentContext(CoreTracer tracer) {
+    static final AgentSpanContext resolveDefaultParentContext(CoreTracer tracer) {
       final AgentSpan span = tracer.activeSpan();
       return span == null ?
     	null :
     	span.context();
     }
     
-    private static final AgentSpanContext resolveParentContext(
+    static final AgentSpanContext resolveParentContext(
       CoreTracer tracer, AgentSpanContext parent, boolean ignoreScope)
     {
       AgentSpanContext pc = parent;
@@ -1638,10 +1677,55 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      * @return the context
      */
     private final DDSpanContext buildSpanContext(AgentSpanContext parentContext) {
-      return buildSpanContext(this.tracer, this, parentContext);
+      return buildSpanContext(
+    	this.tracer,
+    	parentContext,
+    	this.spanId,
+    	this.serviceName,
+    	this.spanType,
+    	this.operationName,
+    	this.resourceName,
+    	this.tagBuilder,
+    	this.errorFlag,
+    	this.builderRequestContextDataAppSec,
+    	this.builderRequestContextDataIast,
+    	this.builderCiVisibilityContextData);
     }
     
-    private static final DDSpanContext buildSpanContext(CoreTracer tracer, CoreSpanBuilder thisBuilder, AgentSpanContext parentContext) {
+    static final DDSpanContext buildSpanContext(
+      CoreTracer tracer,
+      AgentSpanContext parentContext,
+      CharSequence builderOperationName)
+    {
+      return buildSpanContext(
+    	tracer,
+    	parentContext,
+    	0L /* builderSpanId */,
+    	null /* builderServiceName */,
+    	null /* builderSpanType */,
+    	null /* builderOperationName */,
+    	null /* builderResourceName */,
+    	null /* builderTagBuilder */,
+    	false /* builderErrorFlag */,
+    	null /* builderRequestContextDataAppSec */,
+    	null /* builderRequestContextDataIast */,
+    	null /* builderCiVisibilityContextData */);
+    }
+    
+    static final DDSpanContext buildSpanContext(
+      CoreTracer tracer,
+      AgentSpanContext parentContext,
+      long builderSpanId,
+      String builderServiceName,
+      CharSequence builderSpanType,
+      CharSequence builderOperationName,
+      String builderResourceName,
+      TagMap.Builder builderTagBuilder,
+      boolean builderErrorFlag,
+      Object builderRequestContextDataAppSec,
+      Object builderRequestContextDataIast,
+      Object builderCiVisibilityContextData)
+    {
       final DDTraceId traceId;
       final long spanId;
       final long parentSpanId;
@@ -1660,15 +1744,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
       
-      String serviceName = thisBuilder.serviceName;
-      spanId = determineSpanId(tracer, thisBuilder.spanId);
+      String serviceName = builderServiceName;
+      spanId = determineSpanId(tracer, builderSpanId);
 
       String parentServiceName = null;
       boolean isRemote = false;
       
-      requestContextDataAppSec = thisBuilder.builderRequestContextDataAppSec;
-      requestContextDataIast = thisBuilder.builderRequestContextDataIast;
-      ciVisibilityContextData = thisBuilder.builderCiVisibilityContextData;
+      requestContextDataAppSec = builderRequestContextDataAppSec;
+      requestContextDataIast = builderRequestContextDataIast;
+      ciVisibilityContextData = builderCiVisibilityContextData;
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
@@ -1814,7 +1898,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = tracer.serviceName;
       }
 
-      final CharSequence operationName = determineOperationName(thisBuilder.operationName, thisBuilder.resourceName);
+      final CharSequence operationName = determineOperationName(builderOperationName, builderResourceName);
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
@@ -1830,12 +1914,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentServiceName,
               serviceName,
               operationName,
-              thisBuilder.resourceName,
+              builderResourceName,
               samplingPriority,
               origin,
               baggage,
-              thisBuilder.errorFlag,
-              thisBuilder.spanType,
+              builderErrorFlag,
+              builderSpanType,
               tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
@@ -1852,7 +1936,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      context.setAllTags(thisBuilder.tagBuilder);
+      context.setAllTags(builderTagBuilder);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
