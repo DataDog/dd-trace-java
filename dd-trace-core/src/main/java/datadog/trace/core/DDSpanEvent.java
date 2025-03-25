@@ -133,34 +133,7 @@ public class DDSpanEvent {
     @FromJson
     @Override
     public DDSpanEvent fromJson(JsonReader reader) throws IOException {
-      reader.beginObject();
-      String name = null;
-      SpanNativeAttributes attributes = null;
-      long timestampNanos = 0;
-
-      while (reader.hasNext()) {
-        switch (reader.nextName()) {
-          case "name":
-            name = reader.nextString();
-            break;
-          case "time_unix_nano":
-            timestampNanos = reader.nextLong();
-            break;
-          case "attributes":
-            if (reader.peek() == JsonReader.Token.NULL) {
-              reader.nextNull();
-              attributes = SpanNativeAttributes.EMPTY;
-            } else {
-              attributes = readAttributes(reader);
-            }
-            break;
-          default:
-            reader.skipValue();
-        }
-      }
-
-      reader.endObject();
-      return new DDSpanEvent(name, attributes, timestampNanos);
+      throw new UnsupportedOperationException("Deserialization is not implemented");
     }
 
     @ToJson
@@ -178,20 +151,6 @@ public class DDSpanEvent {
       writer.endObject();
     }
 
-    private SpanNativeAttributes readAttributes(JsonReader reader) throws IOException {
-      Map<SpanNativeAttributes.AttributeKey<?>, Object> attributes = new HashMap<>();
-      reader.beginObject();
-      while (reader.hasNext()) {
-        String key = reader.nextName();
-        SpanNativeAttributes.AttributeKey<?> attributeKey =
-            SpanNativeAttributes.AttributeKey.stringKey(key);
-        Object value = readValue(reader);
-        attributes.put(attributeKey, value);
-      }
-      reader.endObject();
-      return new SpanNativeAttributes(attributes);
-    }
-
     private void writeAttributes(JsonWriter writer, SpanNativeAttributes attributes)
         throws IOException {
       writer.beginObject();
@@ -201,38 +160,6 @@ public class DDSpanEvent {
         writeValue(writer, entry.getKey(), entry.getValue());
       }
       writer.endObject();
-    }
-
-    private Object readValue(JsonReader reader) throws IOException {
-      switch (reader.peek()) {
-        case STRING:
-          return reader.nextString();
-        case NUMBER:
-          return reader.nextDouble();
-        case BOOLEAN:
-          return reader.nextBoolean();
-        case NULL:
-          return reader.nextNull();
-        case BEGIN_ARRAY:
-          reader.beginArray();
-          List<Object> array = new ArrayList<>();
-          while (reader.hasNext()) {
-            array.add(readValue(reader));
-          }
-          reader.endArray();
-          return array;
-        case BEGIN_OBJECT:
-          reader.beginObject();
-          Map<String, Object> object = new HashMap<>();
-          while (reader.hasNext()) {
-            String key = reader.nextName();
-            object.put(key, readValue(reader));
-          }
-          reader.endObject();
-          return object;
-        default:
-          throw new IOException("Unexpected token: " + reader.peek());
-      }
     }
 
     private void writeValue(
