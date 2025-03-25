@@ -74,9 +74,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3;
-  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2;
-  public static final int DD_WAF_RUN_INVALID_ARGUMENT_ERROR = -1;
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
@@ -125,12 +122,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean blocked;
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
-  private volatile int raspInternalErrors;
-  private volatile int raspInvalidObjectErrors;
-  private volatile int raspInvalidArgumentErrors;
-  private volatile int wafInternalErrors;
-  private volatile int wafInvalidObjectErrors;
-  private volatile int wafInvalidArgumentErrors;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -149,29 +140,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INTERNAL_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidArgumentErrors");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_INTERNAL_ERRORS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidArgumentErrors");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -222,70 +190,12 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public void increaseRaspErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        RASP_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        RASP_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        RASP_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
-  public void increaseWafErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        WAF_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        WAF_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        WAF_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
   public int getWafTimeouts() {
     return wafTimeouts;
   }
 
   public int getRaspTimeouts() {
     return raspTimeouts;
-  }
-
-  public int getRaspError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return raspInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return raspInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return raspInvalidArgumentErrors;
-      default:
-        return 0;
-    }
-  }
-
-  public int getWafError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return wafInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return wafInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return wafInvalidArgumentErrors;
-      default:
-        return 0;
-    }
   }
 
   public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
