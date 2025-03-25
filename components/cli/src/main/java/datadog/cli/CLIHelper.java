@@ -2,46 +2,39 @@ package datadog.cli;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 
-public class CLIHelper {
-  public static final CLIHelper ARGS = new CLIHelper(initJvmArgs());
+public final class CLIHelper {
+  private static final List<String> VM_ARGS = findVmArgs();
 
-  private final HashSet<String> args;
-
-  public CLIHelper(List<String> args) {
-    this.args = new HashSet<>(args);
-  }
-
-  public HashSet<String> getJvmArgs() {
-    return this.args;
-  }
-
-  // Returns true if argument is part of the current process' JVM Args. `contains` is
-  // case-sensitive.
-  public boolean contains(String argument) {
-    return this.args.contains(argument);
+  public static List<String> getVmArgs() {
+    return VM_ARGS;
   }
 
   @SuppressForbidden
-  private static List<String> initJvmArgs() {
-    // If linux OS, use procfs
-    // TODO: equals, or contains?
-    if (System.getProperty("os.name").equalsIgnoreCase("linux")) {
-      try {
-        // Get the JVM arguments from /proc/self/cmdline
-        return getJvmArgsFromProcCmdline();
-      } catch (IOException e) {
-        // ignore exception, try other methods
+  private static List<String> findVmArgs() {
+    // Try ProcFS on Linux
+    try {
+      if (isLinux()) {
+        Path cmdlinePath = Paths.get("/proc/self/cmdline");
+        if (Files.exists(cmdlinePath)) {
+          try (BufferedReader in = Files.newBufferedReader(cmdlinePath)) {
+            return Arrays.asList(in.readLine().split("\0"));
+          }
+        }
       }
+    } catch (Throwable ignored) {
+      // Ignored exception
     }
+
     // Try Oracle-based
     // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
     try {
@@ -80,8 +73,6 @@ public class CLIHelper {
 
     // Fallback to default
     try {
-      System.err.println(
-          "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
@@ -91,14 +82,7 @@ public class CLIHelper {
     return Collections.emptyList();
   }
 
-  private static List<String> getJvmArgsFromProcCmdline() throws IOException {
-    BufferedReader argsReader = new BufferedReader(new FileReader("/proc/self/cmdline"));
-    String cmdLine = argsReader.readLine();
-    if (cmdLine != null) {
-      // Return JVM arguments as a list of strings split by null characters
-      return Arrays.asList(cmdLine.split("\0"));
-    } else {
-      return null;
-    }
+  private static boolean isLinux() {
+    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
   }
 }
