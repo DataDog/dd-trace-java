@@ -1392,8 +1392,7 @@ public class Config {
     apiSecurityEndpointCollectionEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
-            getAppSecActivation() != ProductActivation.FULLY_DISABLED
-                && DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
     apiSecurityEndpointCollectionMessageLimit =
         configProvider.getInteger(
             API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
