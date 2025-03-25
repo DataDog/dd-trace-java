@@ -129,7 +129,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspInternalErrors;
   private volatile int raspInvalidObjectErrors;
   private volatile int raspInvalidArgumentErrors;
-  private volatile int raspRuleSkipped;
   private volatile int wafInternalErrors;
   private volatile int wafInvalidObjectErrors;
   private volatile int wafInvalidArgumentErrors;
@@ -160,8 +159,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       RASP_INVALID_ARGUMENT_ERRORS_UPDATER =
           AtomicIntegerFieldUpdater.newUpdater(
               AppSecRequestContext.class, "raspInvalidArgumentErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_RULE_SKIPPED_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspRuleSkipped");
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_INTERNAL_ERRORS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafInternalErrors");
@@ -223,10 +220,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public void increaseRuleSkipped() {
-    RASP_RULE_SKIPPED_UPDATER.incrementAndGet(this);
-  }
-
   public void increaseRaspErrorCode(int code) {
     switch (code) {
       case DD_WAF_RUN_INTERNAL_ERROR:
@@ -265,10 +258,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public int getRaspTimeouts() {
     return raspTimeouts;
-  }
-
-  public int getRaspRuleSkipped() {
-    return raspRuleSkipped;
   }
 
   public int getRaspError(int code) {
