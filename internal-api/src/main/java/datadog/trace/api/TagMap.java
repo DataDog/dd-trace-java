@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.function.TriConsumer;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
@@ -1371,18 +1372,32 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
+  /**
+   * TagMap.Builder maintains a ledger of Entry objects that can be used to construct a TagMap.
+   * <p> Since TagMap.Entry objects are immutable and shared, the cost of the TagMap.Builder is negligible 
+   * as compared to most Builders.
+   * <p> TagMap.Builder's ledger can also be read directly to ensure that Entry-s are processed in order.
+   * In this way, TagMap.Builder can serve as a stand-in for a LinkedHashMap when Entry-s are not inserted 
+   * more than once.
+   */
   public static final class Builder implements Iterable<Entry> {
     private Entry[] entries;
     private int nextPos = 0;
+    private boolean containsRemovals = false;
 
-    private Builder() {
+    Builder() {
       this(8);
     }
 
-    private Builder(int size) {
+    Builder(int size) {
       this.entries = new Entry[size];
     }
 
+    /**
+     * Indicates if the ledger is completely empty
+     * 
+     * build map still return an empty Map even if this method returns true.
+     */
     public final boolean isDefinitelyEmpty() {
       return (this.nextPos == 0);
     }
@@ -1396,48 +1411,106 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     public final int estimateSize() {
       return this.nextPos;
     }
+    
+    /**
+     * Indicates if the ledger contains any removal entries
+     * @return
+     */
+    public final boolean containsRemovals() {
+      return this.containsRemovals;
+    }
 
     public final Builder put(String tag, Object value) {
-      return this.put(Entry.newAnyEntry(tag, value));
+      return this.recordEntry(Entry.newAnyEntry(tag, value));
     }
 
     public final Builder put(String tag, CharSequence value) {
-      return this.put(Entry.newObjectEntry(tag, value));
+      return this.recordEntry(Entry.newObjectEntry(tag, value));
     }
 
     public final Builder put(String tag, boolean value) {
-      return this.put(Entry.newBooleanEntry(tag, value));
+      return this.recordEntry(Entry.newBooleanEntry(tag, value));
     }
 
     public final Builder put(String tag, int value) {
-      return this.put(Entry.newIntEntry(tag, value));
+      return this.recordEntry(Entry.newIntEntry(tag, value));
     }
 
     public final Builder put(String tag, long value) {
-      return this.put(Entry.newLongEntry(tag, value));
+      return this.recordEntry(Entry.newLongEntry(tag, value));
     }
 
     public final Builder put(String tag, float value) {
-      return this.put(Entry.newFloatEntry(tag, value));
+      return this.recordEntry(Entry.newFloatEntry(tag, value));
     }
 
     public final Builder put(String tag, double value) {
-      return this.put(Entry.newDoubleEntry(tag, value));
+      return this.recordEntry(Entry.newDoubleEntry(tag, value));
     }
-
-    public final Builder remove(String tag) {
-      return this.put(Entry.newRemovalEntry(tag));
+    
+    public final Builder uncheckedPut(Entry entry) {
+      return this.recordEntry(entry);
     }
 
     public final Builder put(Entry entry) {
+      this.recordChange(entry);
+      this.containsRemovals |= entry.isRemoval();
+      return this;
+    }
+
+    /**
+     * Records a removal Entry in the ledger
+     */
+    public final Builder remove(String tag) {
+      return this.recordRemoval(Entry.newRemovalEntry(tag));
+    }
+    
+    private final Builder recordEntry(Entry entry) {
+      this.recordChange(entry);
+      return this;
+    }
+    
+    private final Builder recordRemoval(Entry entry) {
+      this.recordChange(entry);
+      this.containsRemovals = true;
+      
+      return this;
+    }
+    
+    private final void recordChange(Entry entry) {
       if (this.nextPos >= this.entries.length) {
         this.entries = Arrays.copyOf(this.entries, this.entries.length << 1);
       }
 
       this.entries[this.nextPos++] = entry;
+    }
+    
+    /**
+     * Smarter (but more expensive) version of {@link Builder#remove(String)}
+     * A removal entry is only added to the ledger if there is a prior insertion entry in the ledger
+     * 
+     * NOTE: This method does require an O(n) traversal of the ledger
+     */
+    public final Builder smartRemove(String tag) {
+      if ( this.contains(tag) ) {
+    	this.remove(tag);
+      }
       return this;
     }
+    
+    private final boolean contains(String tag) {
+      Entry[] entries = this.entries;
+    
+      // min is to clamp, so ArrayBoundsCheckElimination optimization works
+      for ( int i = 0; i < Math.min(this.nextPos, entries.length); ++i ) {
+     	if ( entries[i].matches(tag) ) return true;
+      }
+      return false;
+    }
 
+    /**
+     * Resets the ledger
+     */
     public final void reset() {
       Arrays.fill(this.entries, null);
       this.nextPos = 0;
