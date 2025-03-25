@@ -1508,11 +1508,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         this.tagBuilder = tagBuilder = TagMap.builder();
       }
       if (value == null) {
-    	// DQH - Use of smartRemove is important to avoid clobbering entries added by another map
-    	// smartRemove only records the removal if a prior matching put has already occurred in the builder
-    	// smartRemove is O(n) but since removes are rare, this is preferable to a more complicated 
-    	// implementation in setAll
-    	  tagBuilder.smartRemove(tag);
+        // DQH - Use of smartRemove is important to avoid clobbering entries added by another map
+        // smartRemove only records the removal if a prior matching put has already occurred in the
+        // builder
+        // smartRemove is O(n) but since removes are rare, this is preferable to a more complicated
+        // implementation in setAll
+        tagBuilder.smartRemove(tag);
       } else {
         tagBuilder.put(tag, value);
       }
