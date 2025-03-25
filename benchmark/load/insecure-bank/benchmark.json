@@ -18,6 +18,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER}"
       }
     },
+    "appsec": {
+      "env": {
+        "VARIANT": "appsec",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true"
+      }
+    },
     "iast": {
       "env": {
         "VARIANT": "iast",
