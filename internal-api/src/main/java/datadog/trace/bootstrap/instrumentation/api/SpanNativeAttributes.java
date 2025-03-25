@@ -86,6 +86,27 @@ public class SpanNativeAttributes {
      * Adds an attribute key and non-null value. If the value is null, the attribute will be
      * ignored.
      *
+     * It's recommended to use this method, as you can cache the {@link AttributeKey} and reuse it,
+     * avoiding object creation on every attribute added.
+     *
+     * @param key a non-null attribute name
+     * @param value a non-null attribute value
+     * @return this builder
+     */
+    public <T>Builder put(AttributeKey<T> key, T value) {
+      requireNonNull(key, "key must not be null");
+      if (value != null) {
+        this.attributes.put(key, value);
+      }
+      return this;
+    }
+
+    /**
+     * Adds an attribute key and non-null value. If the value is null, the attribute will be
+     * ignored.
+     *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
+     *
      * @param key a non-null attribute name
      * @param value a non-null attribute value
      * @return this builder
@@ -101,6 +122,8 @@ public class SpanNativeAttributes {
     /**
      * Adds an attribute key and non-null value. If the value is null, the attribute will be
      * ignored.
+     *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
      *
      * @param key a non-null attribute name
      * @param value a non-null attribute value
@@ -118,6 +141,8 @@ public class SpanNativeAttributes {
      * Adds an attribute key and non-null value. If the value is null, the attribute will be
      * ignored.
      *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
+     *
      * @param key a non-null attribute name
      * @param value a non-null attribute value
      * @return this builder
@@ -133,6 +158,8 @@ public class SpanNativeAttributes {
     /**
      * Adds an attribute key and non-null value. If the value is null, the attribute will be
      * ignored.
+     *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
      *
      * @param key a non-null attribute name
      * @param value a non-null attribute value
@@ -150,6 +177,8 @@ public class SpanNativeAttributes {
      * Adds an attribute key and non-null, homogeneous array of non-null values. If the array is
      * null, the attribute will be ignored.
      *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
+     *
      * @param key a non-null attribute name
      * @param array a non-null array of non-null values
      * @return this builder
@@ -165,6 +194,8 @@ public class SpanNativeAttributes {
     /**
      * Adds an attribute key and non-null, homogeneous array of non-null values. If the array is
      * null, the attribute will be ignored.
+     *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
      *
      * @param key a non-null attribute name
      * @param array a non-null array of non-null values
@@ -182,6 +213,8 @@ public class SpanNativeAttributes {
      * Adds an attribute key and non-null, homogeneous array of non-null values. If the array is
      * null, the attribute will be ignored.
      *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
+     *
      * @param key a non-null attribute name
      * @param array a non-null array of non-null values
      * @return this builder
@@ -196,6 +229,8 @@ public class SpanNativeAttributes {
 
     /**
      * Adds an attribute key and non-null, homogeneous array of non-null values.
+     *
+     * Note: Use {@link #put(AttributeKey, Object)} instead if possible, to avoid object creation.
      *
      * @param key a non-null attribute name
      * @param array a non-null array of non-null values
@@ -333,7 +368,7 @@ public class SpanNativeAttributes {
 
       @Override
       public String toString() {
-        return key;
+        return "AttributeKey{" + key + ", " + type + "}";
       }
     }
   }
