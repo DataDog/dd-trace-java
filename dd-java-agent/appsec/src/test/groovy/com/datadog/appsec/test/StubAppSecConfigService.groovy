@@ -44,7 +44,11 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
   Optional<Object> addSubConfigListener(String key, AppSecModuleConfigurer.SubconfigListener listener) {
     listeners[key] = listener
 
-    Optional.ofNullable(lastConfig[key])
+    if (lastConfig != null) {
+      Optional.ofNullable(lastConfig[key])
+    } else {
+      Optional.empty()
+    }
   }
 
   @Override
