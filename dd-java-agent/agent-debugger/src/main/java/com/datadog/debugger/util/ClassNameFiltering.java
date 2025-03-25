@@ -4,7 +4,6 @@ import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.ClassNameTrie;
-import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -15,7 +14,7 @@ public class ClassNameFiltering implements ClassNameFilter {
 
   private final ClassNameTrie includeTrie;
   private final ClassNameTrie excludeTrie;
-  private final Set<String> shadingIdentifiers;
+  private final ClassNameTrie shadingTrie;
 
   public ClassNameFiltering(Config config) {
     this(
@@ -36,28 +35,36 @@ public class ClassNameFiltering implements ClassNameFilter {
     ClassNameTrie.Builder includeBuilder = new ClassNameTrie.Builder();
     includes.forEach(s -> includeBuilder.put(s + "*", 1));
     this.includeTrie = includeBuilder.buildTrie();
-    this.shadingIdentifiers = shadingIdentifiers;
+    ClassNameTrie.Builder shadingBuilder = new ClassNameTrie.Builder();
+    shadingIdentifiers.forEach(s -> shadingBuilder.put(s + "*", 1));
+    this.shadingTrie = shadingBuilder.buildTrie();
   }
 
   // className is the fully qualified class name with '.' (Java type) notation
   public boolean isExcluded(String className) {
-    return (includeTrie.apply(className) < 0 && excludeTrie.apply(className) > 0)
-        || isLambdaProxyClass(className)
-        || isShaded(className);
+    int shadedIdx = shadedIndexOf(className);
+    shadedIdx = Math.max(shadedIdx, 0);
+    return (includeTrie.apply(className, shadedIdx) < 0
+            && excludeTrie.apply(className, shadedIdx) > 0)
+        || isLambdaProxyClass(className);
   }
 
   static boolean isLambdaProxyClass(String className) {
     return LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
   }
 
-  boolean isShaded(String className) {
-    String packageName = Strings.getPackageName(className);
-    for (String shadingIdentifier : shadingIdentifiers) {
-      if (packageName.contains(shadingIdentifier)) {
-        return true;
+  int shadedIndexOf(String className) {
+    String current = className;
+    int idx = 0;
+    int previousIdx = 0;
+    while ((idx = current.indexOf('.', previousIdx)) > 0) {
+      if (shadingTrie.apply(current, previousIdx) > 0) {
+        return idx + 1;
       }
+      idx++;
+      previousIdx = idx;
     }
-    return false;
+    return -1;
   }
 
   public static ClassNameFiltering allowAll() {

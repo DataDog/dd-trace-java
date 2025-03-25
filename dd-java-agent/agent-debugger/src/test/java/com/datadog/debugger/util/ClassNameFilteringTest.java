@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -85,8 +86,7 @@ class ClassNameFilteringTest {
         "akka.Actor",
         "cats.Functor",
         "org.junit.jupiter.api.Test",
-        "org.datadog.jmxfetch.FooBar",
-        "shaded.org.junit.Test"
+        "org.datadog.jmxfetch.FooBar"
       })
   public void testExcludeDefaults(String input) {
     Config config = mock(Config.class);
@@ -95,6 +95,20 @@ class ClassNameFilteringTest {
     when(config.getThirdPartyShadingIdentifiers()).thenReturn(Collections.emptySet());
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     assertTrue(classNameFiltering.isExcluded(input));
+  }
+
+  @Test
+  public void testShaded() {
+    Config config = mock(Config.class);
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyIncludes())
+        .thenReturn(new HashSet<>(Arrays.asList("com.google", "org.junit")));
+    when(config.getThirdPartyShadingIdentifiers()).thenReturn(Collections.emptySet());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
+    assertTrue(classNameFiltering.isExcluded("com.google.FooBar"));
+    assertTrue(classNameFiltering.isExcluded("shaded.com.google.FooBar"));
+    assertFalse(classNameFiltering.isExcluded("com.example.shaded.com.example.FooBar"));
+    assertTrue(classNameFiltering.isExcluded("com.example.shaded.com.google.FooBar"));
   }
 
   @Test
