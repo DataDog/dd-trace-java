@@ -11,7 +11,6 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,8 +41,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   private OkHttpClient httpClient = new OkHttpClient();
   protected String appUrl;
 
-  @Override
   @BeforeEach
+  @Override
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
     controlServer = new MockWebServer();
@@ -51,8 +50,6 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     controlServer.start();
     LOG.info("ControlServer on {}", controlServer.getPort());
     controlUrl = controlServer.url(CONTROL_URL);
-    startApp();
-    appUrl = waitForAppStartedAndGetUrl();
   }
 
   @Override
@@ -146,12 +143,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     LOG.info("re-transformation done");
   }
 
-  protected void startApp() throws IOException {
+  protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
     controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
-  }
-
-  protected String waitForAppStartedAndGetUrl() throws InterruptedException, EOFException {
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();

@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jetty_client12;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import org.eclipse.jetty.client.Request;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<Request> {
+public class HeadersInjectAdapter implements CarrierSetter<Request> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

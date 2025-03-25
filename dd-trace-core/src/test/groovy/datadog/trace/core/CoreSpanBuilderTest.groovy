@@ -12,7 +12,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.PropagationTags
@@ -340,6 +340,27 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     extractedContext                                                                                                                                                                                                                         | _
     new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null, DATADOG) | _
     new ExtractedContext(DDTraceId.from(3), 4, PrioritySampling.SAMPLER_KEEP, "some-origin", 0, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"], null, PropagationTags.factory().empty(), null, DATADOG)                     | _
+  }
+
+  def "build context from ExtractedContext with TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart"() {
+    setup:
+    injectSysConfig("trace.propagation.behavior.extract", "restart")
+    def extractedContext = new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, null, 0, [:], [:], null, PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"), null, DATADOG)
+    final DDSpan span = tracer.buildSpan("test", "op name")
+      .asChildOf(extractedContext).start()
+
+    expect:
+    span.traceId != extractedContext.traceId
+    span.parentId != extractedContext.spanId
+    span.samplingPriority() == PrioritySampling.UNSET
+
+    def spanLinks = span.links
+
+    assert spanLinks.size() == 1
+    def link = spanLinks[0]
+    link.traceId() == extractedContext.traceId
+    link.spanId() == extractedContext.spanId
+    link.traceState() == extractedContext.propagationTags.headerValue(PropagationTags.HeaderType.W3C)
   }
 
   def "TagContext should populate default span details"() {

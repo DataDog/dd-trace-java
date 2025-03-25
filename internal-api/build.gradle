@@ -57,6 +57,13 @@ excludedClassesCoverage += [
   'datadog.trace.api.appsec.AppSecEventTracker',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
+  // Data Streams Monitoring
+  "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
+  "datadog.trace.api.datastreams.NoopPathwayContext",
+  "datadog.trace.api.datastreams.StatsPoint",
+  // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
@@ -70,15 +77,11 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
-  "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
@@ -93,18 +96,19 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpanContext",
+  "datadog.trace.bootstrap.instrumentation.api.NotSampledSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContext",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContextKey",
-  "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
   "datadog.trace.api.civisibility.config.TestIdentifier",
   "datadog.trace.api.civisibility.config.TestFQN",
   "datadog.trace.api.civisibility.config.TestMetadata",
   "datadog.trace.api.civisibility.config.TestSourceData",
+  "datadog.trace.api.civisibility.config.LibraryCapability",
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
   "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
@@ -144,6 +148,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.Config",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
   "datadog.trace.api.ConfigCollector",
@@ -163,6 +168,13 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.ComparableVersion",
+  "datadog.trace.util.ComparableVersion.BigIntegerItem",
+  "datadog.trace.util.ComparableVersion.IntItem",
+  "datadog.trace.util.ComparableVersion.ListItem",
+  "datadog.trace.util.ComparableVersion.LongItem",
+  "datadog.trace.util.ComparableVersion.StringItem",
+  "datadog.trace.util.ConcurrentEnumMap",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
@@ -206,11 +218,14 @@ excludedClassesCoverage += [
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
-  'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
-excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
+excludedClassesInstructionCoverage = [
+  'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
+  'datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
@@ -232,6 +247,7 @@ dependencies {
   testImplementation libs.commons.math
   testImplementation libs.bundles.mockito
   testImplementation libs.truth
+  testImplementation 'org.yaml:snakeyaml:2.0'
 }
 
 jmh {

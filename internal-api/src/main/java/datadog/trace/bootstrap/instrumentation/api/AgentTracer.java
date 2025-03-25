@@ -1,14 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.NoopDataStreamsMonitoring;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
-import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
@@ -20,10 +19,8 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
 public class AgentTracer {
@@ -87,11 +84,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
-  }
-
-  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
+    return get().activateSpan(span);
   }
 
   /**
@@ -123,6 +116,41 @@ public class AgentTracer {
   }
 
   /**
+   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
+   * outstanding scopes up to but not including the most recent checkpointed scope.
+   *
+   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void checkpointActiveForRollback() {
+    get().checkpointActiveForRollback();
+  }
+
+  /**
+   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
+   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
+   *
+   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void rollbackActiveToCheckpoint() {
+    get().rollbackActiveToCheckpoint();
+  }
+
+  /**
+   * Closes the scope for the currently active span.
+   *
+   * @deprecated This should only be used when an instrumentation does not have access to the
+   *     original scope returned by {@link #activateSpan}.
+   */
+  @Deprecated
+  public static void closeActive() {
+    get().closeActive();
+  }
+
+  /**
    * Closes the immediately previous iteration scope. Should be called before creating a new span
    * for {@link #activateNext(AgentSpan)}.
    */
@@ -151,6 +179,8 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
+  /** @deprecated To be removed, do not use. */
+  @Deprecated
   public static AgentScope activeScope() {
     return get().activeScope();
   }
@@ -176,10 +206,6 @@ public class AgentTracer {
    */
   public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
     get().setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  public static AgentPropagation propagate() {
-    return get().propagate();
   }
 
   /**
@@ -306,14 +332,22 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
+    /** Activate a span from inside auto-instrumentation. */
+    AgentScope activateSpan(AgentSpan span);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    AgentScope activateManualSpan(AgentSpan span);
 
     @Override
     AgentScope.Continuation captureActiveSpan();
 
     AgentScope.Continuation captureSpan(AgentSpan span);
+
+    void checkpointActiveForRollback();
+
+    void rollbackActiveToCheckpoint();
+
+    void closeActive();
 
     void closePrevious(boolean finishSpan);
 
@@ -322,8 +356,6 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     AgentScope activeScope();
-
-    AgentPropagation propagate();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -442,13 +474,12 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+    public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
@@ -471,6 +502,15 @@ public class AgentTracer {
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
+    public void checkpointActiveForRollback() {}
+
+    @Override
+    public void rollbackActiveToCheckpoint() {}
+
+    @Override
+    public void closeActive() {}
+
+    @Override
     public void closePrevious(final boolean finishSpan) {}
 
     @Override
@@ -486,11 +526,6 @@ public class AgentTracer {
     @Override
     public AgentScope activeScope() {
       return null;
-    }
-
-    @Override
-    public AgentPropagation propagate() {
-      return NoopAgentPropagation.INSTANCE;
     }
 
     @Override
@@ -602,7 +637,7 @@ public class AgentTracer {
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
-      return NoopAgentDataStreamsMonitoring.INSTANCE;
+      return NoopDataStreamsMonitoring.INSTANCE;
     }
 
     @Override
@@ -621,27 +656,6 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentPropagation implements AgentPropagation {
-    static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-
-    @Override
-    public <C> void injectPathwayContext(
-        AgentSpan span,
-        C carrier,
-        Setter<C> setter,
-        LinkedHashMap<String, String> sortedTags,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public <C> void injectPathwayContextWithoutSendingStats(
-        AgentSpan span, C carrier, Setter<C> setter, LinkedHashMap<String, String> sortedTags) {}
-  }
-
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
@@ -650,105 +664,6 @@ public class AgentTracer {
 
     @Override
     public void cancelContinuation(final AgentScope.Continuation continuation) {}
-  }
-
-  public static class NoopAgentDataStreamsMonitoring implements AgentDataStreamsMonitoring {
-    public static final NoopAgentDataStreamsMonitoring INSTANCE =
-        new NoopAgentDataStreamsMonitoring();
-
-    @Override
-    public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
-
-    @Override
-    public void setCheckpoint(
-        AgentSpan span,
-        LinkedHashMap<String, String> sortedTags,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public PathwayContext newPathwayContext() {
-      return NoopPathwayContext.INSTANCE;
-    }
-
-    @Override
-    public void add(StatsPoint statsPoint) {}
-
-    @Override
-    public int trySampleSchema(String topic) {
-      return 0;
-    }
-
-    @Override
-    public boolean canSampleSchema(String topic) {
-      return false;
-    }
-
-    @Override
-    public Schema getSchema(String schemaName, SchemaIterator iterator) {
-      return null;
-    }
-
-    @Override
-    public void setProduceCheckpoint(String type, String target) {}
-
-    @Override
-    public void setThreadServiceName(String serviceName) {}
-
-    @Override
-    public void clearThreadServiceName() {}
-
-    @Override
-    public void setConsumeCheckpoint(
-        String type, String source, DataStreamsContextCarrier carrier) {}
-
-    @Override
-    public void setProduceCheckpoint(
-        String type, String target, DataStreamsContextCarrier carrier) {}
-  }
-
-  public static class NoopPathwayContext implements PathwayContext {
-    public static final NoopPathwayContext INSTANCE = new NoopPathwayContext();
-
-    @Override
-    public boolean isStarted() {
-      return false;
-    }
-
-    @Override
-    public long getHash() {
-      return 0L;
-    }
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags,
-        Consumer<StatsPoint> pointConsumer,
-        long defaultTimestamp,
-        long payloadSizeBytes) {}
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags,
-        Consumer<StatsPoint> pointConsumer,
-        long defaultTimestamp) {}
-
-    @Override
-    public void setCheckpoint(
-        LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {}
-
-    @Override
-    public void saveStats(StatsPoint point) {}
-
-    @Override
-    public StatsPoint getSavedStats() {
-      return null;
-    }
-
-    @Override
-    public String encode() {
-      return null;
-    }
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

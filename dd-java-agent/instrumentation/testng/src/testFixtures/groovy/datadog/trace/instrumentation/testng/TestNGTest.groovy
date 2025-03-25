@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.testng
 
+
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
-import org.apache.maven.artifact.versioning.ComparableVersion
 import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.testng.TestNG
@@ -16,8 +16,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
   static testOutputDir = "build/tmp/test-output"
 
-  static ComparableVersion currentTestNGVersion = new ComparableVersion(TracingListener.FRAMEWORK_VERSION)
-  static ComparableVersion testNGv75 = new ComparableVersion("7.5")
+  static currentTestNGVersion = TestNGUtils.getTestNGVersion()
 
   def "test #testcaseName"() {
     runTests(tests, null, success)
@@ -95,7 +94,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
@@ -114,7 +113,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
-    Assumptions.assumeTrue(isEFDSupported())
+    Assumptions.assumeTrue(TestNGUtils.isEFDSupported(currentTestNGVersion))
 
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
@@ -136,6 +135,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -156,7 +156,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -171,7 +171,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined auto-retries #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -189,7 +189,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test quarantined early flakiness detection #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
 
@@ -221,7 +221,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test attempt to fix #testcaseName"() {
-    Assumptions.assumeTrue(isExceptionSuppressionSupported())
+    Assumptions.assumeTrue(TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    Assumptions.assumeTrue(TestNGUtils.isEFDSupported(currentTestNGVersion))
 
     givenQuarantinedTests(quarantined)
     givenDisabledTests(disabled)
@@ -241,12 +242,45 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
   }
 
-  private static boolean isEFDSupported() {
-    currentTestNGVersion >= testNGv75
+  def "test known tests ordering #testcaseName"() {
+    Assumptions.assumeTrue(TestNGUtils.isTestOrderingSupported(currentTestNGVersion))
+
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertTestsOrder(expectedOrder)
+
+    where:
+    testcaseName       | tests                                      | knownTestsList                                              | expectedOrder
+    "ordering-methods" | [TestSucceedAndSkipped]                    | [test("org.example.TestSucceedAndSkipped", "test_skipped")] | [
+      test("org.example.TestSucceedAndSkipped", "test_succeed"),
+      test("org.example.TestSucceedAndSkipped", "test_skipped")
+    ]
+    "ordering-classes" | [TestSucceedNested, TestSucceedAndSkipped] | [
+      test('org.example.TestSucceedAndSkipped', 'test_succeed'),
+      test('org.example.TestSucceedAndSkipped', 'test_skipped'),
+      test('org.example.TestSucceedNested$NestedSuite', 'test_succeed_nested'),
+    ]                                                                                                                             | [
+      test('org.example.TestSucceedNested', 'test_succeed'),
+      test('org.example.TestSucceedAndSkipped', 'test_skipped'),
+      test('org.example.TestSucceedAndSkipped', 'test_succeed'),
+      test('org.example.TestSucceedNested$NestedSuite', 'test_succeed_nested'),
+    ]
   }
 
-  private static boolean isExceptionSuppressionSupported() {
-    currentTestNGVersion >= testNGv75
+  def "test capabilities tagging #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
+    runTests([TestSucceed], null, true)
+
+    assertCapabilities(capabilities, 4)
+
+    where:
+    testcaseName                                 | capabilities                    | assumption
+    "test-capabilities-base"                     | TestNGUtils.capabilities("6.0") | (!TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && !TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-ordering"                 | TestNGUtils.capabilities("7.0") | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && !TestNGUtils.isEFDSupported(currentTestNGVersion) && !TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
+    "test-capabilities-ordering-efd-suppression" | TestNGUtils.capabilities("7.5") | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
   }
 
   protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true) {

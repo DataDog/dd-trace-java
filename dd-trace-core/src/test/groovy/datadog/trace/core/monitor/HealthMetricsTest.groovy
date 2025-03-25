@@ -2,7 +2,6 @@ package datadog.trace.core.monitor
 
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter
 import spock.lang.Ignore
@@ -365,21 +364,21 @@ class HealthMetricsTest extends Specification {
   }
   def "test onScopeCloseError"() {
     setup:
-    def latch = new CountDownLatch(1 + (source == ScopeSource.MANUAL ? 1 : 0))
+    def latch = new CountDownLatch(1 + (manual ? 1 : 0))
     def healthMetrics = new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
     when:
-    healthMetrics.onScopeCloseError(source.id())
+    healthMetrics.onScopeCloseError(manual)
     latch.await(5, TimeUnit.SECONDS)
     then:
     1 * statsD.count("scope.close.error", 1, _)
-    if (source == ScopeSource.MANUAL) {
+    if (manual) {
       1 * statsD.count("scope.user.close.error", 1, _)
     }
     cleanup:
     healthMetrics.close()
     where:
-    source << ScopeSource.values()
+    manual << [false, true]
   }
   def "test onScopeStackOverflow"() {
     setup:

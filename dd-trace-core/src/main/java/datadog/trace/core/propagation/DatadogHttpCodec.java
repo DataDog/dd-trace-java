@@ -7,6 +7,7 @@ import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -14,7 +15,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
@@ -55,7 +55,7 @@ class DatadogHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
 
       setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
       setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));

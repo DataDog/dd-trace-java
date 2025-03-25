@@ -160,6 +160,13 @@ public final class TraceInstrumentationConfig {
   public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
   public static final String SPARK_APP_NAME_AS_SERVICE = "spark.app-name-as-service";
 
+  public static final String TRACE_WEBSOCKET_MESSAGES_ENABLED = "trace.websocket.messages.enabled";
+  public static final String TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING =
+      "trace.websocket.messages.inherit.sampling";
+  public static final String TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES =
+      "trace.websocket.messages.separate.traces";
+  public static final String TRACE_WEBSOCKET_TAG_SESSION_ID = "trace.websocket.tag.session-id";
+
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";

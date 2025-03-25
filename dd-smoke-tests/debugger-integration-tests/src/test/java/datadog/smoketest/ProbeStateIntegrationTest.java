@@ -10,12 +10,22 @@ import com.datadog.debugger.sink.Snapshot;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
+
+  @BeforeEach
+  @Override
+  void setup(TestInfo testInfo) throws Exception {
+    super.setup(testInfo);
+    appUrl = startAppAndAndGetUrl();
+  }
+
   @Test
   @DisplayName("testAddRemoveProbes")
   @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")

@@ -36,11 +36,11 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.debugger.DebuggerContext
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.metrics.EventListener
@@ -84,7 +84,6 @@ import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
-import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
@@ -305,16 +304,15 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ((Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
   }
 
+
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
-    injectSysConfig(DYNAMIC_INSTRUMENTATION_ENABLED, "false", true)
     injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
+    rebuildConfig()
 
     def configuration = Configuration.builder()
     .setService("code origin test")
     .build()
-
-    rebuildConfig()
 
     def config = Config.get()
 
@@ -532,6 +530,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.detachMock(STATS_D_CLIENT)
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
+
+    if (Config.get().isDebuggerCodeOriginEnabled()) {
+      injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "false", true)
+      rebuildConfig()
+    }
 
     try {
       if (enabledFinishTimingChecks()) {

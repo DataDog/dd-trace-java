@@ -1,20 +1,19 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.test.util.Flaky
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeaders
+import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
-import org.springframework.kafka.listener.ContainerProperties
-
-import org.testcontainers.containers.KafkaContainer
-import org.testcontainers.utility.DockerImageName
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 
@@ -29,6 +28,10 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
   static final MESSAGE = "Testing without headers for certain topics"
+
+  @Rule
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC.toArray(String[]::new))
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
   static final dataTable() {
     [
@@ -54,19 +57,16 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
-  @Flaky
   def "test kafka client header propagation with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
-    kafkaContainer.start()
 
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -91,36 +91,36 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records1.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records1.add(record)
+      }
+    })
 
     container2.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records2.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records2.add(record)
+      }
+    })
 
     container3.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records3.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records3.add(record)
+      }
+    })
 
     container4.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records4.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records4.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container1.start()
@@ -162,18 +162,15 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
 
-  @Flaky
   def "test consumer with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
-    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest")).withEmbeddedZookeeper().withEnv("KAFKA_CREATE_TOPICS","topic1,topic2,topic3,topic4")
-    kafkaContainer.start()
-    def senderProps = KafkaTestUtils.producerProps(kafkaContainer.getBootstrapServers())
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps( kafkaContainer.getBootstrapServers(),"sender", "false")
+    def consumerProperties = KafkaTestUtils.consumerProps( embeddedKafka.getBrokersAsString(),"sender", "false")
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -198,36 +195,36 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records1.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records1.add(activeSpan())
+      }
+    })
 
     container2.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records2.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records2.add(activeSpan())
+      }
+    })
 
     container3.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records3.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records3.add(activeSpan())
+      }
+    })
 
     container4.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records4.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records4.add(activeSpan())
+      }
+    })
 
     // start the container and underlying message listener
     container1.start()
@@ -248,12 +245,12 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     activateSpan(span).withCloseable {
       for (String topic : SHARED_TOPIC) {
         ProducerRecord record = new ProducerRecord<>(
-          topic,
-          0,
-          null,
-          MESSAGE,
-          header
-          )
+        topic,
+        0,
+        null,
+        MESSAGE,
+        header
+        )
         kafkaTemplate.send(record as ProducerRecord<String, String>)
       }
     }

@@ -2,7 +2,7 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
@@ -27,6 +28,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
+import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,6 +45,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
+  private final Collection<LibraryCapability> capabilities;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -56,6 +59,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
+      Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -72,20 +76,21 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
+    this.capabilities = capabilities;
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return executionStrategy.isNew(test);
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
+  public boolean isFlaky(@Nonnull TestIdentifier test) {
     return executionStrategy.isFlaky(test);
   }
 
   @Override
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }
 
@@ -112,8 +117,14 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return executionStrategy.executionPolicy(test, testSource, testTags);
+  }
+
+  @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return executionStrategy.executionPriority(test, testSource);
   }
 
   @Override
@@ -139,7 +150,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     if (earlyFlakeDetectionSettings.isEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
       if (executionStrategy.isEFDLimitReached()) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, Constants.EFD_ABORT_REASON_FAULTY);
       }
     }
 
@@ -176,6 +187,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

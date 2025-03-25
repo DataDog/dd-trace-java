@@ -73,7 +73,7 @@ public final class TempLocationManager {
   private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
 
-    private final Set<String> pidSet = PidHelper.getJavaPids();
+    private Set<String> pidSet;
 
     private final boolean cleanSelf;
     private final Instant cutoff;
@@ -120,7 +120,14 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith(TEMPDIR_PREFIX) ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
-      shouldClean |= cleanSelf ? isSelfPid : !isSelfPid && !pidSet.contains(pid);
+      if (cleanSelf) {
+        shouldClean |= isSelfPid;
+      } else if (!isSelfPid) {
+        if (pidSet == null) {
+          pidSet = PidHelper.getJavaPids(); // only fork jps when required
+        }
+        shouldClean |= !pidSet.contains(pid);
+      }
       if (shouldClean) {
         log.debug("Cleaning temporary location {}", dir);
       }
@@ -288,13 +295,13 @@ public final class TempLocationManager {
 
     String pid = PidHelper.getPid();
 
-    baseTempDir = configuredTempDir.resolve("ddprof");
+    baseTempDir = configuredTempDir.resolve(getBaseTempDirName());
     baseTempDir.toFile().deleteOnExit();
 
     tempDir = baseTempDir.resolve(TEMPDIR_PREFIX + pid);
     if (runStartupCleanup) {
       // do not execute the background cleanup task when running in tests
-      AgentTaskScheduler.INSTANCE.execute(() -> cleanup(false));
+      AgentTaskScheduler.INSTANCE.execute(cleanupTask);
     }
 
     Thread selfCleanup =
@@ -310,6 +317,17 @@ public final class TempLocationManager {
             },
             "Temp Location Manager Cleanup");
     Runtime.getRuntime().addShutdownHook(selfCleanup);
+  }
+
+  // @VisibleForTesting
+  static String getBaseTempDirName() {
+    String userName = System.getProperty("user.name");
+    // unlikely, but fall-back to system env based user name
+    userName = userName == null ? System.getenv("USER") : userName;
+    // make sure we do not have any illegal characters in the user name
+    userName =
+        userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;
+    return "ddprof" + (userName != null ? "_" + userName : "");
   }
 
   /**
@@ -389,7 +407,7 @@ public final class TempLocationManager {
   boolean cleanup(boolean cleanSelf, long timeout, TimeUnit unit) {
     try {
       if (!Files.exists(baseTempDir)) {
-        // not event the main temp location exists; nothing to clean up
+        // not even the main temp location exists; nothing to clean up
         return true;
       }
       try (Stream<Path> paths = Files.walk(baseTempDir)) {

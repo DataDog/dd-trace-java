@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.spark;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -92,5 +92,10 @@ public class DatabricksParentContext implements AgentSpanContext {
   @Override
   public PathwayContext getPathwayContext() {
     return null;
+  }
+
+  @Override
+  public boolean isRemote() {
+    return false;
   }
 }

@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -95,8 +94,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
         case "dd.trace_id":
           if (context != null) {
             DDTraceId traceId = context.getTraceId();
-            if (traceId.toHighOrderLong() != 0
-                && InstrumenterConfig.get().isLogs128bTraceIdEnabled()) {
+            if (traceId.toHighOrderLong() != 0 && Config.get().isLogs128bitTraceIdEnabled()) {
               value = traceId.toHexString();
             } else {
               value = traceId.toString();
@@ -136,6 +134,10 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
       if (!injectionRequired) {
         return;
       }
+      if (mdc == null) {
+        // this.mdcCopy can be null when MDC.getContext() returns null
+        return;
+      }
       // at this point the mdc has been shallow copied. No need to replace with a new hashtable.
       // Just add our info
       String serviceName = Config.get().getServiceName();
@@ -157,7 +159,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
         String traceIdValue =
-            InstrumenterConfig.get().isLogs128bTraceIdEnabled() && traceId.toHighOrderLong() != 0
+            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
                 ? traceId.toHexString()
                 : traceId.toString();
         mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);

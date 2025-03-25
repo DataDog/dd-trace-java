@@ -3,7 +3,7 @@ package datadog.opentracing
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -14,7 +14,6 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 
 class TypeConverterTest extends DDSpecification {
@@ -58,8 +57,8 @@ class TypeConverterTest extends DDSpecification {
     def context = createTestSpanContext()
     def span1 = new DDSpan("test", 0, context, null)
     def span2 = new DDSpan("test", 0, context, null)
-    def scope1 = scopeManager.activate(span1, ScopeSource.MANUAL)
-    def scope2 = scopeManager.activate(span2, ScopeSource.MANUAL)
+    def scope1 = scopeManager.activateManualSpan(span1)
+    def scope2 = scopeManager.activateManualSpan(span2)
     expect:
     // return the same wrapper for the same scope
     typeConverter.toScope(scope1, true) is typeConverter.toScope(scope1, true)
