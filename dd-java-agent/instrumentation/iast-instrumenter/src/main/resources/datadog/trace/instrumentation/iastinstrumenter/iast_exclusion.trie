@@ -223,6 +223,8 @@
 1 ognl.*
 2 oracle.j2ee.*
 1 oracle.jdbc.*
+# APPSEC-57044
+1 oracle.security.o5logon.O5Logon
 1 oracle.sql.*
 1 org.ajax4jsf.*
 1 org.aopalliance.*
