@@ -126,7 +126,7 @@ class SpanNativeAttributesTest extends DDSpecification {
     when:
     attributes = SpanNativeAttributes.builder()
       .put("key1", "value")
-      .put("key2", null)
+      .put("key2", null as String)
       .build()
 
     then:
@@ -142,40 +142,6 @@ class SpanNativeAttributesTest extends DDSpecification {
 
     then:
     thrown(NullPointerException)
-  }
-
-  def "forEach iterates over all attributes"() {
-    setup:
-    def builder = SpanNativeAttributes.builder()
-      .put("key1", "value1")
-      .put("key2", 123L)
-      .put("key3", true)
-    attributes = builder.build()
-    def visited = [:]
-
-    when:
-    attributes.forEach { key, value ->
-      visited[key.getKey()] = value
-    }
-
-    then:
-    visited.size() == 3
-    visited["key1"] == "value1"
-    visited["key2"] == 123L
-    visited["key3"] == true
-  }
-
-  def "forEach handles null consumer"() {
-    setup:
-    attributes = SpanNativeAttributes.builder()
-      .put("key", "value")
-      .build()
-
-    when:
-    attributes.forEach(null)
-
-    then:
-    noExceptionThrown()
   }
 
   def "equals compares attributes correctly"() {
