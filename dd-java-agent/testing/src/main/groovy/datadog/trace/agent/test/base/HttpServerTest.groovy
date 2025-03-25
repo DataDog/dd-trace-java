@@ -2082,7 +2082,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         tag(Tags.COMPONENT, "websocket")
         if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
           if (Config.get().isWebsocketMessagesInheritSampling()) {
-            tag(DDTags.DECISION_MAKER_INHERITED, "1")
+            tag(DDTags.DECISION_MAKER_INHERITED, 1)
             tag(DDTags.DECISION_MAKER_SERVICE, handshake.getServiceName())
             tag(DDTags.DECISION_MAKER_RESOURCE, handshake.getResourceName())
           }
