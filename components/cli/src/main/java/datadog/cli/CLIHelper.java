@@ -73,8 +73,6 @@ public final class CLIHelper {
 
     // Fallback to default
     try {
-      System.err.println(
-          "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
