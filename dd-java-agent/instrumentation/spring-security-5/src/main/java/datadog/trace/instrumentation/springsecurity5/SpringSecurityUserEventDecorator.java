@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptyMap;
 
 import datadog.trace.api.EventTracker;
 import datadog.trace.api.GlobalTracer;
@@ -69,7 +70,7 @@ public class SpringSecurityUserEventDecorator {
           user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 
-    tracker.onSignupEvent(mode, username, metadata);
+    tracker.onSignupEvent(mode, username, null, metadata);
   }
 
   public void onLogin(Authentication authentication, Throwable throwable, Authentication result) {
@@ -105,7 +106,7 @@ public class SpringSecurityUserEventDecorator {
         metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
         metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
       }
-      tracker.onLoginSuccessEvent(mode, username, metadata);
+      tracker.onLoginSuccessEvent(mode, username, null, metadata);
     } else if (throwable != null) {
       if (missingUsername(username, LoginEvent.LOGIN_FAILURE)) {
         return;
@@ -143,7 +144,7 @@ public class SpringSecurityUserEventDecorator {
     if (missingUserId(username)) {
       return;
     }
-    tracker.onUserEvent(mode, username);
+    tracker.onUserEvent(mode, username, emptyMap());
   }
 
   private static boolean shouldSkipAuthentication(final Authentication authentication) {
