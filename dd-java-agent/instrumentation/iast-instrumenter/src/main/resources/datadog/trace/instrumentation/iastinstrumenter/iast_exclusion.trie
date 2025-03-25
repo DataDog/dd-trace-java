@@ -280,6 +280,8 @@
 1 org.jnp.*
 1 org.joda.*
 1 org.jooq.*
+# APPSEC-57044
+2 org.jose4j.lang.HashUtil
 1 org.jruby.*
 1 org.json.*
 #Needed for JSON propagation
