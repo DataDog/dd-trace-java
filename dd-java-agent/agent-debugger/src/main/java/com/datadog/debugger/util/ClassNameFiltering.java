@@ -54,11 +54,10 @@ public class ClassNameFiltering implements ClassNameFilter {
   }
 
   int shadedIndexOf(String className) {
-    String current = className;
     int idx = 0;
     int previousIdx = 0;
-    while ((idx = current.indexOf('.', previousIdx)) > 0) {
-      if (shadingTrie.apply(current, previousIdx) > 0) {
+    while ((idx = className.indexOf('.', previousIdx)) > 0) {
+      if (shadingTrie.apply(className, previousIdx) > 0) {
         return idx + 1;
       }
       idx++;
