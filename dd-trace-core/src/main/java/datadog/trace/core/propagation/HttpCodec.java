@@ -183,13 +183,17 @@ public class HttpCodec {
     private final List<Injector> injectors;
 
     public CompoundInjector(final List<Injector> injectors) {
+
       this.injectors = injectors;
+      log.info("injector size: " + injectors.size());
     }
 
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       log.debug("Inject context {}", context);
+      log.info("INJECTING CONTEXT:");
+      log.info("injecting contexts: " + context.getTraceId().toHexString());
       for (final Injector injector : injectors) {
         injector.inject(context, carrier, setter);
       }

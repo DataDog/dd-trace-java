@@ -31,6 +31,8 @@ import net.bytebuddy.asm.Advice;
 import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class TomcatServerInstrumentation extends InstrumenterModule.Tracing
@@ -112,7 +114,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   }
 
   public static class ServiceAdvice {
-
+//    private static Logger logger = LoggerFactory.getLogger(ServiceAdvice.class);
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
 
@@ -125,7 +127,10 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
+//      logger.info("Logging in tomcat server instrumentation");
       final AgentSpan span = DECORATE.startSpan(req, extractedContext);
+//      logger.info("span created in tomcat: " + span.getTraceId().toHexString());
+
       final AgentScope scope = activateSpan(span);
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);

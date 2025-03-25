@@ -19,6 +19,7 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
@@ -43,6 +44,7 @@ class W3CHttpCodec {
   private static final int TRACE_PARENT_FLAGS_START = TRACE_PARENT_SID_END + 1;
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
   private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
+  private static Logger logger = LoggerFactory.getLogger(AgentPropagation.class);
 
   private W3CHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -73,6 +75,7 @@ class W3CHttpCodec {
       StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
       sb.append("00-");
       sb.append(context.getTraceId().toHexString());
+      log.info("traceid in injecttraceparent hexstring version: " + context.getTraceId().toHexString());
       sb.append('-');
       sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
       sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
@@ -249,6 +252,7 @@ class W3CHttpCodec {
         }
         onlyTagContext();
       } else {
+        logger.info("extracting traceparent: " + value);
         traceparentHeader = trimmed;
       }
       return true;
@@ -302,6 +306,8 @@ class W3CHttpCodec {
         throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
       }
       DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+      logger.info("parsing traceparent: " + traceId.toString());
+      logger.info("parsing traceparent to hex: " + traceId.toHexString());
       if (traceId.toLong() == 0) {
         throw new IllegalStateException(
             "Illegal all zero 64 bit trace id "

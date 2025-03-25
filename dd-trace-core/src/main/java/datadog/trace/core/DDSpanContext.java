@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -884,7 +885,7 @@ public class DDSpanContext
     final StringBuilder s =
         new StringBuilder()
             .append("DDSpan [ t_id=")
-            .append(traceId)
+            .append(traceId instanceof DD128bTraceId? traceId.toHexString() : traceId.toString())
             .append(", s_id=")
             .append(spanId)
             .append(", p_id=")

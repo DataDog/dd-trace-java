@@ -135,6 +135,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+    log.info("Logging in tomcat server instrumentation: " + context.getTraceId().toHexString());
+    new RuntimeException("where is this").printStackTrace();
     return startSpan("http-server", carrier, context);
   }
 
@@ -152,6 +154,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null != carrier && null != getter) {
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
+    log.info("Span after startspan: " + span.getTraceId().toHexString());
     return span;
   }
 

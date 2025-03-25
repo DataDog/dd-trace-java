@@ -1320,6 +1320,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private DDSpan buildSpan() {
       addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
+      log.info("span after DDSpan.create: " + span.getTraceId().toHexString());
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         if (tracker != null) {
@@ -1679,6 +1680,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (builderRequestContextDataIast != null) {
         requestContextDataIast = builderRequestContextDataIast;
       }
+
+      log.info("traceid in buildspancontext string version: " + traceId.toString());
+      log.info("traceid in buildspancontext hexstring version: " + traceId.toHexString());
 
       // some attributes are inherited from the parent
       context =

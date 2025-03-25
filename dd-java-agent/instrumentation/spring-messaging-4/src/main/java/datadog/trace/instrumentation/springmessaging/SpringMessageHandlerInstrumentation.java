@@ -21,12 +21,16 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
 @AutoService(InstrumenterModule.class)
 public final class SpringMessageHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+  private static Logger logger;
   public SpringMessageHandlerInstrumentation() {
     super("spring-messaging", "spring-messaging-4");
+    logger = LoggerFactory.getLogger(SpringMessageHandlerInstrumentation.class);
   }
 
   @Override
@@ -62,11 +66,16 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
       if (null != parent) {
         // prefer existing context, assume it was already extracted from this message
         parentContext = parent.context();
+        System.out.println("printing parent context from existing: " + parentContext.toString());
+        logger.info("printing parent context from existing: " + parentContext.toString());
       } else {
         // otherwise try to re-extract the message context to avoid disconnected trace
         parentContext = extractContextAndGetSpanContext(message, GETTER);
+        System.out.println("printing parent context from extract: " + parentContext.toString());
+        logger.info("printing parent context from extract: " + parentContext.toString());
       }
       AgentSpan span = startSpan(SPRING_INBOUND, parentContext);
+      logger.info("Printing created span: " + span.toString());
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);

@@ -56,8 +56,8 @@ class DatadogHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-
-      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
+      log.info("injecting in datadog");
+      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toHexString());
       setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));
       if (context.lockSamplingPriority()) {
         setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
