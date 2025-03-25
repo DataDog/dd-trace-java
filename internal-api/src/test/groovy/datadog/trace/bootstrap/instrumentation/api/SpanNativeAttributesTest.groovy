@@ -29,8 +29,8 @@ class SpanNativeAttributesTest extends DDSpecification {
   def "builder adds AttributeKey attribute"() {
     when:
     attributes = SpanNativeAttributes.builder()
-            .put(SpanNativeAttributes.AttributeKey.stringKey("key"), "value")
-            .build()
+      .put(SpanNativeAttributes.AttributeKey.stringKey("key"), "value")
+      .build()
 
     then:
     !attributes.isEmpty()
@@ -152,7 +152,7 @@ class SpanNativeAttributesTest extends DDSpecification {
     key.getKey() == "key"
     key.getType() == SpanNativeAttributes.AttributeType.STRING
     key.toString() == "AttributeKey{key, STRING}"
-    
+
     key.compareTo(SpanNativeAttributes.AttributeKey.stringKey("key")) == 0
     key.equals(SpanNativeAttributes.AttributeKey.stringKey("key"))
     key.hashCode() == SpanNativeAttributes.AttributeKey.stringKey("key").hashCode()
