@@ -957,7 +957,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence operationName) {
-	// return buildSpan(instrumentationName, operationName).start();
+	// Equivalent to `return buildSpan(instrumentationName, operationName).start()`
+	// but without the overhead of constructing a CoreSpanBuilder instance
 	    
 	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
 	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
@@ -980,8 +981,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentSpan startSpan(
       final String instrumentationName, final CharSequence operationName, final long startTimeMicros) {
-	// return buildSpan(instrumentationName, spanName).withStartTimestamp(startTimeMicros).start();
-
+	// Equivalent to `return buildSpan(instrumentationName, operationName).start()`
+	// but without the overhead of constructing a CoreSpanBuilder instance
 	  
 	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
 	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
@@ -1003,7 +1004,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentSpan startSpan(
       String instrumentationName, final CharSequence operationName, final AgentSpanContext parent) {
-	// return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start();	  
+	// Equivalent to `return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).start()`
+	// but without the overhead of constructing a CoreSpanBuilder instance
 	  
 	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveParentContext(this, parent, true);
 	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
@@ -1011,6 +1013,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 	}
 		    
 	long timestampMicro = 0L;
+	// passing parent instead of resolvedParentCtx is a deliberate choice to maintain the semantics of using a SpanBuilder
 	List<AgentSpanLink> links = CoreSpanBuilder.addTerminatedContextAsLinks(parent);
 			
 	DDSpan span = DDSpan.create(
@@ -1029,11 +1032,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CharSequence operationName,
       final AgentSpanContext parent,
       final long startTimeMicros) {
+    // Equivalent to `return buildSpan(instrumentationName, spanName).ignoreActiveSpan().asChildOf(parent).withStartTimestamp(startTimeMicros).start()`
+	// but without the overhead of constructing a CoreSpanBuilder instance
+		  
 	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveParentContext(this, parent, true);
 	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
 	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
 	}
 	
+	// passing parent instead of resolvedParentCtx is a deliberate choice to maintain the semantics of using a SpanBuilder
 	List<AgentSpanLink> links = CoreSpanBuilder.addTerminatedContextAsLinks(parent);
 			
 	DDSpan span = DDSpan.create(
