@@ -23,13 +23,12 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.DDSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,6 @@ import org.slf4j.LoggerFactory;
  */
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
-  private static final String SPAN_EVENTS = "_dd.span_events";
 
   static DDSpan create(
       final String instrumentationName,
@@ -113,7 +111,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   private final List<AgentSpanLink> links;
 
-  private final List<DDSpanEvent> events = new ArrayList<>();
+  private final List<DDSpanEvent> events;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -142,6 +140,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
+    this.events = new CopyOnWriteArrayList<>();
   }
 
   public boolean isFinished() {
@@ -162,17 +161,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void finish() {
-    if (events != null && !events.isEmpty()) {
-      StringBuilder eventsJson = new StringBuilder("[");
-      for (int i = 0; i < events.size(); i++) {
-        if (i > 0) {
-          eventsJson.append(",");
-        }
-        eventsJson.append(events.get(i).toJson());
-      }
-      eventsJson.append(']');
-      setTag(SPAN_EVENTS, eventsJson.toString());
-    }
     if (!externalClock) {
       // no external clock was used, so we can rely on nano time
       finishAndAddToTrace(context.getTraceCollector().getCurrentTimeNano() - startTimeNano);
@@ -721,7 +709,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, links, events);
   }
 
   @Override
@@ -878,7 +866,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return addEvent(name, null);
   }
 
-  public AgentSpan addEvent(String name, Map<String, Object> attributes) {
+  public AgentSpan addEvent(String name, SpanNativeAttributes attributes) {
     if (name != null) {
       events.add(new DDSpanEvent(name, attributes));
     }
@@ -886,7 +874,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   public AgentSpan addEvent(
-      String name, Map<String, Object> attributes, long timestamp, TimeUnit unit) {
+      String name, SpanNativeAttributes attributes, long timestamp, TimeUnit unit) {
     if (name != null) {
       events.add(new DDSpanEvent(name, attributes, unit.toNanos(timestamp)));
     }

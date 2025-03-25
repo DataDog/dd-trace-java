@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes
 
 class DDSpanJsonAdapterTest extends DDCoreSpecification {
   def tracer = tracerBuilder().writer(new ListWriter()).build()
@@ -17,7 +18,11 @@ class DDSpanJsonAdapterTest extends DDCoreSpecification {
     setup:
     def span = tracer.buildSpan("test").start()
     def eventName = "test-event"
-    def attributes = ["key1": "value1", "key2": 123]
+    def attributes = SpanNativeAttributes.builder()
+      .put("key1", "value1")
+      .put("key2", 123L)
+      .putDoubleArray("key3", [1.1d, 2.2d, 3.3d])
+      .build()
     def timestamp = System.currentTimeMillis()
 
     when: "adding event with name and attributes"
@@ -42,8 +47,8 @@ class DDSpanJsonAdapterTest extends DDCoreSpecification {
     actualSpan.type == span.getSpanType()
 
     // Verify span events
-    def actualEvents = actualSpan.meta["_dd.span_events"]
-    def expectedEvent = "[{\"time_unix_nano\":${java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timestamp)},\"name\":\"test-event\",\"attributes\":{\"key1\":\"value1\",\"key2\":123}}]"
+    def actualEvents = actualSpan.meta["events"]
+    def expectedEvent = "[{\"time_unix_nano\":${java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timestamp)},\"name\":\"test-event\",\"attributes\":{\"key1\":\"value1\",\"key2\":123,\"key3\":[1.1,2.2,3.3]}}]"
     actualEvents.toString() == expectedEvent.toString()
 
     cleanup:
@@ -57,8 +62,12 @@ class DDSpanJsonAdapterTest extends DDCoreSpecification {
     def timestamp2 = timestamp1 + 1000
 
     when: "adding multiple events"
-    span.addEvent("event1", ["key1": "value1"], timestamp1, java.util.concurrent.TimeUnit.MILLISECONDS)
-    span.addEvent("event2", ["key2": "value2"], timestamp2, java.util.concurrent.TimeUnit.MILLISECONDS)
+    span.addEvent("event1", SpanNativeAttributes.builder()
+      .put("key1", "value1")
+      .build(), timestamp1, java.util.concurrent.TimeUnit.MILLISECONDS)
+    span.addEvent("event2", SpanNativeAttributes.builder()
+      .put("key2", "value2")
+      .build(), timestamp2, java.util.concurrent.TimeUnit.MILLISECONDS)
     span.finish()
     def jsonStr = adapter.toJson([span])
 
@@ -79,55 +88,11 @@ class DDSpanJsonAdapterTest extends DDCoreSpecification {
     actualSpan.type == span.getSpanType()
 
     // Verify span events
-    def actualEvents = actualSpan.meta["_dd.span_events"]
+    def actualEvents = actualSpan.meta["events"]
 
     def expectedEvents = "[{\"time_unix_nano\":${java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timestamp1)},\"name\":\"event1\",\"attributes\":{\"key1\":\"value1\"}},{\"time_unix_nano\":${java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timestamp2)},\"name\":\"event2\",\"attributes\":{\"key2\":\"value2\"}}]"
 
     actualEvents.toString() == expectedEvents.toString()
-
-
-    cleanup:
-    tracer.close()
-  }
-
-  def "test span events added directly as tag"() {
-    setup:
-    def span = tracer.buildSpan("test").start()
-    def eventsJson = """[
-      {
-        "time_unix_nano": 1234567890000000,
-        "name": "manual-event",
-        "attributes": {
-          "foo": "bar",
-          "count": 42
-        }
-      }
-    ]"""
-
-    when: "adding events JSON directly as a tag"
-    span.setTag("_dd.span_events", eventsJson)
-    span.finish()
-    def jsonStr = adapter.toJson([span])
-
-    then: "events JSON is preserved exactly in meta section"
-    def actual = genericAdapter.fromJson(jsonStr)
-    def actualSpan = actual[0]
-
-    // Verify basic span fields
-    actualSpan.service == span.getServiceName()
-    actualSpan.name == span.getOperationName()
-    actualSpan.resource == span.getResourceName()
-    actualSpan.trace_id == span.getTraceId().toLong()
-    actualSpan.span_id == span.getSpanId()
-    actualSpan.parent_id == span.getParentId()
-    actualSpan.start == span.getStartTime()
-    actualSpan.duration == span.getDurationNano()
-    actualSpan.error == span.getError()
-    actualSpan.type == span.getSpanType()
-
-    // Verify span events
-    def actualEvents = actualSpan.meta["_dd.span_events"]
-    actualEvents.toString() == eventsJson
 
     cleanup:
     tracer.close()

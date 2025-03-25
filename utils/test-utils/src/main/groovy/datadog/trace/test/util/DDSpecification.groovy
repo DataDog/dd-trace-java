@@ -90,6 +90,13 @@ abstract class DDSpecification extends Specification {
 
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
+
+    // TODO: REMOVE ME MARCO!
+    System.getenv().findAll { it.key.startsWith("DD_") }.each { env ->
+      System.clearProperty(env.key)
+    }
+    // TODO: REMOVE ME MARCO!
+
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 

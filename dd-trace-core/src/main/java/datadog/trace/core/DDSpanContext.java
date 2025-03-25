@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
@@ -845,7 +846,10 @@ public class DDSpanContext
   }
 
   public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      List<AgentSpanLink> links,
+      List<DDSpanEvent> events) {
     synchronized (unsafeTags) {
       // Tags
       Map<String, Object> tags =
@@ -853,6 +857,10 @@ public class DDSpanContext
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {
         tags.put(SPAN_LINKS, linksTag);
+      }
+      String eventsTag = DDSpanEvent.toTag(events);
+      if (events != null && !events.isEmpty()) {
+        tags.put(SPAN_EVENTS, eventsTag);
       }
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
