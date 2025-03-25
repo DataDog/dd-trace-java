@@ -15,7 +15,7 @@ import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
 
-class AppSecRequestContextSpecification extends DDSpecification {
+class   AppSecRequestContextSpecification extends DDSpecification {
 
   AppSecRequestContext ctx = new AppSecRequestContext()
 
@@ -317,6 +317,15 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
     ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
     ctx.getWafError(0) == 0
+  }
+
+  def  "test increase and get raspRuleSkipped"() {
+    when:
+    ctx.increaseRuleSkipped()
+    ctx.increaseRuleSkipped()
+
+    then:
+    ctx.getRaspRuleSkipped() == 2
   }
 
   void 'close logs if request end was not called'() {

@@ -43,6 +43,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
     WafMetricCollector.get().raspErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
     WafMetricCollector.get().wafErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
+    WafMetricCollector.get().raspRuleSkipped(RuleType.SQL_INJECTION)
 
     WafMetricCollector.get().prepareMetrics()
 
@@ -224,6 +225,13 @@ class WafMetricCollectorTest extends DDSpecification {
       'waf_version:waf_ver1',
       'waf_error:'+DD_WAF_RUN_INVALID_OBJECT_ERROR
     ].toSet()
+
+    def raspRuleSkipped = (WafMetricCollector.AfterRequestRaspRuleSkipped)metrics[15]
+    raspRuleSkipped.type == 'count'
+    raspRuleSkipped.value == 1
+    raspRuleSkipped.namespace == 'appsec'
+    raspRuleSkipped.metricName == 'rasp.rule.skipped'
+    raspRuleSkipped.tags.toSet() == ['rule_type:sql_injection', 'reason:after-request',].toSet()
   }
 
   def "overflowing WafMetricCollector does not crash"() {
@@ -399,6 +407,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspTimeout(ruleType)
     WafMetricCollector.get().raspErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
     WafMetricCollector.get().wafErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().raspRuleSkipped(ruleType)
     WafMetricCollector.get().prepareMetrics()
 
     then:
@@ -464,6 +473,17 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_variant:' + ruleType.variant,
       'event_rules_version:rules.1',
       'waf_error:' + DD_WAF_RUN_INTERNAL_ERROR
+    ].toSet()
+
+    def raspRuleSkipped = (WafMetricCollector.AfterRequestRaspRuleSkipped)metrics[6]
+    raspRuleSkipped.type == 'count'
+    raspRuleSkipped.value == 1
+    raspRuleSkipped.namespace == 'appsec'
+    raspRuleSkipped.metricName == 'rasp.rule.skipped'
+    raspRuleSkipped.tags.toSet() == [
+      'rule_type:command_injection',
+      'rule_variant:'+ruleType.variant,
+      'reason:after-request',
     ].toSet()
 
     where:
