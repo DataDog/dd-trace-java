@@ -957,7 +957,29 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
-    return buildSpan(instrumentationName, spanName).start();
+	return buildSpan(instrumentationName, spanName).start();
+	  
+//	AgentSpanContext parent = null;
+//	// DQH - 24 Mar 2025 - Maintaining the original semantics where links are only processed when 
+//	// this.parent is set to a TagContext
+//	ArrayList<AgentSpanLink> links = null;
+//	    
+//	AgentSpanContext resolvedParentCtx = CoreSpanBuilder.resolveDefaultParentContext(this);
+//	if ( CoreSpanBuilder.isBlackhole(resolvedParentCtx) ) {
+//	  return CoreSpanBuilder.createBlackholeSpan(resolvedParentCtx);
+//	}
+//    
+//	long timestampMicro = 0L;
+//	List<AgentSpanLink> links = null;
+//	
+//    DDSpan span = DDSpan.create(
+//      instrumentationName,
+//      CoreSpanBuilder.buildSpanContext(this, resolvedParentCtx),
+//      links);
+//      
+//    // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
+//    this.onSpanStarted(span);
+//    return span;
   }
 
   @Override
@@ -1358,7 +1380,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   /** Spans are built using this builder */
-  public static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
+  public static final class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final CoreTracer tracer;
     private final String instrumentationName;
     private final CharSequence operationName;
@@ -1392,50 +1414,97 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       ignoreScope = true;
       return this;
     }
-
-    private DDSpan buildSpan(AgentSpanContext parentContext) {
-      // there's probably an opportunity to optimize link resolution, since it is only needed with a TagContext
-      addTerminatedContextAsLinks();
-      
-      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(parentContext), links);
-      
-      // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
-      this.tracer.onSpanStarted(span);
-      return span;
-    }    
-
-    private void addTerminatedContextAsLinks() {
-      if (this.parent instanceof TagContext) {
-        List<AgentSpanLink> terminatedContextLinks =
-            ((TagContext) this.parent).getTerminatedContextLinks();
-        if (!terminatedContextLinks.isEmpty()) {
-          if (this.links == null) {
-            this.links = new ArrayList<>();
-          }
-          this.links.addAll(terminatedContextLinks);
-        }
-      }
+    
+    private final AgentSpanContext resolveParentContext() {
+      return resolveParentContext(this.tracer, this.parent, this.ignoreScope);
     }
     
-    private AgentSpanContext resolveParentContext() {
-      AgentSpanContext pc = this.parent;
-      if (pc == null && !this.ignoreScope) {
-        final AgentSpan span = this.tracer.activeSpan();
+    private static final AgentSpanContext resolveDefaultParentContext(CoreTracer tracer) {
+      final AgentSpan span = tracer.activeSpan();
+      return span == null ?
+    	null :
+    	span.context();
+    }
+    
+    private static final AgentSpanContext resolveParentContext(
+      CoreTracer tracer, AgentSpanContext parent, boolean ignoreScope)
+    {
+      AgentSpanContext pc = parent;
+      if (pc == null && !ignoreScope) {
+        final AgentSpan span = tracer.activeSpan();
         if (span != null) {
           pc = span.context();
         }
       }
-      return pc;
+      return pc;    	
+    }
+
+    private DDSpan buildSpan(AgentSpanContext resolvedParentContext) {
+      // DQH - 24 Mar 2025 - Maintaining the original semantics where links are only processed when 
+      // this.parent is set to a TagContext
+      if ( this.parent instanceof TagContext ) {
+    	this.links = addTerminatedContextAsLinks((TagContext)this.parent, this.links);
+      }
+      
+      DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(resolvedParentContext), links);
+      
+      // onSpanStarted only acts on local root spans, there's probably an opportunity for optimization here
+      this.tracer.onSpanStarted(span);
+      return span;
+    }
+    
+    static final List<AgentSpanLink> addTerminatedContextAsLinks(AgentSpanContext parentCtx) {
+      return addTerminatedContextAsLinks(parentCtx, null);
+    }
+    
+    static final List<AgentSpanLink> addTerminatedContextAsLinks(
+      AgentSpanContext parentCtx,
+      List<AgentSpanLink> links)
+    {
+      if (parentCtx instanceof TagContext) {
+        return addTerminatedContextAsLinks((TagContext)parentCtx, links);
+      } else {
+    	return links;
+      }
+    }
+    
+    static final List<AgentSpanLink> addTerminatedContextAsLinks(TagContext parentCtx) {
+      return addTerminatedContextAsLinks(parentCtx, null);
+    }
+    
+    static final List<AgentSpanLink> addTerminatedContextAsLinks(
+      TagContext parentCtx, List<AgentSpanLink> links)
+    {
+      List<AgentSpanLink> terminatedContextLinks =
+       ((TagContext) parentCtx).getTerminatedContextLinks();
+                
+      int terminatedLinkSize = terminatedContextLinks.size();
+      if ( terminatedLinkSize != 0) {
+        if ( links == null ) {
+          links = new ArrayList<>(terminatedLinkSize);
+        }
+        links.addAll(terminatedContextLinks);
+      }
+      return links;
+    }
+    
+    static final boolean isBlackhole(AgentSpanContext resolvedParent) {
+      return (resolvedParent == BlackHoleSpan.Context.INSTANCE);
+    }
+    
+    static final AgentSpan createBlackholeSpan(AgentSpanContext resolvedParent) {
+      return new BlackHoleSpan(resolvedParent.getTraceId());
     }
 
     @Override
     public AgentSpan start() {
       AgentSpanContext pc = this.resolveParentContext();
 
-      if (pc == BlackHoleSpan.Context.INSTANCE) {
-        return new BlackHoleSpan(pc.getTraceId());
+      if ( isBlackhole(pc) ) {
+    	return createBlackholeSpan(pc);
+      } else {
+        return buildSpan(pc);
       }
-      return buildSpan(pc);
     }
 
     @Override
@@ -1617,9 +1686,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         rootSpanTags = null;
         rootSpanTagsNeedsIntercept = false;
         parentServiceName = ddsc.getServiceName();
+        
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
+        
         RequestContext requestContext = ((DDSpanContext) parentContext).getRequestContext();
         if (requestContext != null) {
           if ( requestContextDataAppSec == null ) {
@@ -1632,7 +1703,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         	ciVisibilityContextData = requestContext.getData(RequestContextSlot.CI_VISIBILITY);
           }
         }
-        propagationTags = thisBuilder.tracer.propagationTagsFactory.empty();
+        propagationTags = tracer.propagationTagsFactory.empty();
       } else {
         long endToEndStartTime;
 

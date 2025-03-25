@@ -320,7 +320,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
   /**
    * TagMap specific method that places an Entry directly into the TagMap avoiding needing to
-   * allocate a new Entry object
+   * allocate a new Entry object -- returns the priorEntry with the same tag
    */
   public final Entry putEntry(Entry newEntry) {
     this.checkWriteAccess();
