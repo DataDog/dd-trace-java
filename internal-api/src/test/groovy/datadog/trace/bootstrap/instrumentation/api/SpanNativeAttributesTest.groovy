@@ -142,6 +142,8 @@ class SpanNativeAttributesTest extends DDSpecification {
     attrs1 == attrs2
     attrs1 != attrs3
     attrs2 != attrs3
+    attrs1 != "different type"
+    attrs1.equals attrs1 // `==` does not reach the class implementation of equals
   }
 
   def "AttributeKey has the correct values"() {
@@ -153,13 +155,23 @@ class SpanNativeAttributesTest extends DDSpecification {
     key.getType() == SpanNativeAttributes.AttributeType.STRING
     key.toString() == "AttributeKey{key, STRING}"
 
+    key.equals key
+    key.compareTo(key) == 0
+
     key.compareTo(SpanNativeAttributes.AttributeKey.stringKey("key")) == 0
     key.equals(SpanNativeAttributes.AttributeKey.stringKey("key"))
     key.hashCode() == SpanNativeAttributes.AttributeKey.stringKey("key").hashCode()
 
-    key.equals(SpanNativeAttributes.AttributeKey.stringKey("other")) == false
-    key.compareTo(SpanNativeAttributes.AttributeKey.stringKey("other")) != 0
-    key.hashCode() != SpanNativeAttributes.AttributeKey.stringKey("other").hashCode()
+    key.equals(SpanNativeAttributes.AttributeKey.stringKey("aaa")) == false
+    key.compareTo(SpanNativeAttributes.AttributeKey.stringKey("aaa")) > 0
+    key.hashCode() != SpanNativeAttributes.AttributeKey.stringKey("aaa").hashCode()
+
+    key.equals(SpanNativeAttributes.AttributeKey.stringKey("zzz")) == false
+    key.compareTo(SpanNativeAttributes.AttributeKey.stringKey("zzz")) < 0
+    key.hashCode() != SpanNativeAttributes.AttributeKey.stringKey("zzz").hashCode()
+
+    key.equals("different type") == false
+    key.hashCode() != "different type".hashCode()
   }
 
   def "toString includes all attributes"() {

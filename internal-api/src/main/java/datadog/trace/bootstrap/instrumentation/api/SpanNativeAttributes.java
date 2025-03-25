@@ -31,7 +31,7 @@ public class SpanNativeAttributes {
   private final Map<AttributeKey<?>, Object> attributes;
 
   /* Use the {#builder} to create instances of this class */
-  public SpanNativeAttributes(Map<AttributeKey<?>, Object> attributes) {
+  protected SpanNativeAttributes(Map<AttributeKey<?>, Object> attributes) {
     this.attributes = attributes;
   }
 
