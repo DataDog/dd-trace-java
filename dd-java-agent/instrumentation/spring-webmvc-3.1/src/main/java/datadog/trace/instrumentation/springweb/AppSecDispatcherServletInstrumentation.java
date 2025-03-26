@@ -42,6 +42,11 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
   }
 
   @Override
+  public String muzzleDirective() {
+    return "spring-mvc-pre-5.3";
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {packageName + ".RequestMappingInfoIterator"};
   }
