@@ -7,7 +7,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
-import org.apache.spark.util.Utils;
 
 @AutoService(InstrumenterModule.class)
 public class Spark213Instrumentation extends AbstractSparkInstrumentation {
@@ -44,24 +43,28 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
       // checking whether OpenLineage integration is available and that it supports tags
-      if (Utils.classIsLoadable("io.openlineage.spark.agent.OpenLineageSparkListener")
-          && Utils.classIsLoadable(
-              "io.openlineage.spark.agent.facets.builder.TagsRunFacetBuilder")) {
-        if (!sparkContext.conf().contains("spark.extraListeners")) {
-          sparkContext
-              .conf()
-              .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
-        } else {
-          String extraListeners = sparkContext.conf().get("spark.extraListeners");
-          if (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
-            sparkContext
-                .conf()
-                .set(
-                    "spark.extraListeners",
-                    extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener");
-          }
-        }
-      }
+      // Disabling this mechanism for this PR. Will be enabled with provided with Config option.
+      //      if (Utils.classIsLoadable("io.openlineage.spark.agent.OpenLineageSparkListener")
+      //          && Utils.classIsLoadable(
+      //              "io.openlineage.spark.agent.facets.builder.TagsRunFacetBuilder")) {
+      //        if (!sparkContext.conf().contains("spark.extraListeners")) {
+      //          sparkContext
+      //              .conf()
+      //              .set("spark.extraListeners",
+      // "io.openlineage.spark.agent.OpenLineageSparkListener");
+      //        } else {
+      //          String extraListeners = sparkContext.conf().get("spark.extraListeners");
+      //          if
+      // (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
+      //            sparkContext
+      //                .conf()
+      //                .set(
+      //                    "spark.extraListeners",
+      //                    extraListeners +
+      // ",io.openlineage.spark.agent.OpenLineageSparkListener");
+      //          }
+      //        }
+      //      }
 
       // We want to add the Datadog listener as the first listener
       AbstractDatadogSparkListener.listener =
