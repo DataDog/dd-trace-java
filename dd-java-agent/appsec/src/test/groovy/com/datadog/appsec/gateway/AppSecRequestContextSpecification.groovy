@@ -210,7 +210,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
     config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
+    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
     new WafContext(context)
   }
 

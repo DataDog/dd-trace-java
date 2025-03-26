@@ -51,7 +51,7 @@ public class WafBenchmark {
   @Benchmark
   public void withMetrics() throws Exception {
     WafMetrics metricsCollector = ctx.createMetrics();
-    WafContext add = ctx.openWafContext();
+    WafContext add = ctx.openContext();
     try {
       add.run(wafData, limits, metricsCollector);
     } finally {
@@ -61,7 +61,7 @@ public class WafBenchmark {
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    WafContext add = ctx.openWafContext();
+    WafContext add = ctx.openContext();
     try {
       add.run(wafData, limits, null);
     } finally {
@@ -75,7 +75,7 @@ public class WafBenchmark {
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig waf = cfg.get("waf");
-    ctx = Waf.createContext("waf", waf.getRawConfig());
+    ctx = Waf.createHandle("waf", waf.getRawConfig());
 
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
