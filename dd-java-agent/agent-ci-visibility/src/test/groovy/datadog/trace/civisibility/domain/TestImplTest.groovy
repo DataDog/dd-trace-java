@@ -4,6 +4,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageProbes
 import datadog.trace.api.civisibility.coverage.CoverageStore
@@ -20,7 +21,7 @@ import datadog.trace.civisibility.test.ExecutionResults
 import datadog.trace.civisibility.utils.SpanUtils
 
 class TestImplTest extends SpanWriterTest {
-  def "test span is generated"() {
+  def "test span is generated and tags populated"() {
     setup:
     def test = givenATest()
 
@@ -33,6 +34,13 @@ class TestImplTest extends SpanWriterTest {
         span(0) {
           parent()
           spanType DDSpanTypes.TEST
+          tags(false) {
+            "${LibraryCapability.TIA.asTag()}" "${LibraryCapability.TIA.getVersion()}"
+            "${LibraryCapability.EFD.asTag()}" "${LibraryCapability.EFD.getVersion()}"
+            "${LibraryCapability.QUARANTINE.asTag()}" "${LibraryCapability.QUARANTINE.getVersion()}"
+            "${LibraryCapability.DISABLED.asTag()}" "${LibraryCapability.DISABLED.getVersion()}"
+            "${LibraryCapability.ATTEMPT_TO_FIX.asTag()}" "${LibraryCapability.ATTEMPT_TO_FIX.getVersion()}"
+          }
         }
       }
     })
@@ -105,6 +113,14 @@ class TestImplTest extends SpanWriterTest {
     linesResolver.getMethodLines(_) >> LinesResolver.Lines.EMPTY
 
     def codeowners = NoCodeowners.INSTANCE
+    def libraryCapabilities = [
+      LibraryCapability.TIA,
+      LibraryCapability.EFD,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX
+    ]
+
     new TestImpl(
       moduleSpanContext,
       suiteId,
@@ -126,6 +142,7 @@ class TestImplTest extends SpanWriterTest {
       codeowners,
       coverageStoreFactory,
       executionResults,
+      libraryCapabilities,
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )
   }

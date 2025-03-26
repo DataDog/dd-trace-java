@@ -2,6 +2,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
@@ -98,6 +99,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | []
     "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
     "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | []
+    "test-efd-skip-new-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_skip_efd.feature"]      | []
   }
 
   def "test quarantined #testcaseName"() {
@@ -181,33 +183,41 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                                | success | features                                                            | attemptToFix                                                                                                            | quarantined                                                                                                             | disabled
+    testcaseName                                | success | features                                                            | attemptToFix | quarantined | disabled
     "test-attempt-to-fix-failed"                | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []                                                                                                                      | []
+    ]                                                                                                                                          | []          | []
     "test-attempt-to-fix-succeeded"             | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []                                                                                                                      | []
+    ]                                                                                                                                          | []          | []
     "test-attempt-to-fix-quarantined-failed"    | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | [
+    ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []
+    ]                                                                                                                                                        | []
     "test-attempt-to-fix-quarantined-succeeded" | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | [
+    ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []
+    ]                                                                                                                                                        | []
     "test-attempt-to-fix-disabled-failed"       | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []                                                                                                                      | [
+    ]                                                                                                                                          | []          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
     "test-attempt-to-fix-disabled-succeeded"    | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []                                                                                                                      | [
+    ]                                                                                                                                          | []          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runFeatures(["org/example/cucumber/calculator/basic_arithmetic.feature"], false, true)
+
+    expect:
+    assertCapabilities(JUnitPlatformUtils.CUCUMBER_CAPABILITIES, 4)
   }
 
   private String parameterizedTestNameSuffix() {
@@ -221,8 +231,6 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runFeatures(List<String> classpathFeatures, boolean parallel, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
-
     DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
     for (i in 0..<classpathFeatures.size()) {
       selectors[i] = selectClasspathResource(classpathFeatures[i])

@@ -62,6 +62,8 @@ dependencies {
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
 
+  testImplementation libs.logback.classic
+
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')
   jmh project(':dd-java-agent:agent-builder')

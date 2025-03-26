@@ -129,47 +129,47 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tagValueEndsAt == ddMemberValueEnd) {
         tagValueEndsAt = stripTrailingOWC(value, tagValuePos, tagValueEndsAt);
       }
-      TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
-      if (tagKey != null) {
-        TagValue tagValue = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
-        if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
-          if (!validateTagValue(tagKey, tagValue)) {
-            log.warn(
-                "Invalid datadog tags header value: '{}' invalid tag value at {}",
-                value,
-                tagValuePos);
-            if (tagKey.equals(TRACE_ID_TAG)) {
-              return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
-            }
-            // TODO drop parts?
-            return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
-          }
-          if (tagKey.equals(DECISION_MAKER_TAG)) {
-            decisionMakerTagValue = tagValue;
-          } else if (tagKey.equals(TRACE_ID_TAG)) {
-            traceIdTagValue = tagValue;
-          } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
-            traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
-          } else {
-            if (tagPairs == null) {
-              // This is roughly the size of a two element linked list but can hold six
-              tagPairs = new ArrayList<>(6);
-            }
-            tagPairs.add(tagKey);
-            tagPairs.add(tagValue);
-          }
-        }
+      int keyLength = tagKeyEndsAt - tagPos;
+      char c = value.charAt(tagPos);
+      if (keyLength == 1 && c == 's') {
+        samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
+      } else if (keyLength == 1 && c == 'o') {
+        origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+      } else if (keyLength == 1 && c == 'p') {
+        lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else {
-        // This was not a propagating tag, so check if we know it
-        int keyLength = tagKeyEndsAt - tagPos;
-        char c = value.charAt(tagPos);
-        if (keyLength == 1 && c == 's') {
-          samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
-        } else if (keyLength == 1 && c == 'o') {
-          origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
-        } else if (keyLength == 1 && c == 'p') {
-          lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
+        if (tagKey != null) {
+          TagValue tagValue = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+          if (!tagKey.equals(UPSTREAM_SERVICES_DEPRECATED_TAG)) {
+            if (!validateTagValue(tagKey, tagValue)) {
+              log.warn(
+                  "Invalid datadog tags header value: '{}' invalid tag value at {}",
+                  value,
+                  tagValuePos);
+              if (tagKey.equals(TRACE_ID_TAG)) {
+                return tagsFactory.createInvalid(PROPAGATION_ERROR_MALFORMED_TID + tagValue);
+              }
+              // TODO drop parts?
+              return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
+            }
+            if (tagKey.equals(DECISION_MAKER_TAG)) {
+              decisionMakerTagValue = tagValue;
+            } else if (tagKey.equals(TRACE_ID_TAG)) {
+              traceIdTagValue = tagValue;
+            } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
+              traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+            } else {
+              if (tagPairs == null) {
+                // This is roughly the size of a two element linked list but can hold six
+                tagPairs = new ArrayList<>(6);
+              }
+              tagPairs.add(tagKey);
+              tagPairs.add(tagValue);
+            }
+          }
         } else {
+          // Not a propagating tag and not a known tag
           if (maxUnknownSize != 0) {
             maxUnknownSize++; // delimiter
           }

@@ -6,11 +6,6 @@ final class ThreadLocalContextManager implements ContextManager {
       ThreadLocal.withInitial(() -> new Context[] {EmptyContext.INSTANCE});
 
   @Override
-  public Context root() {
-    return EmptyContext.INSTANCE;
-  }
-
-  @Override
   public Context current() {
     return CURRENT_HOLDER.get()[0];
   }

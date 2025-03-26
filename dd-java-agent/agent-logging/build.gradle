@@ -23,4 +23,5 @@ dependencies {
   // This is fine since this project is shadowed into the agent-jar by dd-java-agent:agent-bootstrap
   api libs.slf4j
   api project(':internal-api')
+  implementation project(':components:json')
 }

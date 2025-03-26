@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.nio.file.FileSystem;
+import javax.annotation.Nullable;
 
 public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory {
 
@@ -25,7 +26,7 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
   }
 
   @Override
-  public RepoIndexProvider create(String repoRoot) {
+  public RepoIndexProvider create(@Nullable String repoRoot) {
     if (repoRoot == null) {
       return () -> RepoIndex.EMPTY;
     }

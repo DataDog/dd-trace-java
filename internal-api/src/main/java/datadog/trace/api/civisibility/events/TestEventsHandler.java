@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
@@ -88,7 +89,14 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String reason);
 
   @Nonnull
-  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData source);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData source, Collection<String> testTags);
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData);
 
   /**
    * Returns the reason for skipping a test IF it can be skipped.
@@ -110,6 +118,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        @Nullable ContextStore<TestKey, DDTest> testStore);
+        @Nullable ContextStore<TestKey, DDTest> testStore,
+        Collection<LibraryCapability> capabilities);
   }
 }

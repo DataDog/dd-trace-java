@@ -127,6 +127,9 @@
 1 com.safelayer.*
 1 com.solarmetric.*
 1 com.squareup.*
+1 com.stripe.*
+# APPSEC-56641
+2 com.stripe.net.HttpURLConnectionClient
 # Required for propagation purposes
 2 com.squareup.okhttp.Request
 2 com.squareup.okhttp.Request$*
@@ -220,7 +223,11 @@
 1 ognl.*
 2 oracle.j2ee.*
 1 oracle.jdbc.*
+# APPSEC-57044
+1 oracle.security.o5logon.O5Logon
 1 oracle.sql.*
+# APPSEC-57044
+1 oracle.ucp.util.OpaqueString
 1 org.ajax4jsf.*
 1 org.aopalliance.*
 1 org.antlr.*
@@ -273,6 +280,8 @@
 1 org.jnp.*
 1 org.joda.*
 1 org.jooq.*
+# APPSEC-57044
+2 org.jose4j.lang.HashUtil
 1 org.jruby.*
 1 org.json.*
 #Needed for JSON propagation

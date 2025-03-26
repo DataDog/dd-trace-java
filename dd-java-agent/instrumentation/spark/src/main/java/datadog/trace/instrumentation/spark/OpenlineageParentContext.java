@@ -143,6 +143,11 @@ public class OpenlineageParentContext implements AgentSpanContext {
     return null;
   }
 
+  @Override
+  public boolean isRemote() {
+    return false;
+  }
+
   public String getParentJobNamespace() {
     return parentJobNamespace;
   }

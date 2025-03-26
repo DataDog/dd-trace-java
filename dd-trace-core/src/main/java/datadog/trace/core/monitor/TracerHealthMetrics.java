@@ -11,7 +11,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.util.AgentTaskScheduler;
@@ -282,9 +281,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onScopeCloseError(int scopeSource) {
+  public void onScopeCloseError(boolean manual) {
     scopeCloseErrors.inc();
-    if (scopeSource == ScopeSource.MANUAL.id()) {
+    if (manual) {
       userScopeCloseErrors.inc();
     }
   }

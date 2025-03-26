@@ -6,15 +6,13 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
-
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME
-import static java.lang.String.format
 
 class TagsAssert {
   private final long spanParentId
@@ -56,6 +54,21 @@ class TagsAssert {
     tag(name, { it != null })
   }
 
+  def arePresent(Collection<String> tags) {
+    for (String name : tags) {
+      isPresent(name)
+    }
+  }
+
+  def isNotPresent(String name) {
+    tag(name, { it == null })
+  }
+
+  def areNotPresent(Collection<String> tags) {
+    for (String name : tags) {
+      isNotPresent(name)
+    }
+  }
 
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered 'root' for current service
@@ -76,6 +89,10 @@ class TagsAssert {
     assertedTags.add(DDTags.DSM_ENABLED)
     assertedTags.add(DDTags.DJM_ENABLED)
     assertedTags.add(DDTags.PARENT_ID)
+    assertedTags.add(DDTags.SPAN_LINKS) // this is checked by LinksAsserter
+    DDTags.REQUIRED_CODE_ORIGIN_TAGS.each {
+      assertedTags.add(it)
+    }
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -114,13 +131,27 @@ class TagsAssert {
     }
   }
 
-  def codeOriginTags() {
-    assert tags[DDTags.DD_CODE_ORIGIN_TYPE] != null
-    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "file")] != null
-    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "method")] != null
-    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "line")] != null
-    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "type")] != null
-    assert tags[format(DD_CODE_ORIGIN_FRAME, 0, "signature")] != null
+  static void codeOriginTags(ListWriter writer) {
+    if (Config.get().isDebuggerCodeOriginEnabled()) {
+      def traces = new ArrayList<>(writer) //as List<List<DDSpan>>
+
+      def spans = []
+      traces.each {
+        it.each {
+          if (it.tags[DDTags.DD_CODE_ORIGIN_TYPE] != null) {
+            spans += it
+          }
+        }
+      }
+      assert !spans.isEmpty(): "Should have found at least one span with code origin"
+      spans.each {
+        assertTags(it, {
+          DDTags.REQUIRED_CODE_ORIGIN_TAGS.each {
+            assert tags[it] != null:  "Should have found ${it} in span tags: " + tags.keySet()
+          }
+        }, false)
+      }
+    }
   }
 
   def errorTags(Throwable error) {

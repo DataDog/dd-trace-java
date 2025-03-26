@@ -96,6 +96,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopSpanContext",
+  "datadog.trace.bootstrap.instrumentation.api.NotSampledSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
@@ -107,6 +108,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.config.TestFQN",
   "datadog.trace.api.civisibility.config.TestMetadata",
   "datadog.trace.api.civisibility.config.TestSourceData",
+  "datadog.trace.api.civisibility.config.LibraryCapability",
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
   "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
@@ -166,6 +168,13 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.ComparableVersion",
+  "datadog.trace.util.ComparableVersion.BigIntegerItem",
+  "datadog.trace.util.ComparableVersion.IntItem",
+  "datadog.trace.util.ComparableVersion.ListItem",
+  "datadog.trace.util.ComparableVersion.LongItem",
+  "datadog.trace.util.ComparableVersion.StringItem",
+  "datadog.trace.util.ConcurrentEnumMap",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
@@ -212,7 +221,11 @@ excludedClassesBranchCoverage = [
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
-excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
+excludedClassesInstructionCoverage = [
+  'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
+  'datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
@@ -221,6 +234,7 @@ dependencies {
   api project(':dd-trace-api')
   api libs.slf4j
   api project(':components:context')
+  api project(':components:cli')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:

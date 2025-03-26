@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
@@ -78,9 +79,11 @@ public final class ConfigDefaults {
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final Set<TracePropagationStyle> DEFAULT_TRACE_PROPAGATION_STYLE =
-      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT));
+      new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
+  static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
+  static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
@@ -88,6 +91,8 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
+      TracePropagationBehaviorExtract.CONTINUE;
   static final boolean DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST = false;
 
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
@@ -99,6 +104,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
+  // Change value to be false in new release. Until then, manually set logs_injection default
+  // value to false if config is under breaking changes flag
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
@@ -229,8 +236,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
+  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
+      new HashSet<>(asList("DD_TAGS", "DD_LOGS_INJECTION"));
+
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
-  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
@@ -255,11 +265,22 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_ENABLED = false;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING = true;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES = true;
+  static final boolean DEFAULT_WEBSOCKET_TAG_SESSION_ID = false;
 
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
           Arrays.asList(
-              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
+              "ApiGateway",
+              "ApiGatewayV2",
+              "EventBridge",
+              "Sqs",
+              "Sns",
+              "S3",
+              "Kinesis",
+              "DynamoDB"));
 
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";

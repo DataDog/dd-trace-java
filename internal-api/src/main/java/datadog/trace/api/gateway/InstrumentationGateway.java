@@ -28,11 +28,10 @@ import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import static datadog.trace.api.gateway.Events.SHELL_CMD_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
 
-import datadog.trace.api.UserIdCollectionMode;
-import datadog.trace.api.appsec.LoginEventCallback;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -388,14 +387,12 @@ public class InstrumentationGateway {
             };
       case USER_ID:
         return (C)
-            new TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>() {
+            new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override
-              public Flow<Void> apply(
-                  RequestContext ctx, UserIdCollectionMode mode, String userId) {
+              public Flow<Void> apply(RequestContext ctx, String userId) {
                 try {
-                  return ((TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>)
-                          callback)
-                      .apply(ctx, mode, userId);
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, userId);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
@@ -404,19 +401,13 @@ public class InstrumentationGateway {
             };
       case LOGIN_EVENT_ID:
         return (C)
-            new LoginEventCallback() {
+            new TriFunction<RequestContext, LoginEvent, String, Flow<Void>>() {
 
               @Override
-              public Flow<Void> apply(
-                  RequestContext ctx,
-                  UserIdCollectionMode mode,
-                  String eventName,
-                  Boolean exists,
-                  String user,
-                  Map<String, String> metadata) {
+              public Flow<Void> apply(RequestContext ctx, LoginEvent event, String user) {
                 try {
-                  return ((LoginEventCallback) callback)
-                      .apply(ctx, mode, eventName, exists, user, metadata);
+                  return ((TriFunction<RequestContext, LoginEvent, String, Flow<Void>>) callback)
+                      .apply(ctx, event, user);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

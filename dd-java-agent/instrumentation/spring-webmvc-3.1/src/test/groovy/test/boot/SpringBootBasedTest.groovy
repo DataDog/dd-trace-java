@@ -34,6 +34,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -46,7 +47,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
+    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController, WebsocketConfig)
   }
 
   def setupSpec() {
@@ -239,7 +240,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(2)
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
 
     then:
     response.code() == PATH_PARAM.status
@@ -274,12 +275,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(2)
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
 
     then:
     response.code() == MATRIX_PARAM.status
     response.body().string() == MATRIX_PARAM.body
-    span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
+    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y;a=z', [a: ['x', 'y', 'z']]]]
   }
 
   void 'tainting on matrix var'() {
@@ -322,7 +323,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER.flatten().find {"servlet.request".contentEquals(it.operationName)}
+    DDSpan span = TEST_WRITER.flatten().find { "servlet.request".contentEquals(it.operationName) }
 
     then:
     span.getResourceName().toString() == "GET " + testPathParam()
@@ -391,7 +392,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       serviceName expectedServiceName()
       operationName "spring.handler"
       resourceName {
-        it == "TestController.${endpoint.name().toLowerCase()}" || endpoint == NOT_FOUND && it == "ResourceHttpRequestHandler.handleRequest"
+        it == "TestController.${endpoint.name().toLowerCase()}"
+        || endpoint == NOT_FOUND && it == "ResourceHttpRequestHandler.handleRequest"
+        || endpoint == WEBSOCKET && it == "WebSocketHttpRequestHandler.handleRequest"
       }
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == EXCEPTION

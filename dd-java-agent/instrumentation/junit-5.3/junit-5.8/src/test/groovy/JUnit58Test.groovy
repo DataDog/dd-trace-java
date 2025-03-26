@@ -1,7 +1,9 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.*
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.ClassOrderer
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.engine.Constants
@@ -81,9 +83,16 @@ class JUnit58Test extends CiVisibilityInstrumentationTest {
     ]
   }
 
-  private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.startForcefully()
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    Assumptions.assumeTrue(JUnitPlatformUtils.isJunitTestOrderingSupported(instrumentedLibraryVersion()))
+    runTests([TestSucceed], true)
 
+    expect:
+    assertCapabilities(JUnitPlatformUtils.JUNIT_CAPABILITIES_ORDERING, 5)
+  }
+
+  private static void runTests(List<Class<?>> tests, boolean expectSuccess = true) {
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
       selectors[i] = selectClass(tests[i])

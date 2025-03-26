@@ -28,7 +28,7 @@ public class TracedSubscriber<T> extends Subscriber<T> {
   public void onStart() {
     final AgentSpan span = spanRef.get();
     if (span != null) {
-      try (final AgentScope scope = activateSpan(span, true)) {
+      try (final AgentScope scope = activateSpan(span)) {
         delegate.onStart();
       }
     } else {
@@ -40,7 +40,7 @@ public class TracedSubscriber<T> extends Subscriber<T> {
   public void onNext(final T value) {
     final AgentSpan span = spanRef.get();
     if (span != null) {
-      try (final AgentScope scope = activateSpan(span, true)) {
+      try (final AgentScope scope = activateSpan(span)) {
         delegate.onNext(value);
       } catch (final Throwable e) {
         onError(e);
@@ -55,7 +55,7 @@ public class TracedSubscriber<T> extends Subscriber<T> {
     final AgentSpan span = spanRef.getAndSet(null);
     if (span != null) {
       boolean errored = false;
-      try (final AgentScope scope = activateSpan(span, true)) {
+      try (final AgentScope scope = activateSpan(span)) {
         delegate.onCompleted();
       } catch (final Throwable e) {
         // Repopulate the spanRef for onError
@@ -78,7 +78,7 @@ public class TracedSubscriber<T> extends Subscriber<T> {
   public void onError(final Throwable e) {
     final AgentSpan span = spanRef.getAndSet(null);
     if (span != null) {
-      try (final AgentScope scope = activateSpan(span, true)) {
+      try (final AgentScope scope = activateSpan(span)) {
         decorator.onError(span, e);
         delegate.onError(e);
       } catch (final Throwable e2) {

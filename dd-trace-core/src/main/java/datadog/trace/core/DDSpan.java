@@ -108,7 +108,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile int longRunningVersion = 0;
 
-  private final List<AgentSpanLink> links;
+  protected final List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -357,15 +357,15 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (isExceptionDebuggingEnabled()) {
+      if (isExceptionReplayEnabled()) {
         DebuggerContext.handleException(error, this);
       }
     }
     return this;
   }
 
-  private boolean isExceptionDebuggingEnabled() {
-    if (!Config.get().isDebuggerExceptionEnabled()) {
+  private boolean isExceptionReplayEnabled() {
+    if (!DebuggerContext.isExceptionReplayEnabled()) {
       return false;
     }
     boolean captureOnlyRootSpan =

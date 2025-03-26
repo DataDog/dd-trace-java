@@ -1,17 +1,24 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.ConcurrentEnumMap;
+import java.util.Collection;
+import java.util.Map;
 
 public abstract class TestEventsHandlerHolder {
 
-  public static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
+  // store one handler per framework running
+  public static final Map<
+          TestFrameworkInstrumentation, TestEventsHandler<TestSuiteDescriptor, TestDescriptor>>
+      HANDLERS = new ConcurrentEnumMap<>(TestFrameworkInstrumentation.class);
 
   static {
-    start();
     Runtime.getRuntime()
         .addShutdownHook(
             AgentThreadFactory.newAgentThread(
@@ -20,14 +27,28 @@ public abstract class TestEventsHandlerHolder {
                 false));
   }
 
-  public static void start() {
-    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("junit", null, null);
+  public static synchronized void start(
+      TestFrameworkInstrumentation framework, Collection<LibraryCapability> capabilities) {
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.get(framework);
+    if (handler == null) {
+      HANDLERS.put(
+          framework,
+          InstrumentationBridge.createTestEventsHandler(
+              framework.name().toLowerCase(), null, null, capabilities));
+    }
   }
 
-  public static void stop() {
-    if (TEST_EVENTS_HANDLER != null) {
-      TEST_EVENTS_HANDLER.close();
-      TEST_EVENTS_HANDLER = null;
+  public static synchronized void stop() {
+    for (TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler : HANDLERS.values()) {
+      handler.close();
+    }
+    HANDLERS.clear();
+  }
+
+  public static synchronized void stop(TestFrameworkInstrumentation framework) {
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler = HANDLERS.remove(framework);
+    if (handler != null) {
+      handler.close();
     }
   }
 

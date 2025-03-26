@@ -18,7 +18,7 @@ import datadog.trace.civisibility.test.ExecutionStrategy
 
 class HeadlessTestSessionTest extends SpanWriterTest {
 
-  def "test tags are populated correctly in span"() {
+  def "test tags are propagated correctly"() {
     setup:
     def session = givenAHeadlessTestSession()
     def module = session.testModuleStart("module-name", null)
@@ -36,7 +36,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
             "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
           }
         }
-        span (1) {
+        span(1) {
           spanType DDSpanTypes.TEST_MODULE_END
         }
       }
@@ -60,7 +60,8 @@ class HeadlessTestSessionTest extends SpanWriterTest {
       Stub(Codeowners),
       Stub(LinesResolver),
       Stub(CoverageStore.Factory),
-      executionStrategy
+      executionStrategy,
+      []
       )
   }
 }

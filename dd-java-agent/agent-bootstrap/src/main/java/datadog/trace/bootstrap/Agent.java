@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CwsConfig;
@@ -68,6 +69,10 @@ public class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
+  private static final String SIMPLE_LOGGER_JSON_ENABLED_PROPERTY =
+      "datadog.slf4j.simpleLogger.jsonEnabled";
+  private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT =
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
       "datadog.slf4j.simpleLogger.dateTimeFormat";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT =
@@ -96,9 +101,9 @@ public class Agent {
     CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
     USM(UsmConfig.USM_ENABLED, false),
     TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
-    DEBUGGER(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
-    EXCEPTION_DEBUGGING(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
-    SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    DYNAMIC_INSTRUMENTATION(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
+    EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
+    CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
@@ -149,9 +154,10 @@ public class Agent {
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
-  private static boolean debuggerEnabled = false;
-  private static boolean exceptionDebuggingEnabled = false;
-  private static boolean spanOriginEnabled = false;
+  private static boolean dynamicInstrumentationEnabled = false;
+  private static boolean exceptionReplayEnabled = false;
+  private static boolean codeOriginEnabled = false;
+  private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
@@ -229,6 +235,12 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
@@ -261,9 +273,9 @@ public class Agent {
             || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
-    debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
-    exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
-    spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
+    dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
+    exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
+    codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
@@ -812,6 +824,14 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+
+    try {
+      // event tracking SDK must be available for customers even if AppSec is fully disabled
+      AppSecEventTracker.install();
+    } catch (final Exception e) {
+      log.debug("Error starting AppSec Event Tracker", e);
+    }
+
     if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
       return;
     }
@@ -1114,7 +1134,10 @@ public class Agent {
   }
 
   private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
-    if (!debuggerEnabled && !exceptionDebuggingEnabled && !spanOriginEnabled) {
+    if (isExplicitlyDisabled(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.EXCEPTION_REPLAY_ENABLED)
+        && isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
       return;
     }
     if (!remoteConfigEnabled) {
@@ -1122,6 +1145,11 @@ public class Agent {
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);
+  }
+
+  private static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   private static synchronized void startDebuggerAgent(
@@ -1147,8 +1175,14 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(
-        SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
+    } else {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    }
 
     String logLevel;
     if (isDebugMode()) {

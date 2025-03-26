@@ -1,14 +1,15 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -29,7 +30,6 @@ import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -85,6 +85,7 @@ public class TestImpl implements DDTest {
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
@@ -113,7 +114,7 @@ public class TestImpl implements DDTest {
 
     span = spanBuilder.start();
 
-    activateSpan(span, true);
+    activateSpan(span);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -140,6 +141,10 @@ public class TestImpl implements DDTest {
 
     if (itrCorrelationId != null) {
       span.setTag(Tags.ITR_CORRELATION_ID, itrCorrelationId);
+    }
+
+    for (LibraryCapability capability : capabilities) {
+      span.setTag(capability.asTag(), capability.getVersion());
     }
 
     testDecorator.afterStart(span);
@@ -228,23 +233,22 @@ public class TestImpl implements DDTest {
   public void end(@Nullable Long endTime) {
     closeOutstandingSpans();
 
-    final AgentScope scope = AgentTracer.activeScope();
-    if (scope == null) {
+    final AgentSpan activeSpan = AgentTracer.activeSpan();
+    if (activeSpan == null) {
       throw new IllegalStateException(
-          "No active scope present, it is possible that end() was called multiple times");
+          "No active span present, it is possible that end() was called multiple times");
     }
 
-    AgentSpan scopeSpan = scope.span();
-    if (scopeSpan != span) {
+    if (activeSpan != this.span) {
       throw new IllegalStateException(
-          "Active scope does not correspond to the finished test, "
+          "Active span does not correspond to the finished test, "
               + "it is possible that end() was called multiple times "
               + "or an operation that was started by the test is still in progress; "
-              + "active scope span is: "
-              + scopeSpan
+              + "active span is: "
+              + activeSpan
               + "; "
               + "expected span is: "
-              + span);
+              + this.span);
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
@@ -261,7 +265,7 @@ public class TestImpl implements DDTest {
       }
     }
 
-    scope.close();
+    AgentTracer.closeActive();
 
     onSpanFinish.accept(span);
 
@@ -308,18 +312,17 @@ public class TestImpl implements DDTest {
    * spans stack until it encounters a CI Visibility span or the stack is empty.
    */
   private void closeOutstandingSpans() {
-    AgentScope scope;
-    while ((scope = AgentTracer.activeScope()) != null) {
-      AgentSpan span = scope.span();
+    AgentSpan activeSpan;
+    while ((activeSpan = AgentTracer.activeSpan()) != null) {
 
-      if (span == this.span || span.getTag(Tags.TEST_SESSION_ID) != null) {
+      if (activeSpan == this.span || activeSpan.getTag(Tags.TEST_SESSION_ID) != null) {
         // encountered this span or another CI Visibility span (test, suite, module, session)
         break;
       }
 
-      log.debug("Closing outstanding span: {}", span);
-      scope.close();
-      span.finish();
+      log.debug("Closing outstanding span: {}", activeSpan);
+      AgentTracer.closeActive();
+      activeSpan.finish();
     }
   }
 }

@@ -20,9 +20,9 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
     gitInfo.isEmpty()
   }
 
-  def "user supplied git info: #envVariable"() {
+  def "user supplied git info: env var #envVariable"() {
     setup:
-    environmentVariables.set(envVariable, value)
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(envVariable), value)
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -32,23 +32,49 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
     gitInfoValueProvider.call(gitInfo) == value
 
     where:
-    envVariable                           | value                      | gitInfoValueProvider
-    GitInfo.DD_GIT_REPOSITORY_URL         | "git repo URL"             | { it.repositoryURL }
-    GitInfo.DD_GIT_BRANCH                 | "git branch"               | { it.branch }
-    GitInfo.DD_GIT_TAG                    | "git tag"                  | { it.tag }
-    GitInfo.DD_GIT_COMMIT_SHA             | "commit SHA"               | { it.commit.sha }
-    GitInfo.DD_GIT_COMMIT_MESSAGE         | "commit message"           | { it.commit.fullMessage }
-    GitInfo.DD_GIT_COMMIT_AUTHOR_NAME     | "commit author"            | { it.commit.author.name }
-    GitInfo.DD_GIT_COMMIT_AUTHOR_EMAIL    | "commit author mail"       | { it.commit.author.email }
-    GitInfo.DD_GIT_COMMIT_AUTHOR_DATE     | "2022-12-29T11:38:44.254Z" | { it.commit.author.iso8601Date }
-    GitInfo.DD_GIT_COMMIT_COMMITTER_NAME  | "committer"                | { it.commit.committer.name }
-    GitInfo.DD_GIT_COMMIT_COMMITTER_EMAIL | "committer mail"           | { it.commit.committer.email }
-    GitInfo.DD_GIT_COMMIT_COMMITTER_DATE  | "2022-12-29T10:38:44.254Z" | { it.commit.committer.iso8601Date }
+    envVariable                                              | value                      | gitInfoValueProvider
+    UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL         | "git repo URL"             | { it.repositoryURL }
+    UserSuppliedGitInfoBuilder.DD_GIT_BRANCH                 | "git branch"               | { it.branch }
+    UserSuppliedGitInfoBuilder.DD_GIT_TAG                    | "git tag"                  | { it.tag }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA             | "commit SHA"               | { it.commit.sha }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_MESSAGE         | "commit message"           | { it.commit.fullMessage }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_NAME     | "commit author"            | { it.commit.author.name }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_EMAIL    | "commit author mail"       | { it.commit.author.email }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_DATE     | "2022-12-29T11:38:44.254Z" | { it.commit.author.iso8601Date }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_NAME  | "committer"                | { it.commit.committer.name }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_EMAIL | "committer mail"           | { it.commit.committer.email }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_DATE  | "2022-12-29T10:38:44.254Z" | { it.commit.committer.iso8601Date }
+  }
+
+  def "user supplied git info: system property #systemProperty"() {
+    setup:
+    System.setProperty(Strings.propertyNameToSystemPropertyName(systemProperty), value)
+
+    when:
+    def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
+
+    then:
+    !gitInfo.isEmpty()
+    gitInfoValueProvider.call(gitInfo) == value
+
+    where:
+    systemProperty                                           | value                      | gitInfoValueProvider
+    UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL         | "git repo URL"             | { it.repositoryURL }
+    UserSuppliedGitInfoBuilder.DD_GIT_BRANCH                 | "git branch"               | { it.branch }
+    UserSuppliedGitInfoBuilder.DD_GIT_TAG                    | "git tag"                  | { it.tag }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA             | "commit SHA"               | { it.commit.sha }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_MESSAGE         | "commit message"           | { it.commit.fullMessage }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_NAME     | "commit author"            | { it.commit.author.name }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_EMAIL    | "commit author mail"       | { it.commit.author.email }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_AUTHOR_DATE     | "2022-12-29T11:38:44.254Z" | { it.commit.author.iso8601Date }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_NAME  | "committer"                | { it.commit.committer.name }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_EMAIL | "committer mail"           | { it.commit.committer.email }
+    UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_COMMITTER_DATE  | "2022-12-29T10:38:44.254Z" | { it.commit.committer.iso8601Date }
   }
 
   def "branch name is normalized"() {
     setup:
-    environmentVariables.set(GitInfo.DD_GIT_BRANCH, "origin/myBranch")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "origin/myBranch")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -60,7 +86,7 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "tag can be supplied in branch var"() {
     setup:
-    environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -73,8 +99,8 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
 
   def "dedicated tag var has preference over tag supplied inside branch var"() {
     setup:
-    environmentVariables.set(GitInfo.DD_GIT_TAG, "myProvidedTag")
-    environmentVariables.set(GitInfo.DD_GIT_BRANCH, "refs/tags/myTag")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_TAG), "myProvidedTag")
+    environmentVariables.set(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_BRANCH), "refs/tags/myTag")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)
@@ -101,8 +127,8 @@ class UserSuppliedGitInfoBuilderTest extends DDSpecification {
   def "global tags have lower priority than dedicated environment variables"() {
     setup:
     injectEnvConfig(Strings.toEnvVar(GeneralConfig.TAGS), Tags.GIT_REPOSITORY_URL + ":repo_url," + Tags.GIT_COMMIT_SHA + ":commit_sha")
-    injectEnvConfig(GitInfo.DD_GIT_REPOSITORY_URL, "overridden_repo_url")
-    injectEnvConfig(GitInfo.DD_GIT_COMMIT_SHA, "overridden_commit_sha")
+    injectEnvConfig(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_REPOSITORY_URL), "overridden_repo_url")
+    injectEnvConfig(Strings.propertyNameToEnvironmentVariableName(UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA), "overridden_commit_sha")
 
     when:
     def gitInfo = new UserSuppliedGitInfoBuilder().build(null)

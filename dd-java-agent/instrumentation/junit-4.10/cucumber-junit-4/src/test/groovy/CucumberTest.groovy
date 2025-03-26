@@ -1,8 +1,10 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit4.CucumberTracingListener
+import datadog.trace.instrumentation.junit4.CucumberUtils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import io.cucumber.core.options.Constants
 import org.example.cucumber.TestSucceedCucumber
@@ -88,6 +90,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | []
     "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
     "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | []
+    "test-efd-skip-new-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_skip_efd.feature"]      | []
   }
 
   def "test quarantined #testcaseName"() {
@@ -171,33 +174,41 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                                | success | features                                                            | attemptToFix                                                                                                            | quarantined                                                                                                             | disabled
+    testcaseName                                | success | features                                                            | attemptToFix | quarantined                                                                                                             | disabled
     "test-attempt-to-fix-failed"                | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []                                                                                                                      | []
+    ]                                                                                                                                          | []                                                                                                                      | []
     "test-attempt-to-fix-succeeded"             | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []                                                                                                                      | []
+    ]                                                                                                                                          | []                                                                                                                      | []
     "test-attempt-to-fix-quarantined-failed"    | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | [
+    ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []
+    ]                                                                                                                                                                                                                                                                    | []
     "test-attempt-to-fix-quarantined-succeeded" | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | [
+    ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []
+    ]                                                                                                                                                                                                                                                                    | []
     "test-attempt-to-fix-disabled-failed"       | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
-    ] | []                                                                                                                      | [
+    ]                                                                                                                                          | []                                                                                                                      | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]
     "test-attempt-to-fix-disabled-succeeded"    | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
-    ]        | []                                                                                                                      | [
+    ]                                                                                                                                          | []                                                                                                                      | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runFeatures(["org/example/cucumber/calculator/basic_arithmetic.feature"], true)
+
+    expect:
+    assertCapabilities(CucumberUtils.CAPABILITIES, 4)
   }
 
   private String version() {
@@ -211,7 +222,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     .map(f -> "classpath:" + f).
     collect(Collectors.joining(",")))
 
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.CUCUMBER, CucumberUtils.CAPABILITIES)
     try {
       def result = runner.run(TestSucceedCucumber)
       if (expectSuccess) {
@@ -224,7 +235,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.CUCUMBER)
     }
   }
 

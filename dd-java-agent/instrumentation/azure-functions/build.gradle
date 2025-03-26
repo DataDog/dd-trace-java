@@ -1,0 +1,22 @@
+muzzle {
+  pass {
+    group = 'com.microsoft.azure.functions'
+    module = 'azure-functions-java-library'
+
+    // 1.2.2 is the first stable release.  The earlier versions are either betas or are unstable
+    versions = '[1.2.2,)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '1.2.2'
+
+  testImplementation group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '1.2.2'
+  testImplementation libs.bundles.mockito
+
+  latestDepTestImplementation group: 'com.microsoft.azure.functions', name: 'azure-functions-java-library', version: '+'
+}
