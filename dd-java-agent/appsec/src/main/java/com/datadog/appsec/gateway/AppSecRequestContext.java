@@ -314,7 +314,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       synchronized (this) {
         if (wafContext != null) {
           try {
-            additiveClosed = true;
+            wafContextClosed = true;
             wafContext.close();
           } finally {
             wafContext = null;
