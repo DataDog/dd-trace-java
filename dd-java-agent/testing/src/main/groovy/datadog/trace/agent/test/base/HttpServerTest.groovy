@@ -84,6 +84,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -163,6 +164,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
+    // allow endpoint discover for the tests
+    injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
   }
 
   // used in blocking tests to check if the handler was skipped

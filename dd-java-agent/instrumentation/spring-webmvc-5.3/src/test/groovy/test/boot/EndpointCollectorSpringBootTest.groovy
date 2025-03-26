@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ENDPOINT_DISCOVERY
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED
 
 @SpringBootTest(classes = DiscoveryController)
 @EnableWebMvc
@@ -33,6 +34,11 @@ class EndpointCollectorSpringBootTest extends AgentTestRunner {
         new ResponseEntity(ENDPOINT_DISCOVERY.body, HttpStatus.valueOf(ENDPOINT_DISCOVERY.status))
       }
     }
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
   }
 
   void 'test endpoint discovery'() {

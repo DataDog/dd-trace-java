@@ -197,6 +197,8 @@ excludedClassesCoverage += [
   // POJO
   'datadog.trace.api.iast.util.Cookie',
   'datadog.trace.api.iast.util.Cookie.Builder',
+  'datadog.trace.api.telemetry.Endpoint',
+  'datadog.trace.api.telemetry.Endpoint.Method',
   'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   "datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint",
   "datadog.trace.api.telemetry.MetricCollector",

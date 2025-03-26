@@ -149,17 +149,4 @@ public class Endpoint {
       return result;
     }
   }
-
-  public interface Authentication {
-    String JWT = "JWT";
-    String BASIC = "basic";
-    String OAUTH = "oauth";
-    String OIDC = "OIDC";
-    String API_KEY = "api_key";
-    String SESSION = "session";
-    String M_TLS = "mTLS";
-    String SAML = "SAML";
-    String FORM = "Form";
-    String OTHER = "other";
-  }
 }

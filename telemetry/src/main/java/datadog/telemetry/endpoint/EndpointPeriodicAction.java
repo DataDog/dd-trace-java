@@ -8,9 +8,19 @@ import java.util.Iterator;
 
 public class EndpointPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
 
+  private final EndpointCollector collector;
+
+  public EndpointPeriodicAction() {
+    this(EndpointCollector.get());
+  }
+
+  public EndpointPeriodicAction(EndpointCollector collector) {
+    this.collector = collector;
+  }
+
   @Override
   public void doIteration(final TelemetryService service) {
-    for (final Iterator<Endpoint> it = EndpointCollector.get().drain(); it.hasNext(); ) {
+    for (final Iterator<Endpoint> it = collector.drain(); it.hasNext(); ) {
       if (!service.addEndpoint(it.next())) {
         break;
       }
