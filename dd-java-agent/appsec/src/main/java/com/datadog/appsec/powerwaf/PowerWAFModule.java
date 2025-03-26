@@ -417,6 +417,9 @@ public class PowerWAFModule implements AppSecModule {
 
       if (reqCtx.isAdditiveClosed()) {
         log.debug("Skipped; the WAF context is closed");
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspRuleSkipped(gwCtx.raspRuleType);
+        }
         return;
       }
 
