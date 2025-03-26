@@ -3,15 +3,6 @@ package datadog.trace.core
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes
-import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.stringKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.booleanKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.longKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.doubleKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.stringArrayKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.booleanArrayKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.longArrayKey
-import static datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes.AttributeKey.doubleArrayKey
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Shared
 
