@@ -21,9 +21,37 @@ public class EndpointPeriodicAction implements TelemetryRunnable.TelemetryPeriod
   @Override
   public void doIteration(final TelemetryService service) {
     for (final Iterator<Endpoint> it = collector.drain(); it.hasNext(); ) {
-      if (!service.addEndpoint(it.next())) {
+      final Endpoint endpoint = it.next();
+      if (!service.addEndpoint(endpoint)) {
+        collector.supplier(new HeadAndTailIterator(endpoint, it)); // try again latter
         break;
       }
+    }
+  }
+
+  private static final class HeadAndTailIterator implements Iterator<Endpoint> {
+    private final Endpoint head;
+    private final Iterator<Endpoint> tail;
+    private boolean first;
+
+    private HeadAndTailIterator(final Endpoint head, final Iterator<Endpoint> tail) {
+      this.head = head;
+      this.tail = tail;
+      first = true;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return first || tail.hasNext();
+    }
+
+    @Override
+    public Endpoint next() {
+      if (first) {
+        first = false;
+        return head;
+      }
+      return tail.next();
     }
   }
 }
