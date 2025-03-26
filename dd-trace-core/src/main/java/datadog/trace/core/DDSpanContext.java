@@ -748,6 +748,10 @@ public class DDSpanContext
       }
     }
   }
+  
+  void setAllTags(final TagMap map) {
+	setAllTags(map, true);
+  }
 
   void setAllTags(final TagMap map, boolean needsIntercept) {
     if (map == null) {
