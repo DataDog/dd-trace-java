@@ -5,6 +5,7 @@ import com.datadog.iast.Reporter
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import datadog.trace.api.TagMap
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.internal.TraceSegment
@@ -33,9 +34,9 @@ class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     given:
     final handler = new RequestEndedHandler(dependencies)
     ctx.contentType = "text/html"
-    span.getTags() >> [
+    span.getTags() >> TagMap.fromMap([
       'http.status_code': 200i
-    ]
+    ])
 
     when:
     def flow = handler.apply(reqCtx, span)
@@ -56,10 +57,10 @@ class XContentTypeOptionsModuleTest extends IastModuleImplTestBase {
     final handler = new RequestEndedHandler(dependencies)
     ctx.xForwardedProto = 'https'
     ctx.contentType = "text/html"
-    span.getTags() >> [
+    span.getTags() >> TagMap.fromMap([
       'http.url': url,
       'http.status_code': status
-    ]
+    ])
 
     when:
     def flow = handler.apply(reqCtx, span)
