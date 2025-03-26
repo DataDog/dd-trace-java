@@ -448,7 +448,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public static class AppSecSdkEvent extends WafMetric {
 
     public AppSecSdkEvent(long counter, String event, final String version) {
-      super("appsec.sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
+      super("sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
     }
   }
 

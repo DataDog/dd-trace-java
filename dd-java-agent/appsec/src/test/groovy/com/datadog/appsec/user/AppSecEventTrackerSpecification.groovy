@@ -94,20 +94,18 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
   def 'test track login success event (SDK)'() {
     when:
-    GlobalTracer.getEventTracker().trackLoginSuccessEvent(USER_LOGIN, ['key1': 'value1', 'key2': 'value2'])
+    GlobalTracer.getEventTracker().trackLoginSuccessEvent(USER_ID, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('usr.id', USER_LOGIN)
-    1 * traceSegment.setTagTop('usr', ['key1': 'value1', 'key2': 'value2'])
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
-    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', USER_LOGIN, true)
+    1 * traceSegment.setTagTop('usr.id', USER_ID)
+    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', USER_ID, true)
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], true)
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
-    2 * traceSegment.setTagTop('asm.keep', true)
-    2 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-    1 * loginEvent.apply(_ as RequestContext, LOGIN_SUCCESS, USER_LOGIN) >> NoopFlow.INSTANCE
-    1 * user.apply(_ as RequestContext, USER_LOGIN) >> NoopFlow.INSTANCE
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
+    1 * loginEvent.apply(_ as RequestContext, LOGIN_SUCCESS, USER_ID) >> NoopFlow.INSTANCE
+    1 * user.apply(_ as RequestContext, USER_ID) >> NoopFlow.INSTANCE
     0 * _
 
     assertAppSecSdkEvent(LOGIN_SUCCESS, V1)
@@ -115,17 +113,19 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
   def 'test track login failure event (SDK)'() {
     when:
-    GlobalTracer.getEventTracker().trackLoginFailureEvent(USER_LOGIN, true, ['key1': 'value1', 'key2': 'value2'])
+    GlobalTracer.getEventTracker().trackLoginFailureEvent(USER_ID, true, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', USER_LOGIN, true)
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', USER_ID, true)
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', USER_ID, true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', true, true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'], true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-    1 * loginEvent.apply(_ as RequestContext, LOGIN_FAILURE, USER_LOGIN) >> NoopFlow.INSTANCE
+    1 * loginEvent.apply(_ as RequestContext, LOGIN_FAILURE, USER_ID) >> NoopFlow.INSTANCE
+    1 * user.apply(_ as RequestContext, USER_ID) >> NoopFlow.INSTANCE
     0 * _
 
     assertAppSecSdkEvent(LOGIN_FAILURE, V1)
@@ -153,6 +153,8 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('usr.id', USER_ID)
     1 * traceSegment.setTagTop('usr', ['key1': 'value1', 'key2': 'value2'])
+    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.id', USER_ID, true)
+    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr', ['key1': 'value1', 'key2': 'value2'], true)
     1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
     1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', USER_LOGIN, true)
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], true)
@@ -502,12 +504,15 @@ class AppSecEventTrackerSpecification extends DDSpecification {
       prepareMetrics()
       drain()
     }
+    final expectedTags = ["event_type:${event.getTag()}".toString(), "sdk_version:${version.getTag()}".toString()]
     assert metrics.size() == 1
-    final metric = metrics.find { it.metricName == 'appsec.sdk.event'}
+    final metric = metrics.find { it.metricName == 'sdk.event'}
     assert metric != null
+    assert metric.namespace == 'appsec'
+    assert metric.type == 'count'
     assert metric.value == 1
-    assert metric.tags.find { "event_type:${event.getTag()}" } != null
-    assert metric.tags.find { "sdk_version:${version.getTag()}" } != null
+    assert metric.tags.size() == 2
+    assert metric.tags.containsAll(expectedTags)
   }
 
   private static class ActionFlow<T> implements Flow<T> {

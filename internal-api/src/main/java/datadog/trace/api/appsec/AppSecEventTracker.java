@@ -7,6 +7,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.telemetry.LoginEvent.CUSTOM;
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE;
 import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS;
+import static datadog.trace.api.telemetry.LoginVersion.AUTO;
 import static datadog.trace.api.telemetry.LoginVersion.V1;
 import static datadog.trace.api.telemetry.LoginVersion.V2;
 import static datadog.trace.util.Strings.toHexString;
@@ -28,6 +29,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
+import datadog.trace.api.telemetry.LoginVersion;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -72,7 +74,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       throw new IllegalArgumentException("userId is null or empty");
     }
     WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V1);
-    if (handleLoginEvent(LOGIN_SUCCESS_EVENT, SDK, userId, userId, null, metadata)) {
+    if (handleLoginEvent(V1, LOGIN_SUCCESS_EVENT, SDK, userId, userId, null, metadata)) {
       throw new BlockingException("Blocked request (for login success)");
     }
   }
@@ -84,7 +86,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       throw new IllegalArgumentException("userId is null or empty");
     }
     WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V1);
-    if (handleLoginEvent(LOGIN_FAILURE_EVENT, SDK, userId, null, exists, metadata)) {
+    if (handleLoginEvent(V1, LOGIN_FAILURE_EVENT, SDK, userId, userId, exists, metadata)) {
       throw new BlockingException("Blocked request (for login failure)");
     }
   }
@@ -96,7 +98,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       throw new IllegalArgumentException("login is null or empty");
     }
     WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V2);
-    if (handleLoginEvent(LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
+    if (handleLoginEvent(V2, LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
       throw new BlockingException("Blocked request (for login success)");
     }
   }
@@ -108,7 +110,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       throw new IllegalArgumentException("login is null or empty");
     }
     WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V2);
-    if (handleLoginEvent(LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
+    if (handleLoginEvent(V2, LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
       throw new BlockingException("Blocked request (for login failure)");
     }
   }
@@ -120,7 +122,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       throw new IllegalArgumentException("eventName is null or empty");
     }
     WafMetricCollector.get().appSecSdkEvent(CUSTOM, V2);
-    if (handleLoginEvent(eventName, SDK, null, null, null, metadata)) {
+    if (handleLoginEvent(V2, eventName, SDK, null, null, null, metadata)) {
       throw new BlockingException("Blocked request (for custom event)");
     }
   }
@@ -143,7 +145,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
   }
 
   public void onUserNotFound(final UserIdCollectionMode mode) {
-    if (handleLoginEvent(LOGIN_FAILURE_EVENT, mode, null, null, false, null)) {
+    if (handleLoginEvent(AUTO, LOGIN_FAILURE_EVENT, mode, null, null, false, null)) {
       throw new BlockingException("Blocked request (for user not found)");
     }
   }
@@ -153,7 +155,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       final String login,
       final String userId,
       final Map<String, String> metadata) {
-    if (handleLoginEvent(SIGNUP_EVENT, mode, login, userId, null, metadata)) {
+    if (handleLoginEvent(AUTO, SIGNUP_EVENT, mode, login, userId, null, metadata)) {
       throw new BlockingException("Blocked request (for signup)");
     }
   }
@@ -163,7 +165,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       final String login,
       final String user,
       final Map<String, String> metadata) {
-    if (handleLoginEvent(LOGIN_SUCCESS_EVENT, mode, login, user, null, metadata)) {
+    if (handleLoginEvent(AUTO, LOGIN_SUCCESS_EVENT, mode, login, user, null, metadata)) {
       throw new BlockingException("Blocked request (for login success)");
     }
   }
@@ -173,7 +175,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       final String login,
       final Boolean exists,
       final Map<String, String> metadata) {
-    if (handleLoginEvent(LOGIN_FAILURE_EVENT, mode, login, null, exists, metadata)) {
+    if (handleLoginEvent(AUTO, LOGIN_FAILURE_EVENT, mode, login, null, exists, metadata)) {
       throw new BlockingException("Blocked request (for login failure)");
     }
   }
@@ -220,6 +222,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
    * blocking action
    */
   private boolean handleLoginEvent(
+      final LoginVersion version,
       final String eventName,
       final UserIdCollectionMode mode,
       final String login,
@@ -250,6 +253,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       }
       segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.fullName(), true);
     }
+    final LoginEvent event = EVENT_MAPPING.get(eventName);
     if (isNewLoginEvent(mode, segment, eventName)) {
       if (finalLogin != null) {
         segment.setTagTop("appsec.events." + eventName + ".usr.login", finalLogin, true);
@@ -264,15 +268,27 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       segment.setTagTop(Tags.ASM_KEEP, true);
       segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
 
-      final LoginEvent event = EVENT_MAPPING.get(eventName);
       if (finalLogin != null && event != null) {
         block =
             dispatch(tracer, EVENTS.loginEvent(), (ctx, cb) -> cb.apply(ctx, event, finalLogin));
       }
     }
     if (userId != null) {
-      // call setUser
-      final boolean blockUser = handleUser(mode, userId, metadata);
+      boolean blockUser;
+      if (version == V2) {
+        segment.setTagTop("appsec.events." + eventName + ".usr.id", userId, true);
+        if (metadata != null && !metadata.isEmpty()) {
+          segment.setTagTop("appsec.events." + eventName + ".usr", metadata, true);
+        }
+        blockUser = handleUser(mode, userId, metadata);
+      } else {
+        if (event == LOGIN_SUCCESS) {
+          segment.setTagTop("usr.id", userId);
+        } else {
+          segment.setTagTop("appsec.events." + eventName + ".usr.id", userId, true);
+        }
+        blockUser = dispatch(tracer, EVENTS.user(), (ctx, cb) -> cb.apply(ctx, userId));
+      }
       block |= blockUser;
     }
     return block;
