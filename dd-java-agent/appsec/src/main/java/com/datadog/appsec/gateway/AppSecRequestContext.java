@@ -118,7 +118,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // should be guarded by this
   private volatile WafContext wafContext;
-  private volatile boolean additiveClosed;
+  private volatile boolean wafContextClosed;
   // set after wafContext is set
   private volatile WafMetrics wafMetrics;
   private volatile WafMetrics raspMetrics;
@@ -286,7 +286,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public WafContext getOrCreateAdditive(WafHandle ctx, boolean createMetrics, boolean isRasp) {
+  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
       if (wafMetrics == null) {
@@ -297,19 +297,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    WafContext curAdditive;
+    WafContext curWafContext;
     synchronized (this) {
-      curAdditive = this.wafContext;
-      if (curAdditive != null) {
-        return curAdditive;
+      curWafContext = this.wafContext;
+      if (curWafContext != null) {
+        return curWafContext;
       }
-      curAdditive = ctx.openContext();
-      this.wafContext = curAdditive;
+      curWafContext = ctx.openContext();
+      this.wafContext = curWafContext;
     }
-    return curAdditive;
+    return curWafContext;
   }
 
-  public void closeAdditive() {
+  public void closeWafContext() {
     if (wafContext != null) {
       synchronized (this) {
         if (wafContext != null) {
@@ -584,7 +584,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (wafContext != null) {
       log.debug(
           SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
+      closeWafContext();
     }
     derivatives = null;
 
@@ -693,8 +693,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return throttled;
   }
 
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
+  public boolean isWafContextClosed() {
+    return wafContextClosed;
   }
 
   /** Must be called during request end event processing. */

@@ -235,19 +235,19 @@ public class WAFModule implements AppSecModule {
     RuleSetInfo initReport = null;
 
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
-    WafHandle newPwafCtx = null;
+    WafHandle newWafCtx = null;
     try {
       String uniqueId = RandomUtils.randomUUID().toString();
 
       if (prevContextAndAddresses == null) {
         WafConfig pwConfig = createWafConfig();
-        newPwafCtx = Waf.createHandle(uniqueId, pwConfig, ruleConfig.getRawConfig());
+        newWafCtx = Waf.createHandle(uniqueId, pwConfig, ruleConfig.getRawConfig());
       } else {
-        newPwafCtx = prevContextAndAddresses.ctx.update(uniqueId, ruleConfig.getRawConfig());
+        newWafCtx = prevContextAndAddresses.ctx.update(uniqueId, ruleConfig.getRawConfig());
       }
 
-      initReport = newPwafCtx.getRuleSetInfo();
-      Collection<Address<?>> addresses = getUsedAddresses(newPwafCtx);
+      initReport = newWafCtx.getRuleSetInfo();
+      Collection<Address<?>> addresses = getUsedAddresses(newWafCtx);
 
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
@@ -270,7 +270,7 @@ public class WAFModule implements AppSecModule {
       Map<String, ActionInfo> actionInfoMap =
           calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
 
-      newContextAndAddresses = new CtxAndAddresses(addresses, newPwafCtx, actionInfoMap);
+      newContextAndAddresses = new CtxAndAddresses(addresses, newWafCtx, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
@@ -278,8 +278,8 @@ public class WAFModule implements AppSecModule {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractWafException e) {
-      if (newPwafCtx != null) {
-        newPwafCtx.close();
+      if (newWafCtx != null) {
+        newWafCtx.close();
       }
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
@@ -289,7 +289,7 @@ public class WAFModule implements AppSecModule {
     }
 
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
-      newPwafCtx.close();
+      newWafCtx.close();
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
@@ -414,7 +414,7 @@ public class WAFModule implements AppSecModule {
         return;
       }
 
-      if (reqCtx.isAdditiveClosed()) {
+      if (reqCtx.isWafContextClosed()) {
         log.debug("Skipped; the WAF context is closed");
         if (gwCtx.isRasp) {
           WafMetricCollector.get().raspRuleSkipped(gwCtx.raspRuleType);
@@ -445,7 +445,7 @@ public class WAFModule implements AppSecModule {
         }
         return;
       } catch (UnclassifiedWafException e) {
-        if (!reqCtx.isAdditiveClosed()) {
+        if (!reqCtx.isWafContextClosed()) {
           log.error("Error calling WAF", e);
         }
         WafMetricCollector.get().wafRequestError();
@@ -629,7 +629,7 @@ public class WAFModule implements AppSecModule {
         throws AbstractWafException {
 
       WafContext wafContext =
-          reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+          reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
       WafMetrics metrics;
       if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();
@@ -641,11 +641,11 @@ public class WAFModule implements AppSecModule {
       if (gwCtx.isTransient) {
         return runWafTransient(wafContext, metrics, newData, ctxAndAddr);
       } else {
-        return runWafAdditive(wafContext, metrics, newData, ctxAndAddr);
+        return runWafWafContext(wafContext, metrics, newData, ctxAndAddr);
       }
     }
 
-    private Waf.ResultWithData runWafAdditive(
+    private Waf.ResultWithData runWafWafContext(
         WafContext wafContext, WafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
         throws AbstractWafException {
       return wafContext.run(
