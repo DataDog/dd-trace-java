@@ -242,6 +242,11 @@ public class Agent {
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
+      if (Config.get().isDataJobsOpenLineageEnabled()) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.openlineage-spark.enabled"), "true");
+      }
+
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
       if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {

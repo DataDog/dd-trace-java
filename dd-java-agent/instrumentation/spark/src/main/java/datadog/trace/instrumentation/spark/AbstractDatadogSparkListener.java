@@ -206,10 +206,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
 
-    setupOpenLineage(
-        OpenlineageParentContext.from(sparkConf)
-            .map(context -> context.getTraceId())
-            .orElse(predeterminedTraceIdContext.getTraceId()));
+    if (Config.get().isDataJobsOpenLineageEnabled()) {
+      setupOpenLineage(
+          OpenlineageParentContext.from(sparkConf)
+              .map(context -> context.getTraceId())
+              .orElse(predeterminedTraceIdContext.getTraceId()));
+    }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
 
@@ -750,6 +752,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private <T extends SparkListenerEvent> void notifyOl(Consumer<T> ol, T event) {
+    if (!Config.get().isDataJobsOpenLineageEnabled()) {
+      log.trace("Ignoring event {} - OpenLineage not enabled", event);
+      return;
+    }
+
     if (isRunningOnDatabricks || isStreamingJob) {
       log.debug("Not emitting event when running on databricks or on streaming jobs");
       return;

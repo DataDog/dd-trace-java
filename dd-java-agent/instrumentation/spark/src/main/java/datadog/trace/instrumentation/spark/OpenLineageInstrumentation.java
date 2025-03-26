@@ -41,7 +41,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean defaultEnabled() {
-    return true;
+    return false;
   }
 
   @Override

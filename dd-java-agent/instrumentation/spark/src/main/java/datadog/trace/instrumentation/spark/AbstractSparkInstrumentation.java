@@ -117,8 +117,11 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
 
   public static class LiveListenerBusAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    // If OL is disabled in tracer config but user set it up manually don't interfere
     public static boolean enter(@Advice.Argument(0) SparkListenerInterface listener) {
-      if (listener == null || listener.getClass().getCanonicalName() == null) {
+      if (!Config.get().isDataJobsOpenLineageEnabled()
+          || listener == null
+          || listener.getClass().getCanonicalName() == null) {
         return false;
       }
       if (listener
