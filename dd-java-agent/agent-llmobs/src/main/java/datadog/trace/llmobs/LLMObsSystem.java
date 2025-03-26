@@ -17,6 +17,8 @@ public class LLMObsSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSystem.class);
 
+  private static final String CUSTOM_MODEL_VAL = "custom";
+
   public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
     Config config = Config.get();
     if (!config.isLlmObsEnabled()) {
@@ -57,7 +59,14 @@ public class LLMObsSystem {
           new DDLLMObsSpan(
               Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
 
+      if (modelName == null || modelName.isEmpty()) {
+        modelName = CUSTOM_MODEL_VAL;
+      }
       span.setTag(LLMObsTags.MODEL_NAME, modelName);
+
+      if (modelProvider == null || modelProvider.isEmpty()) {
+        modelProvider = CUSTOM_MODEL_VAL;
+      }
       span.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
       return span;
     }
