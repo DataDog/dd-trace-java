@@ -648,9 +648,9 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle pwCtx = it[0] as WafHandle
-      wafWafContext = pwCtx.openContext()
-      metrics = pwCtx.createMetrics()
+      WafHandle wafHandle = it[0] as WafHandle
+      wafWafContext = wafHandle.openContext()
+      metrics = wafHandle.createMetrics()
       wafWafContext
     }
     2 * ctx.getWafMetrics() >> metrics
@@ -714,9 +714,9 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle pwCtx = it[0] as WafHandle
-      wafWafContext = pwCtx.openContext()
-      metrics = pwCtx.createMetrics()
+      WafHandle wafHandle = it[0] as WafHandle
+      wafWafContext = wafHandle.openContext()
+      metrics = wafHandle.createMetrics()
       wafWafContext
     }
     2 * ctx.getWafMetrics() >> metrics
@@ -771,9 +771,9 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle pwCtx = it[0] as WafHandle
-      wafWafContext = pwCtx.openContext()
-      metrics = pwCtx.createMetrics()
+      WafHandle wafHandle = it[0] as WafHandle
+      wafWafContext = wafHandle.openContext()
+      metrics = wafHandle.createMetrics()
       wafWafContext
     }
     1 * ctx.closeWafContext()
@@ -802,9 +802,9 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
-      WafHandle pwCtx = it[0] as WafHandle
-      wafWafContext = pwCtx.openContext()
-      metrics = pwCtx.createMetrics()
+      WafHandle wafHandle = it[0] as WafHandle
+      wafWafContext = wafHandle.openContext()
+      metrics = wafHandle.createMetrics()
       wafWafContext
     }
     2 * ctx.getWafMetrics() >> metrics
