@@ -450,13 +450,11 @@ public class PowerWAFModule implements AppSecModule {
           log.error("Error calling WAF", e);
         }
         WafMetricCollector.get().wafRequestError();
+        // TODO: replace -127 for e.code when UnclassifiedPowerwafException code is fixed
+        incrementErrorCodeMetric(gwCtx, -127);
         return;
       } catch (AbstractPowerwafException e) {
-        if (gwCtx.isRasp) {
-          WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
-        } else {
-          WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, e.code);
-        }
+        incrementErrorCodeMetric(gwCtx, e.code);
         return;
       } finally {
         if (log.isDebugEnabled()) {
@@ -649,6 +647,14 @@ public class PowerWAFModule implements AppSecModule {
         throws AbstractPowerwafException {
       return additive.run(
           new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+    }
+  }
+
+  private static void incrementErrorCodeMetric(GatewayContext gwCtx, int code) {
+    if (gwCtx.isRasp) {
+      WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
+    } else {
+      WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, code);
     }
   }
 
