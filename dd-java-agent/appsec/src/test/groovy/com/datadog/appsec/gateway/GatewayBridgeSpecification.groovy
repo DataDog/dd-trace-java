@@ -190,7 +190,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
-    1 * spanInfo.getTags() >> ['http.client_ip': '8.8.8.8']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
