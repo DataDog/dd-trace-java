@@ -168,7 +168,6 @@ public class TagContext implements AgentSpanContext.Extracted {
   }
 
   public final TagMap getTags() {
-    // DQH - Because of the lazy in putTag, this method effectively returns an immutable map
     return (this.tags == null) ? TagMap.EMPTY : this.tags;
   }
 
