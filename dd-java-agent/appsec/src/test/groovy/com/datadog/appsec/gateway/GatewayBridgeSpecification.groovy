@@ -9,9 +9,6 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.TagMap
-import datadog.trace.api.ProductTraceSource
-import datadog.trace.api.UserIdCollectionMode
-import datadog.trace.api.appsec.LoginEventCallback
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
