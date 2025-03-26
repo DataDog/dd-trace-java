@@ -138,6 +138,7 @@ public class WebsocketDecorator extends BaseDecorator {
         if (useDedicatedTraces) {
           wsSpan = startSpan(WEBSOCKET.toString(), operationName, null);
           if (inheritSampling) {
+            wsSpan.copyPropagationAndBaggage(handshakeSpan);
             wsSpan.setTag(DECISION_MAKER_INHERITED, 1);
             wsSpan.setTag(DECISION_MAKER_SERVICE, handshakeSpan.getServiceName());
             wsSpan.setTag(DECISION_MAKER_RESOURCE, handshakeSpan.getResourceName());
