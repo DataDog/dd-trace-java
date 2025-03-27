@@ -21,7 +21,8 @@ import java.util.Set;
  * Subtype UNIX socket for a higher-fidelity impersonation of TCP sockets. This is named "tunneling"
  * because it assumes the ultimate destination has a hostname and port.
  *
- * <p>Bsed on {@link TunnelingUnixSocket}; adapted to use the built-in UDS support added in Java 16.
+ * <p>Based on {@link TunnelingUnixSocket}; adapted to use the built-in UDS support added in Java
+ * 16.
  */
 final class TunnelingJdkSocket extends Socket {
   private final SocketAddress unixSocketAddress;
@@ -33,6 +34,11 @@ final class TunnelingJdkSocket extends Socket {
   private boolean shutIn;
   private boolean shutOut;
   private boolean closed;
+
+  // Indicate that the buffer size is not set by initializing to -1
+  private int sendBufferSize = -1;
+  private int receiveBufferSize = -1;
+  private int defaultBufferSize = 8192;
 
   TunnelingJdkSocket(final Path path) {
     this.unixSocketAddress = UnixDomainSocketAddress.of(path);
@@ -115,6 +121,74 @@ final class TunnelingJdkSocket extends Socket {
   }
 
   @Override
+  public void setSendBufferSize(int size) throws SocketException {
+    if (isClosed()) {
+      throw new SocketException("Socket is closed");
+    }
+    if (size < 0) {
+      throw new IllegalArgumentException("Invalid send buffer size");
+    }
+    try {
+      unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_SNDBUF, size);
+      sendBufferSize = size;
+    } catch (IOException e) {
+      throw new SocketException("Failed to set send buffer size");
+    }
+  }
+
+  @Override
+  public int getSendBufferSize() throws SocketException {
+    if (isClosed()) {
+      throw new SocketException("Socket is closed");
+    }
+    if (sendBufferSize == -1) {
+      return defaultBufferSize;
+    }
+    return sendBufferSize;
+  }
+
+  @Override
+  public void setReceiveBufferSize(int size) throws SocketException {
+    if (isClosed()) {
+      throw new SocketException("Socket is closed");
+    }
+    if (size < 0) {
+      throw new IllegalArgumentException("Invalid receive buffer size");
+    }
+    try {
+      unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_RCVBUF, size);
+      receiveBufferSize = size;
+    } catch (IOException e) {
+      throw new SocketException("Failed to set receive buffer size");
+    }
+  }
+
+  @Override
+  public int getReceiveBufferSize() throws SocketException {
+    if (isClosed()) {
+      throw new SocketException("Socket is closed");
+    }
+    if (receiveBufferSize == -1) {
+      return defaultBufferSize;
+    }
+    return receiveBufferSize;
+  }
+
+  public int getStreamBufferSize() throws SocketException {
+    if (isClosed()) {
+      throw new SocketException("Socket is closed");
+    }
+    if (sendBufferSize == -1 && receiveBufferSize == -1) {
+      return defaultBufferSize;
+    }
+    return Math.max(sendBufferSize, receiveBufferSize);
+  }
+
+  public int getDefaultBufferSize() {
+    return defaultBufferSize;
+  }
+
+  @Override
   public InputStream getInputStream() throws IOException {
     if (isClosed()) {
       throw new SocketException("Socket is closed");
@@ -127,7 +201,7 @@ final class TunnelingJdkSocket extends Socket {
     }
 
     return new InputStream() {
-      private final ByteBuffer buffer = ByteBuffer.allocate(8192);
+      private final ByteBuffer buffer = ByteBuffer.allocate(getStreamBufferSize());
       private final Selector selector = Selector.open();
 
       {
