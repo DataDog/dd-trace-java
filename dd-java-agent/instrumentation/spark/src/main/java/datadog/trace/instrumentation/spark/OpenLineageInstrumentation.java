@@ -9,10 +9,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import java.lang.reflect.Field;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerInterface;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
@@ -46,9 +46,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.openlineage.spark.agent.OpenLineageSparkListener", "org.apache.spark.util.Utils"
-    };
+    return new String[] {"io.openlineage.spark.agent.OpenLineageSparkListener"};
   }
 
   @Override
@@ -63,18 +61,44 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   public static class OpenLineageSparkListenerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.This Object self) throws IllegalAccessException {
-      LoggerFactory.getLogger(Config.class).debug("Checking for OpenLineageSparkListener");
+    public static void exit(@Advice.This Object self, @Advice.FieldValue("conf") SparkConf conf) {
       try {
-        Field conf = self.getClass().getDeclaredField("conf");
-        conf.setAccessible(true);
-        AbstractDatadogSparkListener.openLineageSparkConf = (SparkConf) conf.get(self);
-        AbstractDatadogSparkListener.openLineageSparkListener = (SparkListenerInterface) self;
+        Logger log = LoggerFactory.getLogger(Config.class);
+        AbstractDatadogSparkListener.openLineageSparkConf = conf;
+
+        log.debug(
+            "ADSL classloader ({}) {}",
+            System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
+            AbstractDatadogSparkListener.class.getClassLoader());
+        log.debug(
+            "Current classloader ({}) {}",
+            System.identityHashCode(Thread.currentThread().getContextClassLoader()),
+            Thread.currentThread().getContextClassLoader().toString());
+        log.debug("Got OpenLineageSparkListener: {}", self);
+        AbstractDatadogSparkListener.openLineageSparkListener.set((SparkListenerInterface) self);
+        log.debug(
+            "Set OpenLineageSparkListener: {}",
+            AbstractDatadogSparkListener.openLineageSparkListener.get());
+        log.debug("Check for self: {}", self);
+        if (AbstractDatadogSparkListener.openLineageSparkListener.get() != null) {
+          log.debug(
+              "Detected OpenLineageSparkListener, passed to DatadogSparkListener {} on ClassLoader ({}) {}",
+              AbstractDatadogSparkListener.openLineageSparkListener.get().getClass().getName(),
+              System.identityHashCode(
+                  AbstractDatadogSparkListener.openLineageSparkListener
+                      .get()
+                      .getClass()
+                      .getClassLoader()),
+              AbstractDatadogSparkListener.openLineageSparkListener
+                  .get()
+                  .getClass()
+                  .getClassLoader());
+        } else {
+          log.debug("WTF it's null");
+        }
+      } catch (Exception e) {
         LoggerFactory.getLogger(Config.class)
-            .debug("Detected OpenLineageSparkListener, passed to DatadogSparkListener");
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        LoggerFactory.getLogger(Config.class)
-            .debug("Failed to pass OpenLineageSparkListener to DatadogSparkListener", e);
+            .error("Failed to set OpenLineageSparkListener: {}", e.getMessage());
       }
     }
   }

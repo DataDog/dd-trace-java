@@ -44,8 +44,8 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
-      // checking whether OpenLineage integration is available and that it supports tags
-      // Disabling this mechanism for this PR. Will be enabled with provided with Config option.
+      // checking whether OpenLineage integration is enabled, available and that it supports tags
+
       if (Config.get().isDataJobsOpenLineageEnabled()
           && Utils.classIsLoadable("io.openlineage.spark.agent.OpenLineageSparkListener")
           && Utils.classIsLoadable(
