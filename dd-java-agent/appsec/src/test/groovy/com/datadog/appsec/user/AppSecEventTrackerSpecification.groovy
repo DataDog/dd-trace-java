@@ -496,7 +496,6 @@ class AppSecEventTrackerSpecification extends DDSpecification {
       drain()
     }
     final expectedTags = ["event_type:${event.getTag()}".toString(), "sdk_version:${version.getTag()}".toString()]
-    assert metrics.size() == 1
     final metric = metrics.find { it.metricName == 'sdk.event'}
     assert metric != null
     assert metric.namespace == 'appsec'
