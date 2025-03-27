@@ -654,7 +654,7 @@ public class PowerWAFModule implements AppSecModule {
     if (gwCtx.isRasp) {
       WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
     } else {
-      WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, code);
+      WafMetricCollector.get().wafErrorCode(code);
     }
   }
 

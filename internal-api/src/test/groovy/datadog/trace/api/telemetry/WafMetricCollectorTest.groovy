@@ -40,9 +40,9 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
-    WafMetricCollector.get().wafErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().wafErrorCode(DD_WAF_RUN_INVALID_OBJECT_ERROR)
     WafMetricCollector.get().raspErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
-    WafMetricCollector.get().wafErrorCode(RuleType.SQL_INJECTION, DD_WAF_RUN_INVALID_OBJECT_ERROR)
+    WafMetricCollector.get().wafErrorCode(DD_WAF_RUN_INTERNAL_ERROR)
     WafMetricCollector.get().raspRuleSkipped(RuleType.SQL_INJECTION)
 
     WafMetricCollector.get().prepareMetrics()
@@ -210,7 +210,7 @@ class WafMetricCollectorTest extends DDSpecification {
     wafInvalidCode.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
-      'waf_error:' +DD_WAF_RUN_INTERNAL_ERROR
+      'waf_error:' +DD_WAF_RUN_INVALID_OBJECT_ERROR
     ].toSet()
 
     def wafInvalidObjectCode = (WafMetricCollector.WafError)metrics[14]
@@ -221,7 +221,7 @@ class WafMetricCollectorTest extends DDSpecification {
     wafInvalidObjectCode.tags.toSet() == [
       'waf_version:waf_ver1',
       'event_rules_version:rules.3',
-      'waf_error:'+DD_WAF_RUN_INVALID_OBJECT_ERROR
+      'waf_error:'+DD_WAF_RUN_INTERNAL_ERROR
     ].toSet()
 
     def raspRuleSkipped = (WafMetricCollector.AfterRequestRaspRuleSkipped)metrics[15]
@@ -404,7 +404,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspTimeout(ruleType)
     WafMetricCollector.get().raspErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
-    WafMetricCollector.get().wafErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
+    WafMetricCollector.get().wafErrorCode(DD_WAF_RUN_INTERNAL_ERROR)
     WafMetricCollector.get().raspRuleSkipped(ruleType)
     WafMetricCollector.get().prepareMetrics()
 
