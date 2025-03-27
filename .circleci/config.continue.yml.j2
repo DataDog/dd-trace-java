@@ -414,7 +414,7 @@ jobs:
           name: Check Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew
             << parameters.gradleTarget >>
             -PskipTests
@@ -1105,7 +1105,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
-      parallelism: 4
+      parallelism: 5
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
       triggeredBy: *instrumentation_modules
