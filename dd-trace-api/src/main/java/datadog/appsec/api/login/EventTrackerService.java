@@ -18,7 +18,7 @@ public interface EventTrackerService {
         public void trackCustomEvent(final String eventName, final Map<String, String> metadata) {}
       };
 
-  void trackUserLoginSuccess(final String login, final String userId, Map<String, String> metadata);
+  void trackUserLoginSuccess(String login, String userId, Map<String, String> metadata);
 
   void trackUserLoginFailure(String login, boolean exists, Map<String, String> metadata);
 
