@@ -2,7 +2,9 @@ package datadog.trace.api;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -84,6 +86,31 @@ public class TagMapBuilderTest {
     assertEquals(SIZE, map.computeSize());
 
     assertFrozen(map);
+  }
+
+  @Test
+  public void build_empty() {
+    TagMap.Builder builder = TagMap.builder();
+    assertTrue(builder.isDefinitelyEmpty());
+    assertNotSame(TagMap.EMPTY, builder.build());
+  }
+
+  @Test
+  public void buildImmutable_empty() {
+    TagMap.Builder builder = TagMap.builder();
+    assertTrue(builder.isDefinitelyEmpty());
+    assertSame(TagMap.EMPTY, builder.buildImmutable());
+  }
+
+  @Test
+  public void isDefinitelyEmpty_emptyMap() {
+    TagMap.Builder builder = TagMap.builder();
+    builder.put("foo", "bar");
+    builder.remove("foo");
+
+    assertFalse(builder.isDefinitelyEmpty());
+    TagMap map = builder.build();
+    assertTrue(map.checkIfEmpty());
   }
 
   @Test
