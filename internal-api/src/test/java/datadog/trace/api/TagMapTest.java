@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
@@ -267,6 +269,54 @@ public class TagMapTest {
     assertTrue(keys.isEmpty());
   }
 
+  @Test
+  public void entrySet() {
+    int size = randomSize();
+    TagMap map = createTagMap(size);
+
+    Set<Map.Entry<String, Object>> actualEntries = map.entrySet();
+    assertEquals(size, actualEntries.size());
+    assertFalse(actualEntries.isEmpty());
+
+    Set<String> expectedKeys = expectedKeys(size);
+    for (Map.Entry<String, Object> entry : actualEntries) {
+      assertTrue(expectedKeys.remove(entry.getKey()));
+    }
+    assertTrue(expectedKeys.isEmpty());
+  }
+
+  @Test
+  public void keySet() {
+    int size = randomSize();
+    TagMap map = createTagMap(size);
+
+    Set<String> actualKeys = map.keySet();
+    assertEquals(size, actualKeys.size());
+    assertFalse(actualKeys.isEmpty());
+
+    Set<String> expectedKeys = expectedKeys(size);
+    for (String key : actualKeys) {
+      assertTrue(expectedKeys.remove(key));
+    }
+    assertTrue(expectedKeys.isEmpty());
+  }
+
+  @Test
+  public void values() {
+    int size = randomSize();
+    TagMap map = createTagMap(size);
+
+    Collection<Object> actualValues = map.values();
+    assertEquals(size, actualValues.size());
+    assertFalse(actualValues.isEmpty());
+
+    Set<String> expectedValues = expectedValues(size);
+    for (Object value : map.values()) {
+      assertTrue(expectedValues.remove(value));
+    }
+    assertTrue(expectedValues.isEmpty());
+  }
+
   static final int randomSize() {
     return ThreadLocalRandom.current().nextInt(MANY_SIZE);
   }
@@ -281,6 +331,22 @@ public class TagMapTest {
       map.set(key(i), value(i));
     }
     return map;
+  }
+
+  static final Set<String> expectedKeys(int size) {
+    Set<String> set = new HashSet<String>(size);
+    for (int i = 0; i < size; ++i) {
+      set.add(key(i));
+    }
+    return set;
+  }
+
+  static final Set<String> expectedValues(int size) {
+    Set<String> set = new HashSet<String>(size);
+    for (int i = 0; i < size; ++i) {
+      set.add(value(i));
+    }
+    return set;
   }
 
   static final String key(int i) {
