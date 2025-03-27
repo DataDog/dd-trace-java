@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.pekko.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -14,7 +11,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -58,40 +54,29 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.Tracing
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local(value = "taskScope") AgentScope taskScope) {
-      checkpointActiveForRollback();
-      // note: task scope may be the same as the scope we want to roll back to,
-      // so we must remember to close it on exit to balance the activation count
-      taskScope =
+    public static AgentScope enter(@Advice.Argument(value = 0) Envelope envelope) {
+
+      // do this before checkpointing, as the envelope's task scope may already be active
+      AgentScope taskScope =
           AdviceUtils.startTaskScope(
               InstrumentationContext.get(Envelope.class, State.class), envelope);
-      // There was a scope created from the envelope, so use that
-      if (taskScope != null) {
-        return;
-      }
-      AgentSpan activeSpan = activeSpan();
-      // If there is no active scope, we can clean all the way to the bottom
-      if (activeSpan == null) {
-        return;
-      }
-      // If there is a noop span in the active scope, we can clean all the way to this scope
-      if (activeSpan == noopSpan()) {
-        return;
-      }
-      // Create an active scope with a noop span, and clean all the way to the previous scope
-      activateSpan(noopSpan());
+
+      // remember the currently active scope so we can roll back to this point
+      checkpointActiveForRollback();
+
+      return taskScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Local(value = "taskScope") AgentScope taskScope) {
-      if (taskScope != null) {
-        // then we have invoked an Envelope and need to mark the work complete
-        taskScope.close();
-      }
+    public static void exit(@Advice.Enter AgentScope taskScope) {
+
       // Clean up any leaking scopes from pekko-streams/pekko-http etc.
       rollbackActiveToCheckpoint();
+
+      // close envelope's task scope if we previously started it
+      if (taskScope != null) {
+        taskScope.close();
+      }
     }
   }
 }

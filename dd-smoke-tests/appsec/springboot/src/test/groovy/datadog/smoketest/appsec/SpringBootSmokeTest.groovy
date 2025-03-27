@@ -6,11 +6,17 @@ import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
+
+  @Override
+  def logLevel() {
+    'DEBUG'
+  }
 
   @Shared
   String buildDir = new File(System.getProperty("datadog.smoketest.builddir")).absolutePath
@@ -650,7 +656,36 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'cmd'              | ['$(cat /etc/passwd 1>&2 ; echo .)'] | null
     'cmdWithParams'    | ['$(cat /etc/passwd 1>&2 ; echo .)'] | ['param']
     'cmdParamsAndFile' | ['$(cat /etc/passwd 1>&2 ; echo .)'] | ['param']
+  }
 
+  void 'API Security samples only one request per endpoint'() {
+    given:
+    def url = "http://localhost:${httpPort}/api_security/sampling/200?test=value"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .addHeader('X-My-Header', "value")
+      .get()
+      .build()
+
+    when:
+    List<Response> responses = (1..3).collect {
+      client.newCall(request).execute()
+    }
+
+    then:
+    responses.each {
+      assert it.code() == 200
+    }
+    waitForTraceCount(3)
+    def spans = rootSpans.toList().toSorted { it.span.duration }
+    spans.size() == 3
+    def sampledSpans = spans.findAll { it.meta.keySet().any { it.startsWith('_dd.appsec.s.req.') } }
+    sampledSpans.size() == 1
+    def span = sampledSpans[0]
+    span.meta.containsKey('_dd.appsec.s.req.query')
+    span.meta.containsKey('_dd.appsec.s.req.params')
+    span.meta.containsKey('_dd.appsec.s.req.headers')
   }
 
 }
