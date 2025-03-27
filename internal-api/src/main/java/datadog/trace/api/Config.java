@@ -292,7 +292,7 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
-  private final float apiSecurityRequestSampleRate;
+  private final float apiSecuritySampleDelay;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -430,6 +430,7 @@ public class Config {
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
+  private final Set<String> debuggerShadingIdentifiers;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1384,9 +1385,8 @@ public class Config {
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
-    apiSecurityRequestSampleRate =
-        configProvider.getFloat(
-            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecuritySampleDelay =
+        configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1735,6 +1735,8 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerShadingIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -2760,8 +2762,8 @@ public class Config {
     return apiSecurityEnabled;
   }
 
-  public float getApiSecurityRequestSampleRate() {
-    return apiSecurityRequestSampleRate;
+  public float getApiSecuritySampleDelay() {
+    return apiSecuritySampleDelay;
   }
 
   public ProductActivation getIastActivation() {
@@ -3298,6 +3300,10 @@ public class Config {
 
   public Set<String> getThirdPartyExcludes() {
     return debuggerThirdPartyExcludes;
+  }
+
+  public Set<String> getThirdPartyShadingIdentifiers() {
+    return debuggerShadingIdentifiers;
   }
 
   private String getFinalDebuggerBaseUrl() {
@@ -4792,8 +4798,6 @@ public class Config {
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
-        + ", apiSecurityRequestSampleRate="
-        + apiSecurityRequestSampleRate
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
