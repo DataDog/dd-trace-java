@@ -205,6 +205,11 @@ public class WebController {
     return "EXECUTED";
   }
 
+  @GetMapping("/api_security/sampling/{status_code}")
+  public ResponseEntity<String> apiSecuritySampling(@PathVariable("status_code") int statusCode) {
+    return ResponseEntity.status(statusCode).body("EXECUTED");
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
