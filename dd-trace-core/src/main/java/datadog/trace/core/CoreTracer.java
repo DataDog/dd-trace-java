@@ -800,9 +800,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
     }
 
-    this.tagInterceptor =
-        null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
-
     if (config.isCiVisibilityEnabled()) {
       if (config.isCiVisibilityTraceSanitationEnabled()) {
         addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
