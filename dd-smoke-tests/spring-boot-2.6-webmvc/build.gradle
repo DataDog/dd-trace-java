@@ -48,6 +48,11 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
   implementation project(':dd-smoke-tests:iast-util')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+  testImplementation('org.yaml:snakeyaml') {
+    version {
+      strictly '1.33'
+    }
+  }
 
   implementation 'jakarta.mail:jakarta.mail-api:2.0.1'
   implementation 'com.sun.mail:jakarta.mail:2.0.1'

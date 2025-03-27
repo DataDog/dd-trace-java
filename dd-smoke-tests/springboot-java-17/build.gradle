@@ -22,6 +22,11 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation testFixtures(project(":dd-smoke-tests:iast-util:iast-util-17"))
   testImplementation testFixtures(project(':dd-smoke-tests:iast-util'))
+  testImplementation('org.yaml:snakeyaml') {
+    version {
+      strictly '1.33'
+    }
+  }
 
   implementation project(':dd-smoke-tests:iast-util:iast-util-17')
 }
