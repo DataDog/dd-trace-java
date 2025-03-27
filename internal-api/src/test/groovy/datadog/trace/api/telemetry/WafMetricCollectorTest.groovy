@@ -8,8 +8,8 @@ import java.util.concurrent.TimeUnit
 
 class WafMetricCollectorTest extends DDSpecification {
 
-  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3
-  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2
+  public static final int DD_WAF_RUN_INTERNAL_ERROR = WafMetricCollector.WafErrorCode.INTERNAL_ERROR.getCode()
+  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = WafMetricCollector.WafErrorCode.INVALID_OBJECT.getCode()
 
   def "no metrics - drain empty list"() {
     when:
