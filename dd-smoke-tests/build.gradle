@@ -2,6 +2,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'dd-smoke-tests'
 
+configurations.all {
+  exclude group: 'org.yaml', module: 'snakeyaml'
+}
+
 dependencies {
   api libs.bundles.spock
   api libs.okhttp
