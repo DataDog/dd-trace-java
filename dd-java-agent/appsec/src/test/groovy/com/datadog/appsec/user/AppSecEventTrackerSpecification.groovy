@@ -263,7 +263,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     final expectedUserLogin = mode == ANONYMIZATION ? ANONYMIZED_USER_LOGIN : USER_LOGIN
 
     when:
-    tracker.onSignupEvent(mode, USER_LOGIN, null, ['key1': 'value1', 'key2': 'value2'])
+    tracker.onSignupEvent(mode, USER_LOGIN, ['key1': 'value1', 'key2': 'value2'])
 
     then:
     if (mode != DISABLED) {
@@ -276,9 +276,6 @@ class AppSecEventTrackerSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * loginEvent.apply(_ as RequestContext, SIGN_UP, expectedUserLogin) >> NoopFlow.INSTANCE
-      if (mode == SDK) {
-        1 * user.apply(_ as RequestContext, USER_LOGIN) >> NoopFlow.INSTANCE
-      }
     }
     0 * _
 
@@ -291,7 +288,7 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     final expectedUserLogin = mode == ANONYMIZATION ? ANONYMIZED_USER_LOGIN : USER_LOGIN
 
     when:
-    tracker.onLoginSuccessEvent(mode, USER_LOGIN, null, ['key1': 'value1', 'key2': 'value2'])
+    tracker.onLoginSuccessEvent(mode, USER_LOGIN, ['key1': 'value1', 'key2': 'value2'])
 
     then:
     if (mode != DISABLED) {
@@ -304,9 +301,6 @@ class AppSecEventTrackerSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * loginEvent.apply(_ as RequestContext, LOGIN_SUCCESS, expectedUserLogin) >> NoopFlow.INSTANCE
-      if (mode == SDK) {
-        1 * user.apply(_ as RequestContext, USER_LOGIN) >> NoopFlow.INSTANCE
-      }
     }
     0 * _
 
@@ -333,9 +327,6 @@ class AppSecEventTrackerSpecification extends DDSpecification {
       1 * traceSegment.setTagTop('asm.keep', true)
       1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
       1 * loginEvent.apply(_ as RequestContext, LOGIN_FAILURE, expectedUserLogin) >> NoopFlow.INSTANCE
-      if (mode == SDK) {
-        1 * user.apply(_ as RequestContext, USER_LOGIN) >> NoopFlow.INSTANCE
-      }
     }
     0 * _
 
