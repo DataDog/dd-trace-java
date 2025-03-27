@@ -12,6 +12,44 @@ public class TagMapBuilderTest {
   static final int SIZE = 32;
 
   @Test
+  public void inOrder() {
+    TagMap.Builder builder = TagMap.builder();
+    for (int i = 0; i < SIZE; ++i) {
+      builder.put(key(i), value(i));
+    }
+
+    assertEquals(SIZE, builder.estimateSize());
+
+    int i = 0;
+    for (TagMap.Entry entry : builder) {
+      assertEquals(key(i), entry.tag());
+      assertEquals(value(i), entry.stringValue());
+
+      ++i;
+    }
+  }
+
+  @Test
+  public void testTypes() {
+    TagMap.Builder builder = TagMap.builder();
+    builder.put("bool", true);
+    builder.put("int", 1);
+    builder.put("long", 1L);
+    builder.put("float", 1F);
+    builder.put("double", 1D);
+    builder.put("object", (Object) "string");
+    builder.put("string", "string");
+
+    assertEntryRawType(TagMap.Entry.BOOLEAN, builder, "bool");
+    assertEntryRawType(TagMap.Entry.INT, builder, "int");
+    assertEntryRawType(TagMap.Entry.LONG, builder, "long");
+    assertEntryRawType(TagMap.Entry.FLOAT, builder, "float");
+    assertEntryRawType(TagMap.Entry.DOUBLE, builder, "double");
+    assertEntryRawType(TagMap.Entry.ANY, builder, "object");
+    assertEntryRawType(TagMap.Entry.OBJECT, builder, "string");
+  }
+
+  @Test
   public void buildMutable() {
     TagMap.Builder builder = TagMap.builder();
     for (int i = 0; i < SIZE; ++i) {
@@ -46,6 +84,32 @@ public class TagMapBuilderTest {
     assertEquals(SIZE, map.computeSize());
 
     assertFrozen(map);
+  }
+
+  @Test
+  public void builderExpansion() {
+    TagMap.Builder builder = TagMap.builder();
+    for (int i = 0; i < 100; ++i) {
+      builder.put(key(i), value(i));
+    }
+
+    TagMap map = builder.build();
+    for (int i = 0; i < 100; ++i) {
+      assertEquals(value(i), map.getString(key(i)));
+    }
+  }
+
+  @Test
+  public void builderPresized() {
+    TagMap.Builder builder = TagMap.builder(100);
+    for (int i = 0; i < 100; ++i) {
+      builder.put(key(i), value(i));
+    }
+
+    TagMap map = builder.build();
+    for (int i = 0; i < 100; ++i) {
+      assertEquals(value(i), map.getString(key(i)));
+    }
   }
 
   @Test
@@ -111,6 +175,11 @@ public class TagMapBuilderTest {
 
   static final String value(int i) {
     return "value-" + i;
+  }
+
+  static final void assertEntryRawType(byte expectedType, TagMap.Builder builder, String tag) {
+    TagMap.Entry entry = builder.findLastEntry(tag);
+    assertEquals(expectedType, entry.rawType);
   }
 
   static final void assertFrozen(TagMap map) {

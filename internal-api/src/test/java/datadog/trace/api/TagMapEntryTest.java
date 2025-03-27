@@ -10,6 +10,8 @@ public class TagMapEntryTest {
   @Test
   public void objectEntry() {
     TagMap.Entry entry = TagMap.Entry.newObjectEntry("foo", "bar");
+    assertEquals(TagMap.Entry.OBJECT, entry.rawType);
+
     assertKey("foo", entry);
     assertValue("bar", entry);
 
@@ -21,6 +23,7 @@ public class TagMapEntryTest {
   @Test
   public void anyEntry_object() {
     TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", "bar");
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue("bar", entry);
@@ -34,6 +37,7 @@ public class TagMapEntryTest {
   @Test
   public void booleanEntry() {
     TagMap.Entry entry = TagMap.Entry.newBooleanEntry("foo", true);
+    assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(true, entry);
@@ -45,6 +49,7 @@ public class TagMapEntryTest {
   @Test
   public void booleanEntry_boxed() {
     TagMap.Entry entry = TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(true));
+    assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(true, entry);
@@ -55,7 +60,8 @@ public class TagMapEntryTest {
 
   @Test
   public void anyEntry_boolean() {
-    TagMap.Entry entry = TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(true));
+    TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", Boolean.valueOf(true));
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(true, entry);
@@ -69,6 +75,7 @@ public class TagMapEntryTest {
   @Test
   public void intEntry() {
     TagMap.Entry entry = TagMap.Entry.newIntEntry("foo", 20);
+    assertEquals(TagMap.Entry.INT, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(20, entry);
@@ -80,6 +87,7 @@ public class TagMapEntryTest {
   @Test
   public void intEntry_boxed() {
     TagMap.Entry entry = TagMap.Entry.newIntEntry("foo", Integer.valueOf(20));
+    assertEquals(TagMap.Entry.INT, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(20, entry);
@@ -91,6 +99,7 @@ public class TagMapEntryTest {
   @Test
   public void anyEntry_int() {
     TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", Integer.valueOf(20));
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(20, entry);
@@ -104,6 +113,7 @@ public class TagMapEntryTest {
   @Test
   public void longEntry() {
     TagMap.Entry entry = TagMap.Entry.newLongEntry("foo", 1_048_576L);
+    assertEquals(TagMap.Entry.LONG, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(1_048_576L, entry);
@@ -115,6 +125,7 @@ public class TagMapEntryTest {
   @Test
   public void longEntry_boxed() {
     TagMap.Entry entry = TagMap.Entry.newLongEntry("foo", Long.valueOf(1_048_576L));
+    assertEquals(TagMap.Entry.LONG, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(1_048_576L, entry);
@@ -126,6 +137,7 @@ public class TagMapEntryTest {
   @Test
   public void anyEntry_long() {
     TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", Long.valueOf(1_048_576L));
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(1_048_576L, entry);
@@ -141,6 +153,7 @@ public class TagMapEntryTest {
   @Test
   public void doubleEntry() {
     TagMap.Entry entry = TagMap.Entry.newDoubleEntry("foo", Math.PI);
+    assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(Math.PI, entry);
@@ -152,6 +165,7 @@ public class TagMapEntryTest {
   @Test
   public void doubleEntry_boxed() {
     TagMap.Entry entry = TagMap.Entry.newDoubleEntry("foo", Double.valueOf(Math.PI));
+    assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(Math.PI, entry);
@@ -163,6 +177,7 @@ public class TagMapEntryTest {
   @Test
   public void anyEntry_double() {
     TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", Double.valueOf(Math.PI));
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(Math.PI, entry);
@@ -178,6 +193,7 @@ public class TagMapEntryTest {
   @Test
   public void floatEntry() {
     TagMap.Entry entry = TagMap.Entry.newFloatEntry("foo", 2.718281828f);
+    assertEquals(TagMap.Entry.FLOAT, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(2.718281828f, entry);
@@ -189,6 +205,19 @@ public class TagMapEntryTest {
   @Test
   public void floatEntry_boxed() {
     TagMap.Entry entry = TagMap.Entry.newFloatEntry("foo", Float.valueOf(2.718281828f));
+    assertEquals(TagMap.Entry.FLOAT, entry.rawType);
+
+    assertKey("foo", entry);
+    assertValue(2.718281828f, entry);
+
+    assertTrue(entry.isNumericPrimitive());
+    assertTrue(entry.is(TagMap.Entry.FLOAT));
+  }
+
+  @Test
+  public void anyEntry_float() {
+    TagMap.Entry entry = TagMap.Entry.newAnyEntry("foo", Float.valueOf(2.718281828f));
+    assertEquals(TagMap.Entry.ANY, entry.rawType);
 
     assertKey("foo", entry);
     assertValue(2.718281828f, entry);

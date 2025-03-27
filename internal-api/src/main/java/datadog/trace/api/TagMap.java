@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.function.TriConsumer;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
@@ -902,7 +901,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
      * hash is stored in line for fast handling of Entry-s coming another Tag
      * However, hash is lazily computed using the same trick as {@link java.lang.String}.
      */
-    int hash;
+    int lazyHash;
 
     // To optimize construction of Entry around boxed primitives and Object entries,
     // no type checks are done during construction.
@@ -918,18 +917,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
     // Type and prim cannot use the same trick as hash because during ANY resolution the order of
     // writes is important
-    volatile byte type;
-    volatile long prim;
-    volatile Object obj;
+    volatile byte rawType;
+    volatile long rawPrim;
+    volatile Object rawObj;
 
     volatile String strCache = null;
 
     private Entry(String tag, byte type, long prim, Object obj) {
       this.tag = tag;
-      this.hash = 0; // lazily computed
-      this.type = type;
-      this.prim = prim;
-      this.obj = obj;
+      this.lazyHash = 0; // lazily computed
+
+      this.rawType = type;
+      this.rawPrim = prim;
+      this.rawObj = obj;
     }
 
     public final String tag() {
@@ -939,11 +939,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     int hash() {
       // If value of hash read in this thread is zero, then hash is computed.
       // hash is not held as a volatile, since this computation can safely be repeated as any time
-      int hash = this.hash;
+      int hash = this.lazyHash;
       if (hash != 0) return hash;
 
       hash = _hash(this.tag);
-      this.hash = hash;
+      this.lazyHash = hash;
       return hash;
     }
 
@@ -952,7 +952,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final boolean is(byte type) {
-      byte curType = this.type;
+      byte curType = this.rawType;
       if (curType == type) {
         return true;
       } else if (curType != ANY) {
@@ -963,7 +963,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final boolean isNumericPrimitive() {
-      byte curType = this.type;
+      byte curType = this.rawType;
       if (_isNumericPrimitive(curType)) {
         return true;
       } else if (curType != ANY) {
@@ -974,8 +974,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final boolean isNumber() {
-      byte curType = this.type;
-      return _isNumericPrimitive(curType) || (this.obj instanceof Number);
+      byte curType = this.rawType;
+      return _isNumericPrimitive(curType) || (this.rawObj instanceof Number);
     }
 
     private static final boolean _isNumericPrimitive(byte type) {
@@ -983,10 +983,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     private final byte resolveAny() {
-      byte curType = this.type;
+      byte curType = this.rawType;
       if (curType != ANY) return curType;
 
-      Object value = this.obj;
+      Object value = this.rawObj;
       long prim;
       byte resolvedType;
 
@@ -1024,8 +1024,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       // Order is important here, the contract is that prim must be set properly *before*
       // type is set to a non-object type
 
-      this.prim = prim;
-      this.type = type;
+      this.rawPrim = prim;
+      this.rawType = type;
     }
 
     public final boolean isObject() {
@@ -1041,36 +1041,32 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final Object objectValue() {
-      if (this.obj != null) {
-        return this.obj;
+      if (this.rawObj != null) {
+        return this.rawObj;
       }
 
       // This code doesn't need to handle ANY-s.
       // An entry that starts as an ANY will always have this.obj set
-      switch (this.type) {
+      switch (this.rawType) {
         case BOOLEAN:
-          this.obj = prim2Boolean(this.prim);
+          this.rawObj = prim2Boolean(this.rawPrim);
           break;
 
         case INT:
           // Maybe use a wider cache that handles response code???
-          this.obj = prim2Int(this.prim);
+          this.rawObj = prim2Int(this.rawPrim);
           break;
 
         case LONG:
-          this.obj = prim2Long(this.prim);
+          this.rawObj = prim2Long(this.rawPrim);
           break;
 
         case FLOAT:
-          this.obj = prim2Float(this.prim);
+          this.rawObj = prim2Float(this.rawPrim);
           break;
 
         case DOUBLE:
-          this.obj = prim2Double(this.prim);
-          break;
-
-        default:
-          // DQH - quiet spotbugs
+          this.rawObj = prim2Double(this.rawPrim);
           break;
       }
 
@@ -1078,23 +1074,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         return null;
       }
 
-      return this.obj;
+      return this.rawObj;
     }
 
     public final boolean booleanValue() {
-      byte type = this.type;
+      byte type = this.rawType;
 
       if (type == BOOLEAN) {
-        return prim2Boolean(this.prim);
-      } else if (type == ANY && this.obj instanceof Boolean) {
-        boolean boolValue = (Boolean) this.obj;
+        return prim2Boolean(this.rawPrim);
+      } else if (type == ANY && this.rawObj instanceof Boolean) {
+        boolean boolValue = (Boolean) this.rawObj;
         this._setPrim(BOOLEAN, boolean2Prim(boolValue));
         return boolValue;
       }
 
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
-      long prim = this.prim;
+      long prim = this.rawPrim;
 
       switch (resolvedType) {
         case INT:
@@ -1110,7 +1106,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           return prim2Double(prim) != 0D;
 
         case OBJECT:
-          return (this.obj != null);
+          return (this.rawObj != null);
 
         case REMOVED:
           return false;
@@ -1120,19 +1116,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final int intValue() {
-      byte type = this.type;
+      byte type = this.rawType;
 
       if (type == INT) {
-        return prim2Int(this.prim);
-      } else if (type == ANY && this.obj instanceof Integer) {
-        int intValue = (Integer) this.obj;
+        return prim2Int(this.rawPrim);
+      } else if (type == ANY && this.rawObj instanceof Integer) {
+        int intValue = (Integer) this.rawObj;
         this._setPrim(INT, int2Prim(intValue));
         return intValue;
       }
 
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
-      long prim = this.prim;
+      long prim = this.rawPrim;
 
       switch (resolvedType) {
         case BOOLEAN:
@@ -1158,19 +1154,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final long longValue() {
-      byte type = this.type;
+      byte type = this.rawType;
 
       if (type == LONG) {
-        return prim2Long(this.prim);
-      } else if (type == ANY && this.obj instanceof Long) {
-        long longValue = (Long) this.obj;
+        return prim2Long(this.rawPrim);
+      } else if (type == ANY && this.rawObj instanceof Long) {
+        long longValue = (Long) this.rawObj;
         this._setPrim(LONG, long2Prim(longValue));
         return longValue;
       }
 
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
-      long prim = this.prim;
+      long prim = this.rawPrim;
 
       switch (resolvedType) {
         case BOOLEAN:
@@ -1196,19 +1192,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final float floatValue() {
-      byte type = this.type;
+      byte type = this.rawType;
 
       if (type == FLOAT) {
-        return prim2Float(this.prim);
-      } else if (type == ANY && this.obj instanceof Float) {
-        float floatValue = (Float) this.obj;
+        return prim2Float(this.rawPrim);
+      } else if (type == ANY && this.rawObj instanceof Float) {
+        float floatValue = (Float) this.rawObj;
         this._setPrim(FLOAT, float2Prim(floatValue));
         return floatValue;
       }
 
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
-      long prim = this.prim;
+      long prim = this.rawPrim;
 
       switch (resolvedType) {
         case BOOLEAN:
@@ -1234,19 +1230,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final double doubleValue() {
-      byte type = this.type;
+      byte type = this.rawType;
 
       if (type == DOUBLE) {
-        return prim2Double(this.prim);
-      } else if (type == ANY && this.obj instanceof Double) {
-        double doubleValue = (Double) this.obj;
+        return prim2Double(this.rawPrim);
+      } else if (type == ANY && this.rawObj instanceof Double) {
+        double doubleValue = (Double) this.rawObj;
         this._setPrim(DOUBLE, double2Prim(doubleValue));
         return doubleValue;
       }
 
       // resolution will set prim if necessary
       byte resolvedType = this.resolveAny();
-      long prim = this.prim;
+      long prim = this.rawPrim;
 
       switch (resolvedType) {
         case BOOLEAN:
@@ -1285,28 +1281,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     private final String computeStringValue() {
       // Could do type resolution here,
       // but decided to just fallback to this.obj.toString() for ANY case
-      switch (this.type) {
+      switch (this.rawType) {
         case BOOLEAN:
-          return Boolean.toString(prim2Boolean(this.prim));
+          return Boolean.toString(prim2Boolean(this.rawPrim));
 
         case INT:
-          return Integer.toString(prim2Int(this.prim));
+          return Integer.toString(prim2Int(this.rawPrim));
 
         case LONG:
-          return Long.toString(prim2Long(this.prim));
+          return Long.toString(prim2Long(this.rawPrim));
 
         case FLOAT:
-          return Float.toString(prim2Float(this.prim));
+          return Float.toString(prim2Float(this.rawPrim));
 
         case DOUBLE:
-          return Double.toString(prim2Double(this.prim));
+          return Double.toString(prim2Double(this.rawPrim));
 
         case REMOVED:
           return null;
 
         case OBJECT:
         case ANY:
-          return this.obj.toString();
+          return this.rawObj.toString();
       }
 
       return null;
@@ -1376,34 +1372,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  /**
-   * TagMap.Builder maintains a ledger of Entry objects that can be used to construct a TagMap.
-   *
-   * <p>Since TagMap.Entry objects are immutable and shared, the cost of the TagMap.Builder is
-   * negligible as compared to most Builders.
-   *
-   * <p>TagMap.Builder's ledger can also be read directly to ensure that Entry-s are processed in
-   * order. In this way, TagMap.Builder can serve as a stand-in for a LinkedHashMap when Entry-s are
-   * not inserted more than once.
-   */
   public static final class Builder implements Iterable<Entry> {
     private Entry[] entries;
     private int nextPos = 0;
     private boolean containsRemovals = false;
 
-    Builder() {
+    private Builder() {
       this(8);
     }
 
-    Builder(int size) {
+    private Builder(int size) {
       this.entries = new Entry[size];
     }
 
-    /**
-     * Indicates if the ledger is completely empty
-     *
-     * <p>build map still return an empty Map even if this method returns true.
-     */
     public final boolean isDefinitelyEmpty() {
       return (this.nextPos == 0);
     }
@@ -1418,11 +1399,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return this.nextPos;
     }
 
-    /**
-     * Indicates if the ledger contains any removal entries
-     *
-     * @return
-     */
     public final boolean containsRemovals() {
       return this.containsRemovals;
     }
@@ -1465,7 +1441,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return this;
     }
 
-    /** Records a removal Entry in the ledger */
     public final Builder remove(String tag) {
       return this.recordRemoval(Entry.newRemovalEntry(tag));
     }
@@ -1490,12 +1465,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       this.entries[this.nextPos++] = entry;
     }
 
-    /**
-     * Smarter (but more expensive) version of {@link Builder#remove(String)} A removal entry is
-     * only added to the ledger if there is a prior insertion entry in the ledger
-     *
-     * <p>NOTE: This method does require an O(n) traversal of the ledger
-     */
     public final Builder smartRemove(String tag) {
       if (this.contains(tag)) {
         this.remove(tag);
@@ -1504,16 +1473,28 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     private final boolean contains(String tag) {
-      Entry[] entries = this.entries;
+      Entry[] thisEntries = this.entries;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
-      for (int i = 0; i < Math.min(this.nextPos, entries.length); ++i) {
-        if (entries[i].matches(tag)) return true;
+      for (int i = 0; i < Math.min(this.nextPos, thisEntries.length); ++i) {
+        if (thisEntries[i].matches(tag)) return true;
       }
       return false;
     }
 
-    /** Resets the ledger */
+    /*
+     * Just for testing
+     */
+    final Entry findLastEntry(String tag) {
+      Entry[] thisEntries = this.entries;
+
+      // min is to clamp, so ArrayBoundsCheckElimination optimization works
+      for (int i = Math.min(this.nextPos, thisEntries.length) - 1; i >= 0; --i) {
+        if (thisEntries[i].matches(tag)) return thisEntries[i];
+      }
+      return null;
+    }
+
     public final void reset() {
       Arrays.fill(this.entries, null);
       this.nextPos = 0;
