@@ -11,6 +11,7 @@ import static datadog.trace.api.telemetry.LoginVersion.AUTO;
 import static datadog.trace.api.telemetry.LoginVersion.V1;
 import static datadog.trace.api.telemetry.LoginVersion.V2;
 import static datadog.trace.util.Strings.toHexString;
+import static java.util.Collections.emptyMap;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.appsec.api.login.EventTrackerService;
@@ -137,6 +138,10 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     }
   }
 
+  public void onUserEvent(final UserIdCollectionMode mode, final String userId) {
+    onUserEvent(mode, userId, emptyMap());
+  }
+
   public void onUserEvent(
       final UserIdCollectionMode mode, final String userId, final Map<String, String> metadata) {
     if (handleUser(mode, userId, metadata)) {
@@ -151,6 +156,11 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
   }
 
   public void onSignupEvent(
+      final UserIdCollectionMode mode, final String login, final Map<String, String> metadata) {
+    onSignupEvent(mode, login, null, metadata);
+  }
+
+  public void onSignupEvent(
       final UserIdCollectionMode mode,
       final String login,
       final String userId,
@@ -158,6 +168,11 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     if (handleLoginEvent(AUTO, SIGNUP_EVENT, mode, login, userId, null, metadata)) {
       throw new BlockingException("Blocked request (for signup)");
     }
+  }
+
+  public void onLoginSuccessEvent(
+      final UserIdCollectionMode mode, final String login, final Map<String, String> metadata) {
+    onLoginSuccessEvent(mode, login, null, metadata);
   }
 
   public void onLoginSuccessEvent(
