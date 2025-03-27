@@ -28,6 +28,9 @@ import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.RuleSetInfo;
+import com.datadog.ddwaf.WafBuilder;
+import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
@@ -86,12 +89,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.reconfiguration = reconfig;
   }
 
-  private void subscribeConfigurationPoller() {
+  private void subscribeConfigurationPoller(WafBuilder wafBuilder) {
     // see also close() method
     subscribeAsmFeatures();
 
     if (!hasUserWafConfig) {
-      subscribeRulesAndData();
+      subscribeRulesAndData(wafBuilder);
     } else {
       log.debug("Will not subscribe to ASM, ASM_DD and ASM_DATA (AppSec custom rules in use)");
     }
@@ -126,7 +129,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addCapabilities(capabilities);
   }
 
-  private void subscribeRulesAndData() {
+  private void subscribeRulesAndData(WafBuilder wafBuilder) {
+    RuleSetInfo[] ruleSetInfo = new RuleSetInfo[1];
     this.configurationPoller.addListener(
         Product.ASM_DD,
         AppSecConfigDeserializer.INSTANCE,
@@ -142,6 +146,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             log.debug(
                 "AppSec config given by remote config was pulled. Restoring default WAF config");
             newConfig = DEFAULT_WAF_CONFIG;
+            wafBuilder.removeRuleConfig();
+            try {
+              wafBuilder.addOrUpdateRuleConfig(newConfig.getRawConfig(), ruleSetInfo);
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
           this.currentAppSecConfig.setDdConfig(newConfig);
           // base rules can contain all rules/data/exclusions/etc
@@ -156,8 +166,19 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           if (newConfig == null) {
             currentAppSecConfig.mergedAsmData.removeConfig(configKey);
+            try {
+              wafBuilder.addOrUpdateRuleConfig(
+                  Collections.singletonMap(configKey, null), ruleSetInfo);
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           } else {
             currentAppSecConfig.mergedAsmData.addConfig(configKey, newConfig);
+            try {
+              wafBuilder.addOrUpdateRuleConfig(newConfig.getRawConfig(), ruleSetInfo);
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
           this.currentAppSecConfig.dirtyStatus.data = true;
         });
@@ -171,9 +192,20 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           DirtyStatus dirtyStatus;
           if (newConfig == null) {
             dirtyStatus = currentAppSecConfig.userConfigs.removeConfig(configKey);
+            try {
+              wafBuilder.addOrUpdateRuleConfig(
+                  Collections.singletonMap(configKey, null), ruleSetInfo);
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           } else {
             AppSecUserConfig userCfg = newConfig.build(configKey);
             dirtyStatus = currentAppSecConfig.userConfigs.addConfig(userCfg);
+            try {
+              wafBuilder.addOrUpdateRuleConfig(newConfig.getRawConfig(), ruleSetInfo);
+            } catch (InvalidRuleSetException e) {
+              throw new RuntimeException(e);
+            }
           }
 
           this.currentAppSecConfig.dirtyStatus.mergeFrom(dirtyStatus);
@@ -246,7 +278,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.initialized = true;
   }
 
-  public void maybeSubscribeConfigPolling() {
+  public void maybeSubscribeConfigPolling(WafBuilder wafBuilder) {
     if (this.configurationPoller != null) {
       if (hasUserWafConfig
           && tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
@@ -254,7 +286,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             "AppSec will not use remote config because "
                 + "there is a custom user configuration and AppSec is explicitly enabled");
       } else {
-        subscribeConfigurationPoller();
+        subscribeConfigurationPoller(wafBuilder);
       }
     } else {
       log.info("Remote config is disabled; AppSec will not be able to use it");

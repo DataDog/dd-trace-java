@@ -12,6 +12,8 @@ public class AppSecData {
   @Json(name = "exclusion_data")
   private List<Map<String, Object>> exclusion;
 
+  private Map<String, Object> rawConfig;
+
   public List<Map<String, Object>> getRules() {
     return rules;
   }
@@ -26,5 +28,13 @@ public class AppSecData {
 
   public void setExclusion(List<Map<String, Object>> exclusion) {
     this.exclusion = exclusion;
+  }
+
+  public Map<String, Object> getRawConfig() {
+    return rawConfig;
+  }
+
+  public void setRawConfig(Map<String, Object> rawConfig) {
+    this.rawConfig = rawConfig;
   }
 }

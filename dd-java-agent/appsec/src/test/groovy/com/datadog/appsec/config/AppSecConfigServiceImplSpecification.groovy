@@ -56,7 +56,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.init()
 
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
@@ -73,7 +73,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.init()
 
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
@@ -91,7 +91,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.init()
 
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_DISABLED
@@ -115,7 +115,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * config.getAppSecRulesFile() >> (p as String)
 
     when:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
@@ -167,7 +167,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     setup:
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     expect:
     AppSecConfigService.TransactionalAppSecModuleConfigurer configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -194,7 +194,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     AppSecSystem.active = false
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -231,7 +231,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     AppSecSystem.active = false
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -384,7 +384,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()
@@ -478,7 +478,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'stopping appsec unsubscribes from the poller'() {
     setup:
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     when:
     appSecConfigService.close()
@@ -535,7 +535,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
 
     then:
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
@@ -570,7 +570,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     AppSecSystem.active = false
     appSecConfigService.init()
-    appSecConfigService.maybeSubscribeConfigPolling()
+    appSecConfigService.maybeSubscribeConfigPolling(wafBuilder)
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
     initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
     configurer.commit()

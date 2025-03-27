@@ -95,7 +95,7 @@ public class AppSecSystem {
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
-    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
+    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling(wafBuilder);
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
