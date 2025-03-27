@@ -13,6 +13,7 @@ import java.lang.reflect.Field;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerInterface;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
@@ -36,6 +37,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
+      packageName + ".ClassLoaderUtils",
     };
   }
 
@@ -46,9 +48,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.openlineage.spark.agent.OpenLineageSparkListener", "org.apache.spark.util.Utils"
-    };
+    return new String[] {"io.openlineage.spark.agent.OpenLineageSparkListener"};
   }
 
   @Override
@@ -63,18 +63,50 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   public static class OpenLineageSparkListenerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.This Object self) throws IllegalAccessException {
-      LoggerFactory.getLogger(Config.class).debug("Checking for OpenLineageSparkListener");
-      try {
-        Field conf = self.getClass().getDeclaredField("conf");
-        conf.setAccessible(true);
-        AbstractDatadogSparkListener.openLineageSparkConf = (SparkConf) conf.get(self);
+    public static void exit(@Advice.This Object self, @Advice.FieldValue("conf") SparkConf conf) {
+      //      try {
+      Logger log = LoggerFactory.getLogger(Config.class);
+      ClassLoaderUtils.printClassLoaderHierarchy(
+          AbstractDatadogSparkListener.class.getClassLoader());
+      log.info(
+          "OLSLA: ADSL classloader: ({}) {}",
+          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
+          AbstractDatadogSparkListener.class.getClassLoader());
+      log.info(
+          "OLSLA: thread class loader ({}) {}",
+          System.identityHashCode(Thread.currentThread().getContextClassLoader()),
+          Thread.currentThread().getContextClassLoader());
+      log.info(
+          "OLSLA: parent thread class loader ({}) {}",
+          System.identityHashCode(Thread.currentThread().getContextClassLoader().getParent()),
+          Thread.currentThread().getContextClassLoader().getParent());
+
+      ClassLoader cl = Thread.currentThread().getContextClassLoader();
+      if (cl.getClass().getName().contains("MutableURLClassLoader")
+          || cl.getClass().getName().contains("ChildFirstURLClassLoader")) {
+        log.debug(
+            "Detected MutableURLClassLoader. Setting OpenLineage on AbstractDatadogSparkListener.class of parent classloader");
+        try {
+          log.debug(
+              "Parent classloader: ({}) {}",
+              System.identityHashCode(cl.getParent()),
+              cl.getParent());
+          Class clazz = cl.getParent().loadClass(AbstractDatadogSparkListener.class.getName());
+          Field openLineageSparkListener = clazz.getDeclaredField("openLineageSparkListener");
+          openLineageSparkListener.setAccessible(true);
+          openLineageSparkListener.set(null, self);
+
+          Field openLineageSparkConf = clazz.getDeclaredField("openLineageSparkConf");
+          openLineageSparkConf.setAccessible(true);
+          openLineageSparkConf.set(null, conf);
+        } catch (Throwable e) {
+          log.info("Failed to setup OpenLineage", e);
+        }
+      } else {
+        log.debug(
+            "Detected other classloader than MutableURLClassLoader. Setting OpenLineage on AbstractDatadogSparkListener.class");
         AbstractDatadogSparkListener.openLineageSparkListener = (SparkListenerInterface) self;
-        LoggerFactory.getLogger(Config.class)
-            .debug("Detected OpenLineageSparkListener, passed to DatadogSparkListener");
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        LoggerFactory.getLogger(Config.class)
-            .debug("Failed to pass OpenLineageSparkListener to DatadogSparkListener", e);
+        AbstractDatadogSparkListener.openLineageSparkConf = conf;
       }
     }
   }
