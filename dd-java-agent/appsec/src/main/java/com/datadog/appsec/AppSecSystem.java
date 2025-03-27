@@ -46,7 +46,7 @@ public class AppSecSystem {
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
-      doStart(gw, sco);
+      doStart(gw, sco, wafBuilder);
     } catch (AbortStartupException ase) {
       throw ase;
     } catch (RuntimeException | Error e) {
@@ -56,7 +56,8 @@ public class AppSecSystem {
     }
   }
 
-  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
+  private static void doStart(
+      SubscriptionService gw, SharedCommunicationObjects sco, WafBuilder wafBuilder) {
     final Config config = Config.get();
     ProductActivation appSecEnabledConfig = config.getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_DISABLED) {
@@ -64,7 +65,7 @@ public class AppSecSystem {
       return;
     }
     log.debug("AppSec is starting ({})", appSecEnabledConfig);
-    wafBuilder = new WafBuilder(createWafConfig(config));
+    AppSecSystem.wafBuilder = new WafBuilder(createWafConfig(config));
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
@@ -76,7 +77,7 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
             config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
-    APP_SEC_CONFIG_SERVICE.init();
+    APP_SEC_CONFIG_SERVICE.init(wafBuilder);
 
     sco.createRemaining(config);
 
@@ -95,7 +96,7 @@ public class AppSecSystem {
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
-    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling(wafBuilder);
+    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling(AppSecSystem.wafBuilder);
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
