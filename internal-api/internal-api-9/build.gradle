@@ -41,6 +41,10 @@ forbiddenApisMain {
   failOnMissingClasses = false
 }
 
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+
 idea {
   module {
     jdkName = '11'
