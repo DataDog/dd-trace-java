@@ -51,6 +51,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
@@ -124,6 +125,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -206,6 +208,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     prop.setProperty(PROPAGATION_STYLE_INJECT, "B3, Datadog")
     prop.setProperty(TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     prop.setProperty(JMX_FETCH_ENABLED, "false")
     prop.setProperty(JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     prop.setProperty(JMX_FETCH_CHECK_PERIOD, "100")
@@ -261,6 +264,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
+    prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
     when:
     Config config = Config.get(prop)
@@ -298,6 +302,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -354,6 +359,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == true
     config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
+    config.jdkSocketEnabled == false
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -391,6 +397,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, "B3, Datadog")
     System.setProperty(PREFIX + TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    System.setProperty(PREFIX + TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     System.setProperty(PREFIX + JMX_FETCH_ENABLED, "false")
     System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     System.setProperty(PREFIX + JMX_FETCH_CHECK_PERIOD, "100")
@@ -482,6 +489,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -629,6 +637,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "invalid")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "invalid")
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, " ")
 
     when:
     def config = new Config()
@@ -658,6 +667,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.longRunningTraceEnabled == false
+    config.experimentalFeaturesEnabled == [].toSet()
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -1891,16 +1901,17 @@ class ConfigTest extends DDSpecification {
 
   def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
     setup:
-    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_TAGS")
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_LOGS_INJECTION, DD_TAGS")
     environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
 
     when:
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION", "DD_TAGS"].toSet()
 
     //verify expected behavior enabled under feature flag
+    config.logsInjectionEnabled == false
     config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
   }
 
@@ -1915,7 +1926,19 @@ class ConfigTest extends DDSpecification {
     config.experimentalFeaturesEnabled == [].toSet()
 
     //verify expected behavior when not enabled under feature flag
+    config.logsInjectionEnabled == true
     config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+  }
+
+  def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "all")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION"].toSet()
   }
 
   def "detect if agent is configured using default values"() {
@@ -2654,5 +2677,31 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
+  }
+
+  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
+    config.tracePropagationStylesToExtract.toList() == []
+  }
+
+  def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "test")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
   }
 }

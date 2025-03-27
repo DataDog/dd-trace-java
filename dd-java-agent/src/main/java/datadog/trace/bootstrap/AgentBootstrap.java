@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.cli.CLIHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
@@ -9,15 +10,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
-import java.lang.management.ManagementFactory;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -383,7 +381,7 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : getVMArgumentsThroughReflection()) {
+      for (final String argument : CLIHelper.getVmArgs()) {
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =
@@ -422,57 +420,6 @@ public final class AgentBootstrap {
 
     javaagentFile = new File(new URI(thisClassUrl.getFile().split("!")[0]));
     return javaagentFile;
-  }
-
-  @SuppressForbidden
-  private static List<String> getVMArgumentsThroughReflection() {
-    // Try Oracle-based
-    // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
-    try {
-      final Class<?> managementFactoryHelperClass =
-          Class.forName("sun.management.ManagementFactoryHelper");
-
-      final Class<?> vmManagementClass = Class.forName("sun.management.VMManagement");
-
-      Object vmManagement;
-
-      try {
-        vmManagement =
-            managementFactoryHelperClass.getDeclaredMethod("getVMManagement").invoke(null);
-      } catch (final NoSuchMethodException e) {
-        // Older vm before getVMManagement() existed
-        final Field field = managementFactoryHelperClass.getDeclaredField("jvm");
-        field.setAccessible(true);
-        vmManagement = field.get(null);
-        field.setAccessible(false);
-      }
-
-      //noinspection unchecked
-      return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
-    } catch (final ReflectiveOperationException | UnsatisfiedLinkError ignored) {
-      // Ignored exception
-    }
-
-    // Try IBM-based.
-    try {
-      final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
-      final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
-      return Arrays.asList(argArray);
-    } catch (final ReflectiveOperationException ignored) {
-      // Ignored exception
-    }
-
-    // Fallback to default
-    try {
-      System.err.println(
-          "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
-      return ManagementFactory.getRuntimeMXBean().getInputArguments();
-    } catch (final Throwable t) {
-      // Throws InvocationTargetException on modularized applications
-      // with non-opened java.management module
-      System.err.println("WARNING: Unable to get VM args using managed beans");
-    }
-    return Collections.emptyList();
   }
 
   private static void checkJarManifestMainClassIsThis(final URL jarUrl) throws IOException {

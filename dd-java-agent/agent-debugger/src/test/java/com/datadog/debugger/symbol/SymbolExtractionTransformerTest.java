@@ -982,7 +982,8 @@ class SymbolExtractionTransformerTest {
     return createTransformer(
         symbolSink,
         symbolFlushThreshold,
-        new ClassNameFiltering(TRANSFORMER_EXCLUDES, Collections.singleton(SYMBOL_PACKAGE)));
+        new ClassNameFiltering(
+            TRANSFORMER_EXCLUDES, Collections.singleton(SYMBOL_PACKAGE), Collections.emptySet()));
   }
 
   private SymbolExtractionTransformer createTransformer(

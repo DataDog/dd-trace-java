@@ -47,6 +47,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(WafTruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
+  private static final AtomicLongArray raspRuleSkippedCounter =
+      new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
@@ -133,6 +135,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void raspRuleEval(final RuleType ruleType) {
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
+  }
+
+  public void raspRuleSkipped(final RuleType ruleType) {
+    raspRuleSkippedCounter.incrementAndGet(ruleType.ordinal());
   }
 
   public void raspRuleMatch(final RuleType ruleType) {
@@ -347,6 +353,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         }
       }
     }
+
+    // RASP rule skipped per rule type for after-request reason
+    for (RuleType ruleType : RuleType.values()) {
+      long counter = raspRuleSkippedCounter.getAndSet(ruleType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(new AfterRequestRaspRuleSkipped(counter, ruleType))) {
+          return;
+        }
+      }
+    }
   }
 
   public abstract static class WafMetric extends MetricCollector.Metric {
@@ -448,6 +464,22 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+    }
+  }
+
+  // Although rasp.rule.skipped reason could be before-request, there is no real case scenario
+  public static class AfterRequestRaspRuleSkipped extends WafMetric {
+    public AfterRequestRaspRuleSkipped(final long counter, final RuleType ruleType) {
+      super(
+          "rasp.rule.skipped",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "reason:" + "after-request"
+              }
+              : new String[] {"rule_type:" + ruleType.type, "reason:" + "after-request"});
     }
   }
 
