@@ -1,20 +1,20 @@
-package com.datadog.appsec.powerwaf
+package com.datadog.appsec.ddwaf
 
 import com.datadog.appsec.gateway.AppSecRequestContext
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.test.util.DDSpecification
-import io.sqreen.powerwaf.PowerwafMetrics
+import com.datadog.ddwaf.WafMetrics
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-class PowerWAFStatsReporterSpecification extends DDSpecification {
-  PowerWAFStatsReporter reporter = new PowerWAFStatsReporter()
+class WAFStatsReporterSpecification extends DDSpecification {
+  WAFStatsReporter reporter = new WAFStatsReporter()
   AppSecRequestContext ctx = Mock()
 
   void 'reporter reports waf timings and version'() {
     setup:
-    PowerwafMetrics metrics = new PowerwafMetrics()
+    WafMetrics metrics = new WafMetrics()
     metrics.totalRunTimeNs = new AtomicLong(2_000)
     metrics.totalDdwafRunTimeNs = new AtomicLong(1_000)
     TraceSegment segment = Mock()
@@ -37,11 +37,11 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
 
   void 'reporter reports rasp timings and version'() {
     setup:
-    PowerwafMetrics metrics = new PowerwafMetrics()
+    WafMetrics metrics = new WafMetrics()
     metrics.totalRunTimeNs = new AtomicLong(2_000)
     metrics.totalDdwafRunTimeNs = new AtomicLong(1_000)
 
-    PowerwafMetrics raspMetrics = new PowerwafMetrics()
+    WafMetrics raspMetrics = new WafMetrics()
     raspMetrics.totalRunTimeNs = new AtomicLong(4_000)
     raspMetrics.totalDdwafRunTimeNs = new AtomicLong(3_000)
     TraceSegment segment = Mock()

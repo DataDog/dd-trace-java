@@ -664,7 +664,7 @@ public class GatewayBridge {
     maybeExtractSchemas(ctx);
 
     // WAF call
-    ctx.closeAdditive();
+    ctx.closeWafContext();
 
     TraceSegment traceSeg = ctx_.getTraceSegment();
 
