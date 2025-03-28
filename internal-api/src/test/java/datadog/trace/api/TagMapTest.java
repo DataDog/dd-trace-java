@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -30,6 +31,76 @@ public class TagMapTest {
 
     assertSize(1, map);
     assertNotEmpty(map);
+  }
+
+  @Test
+  public void booleanEntry() {
+    TagMap map = new TagMap();
+    map.set("bool", false);
+
+    TagMap.Entry entry = map.getEntry("bool");
+    assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
+
+    assertEquals(false, entry.booleanValue());
+    assertEquals(false, map.getBoolean("bool"));
+  }
+
+  @Test
+  public void intEntry() {
+    TagMap map = new TagMap();
+    map.set("int", 42);
+
+    TagMap.Entry entry = map.getEntry("int");
+    assertEquals(TagMap.Entry.INT, entry.rawType);
+
+    assertEquals(42, entry.intValue());
+    assertEquals(42, map.getInt("int"));
+  }
+
+  @Test
+  public void longEntry() {
+    TagMap map = new TagMap();
+    map.set("long", 42L);
+
+    TagMap.Entry entry = map.getEntry("long");
+    assertEquals(TagMap.Entry.LONG, entry.rawType);
+
+    assertEquals(42L, entry.longValue());
+    assertEquals(42L, map.getLong("long"));
+  }
+
+  @Test
+  public void floatEntry() {
+    TagMap map = new TagMap();
+    map.set("float", 3.14F);
+
+    TagMap.Entry entry = map.getEntry("float");
+    assertEquals(TagMap.Entry.FLOAT, entry.rawType);
+
+    assertEquals(3.14F, entry.floatValue());
+    assertEquals(3.14F, map.getFloat("float"));
+  }
+
+  @Test
+  public void doubleEntry() {
+    TagMap map = new TagMap();
+    map.set("double", Math.PI);
+
+    TagMap.Entry entry = map.getEntry("double");
+    assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
+
+    assertEquals(Math.PI, entry.doubleValue());
+    assertEquals(Math.PI, map.getDouble("double"));
+  }
+
+  @Test
+  public void empty() {
+    TagMap empty = TagMap.EMPTY;
+    assertFrozen(empty);
+
+    assertNull(empty.getEntry("foo"));
+    assertSize(0, empty);
+    assertEmpty(empty);
   }
 
   @Test
@@ -196,6 +267,40 @@ public class TagMapTest {
     }
 
     assertEmpty(map);
+  }
+
+  @Test
+  public void fillMap() {
+    int size = randomSize();
+    TagMap map = new TagMap();
+    for (int i = 0; i < size; ++i) {
+      map.set(key(i), i);
+    }
+
+    HashMap<String, Object> hashMap = new HashMap<>();
+    map.fillMap(hashMap);
+
+    for (int i = 0; i < size; ++i) {
+      assertEquals(Integer.valueOf(i), hashMap.remove(key(i)));
+    }
+    assertTrue(hashMap.isEmpty());
+  }
+
+  @Test
+  public void fillStringMap() {
+    int size = randomSize();
+    TagMap map = new TagMap();
+    for (int i = 0; i < size; ++i) {
+      map.set(key(i), i);
+    }
+
+    HashMap<String, String> hashMap = new HashMap<>();
+    map.fillStringMap(hashMap);
+
+    for (int i = 0; i < size; ++i) {
+      assertEquals(Integer.toString(i), hashMap.remove(key(i)));
+    }
+    assertTrue(hashMap.isEmpty());
   }
 
   @Test
