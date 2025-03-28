@@ -120,18 +120,6 @@ public class ProfilingAgent {
 
       try {
         JFRAccess.setup(inst);
-        if (Platform.isJavaVersionAtLeast(9)) {
-          // Unclear if supported for J9, may need to revisit
-          // Also a strange coupling of jvmstat patching to the profiler while the functionality
-          // lives within internal-api
-          try {
-            Class.forName("datadog.trace.util.JPMSJPSAccess")
-                .getMethod("patchModuleAccess")
-                .invoke(inst);
-          } catch (Exception e) {
-            log.warn("Failed to patch module access for jvmstat");
-          }
-        }
         Timestamper.override(JFRAccess.instance());
         ControllerContext context = new ControllerContext();
         final Controller controller = CompositeController.build(configProvider, context);
