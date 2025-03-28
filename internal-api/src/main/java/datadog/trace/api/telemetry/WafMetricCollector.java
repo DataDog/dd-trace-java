@@ -151,6 +151,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void wafErrorCode(final int errorCode) {
     WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
+    // Unsupported waf error code
     if (wafErrorCode == null) {
       return;
     }
