@@ -1,9 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.ContextScope;
 import datadog.trace.context.TraceScope;
 import java.io.Closeable;
 
-public interface AgentScope extends TraceScope, Closeable {
+public interface AgentScope extends ContextScope, TraceScope, Closeable {
   AgentSpan span();
 
   @Override

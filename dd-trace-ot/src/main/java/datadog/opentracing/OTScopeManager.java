@@ -1,5 +1,6 @@
 package datadog.opentracing;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -109,6 +110,11 @@ class OTScopeManager implements ScopeManager {
 
     FakeScope(AgentSpan agentSpan) {
       this.agentSpan = agentSpan;
+    }
+
+    @Override
+    public Context context() {
+      return Context.root();
     }
 
     @Override
