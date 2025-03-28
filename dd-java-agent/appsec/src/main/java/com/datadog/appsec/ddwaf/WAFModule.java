@@ -88,7 +88,7 @@ public class WAFModule implements AppSecModule {
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
-  private NativeWafHandle nativeWafHandle;
+  NativeWafHandle nativeWafHandle;
 
   private static class ActionInfo {
     final String type;

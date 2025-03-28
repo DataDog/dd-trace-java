@@ -5,6 +5,8 @@ import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecModuleConfigurer
 import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.config.TraceSegmentPostProcessor
+import com.datadog.ddwaf.RuleSetInfo
+import com.datadog.ddwaf.WafBuilder
 
 class StubAppSecConfigService implements AppSecConfigService, AppSecConfigService.TransactionalAppSecModuleConfigurer {
   Map<String, AppSecModuleConfigurer.SubconfigListener> listeners = [:]
@@ -12,7 +14,7 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
   Map<String, Object> lastConfig
   final String location
   final traceSegmentPostProcessors = []
-
+  WafBuilder wafBuilder
   private final Map hardcodedConfig
 
   StubAppSecConfigService(String location = "test_multi_config.json") {
@@ -28,7 +30,8 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
   }
 
   @Override
-  void init() {
+  void init(WafBuilder wafBuilder) {
+    this.wafBuilder = wafBuilder
     if (hardcodedConfig) {
       lastConfig = hardcodedConfig
     } else {
@@ -38,6 +41,7 @@ class StubAppSecConfigService implements AppSecConfigService, AppSecConfigServic
       casc.ddConfig = AppSecConfigDeserializer.INSTANCE.deserialize(stream)
       lastConfig = Collections.singletonMap('waf', casc)
     }
+    wafBuilder.addOrUpdateRuleConfig("waf", lastConfig, new RuleSetInfo[1])
   }
 
   @Override
