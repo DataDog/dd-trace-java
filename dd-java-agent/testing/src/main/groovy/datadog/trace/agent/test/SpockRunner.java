@@ -40,6 +40,7 @@ public class SpockRunner extends JUnitPlatform {
     "datadog.slf4j",
     "datadog.json",
     "datadog.context",
+    "datadog.cli",
     "datadog.appsec.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",

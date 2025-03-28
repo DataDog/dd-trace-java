@@ -1731,6 +1731,30 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
   }
 
+  void 'raspRuleSkipped if rasp available and WAF context is closed'() {
+    setup:
+    ChangeableFlow flow = Mock()
+    GatewayContext gwCtxMock = new GatewayContext(false, RuleType.SQL_INJECTION)
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'legit-user'
+      )
+    ctx.closeAdditive()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtxMock)
+
+    then:
+    1 * ctx.closeAdditive()
+    1 * ctx.isAdditiveClosed() >> true
+    1 * wafMetricCollector.wafInit(Powerwaf.LIB_VERSION, _, true)
+    1 * wafMetricCollector.raspRuleSkipped(RuleType.SQL_INJECTION)
+    0 * _
+  }
+
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
     service.init()

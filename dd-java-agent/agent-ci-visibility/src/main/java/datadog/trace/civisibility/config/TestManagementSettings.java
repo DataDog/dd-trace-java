@@ -87,7 +87,7 @@ public class TestManagementSettings {
 
       return new TestManagementSettings(
           enabled != null ? enabled : false,
-          attemptToFixRetries != null ? attemptToFixRetries.intValue() : -1);
+          attemptToFixRetries != null ? attemptToFixRetries.intValue() : 20);
     }
   }
 }

@@ -7,7 +7,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_AL
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -20,7 +20,6 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
-import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -84,7 +83,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecurityRequestSampler requestSampler;
+  private final ApiSecuritySampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -110,7 +109,7 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecurityRequestSampler requestSampler,
+      ApiSecuritySampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
@@ -661,12 +660,14 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
-    maybeExtractSchemas(ctx);
-
-    // WAF call
-    ctx.closeAdditive();
-
     TraceSegment traceSeg = ctx_.getTraceSegment();
+    Map<String, Object> tags = spanInfo.getTags();
+
+    if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
+      ctx.setKeepOpenForApiSecurityPostProcessing(true);
+    } else {
+      ctx.closeAdditive();
+    }
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
@@ -688,7 +689,7 @@ public class GatewayBridge {
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
         // Reflect client_ip as actor.ip for backward compatibility
-        Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+        Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
           traceSeg.setTagTop("actor.ip", clientIp);
         }
@@ -728,8 +729,19 @@ public class GatewayBridge {
       }
     }
 
-    ctx.close(spanInfo.isRequiresPostProcessing());
+    ctx.close();
     return NoopFlow.INSTANCE;
+  }
+
+  private boolean maybeSampleForApiSecurity(
+      AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
+    log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
+    // API Security sampling requires http.route tag.
+    final Object route = tags.get(Tags.HTTP_ROUTE);
+    if (route != null) {
+      ctx.setRoute(route.toString());
+    }
+    return requestSampler.preSampleRequest(ctx);
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
@@ -948,40 +960,6 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
-      }
-    }
-  }
-
-  private void maybeExtractSchemas(AppSecRequestContext ctx) {
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
-    }
-
-    if (!extractSchema) {
-      return;
-    }
-
-    while (true) {
-      DataSubscriberInfo subInfo = requestEndSubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
-        requestEndSubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
-        return;
-      }
-
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.WAF_CONTEXT_PROCESSOR,
-              Collections.singletonMap("extract-schema", true));
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-        return;
-      } catch (ExpiredSubscriberInfoException e) {
-        requestEndSubInfo = null;
       }
     }
   }

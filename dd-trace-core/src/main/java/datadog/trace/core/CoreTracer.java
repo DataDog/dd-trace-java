@@ -917,6 +917,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  @SuppressWarnings("resource")
+  public void activateSpanWithoutScope(AgentSpan span) {
+    scopeManager.activateSpan(span);
+  }
+
+  @Override
   public AgentScope.Continuation captureActiveSpan() {
     return scopeManager.captureActiveSpan();
   }

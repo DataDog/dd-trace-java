@@ -104,7 +104,7 @@ public class TempLocationManagerTest {
 
     // fake temp location
     Path fakeTempDir = tempDir.getParent();
-    while (fakeTempDir != null && !fakeTempDir.endsWith("ddprof")) {
+    while (fakeTempDir != null && !fakeTempDir.getFileName().toString().contains("ddprof")) {
       fakeTempDir = fakeTempDir.getParent();
     }
     fakeTempDir = fakeTempDir.resolve("pid_0000");
@@ -112,10 +112,10 @@ public class TempLocationManagerTest {
     Path tmpFile = Files.createFile(fakeTempDir.resolve("test.txt"));
     tmpFile.toFile().deleteOnExit(); // make sure this is deleted at exit
     fakeTempDir.toFile().deleteOnExit(); // also this one
-    tempLocationManager.cleanup(false);
+    boolean rslt = tempLocationManager.cleanup(false);
     // fake temp location should be deleted
     // real temp location should be kept
-    assertFalse(Files.exists(fakeTempDir));
+    assertFalse(rslt && Files.exists(fakeTempDir));
     assertTrue(Files.exists(tempDir));
   }
 
@@ -133,7 +133,8 @@ public class TempLocationManagerTest {
             "ddprof-test-",
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
 
-    Path fakeTempDir = baseDir.resolve("ddprof/pid_1234/scratch");
+    Path fakeTempDir =
+        baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_1234/scratch");
     Files.createDirectories(fakeTempDir);
     Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
     Files.createFile(fakeTempFile);

@@ -637,6 +637,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "invalid")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "invalid")
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, " ")
 
     when:
     def config = new Config()
@@ -666,6 +667,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.longRunningTraceEnabled == false
+    config.experimentalFeaturesEnabled == [].toSet()
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -1926,6 +1928,17 @@ class ConfigTest extends DDSpecification {
     //verify expected behavior when not enabled under feature flag
     config.logsInjectionEnabled == true
     config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+  }
+
+  def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "all")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION"].toSet()
   }
 
   def "detect if agent is configured using default values"() {

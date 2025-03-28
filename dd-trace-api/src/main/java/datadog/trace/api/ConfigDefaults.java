@@ -114,7 +114,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
-  static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
+  static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
+  // TODO: change to true once the RFC is approved
+  static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = false;
+  static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
@@ -236,7 +239,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
-  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED = new HashSet<>();
+  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
+      new HashSet<>(asList("DD_TAGS", "DD_LOGS_INJECTION"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
@@ -272,7 +276,14 @@ public final class ConfigDefaults {
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
           Arrays.asList(
-              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
+              "ApiGateway",
+              "ApiGatewayV2",
+              "EventBridge",
+              "Sqs",
+              "Sns",
+              "S3",
+              "Kinesis",
+              "DynamoDB"));
 
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";
