@@ -5,6 +5,9 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.ddwaf.NativeWafHandle
+import com.datadog.ddwaf.RuleSetInfo
+import com.datadog.ddwaf.WafBuilder
 import datadog.trace.api.telemetry.LogCollector
 import datadog.trace.test.logging.TestLogCollector
 import datadog.trace.util.stacktrace.StackTraceEvent
@@ -17,6 +20,8 @@ import com.datadog.ddwaf.Waf
 class AppSecRequestContextSpecification extends DDSpecification {
 
   AppSecRequestContext ctx = new AppSecRequestContext()
+  WafBuilder wafBuilder = new WafBuilder()
+  NativeWafHandle nativeWafHandle = null
 
   void 'implements DataBundle'() {
     when:
@@ -209,8 +214,9 @@ class AppSecRequestContextSpecification extends DDSpecification {
     CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
     config.dirtyStatus.markAllDirty()
-    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new WafContext(context)
+    wafBuilder.addOrUpdateRuleConfig(uniqueId, config.mergedUpdateConfig.rawConfig, new RuleSetInfo[1])
+
+    new WafContext(wafBuilder.buildNativeWafHandleInstance(nativeWafHandle))
   }
 
   void 'close closes the wafContext'() {
