@@ -13,7 +13,6 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackTraceFrame
 import com.datadog.ddwaf.WafContext
 import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
 
 class AppSecRequestContextSpecification extends DDSpecification {
 

@@ -31,7 +31,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 import com.datadog.ddwaf.WafContext
 import com.datadog.ddwaf.Waf
-import com.datadog.ddwaf.WafHandle
 import com.datadog.ddwaf.WafMetrics
 import spock.lang.Shared
 import spock.lang.Unroll

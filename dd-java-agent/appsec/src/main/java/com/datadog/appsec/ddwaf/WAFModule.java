@@ -195,13 +195,14 @@ public class WAFModule implements AppSecModule {
     }
 
     boolean success = false;
+    NativeWafHandle oldNativeWafHandle = nativeWafHandle;
     try {
       // ddwaf_init/update
       success = initializeNewWafCtx(reconf, config, wafBuilder);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
-      if (nativeWafHandle == null) {
+      if (oldNativeWafHandle == null) {
         WafMetricCollector.get().wafInit(Waf.LIB_VERSION, currentRulesVersion, success);
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
@@ -268,11 +269,6 @@ public class WAFModule implements AppSecModule {
     }
 
     if (previousNativeWafHandle != null && nativeWafHandle.isOnline()) {
-      previousNativeWafHandle.destroy();
-      throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
-    }
-
-    if (previousNativeWafHandle != null && previousNativeWafHandle.isOnline()) {
       previousNativeWafHandle.destroy();
     }
 
