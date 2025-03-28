@@ -6,9 +6,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.ddwaf.NativeWafHandle;
+import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
 import java.io.IOException;
@@ -44,27 +46,31 @@ public class WafBenchmark {
     BenchmarkUtil.initializeWaf();
   }
 
-  WafHandle ctx;
+  WafBuilder wafBuilder;
   Map<String, Object> wafData = new HashMap<>();
   Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
-    WafMetrics metricsCollector = ctx.createMetrics();
-    WafContext add = ctx.openContext();
+    WafMetrics metricsCollector = new WafMetrics();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    WafContext add = new WafContext(nativeWafHandle);
     try {
       add.run(wafData, limits, metricsCollector);
     } finally {
+      nativeWafHandle.destroy();
       add.close();
     }
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    WafContext add = ctx.openContext();
+    NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+    WafContext add = new WafContext(nativeWafHandle);
     try {
       add.run(wafData, limits, null);
     } finally {
+      nativeWafHandle.destroy();
       add.close();
     }
   }
@@ -75,7 +81,9 @@ public class WafBenchmark {
     Map<String, AppSecConfig> cfg =
         Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
     AppSecConfig waf = cfg.get("waf");
-    ctx = Waf.createHandle("waf", waf.getRawConfig());
+    wafBuilder = new WafBuilder();
+    RuleSetInfo[] infoRef = new RuleSetInfo[1];
+    wafBuilder.addOrUpdateRuleConfig("waf", waf.getRawConfig(), infoRef);
 
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
@@ -112,6 +120,6 @@ public class WafBenchmark {
 
   @TearDown(Level.Trial)
   public void teardown() {
-    ctx.close();
+    wafBuilder.destroy();
   }
 }
