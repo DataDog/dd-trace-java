@@ -16,7 +16,7 @@ import org.junit.runner.notification.Failure;
 public class JUnit4TracingListener extends TracingListener {
 
   private static final String FRAMEWORK_NAME = "junit4";
-  private static final String FRAMEWORK_VERSION = Version.id();
+  private static final String FRAMEWORK_VERSION = JUnit4Utils.getVersion();
 
   private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
