@@ -62,44 +62,63 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
   public static class OpenLineageSparkListenerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(@Advice.This Object self, @Advice.FieldValue("conf") SparkConf conf) {
+      //      try {
+      Logger log = LoggerFactory.getLogger(Config.class);
+      log.info(
+          "OLSLA: ADSL classloader: ({}) {}",
+          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
+          AbstractDatadogSparkListener.class.getClassLoader());
       try {
-        Logger log = LoggerFactory.getLogger(Config.class);
-        AbstractDatadogSparkListener.openLineageSparkConf = conf;
-
-        log.debug(
-            "ADSL classloader ({}) {}",
-            System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
-            AbstractDatadogSparkListener.class.getClassLoader());
-        log.debug(
-            "Current classloader ({}) {}",
-            System.identityHashCode(Thread.currentThread().getContextClassLoader()),
-            Thread.currentThread().getContextClassLoader().toString());
-        log.debug("Got OpenLineageSparkListener: {}", self);
-        AbstractDatadogSparkListener.openLineageSparkListener.set((SparkListenerInterface) self);
-        log.debug(
-            "Set OpenLineageSparkListener: {}",
-            AbstractDatadogSparkListener.openLineageSparkListener.get());
-        log.debug("Check for self: {}", self);
-        if (AbstractDatadogSparkListener.openLineageSparkListener.get() != null) {
-          log.debug(
-              "Detected OpenLineageSparkListener, passed to DatadogSparkListener {} on ClassLoader ({}) {}",
-              AbstractDatadogSparkListener.openLineageSparkListener.get().getClass().getName(),
-              System.identityHashCode(
-                  AbstractDatadogSparkListener.openLineageSparkListener
-                      .get()
-                      .getClass()
-                      .getClassLoader()),
-              AbstractDatadogSparkListener.openLineageSparkListener
-                  .get()
-                  .getClass()
-                  .getClassLoader());
-        } else {
-          log.debug("WTF it's null");
-        }
-      } catch (Exception e) {
-        LoggerFactory.getLogger(Config.class)
-            .error("Failed to set OpenLineageSparkListener: {}", e.getMessage());
+        AbstractDatadogSparkListener.listener.setupOpenLineage(conf, (SparkListenerInterface) self);
+      } catch (Throwable t) {
       }
+      try {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread()
+            .setContextClassLoader(AbstractDatadogSparkListener.class.getClassLoader());
+        AbstractDatadogSparkListener.listener.setupOpenLineage(conf, (SparkListenerInterface) self);
+        Thread.currentThread().setContextClassLoader(cl);
+      } catch (Throwable t) {
+      }
+
+      //        log.debug(
+      //            "ADSL classloader ({}) {}",
+      //            System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
+      //            AbstractDatadogSparkListener.class.getClassLoader());
+      //        log.debug(
+      //            "Current classloader ({}) {}",
+      //            System.identityHashCode(Thread.currentThread().getContextClassLoader()),
+      //            Thread.currentThread().getContextClassLoader().toString());
+      //        log.debug("Got OpenLineageSparkListener: {}", self);
+      //        AbstractDatadogSparkListener.openLineageSparkListener.set((SparkListenerInterface)
+      // self);
+      //        log.debug(
+      //            "Set OpenLineageSparkListener: {}",
+      //            AbstractDatadogSparkListener.openLineageSparkListener.get());
+      //        log.debug("Check for self: {}", self);
+      //        if (AbstractDatadogSparkListener.openLineageSparkListener.get() != null) {
+      //          log.debug(
+      //              "Detected OpenLineageSparkListener, passed to DatadogSparkListener {} on
+      // ClassLoader ({}) {}",
+      //
+      // AbstractDatadogSparkListener.openLineageSparkListener.get().getClass().getName(),
+      //              System.identityHashCode(
+      //                  AbstractDatadogSparkListener.openLineageSparkListener
+      //                      .get()
+      //                      .getClass()
+      //                      .getClassLoader()),
+      //              AbstractDatadogSparkListener.openLineageSparkListener
+      //                  .get()
+      //                  .getClass()
+      //                  .getClassLoader());
+      //        } else {
+      //          log.debug("WTF it's null");
+      //        }
+      //      } catch (Exception e) {
+      //        LoggerFactory.getLogger(Config.class)
+      //            .error("Failed to set OpenLineageSparkListener: {}", e.getMessage());
+      //      }
+
     }
   }
 }

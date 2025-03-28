@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.deploy.SparkSubmitArguments;
 import org.apache.spark.scheduler.SparkListenerInterface;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tracing
@@ -119,6 +120,11 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     // If OL is disabled in tracer config but user set it up manually don't interfere
     public static boolean enter(@Advice.Argument(0) SparkListenerInterface listener) {
+      Logger log = LoggerFactory.getLogger(Config.class);
+      log.info(
+          "LLBA: ADSL classloader: ({}) {}",
+          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
+          AbstractDatadogSparkListener.class.getClassLoader());
       if (Config.get().isDataJobsOpenLineageEnabled()
           && listener != null
           && "io.openlineage.spark.agent.OpenLineageSparkListener"
