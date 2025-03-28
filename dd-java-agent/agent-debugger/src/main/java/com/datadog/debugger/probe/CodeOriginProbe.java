@@ -62,7 +62,6 @@ public class CodeOriginProbe extends ProbeDefinition {
       LOGGER.debug("Code origin probe {} has no location", id);
       return;
     }
-    System.out.println("****** CodeOriginProbe.commit entrySpanProbe = " + entrySpanProbe);
     for (AgentSpan s : agentSpans) {
       if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
         s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
