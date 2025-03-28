@@ -15,12 +15,13 @@ public interface EventTrackerService {
             final String login, final boolean exists, final Map<String, String> metadata) {}
 
         @Override
-        public void trackCustomEvent(final String eventName, final Map<String, String> metadata) {}
+        public void trackCustomEventV2(
+            final String eventName, final Map<String, String> metadata) {}
       };
 
   void trackUserLoginSuccess(String login, String userId, Map<String, String> metadata);
 
   void trackUserLoginFailure(String login, boolean exists, Map<String, String> metadata);
 
-  void trackCustomEvent(String eventName, Map<String, String> metadata);
+  void trackCustomEventV2(String eventName, Map<String, String> metadata);
 }

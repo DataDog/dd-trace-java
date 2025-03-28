@@ -47,6 +47,6 @@ public class EventTrackerV2 {
    * @param metadata custom metadata data represented as key/value map
    */
   public static void trackCustomEvent(String eventName, Map<String, String> metadata) {
-    SERVICE.trackCustomEvent(eventName, metadata);
+    SERVICE.trackCustomEventV2(eventName, metadata);
   }
 }
