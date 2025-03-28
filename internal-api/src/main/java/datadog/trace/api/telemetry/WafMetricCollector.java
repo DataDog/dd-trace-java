@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -53,8 +51,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
-  private static final ConcurrentMap<Integer, AtomicLongArray> raspErrorCodeCounter =
-      new ConcurrentSkipListMap<>();
+  private static final AtomicLongArray raspErrorCodeCounter =
+      new AtomicLongArray(WafErrorCode.values().length * RuleType.getNumValues());
   private static final AtomicLongArray wafErrorCodeCounter =
       new AtomicLongArray(WafErrorCode.values().length);
   private static final AtomicLongArray missingUserLoginQueue =
@@ -141,10 +139,14 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
   }
 
-  public void raspErrorCode(final RuleType ruleType, final int errorCode) {
-    raspErrorCodeCounter
-        .computeIfAbsent(errorCode, code -> new AtomicLongArray(RuleType.getNumValues()))
-        .incrementAndGet(ruleType.ordinal());
+  public void raspErrorCode(RuleType ruleType, final int errorCode) {
+    WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
+    // Unsupported waf error code
+    if (wafErrorCode == null) {
+      return;
+    }
+    int index = wafErrorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
+    raspErrorCodeCounter.incrementAndGet(index);
   }
 
   public void wafErrorCode(final int errorCode) {
@@ -312,15 +314,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // RASP rule type for each possible error code
-    for (Map.Entry<Integer, AtomicLongArray> entry : raspErrorCodeCounter.entrySet()) {
-      int errorCode = entry.getKey();
-      AtomicLongArray counters = entry.getValue();
-
+    for (WafErrorCode errorCode : WafErrorCode.values()) {
       for (RuleType ruleType : RuleType.values()) {
-        long count = counters.getAndSet(ruleType.ordinal(), 0);
+        int index = errorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
+        long count = raspErrorCodeCounter.getAndSet(index, 0);
         if (count > 0) {
           if (!rawMetricsQueue.offer(
-              new RaspError(count, ruleType, WafMetricCollector.wafVersion, errorCode))) {
+              new RaspError(count, ruleType, WafMetricCollector.wafVersion, errorCode.getCode()))) {
             return;
           }
         }
