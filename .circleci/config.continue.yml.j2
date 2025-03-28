@@ -1147,7 +1147,6 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1161,7 +1160,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_8_base
       triggeredBy: *core_modules
       gradleTarget: :baseTest
-      gradleParameters: "-PskipFlakyTests -PcheckCoverage"
+      gradleParameters: "-PcheckCoverage"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1173,7 +1172,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
       gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
@@ -1187,7 +1185,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_inst
       gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
@@ -1201,7 +1198,6 @@ build_test_jobs: &build_test_jobs
         - build_latestdep
       name: test_8_inst_latest
       gradleTarget: ":instrumentationLatestDepTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
@@ -1215,7 +1211,6 @@ build_test_jobs: &build_test_jobs
         - build_latestdep
       name: test_17_inst_latest
       gradleTarget: ":instrumentationLatestDepTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
@@ -1229,7 +1224,6 @@ build_test_jobs: &build_test_jobs
         - build_latestdep
       name: test_21_inst_latest
       gradleTarget: ":instrumentationLatestDepTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
@@ -1237,69 +1231,11 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "21"
 
-{% if flaky %}
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_base
-      gradleTarget: ":baseTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      triggeredBy: *core_modules
-      stage: core
-      cacheType: base
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - xlarge_tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_inst
-      gradleTarget: ":instrumentationTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      triggeredBy: *instrumentation_modules
-      stage: instrumentation
-      cacheType: inst
-      parallelism: 12
-      maxWorkers: 4
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_smoke
-      gradleTarget: ":smokeTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      stage: smoke
-      cacheType: smoke
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-
-  - tests:
-      requires:
-        - ok_to_test
-      name: z_test_8_flaky_debugger
-      gradleTarget: ":debuggerTest"
-      gradleParameters: "-PrunFlakyTests"
-      continueOnFailure: true
-      triggeredBy: *debugger_modules
-      stage: debugger
-      cacheType: base
-      parallelism: 4
-      maxWorkers: 4
-      testJvm: "8"
-{% endif %}
-
   - tests:
       requires:
         - ok_to_test
       maxWorkers: 4
       gradleTarget: ":profilingTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *profiling_modules
       stage: profiling
       cacheType: profiling
@@ -1313,7 +1249,6 @@ build_test_jobs: &build_test_jobs
       name: test_<< matrix.testJvm >>_debugger
       maxWorkers: 4
       gradleTarget: ":debuggerTest"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
       cacheType: base
@@ -1325,7 +1260,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_smoke
       gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       parallelism: 4
@@ -1339,7 +1273,6 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_ssi_smoke
       environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
       gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       parallelism: 4
@@ -1353,7 +1286,6 @@ build_test_jobs: &build_test_jobs
       name: test_semeru8_debugger_smoke
       maxWorkers: 4
       gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
-      gradleParameters: "-PskipFlakyTests"
       triggeredBy: *debugger_modules
       stage: debugger
       cacheType: smoke
@@ -1382,7 +1314,6 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_smoke
       gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       parallelism: 4
@@ -1395,7 +1326,6 @@ build_test_jobs: &build_test_jobs
       name: z_test_8_ssi_smoke
       environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
       gradleTarget: "stageMainDist :smokeTest"
-      gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
       parallelism: 4
