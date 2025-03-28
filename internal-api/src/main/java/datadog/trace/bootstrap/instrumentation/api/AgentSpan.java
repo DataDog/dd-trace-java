@@ -192,6 +192,10 @@ public interface AgentSpan
     return this;
   }
 
+  default void copyPropagationAndBaggage(final AgentSpan source) {
+    // no op default
+  }
+
   @Override
   default Context storeInto(Context context) {
     return context.with(SPAN_KEY, this);

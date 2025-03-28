@@ -76,7 +76,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     // tags that don't require any modifications and propagated as-is
     private final List<TagElement> tagPairs;
 
-    private final boolean canChangeDecisionMaker;
+    private boolean canChangeDecisionMaker;
 
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
@@ -90,18 +90,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile int samplingPriority;
     private volatile CharSequence origin;
     private volatile String[] headerCache = null;
+
     /** The high-order 64 bits of the trace id. */
     private volatile long traceIdHighOrderBits;
+
     /**
      * The zero-padded lower-case 16 character hexadecimal representation of the high-order 64 bits
      * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
+
     /**
      * The original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C tracestate
      * header</a> value.
      */
     protected volatile String tracestate;
+
     /**
      * The {@link PTagsFactory#PROPAGATION_ERROR_TAG_KEY propagation tag error} value, {@code null
      * if no error while parsing header}.
@@ -403,6 +407,18 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     String getError() {
       return this.error;
+    }
+
+    @Override
+    public void updateAndLockDecisionMaker(PropagationTags source) {
+      if (source instanceof PTags) {
+        canChangeDecisionMaker = false;
+        decisionMakerTagValue = ((PTags) source).getDecisionMakerTagValue();
+        if (decisionMakerTagValue != null) {
+          clearCachedHeader(DATADOG);
+          clearCachedHeader(W3C);
+        }
+      }
     }
   }
 }

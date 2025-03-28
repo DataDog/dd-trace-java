@@ -133,4 +133,6 @@ public abstract class PropagationTags {
     fillTagMap(result);
     return result;
   }
+
+  public abstract void updateAndLockDecisionMaker(PropagationTags source);
 }
