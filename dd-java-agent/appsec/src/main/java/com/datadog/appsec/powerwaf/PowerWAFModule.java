@@ -449,12 +449,11 @@ public class PowerWAFModule implements AppSecModule {
         if (!reqCtx.isAdditiveClosed()) {
           log.error("Error calling WAF", e);
         }
-        WafMetricCollector.get().wafRequestError();
         // TODO: replace -127 for e.code when UnclassifiedPowerwafException code is fixed
-        incrementErrorCodeMetric(gwCtx, -127);
+        incrementErrorCodeMetric(reqCtx, gwCtx, -127);
         return;
       } catch (AbstractPowerwafException e) {
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } finally {
         if (log.isDebugEnabled()) {
@@ -650,11 +649,13 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  private static void incrementErrorCodeMetric(GatewayContext gwCtx, int code) {
+  private static void incrementErrorCodeMetric(
+      AppSecRequestContext reqCtx, GatewayContext gwCtx, int code) {
     if (gwCtx.isRasp) {
       WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
     } else {
       WafMetricCollector.get().wafErrorCode(code);
+      reqCtx.setErrors();
     }
   }
 

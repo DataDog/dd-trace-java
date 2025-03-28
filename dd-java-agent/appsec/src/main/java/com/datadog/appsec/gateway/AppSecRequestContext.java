@@ -121,6 +121,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile PowerwafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
+  private volatile boolean errors;
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
 
@@ -178,6 +179,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isBlocked() {
     return blocked;
+  }
+
+  public void setErrors() {
+    this.errors = true;
+  }
+
+  public boolean hasErrors() {
+    return errors;
   }
 
   public void increaseWafTimeouts() {

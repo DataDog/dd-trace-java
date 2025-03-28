@@ -719,6 +719,10 @@ public class GatewayBridge {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
       }
 
+      if (ctx.hasErrors()) {
+        WafMetricCollector.get().wafRequestError();
+      }
+
       if (ctx.isBlocked()) {
         WafMetricCollector.get().wafRequestBlocked();
       } else if (!collectedEvents.isEmpty()) {
