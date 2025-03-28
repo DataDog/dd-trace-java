@@ -1508,32 +1508,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String parentServiceName = null;
       boolean isRemote = false;
 
-      if (parentContext != null
-          && parentContext.isRemote()
-          && Config.get().getTracePropagationBehaviorExtract()
-              != TracePropagationBehaviorExtract.CONTINUE) {
-        // reset links that may have come terminated span links
-        links = new ArrayList<>();
-
+      if (parentContext != null && parentContext.isRemote()) {
         if (Config.get().getTracePropagationBehaviorExtract()
+            == TracePropagationBehaviorExtract.IGNORE) {
+          // reset links that may have come terminated span links
+          links = new ArrayList<>();
+          parentContext = null;
+        } else if (Config.get().getTracePropagationBehaviorExtract()
             == TracePropagationBehaviorExtract.RESTART) {
-          SpanLink link;
-          if (parentContext instanceof ExtractedContext) {
-            ExtractedContext pc = (ExtractedContext) parentContext;
-            link =
-                DDSpanLink.from(
-                    pc,
-                    SpanAttributes.builder()
-                        .put("reason", "propagation_behavior_extract")
-                        .put("context_headers", pc.getPropagationStyle().toString())
-                        .build());
-          } else {
-            link = SpanLink.from(parentContext);
-          }
+          links = new ArrayList<>();
+          SpanLink link =
+              (parentContext instanceof ExtractedContext)
+                  ? DDSpanLink.from(
+                      (ExtractedContext) parentContext,
+                      SpanAttributes.builder()
+                          .put("reason", "propagation_behavior_extract")
+                          .put(
+                              "context_headers",
+                              ((ExtractedContext) parentContext).getPropagationStyle().toString())
+                          .build())
+                  : SpanLink.from(parentContext);
           links.add(link);
+          parentContext = null;
         }
-        parentContext = null;
       }
+
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
