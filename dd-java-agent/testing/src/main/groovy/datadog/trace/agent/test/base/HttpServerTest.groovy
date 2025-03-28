@@ -46,17 +46,14 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import javax.annotation.Nonnull
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -1931,7 +1928,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
     .get().build()
 
-    def ws = websocketConnectAndWait(request)
+    client.newWebSocket(request, new WebSocketListener() {})
     wsServer.awaitConnected()
     runUnderTrace("parent", {
       if (messages[0] instanceof String) {
@@ -1979,7 +1976,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
     .get().build()
 
-    def ws = websocketConnectAndWait(request)
+    def ws = client.newWebSocket(request, new WebSocketListener() {})
     wsServer.awaitConnected()
     wsServer.setMaxPayloadSize(10)
     if (message instanceof String) {
@@ -2022,25 +2019,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def b = new byte[nb]
     new Random().nextBytes(b)
     b
-  }
-
-  WebSocket websocketConnectAndWait(Request request) {
-    def failure = false
-    def latch = new CountDownLatch(1)
-    def ws = client.newWebSocket(request, new WebSocketListener() {
-      void onOpen(WebSocket webSocket, Response response) {
-        latch.countDown()
-      }
-      void onFailure(WebSocket webSocket, Throwable t, Response response) {
-        failure = true
-        latch.countDown()
-      }
-    })
-
-    if (!latch.await(20, TimeUnit.SECONDS) || failure) {
-      return null
-    }
-    return ws
   }
 
   static void websocketSendSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength,

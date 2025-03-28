@@ -94,5 +94,7 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
         }
       }
     }
+    // can be other messages we do not handle like ping, pong or continuations
+    ctx.write(frame, promise);
   }
 }

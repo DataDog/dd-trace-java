@@ -1,9 +1,38 @@
+import datadog.appsec.api.blocking.Blocking
+import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WebsocketServer
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
+import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
+import io.netty.bootstrap.ServerBootstrap
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFutureListener
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInitializer
+import io.netty.channel.ChannelPipeline
+import io.netty.channel.EventLoopGroup
+import io.netty.channel.SimpleChannelInboundHandler
+import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.nio.NioServerSocketChannel
+import io.netty.handler.codec.http.DefaultFullHttpResponse
+import io.netty.handler.codec.http.FullHttpRequest
+import io.netty.handler.codec.http.FullHttpResponse
+import io.netty.handler.codec.http.HttpHeaderNames
+import io.netty.handler.codec.http.HttpObjectAggregator
+import io.netty.handler.codec.http.HttpRequest
+import io.netty.handler.codec.http.HttpResponseStatus
+import io.netty.handler.codec.http.HttpServerCodec
+import io.netty.handler.codec.http.multipart.Attribute
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame
-import io.netty.handler.codec.http.websocketx.WebSocketFrame
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler
+import io.netty.handler.logging.LogLevel
+import io.netty.handler.logging.LoggingHandler
+import io.netty.util.CharsetUtil
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -23,37 +52,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
 import static io.netty.handler.codec.http.HttpUtil.is100ContinueExpected
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
-
-import datadog.appsec.api.blocking.Blocking
-import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.base.WebsocketServer
-import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
-import datadog.trace.bootstrap.instrumentation.api.URIUtils
-import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
-import io.netty.bootstrap.ServerBootstrap
-import io.netty.buffer.ByteBuf
-import io.netty.buffer.Unpooled
-import io.netty.channel.ChannelHandlerContext
-import io.netty.channel.ChannelInitializer
-import io.netty.channel.ChannelPipeline
-import io.netty.channel.EventLoopGroup
-import io.netty.channel.SimpleChannelInboundHandler
-import io.netty.channel.nio.NioEventLoopGroup
-import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.codec.http.DefaultFullHttpResponse
-import io.netty.handler.codec.http.FullHttpRequest
-import io.netty.handler.codec.http.FullHttpResponse
-import io.netty.handler.codec.http.HttpHeaderNames
-import io.netty.handler.codec.http.HttpObjectAggregator
-import io.netty.handler.codec.http.HttpRequest
-import io.netty.handler.codec.http.HttpResponseStatus
-import io.netty.handler.codec.http.HttpServerCodec
-import io.netty.handler.codec.http.multipart.Attribute
-import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder
-import io.netty.handler.logging.LogLevel
-import io.netty.handler.logging.LoggingHandler
-import io.netty.util.CharsetUtil
 
 abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 
@@ -159,6 +157,7 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                   }
                 }
                 if (msg instanceof TextWebSocketFrame || msg instanceof BinaryWebSocketFrame) {
+                  // generate a child span. The websocket test expects this way
                   runUnderTrace("onRead", {})
                 }
               },
@@ -172,15 +171,13 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
               channelReadComplete: {
                 it.flush()
               },
-              handlerAdded: {
-                ChannelHandlerContext ctx -> {
+              userEventTriggered: { ChannelHandlerContext ctx, Object evt ->
+                if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
                   WsEndpoint.onOpen(ctx)
                 }
               },
-              userEventTriggered: { ChannelHandlerContext ctx, Object evt ->
-                if (evt == WebSocketServerProtocolHandler.HandshakeComplete) {
-                  WsEndpoint.onOpen(ctx)
-                }
+              channelInactive: { ChannelHandlerContext ctx ->
+                WsEndpoint.onClose()
               }
             ] as SimpleChannelInboundHandler)
           }
@@ -210,12 +207,16 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 
     @Override
     void serverSendText(String[] messages) {
-      WsEndpoint.onMessage(messages[0], false)
+      for (int i = 0; i< messages.size(); i++ ) {
+        WsEndpoint.activeSession.writeAndFlush(new TextWebSocketFrame(i == messages.size() - 1, 0, messages[i]))
+      }
     }
 
     @Override
     void serverSendBinary(byte[][] binaries) {
-      WsEndpoint.onMessage(binaries[0], false)
+      for (int i = 0; i< binaries.length; i++ ) {
+        WsEndpoint.activeSession.writeAndFlush(new BinaryWebSocketFrame(i == binaries.length - 1, 0, Unpooled.wrappedBuffer(binaries[i])))
+      }
     }
 
     @Override
@@ -226,6 +227,11 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
     @Override
     void setMaxPayloadSize(int size) {
       // not applicable
+    }
+
+    @Override
+    boolean canSplitLargeWebsocketPayloads() {
+      false
     }
   }
 
@@ -291,18 +297,5 @@ class WsEndpoint {
 
   static void onClose() {
     activeSession = null
-  }
-
-  static void onMessage(String s, boolean last) {
-    synchronized (WsEndpoint) {
-      activeSession.writeAndFlush(new TextWebSocketFrame(s))
-    }
-  }
-
-  static void onMessage(byte[] b, boolean last) {
-    synchronized (WsEndpoint) {
-      ByteBuf responseBuf = Unpooled.wrappedBuffer(b)
-      activeSession.writeAndFlush(new BinaryWebSocketFrame(responseBuf))
-    }
   }
 }

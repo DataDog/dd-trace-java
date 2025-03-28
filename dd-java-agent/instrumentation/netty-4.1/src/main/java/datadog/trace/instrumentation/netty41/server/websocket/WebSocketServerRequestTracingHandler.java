@@ -99,5 +99,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         }
       }
     }
+    // can be other messages we do not handle like ping, pong or continuations
+    ctx.fireChannelRead(frame);
   }
 }
