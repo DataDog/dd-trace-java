@@ -27,6 +27,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 
 @Flaky("https://github.com/DataDog/dd-trace-java/issues/3865")
 class KafkaStreamsTest extends AgentTestRunner {
@@ -38,6 +39,11 @@ class KafkaStreamsTest extends AgentTestRunner {
   EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
   @Shared
   EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
+
+  def setup() {
+    // Filter out additional traces for kafka.poll operation, otherwise, there will be more traces than expected.
+    TEST_WRITER.setFilter { trace -> trace[0].operationName.toString() != 'kafka.poll' }
+  }
 
   @Override
   protected boolean isDataStreamsEnabled() {
@@ -117,8 +123,7 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
-    // We set ignoreAdditionalTraces to true, since there are additional traces for kafka.poll operation.
-    assertTraces(3, true) {
+    assertTraces(3) {
       trace(1) {
         // PRODUCER span 0
         span {
@@ -136,6 +141,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" Pattern.compile("127.0.0.1:[0-9]+")
             defaultTagsNoPeerService()
           }
         }
@@ -160,7 +166,6 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
-            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
             "asdf" "testing"
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
@@ -187,6 +192,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" Pattern.compile("127.0.0.1:[0-9]+")
             defaultTagsNoPeerService()
           }
         }
@@ -213,6 +219,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" Pattern.compile("127.0.0.1:[0-9]+")
             defaultTags(true)
           }
         }
@@ -227,8 +234,11 @@ class KafkaStreamsTest extends AgentTestRunner {
     if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        edgeTags == ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags.any { it.startsWith("kafka_cluster_id:") }
+        for (String tag : ["direction:out", "topic:$STREAM_PENDING", "type:kafka"]) {
+          assert edgeTags.contains(tag)
+        }
+        edgeTags.size() == 4
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
@@ -244,14 +254,20 @@ class KafkaStreamsTest extends AgentTestRunner {
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        edgeTags == ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags.any { it.startsWith("kafka_cluster_id:") }
+        for (String tag : ["direction:out", "topic:$STREAM_PROCESSED", "type:kafka"]) {
+          assert edgeTags.contains(tag)
+        }
+        edgeTags.size() == 4
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        edgeTags == ["direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        edgeTags.any { it.startsWith("kafka_cluster_id:") }
+        for (String tag : ["direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka"]) {
+          assert edgeTags.contains(tag)
+        }
+        edgeTags.size() == 5
       }
     }
 
