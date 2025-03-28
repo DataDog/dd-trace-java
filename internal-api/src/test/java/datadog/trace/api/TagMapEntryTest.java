@@ -261,10 +261,6 @@ public class TagMapEntryTest {
     }
   }
 
-  static final void assertChecks(Check... checks) {
-    assertChecks(multiCheck(checks));
-  }
-
   static final void assertChecks(Check check) {
     check.check();
   }
@@ -284,6 +280,10 @@ public class TagMapEntryTest {
     return multiCheck(
         checkEquals(expected, entry::booleanValue),
         checkEquals(Boolean.valueOf(expected), entry::objectValue),
+        checkEquals(expected ? 1 : 0, entry::intValue),
+        checkEquals(expected ? 1L : 0L, entry::longValue),
+        checkEquals(expected ? 1D : 0D, entry::doubleValue),
+        checkEquals(expected ? 1F : 0F, entry::floatValue),
         checkEquals(Boolean.toString(expected), entry::stringValue));
   }
 
@@ -294,6 +294,7 @@ public class TagMapEntryTest {
         checkEquals((float) expected, entry::floatValue),
         checkEquals((double) expected, entry::doubleValue),
         checkEquals(Integer.valueOf(expected), entry::objectValue),
+        checkEquals(expected != 0, entry::booleanValue),
         checkEquals(Integer.toString(expected), entry::stringValue));
   }
 
@@ -304,6 +305,7 @@ public class TagMapEntryTest {
         checkEquals((float) expected, entry::floatValue),
         checkEquals((double) expected, entry::doubleValue),
         checkEquals(Long.valueOf(expected), entry::objectValue),
+        checkEquals(expected != 0L, entry::booleanValue),
         checkEquals(Long.toString(expected), entry::stringValue));
   }
 
@@ -314,6 +316,7 @@ public class TagMapEntryTest {
         checkEquals((long) expected, entry::longValue),
         checkEquals((float) expected, entry::floatValue),
         checkEquals(Double.valueOf(expected), entry::objectValue),
+        checkEquals(expected != 0D, entry::booleanValue),
         checkEquals(Double.toString(expected), entry::stringValue));
   }
 
@@ -323,6 +326,7 @@ public class TagMapEntryTest {
         checkEquals((int) expected, entry::intValue),
         checkEquals((long) expected, entry::longValue),
         checkEquals((double) expected, entry::doubleValue),
+        checkEquals(expected != 0F, entry::booleanValue),
         checkEquals(Float.valueOf(expected), entry::objectValue),
         checkEquals(Float.toString(expected), entry::stringValue));
   }
