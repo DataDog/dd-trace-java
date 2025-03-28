@@ -1918,7 +1918,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     secondResponse.body().string().contains(sessionId as String)
   }
 
-
+  @Flaky("Flaky in :dd-java-agent:instrumentation:jetty-9:jetty94ForkedTest")
   def 'test websocket server send #msgType message of size #size and #chunks chunks'() {
     setup:
     assumeTrue(testWebsockets())
