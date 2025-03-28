@@ -264,7 +264,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   @Override
-  public void cancelContinuation(final AgentScope.Continuation continuation) {
+  public void removeContinuation(final AgentScope.Continuation continuation) {
     decrementRefAndMaybeWrite(false);
   }
 

@@ -96,7 +96,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
     while (current == 0) {
       // no outstanding activations and hold has been removed
       if (COUNT.compareAndSet(this, current, CANCELLED)) {
-        traceCollector.cancelContinuation(this);
+        traceCollector.removeContinuation(this);
         scopeManager.healthMetrics.onFinishContinuation();
         return;
       }
@@ -108,7 +108,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
   void cancelFromContinuedScopeClose() {
     if (COUNT.compareAndSet(this, 1, CANCELLED)) {
       // fast path: only one activation of the continuation (no hold)
-      traceCollector.cancelContinuation(this);
+      traceCollector.removeContinuation(this);
       scopeManager.healthMetrics.onFinishContinuation();
     } else if (COUNT.decrementAndGet(this) == 0) {
       // slow path: multiple activations, all have now closed (no hold)
