@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -254,6 +255,14 @@ public class TagMapEntryTest {
                 checkValue(2.718281828f, entry),
                 checkTrue(entry::isNumericPrimitive),
                 checkType(TagMap.Entry.FLOAT, entry)));
+  }
+
+  @Test
+  public void removalEntry() {
+    TagMap.Entry removalEntry = TagMap.Entry.newRemovalEntry("foo");
+    assertTrue(removalEntry.isRemoval());
+
+    assertNull(removalEntry.objectValue());
   }
 
   static final int NUM_THREADS = 4;
