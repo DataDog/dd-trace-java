@@ -117,7 +117,8 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
-    assertTraces(3) {
+    // We set ignoreAdditionalTraces to true, since there are additional traces for kafka.poll operation.
+    assertTraces(3, true) {
       trace(1) {
         // PRODUCER span 0
         span {
