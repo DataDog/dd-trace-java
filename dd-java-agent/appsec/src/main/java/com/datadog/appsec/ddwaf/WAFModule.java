@@ -19,6 +19,7 @@ import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.NativeWafHandle;
+import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
@@ -217,6 +218,7 @@ public class WAFModule implements AppSecModule {
     NativeWafHandle previousNativeWafHandle = null;
 
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
+    RuleSetInfo initReport = null;
     try {
       String uniqueId = RandomUtils.randomUUID().toString();
 
@@ -226,9 +228,10 @@ public class WAFModule implements AppSecModule {
         previousNativeWafHandle = nativeWafHandle;
         nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(nativeWafHandle);
       }
+      RuleSetInfo[] infoRef = new RuleSetInfo[1];
+      wafBuilder.addOrUpdateRuleConfig(uniqueId, ruleConfig.getRawConfig(), infoRef);
 
-      initReport = nativeWafHandle.getRuleSetInfo();
-      Collection<Address<?>> addresses = getUsedAddresses(nativeWafHandle);
+      initReport = infoRef[0];
 
       // Update current rules' version if you need
       if (initReport != null && initReport.rulesetVersion != null) {
@@ -248,10 +251,6 @@ public class WAFModule implements AppSecModule {
             previousNativeWafHandle == null ? "new" : "updated");
       }
 
-      Map<String, ActionInfo> actionInfoMap =
-          calculateEffectiveActions(previousNativeWafHandle, ruleConfig);
-
-      newContextAndAddresses = new NativeWafHandle(addresses, nativeWafHandle, actionInfoMap);
       if (initReport != null) {
         this.statsReporter.rulesVersion = initReport.rulesetVersion;
       }
@@ -259,8 +258,8 @@ public class WAFModule implements AppSecModule {
       initReport = irse.ruleSetInfo;
       throw new AppSecModuleActivationException("Error creating WAF rules", irse);
     } catch (RuntimeException | AbstractWafException e) {
-      if (nativeWafHandle != null) {
-        nativeWafHandle.close();
+      if (nativeWafHandle != null && nativeWafHandle.isOnline()) {
+        nativeWafHandle.destroy();
       }
       throw new AppSecModuleActivationException("Error creating WAF rules", e);
     } finally {
@@ -269,8 +268,8 @@ public class WAFModule implements AppSecModule {
       }
     }
 
-    if (!this.nativeWafHandle.compareAndSet(previousNativeWafHandle, newContextAndAddresses)) {
-      nativeWafHandle.destroy();
+    if (previousNativeWafHandle != null && nativeWafHandle.isOnline()) {
+      previousNativeWafHandle.destroy();
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
@@ -293,14 +292,14 @@ public class WAFModule implements AppSecModule {
         actionInfoMap = DEFAULT_ACTIONS;
       } else {
         // in update, no changed actions; keep the old one
-        actionInfoMap = previousNativeWafHandle.actionInfoMap;
+        actionInfoMap = previousNativeWafHandle.getKnownActions();
       }
     } else {
       // actions were updated
       actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
       actionInfoMap.putAll(
           ((List<Map<String, Object>>)
-                  ruleConfig.getRawConfig().getOrDefault("actions", Collections.emptyList()))
+                  ruleConfig.getRawConfig().getOrDefault("actions", emptyList()))
               .stream()
                   .collect(
                       toMap(
@@ -335,8 +334,7 @@ public class WAFModule implements AppSecModule {
 
   @Override
   public String getInfo() {
-    NativeWafHandle ctxAndAddresses = this.ctxAndAddresses.get();
-    if (ctxAndAddresses == null) {
+    if (nativeWafHandle == null) {
       return "ddwaf(libddwaf: " + Waf.LIB_VERSION + ") no rules loaded";
     }
 
@@ -345,14 +343,14 @@ public class WAFModule implements AppSecModule {
 
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
-    if (this.ctxAndAddresses.get() == null) {
-      return Collections.emptyList();
+    if (nativeWafHandle == null || nativeWafHandle.getKnownAddresses() == null) {
+      return emptyList();
     }
     return singletonList(new WAFDataCallback());
   }
 
-  private static Collection<Address<?>> getUsedAddresses(WafHandle ctx) {
-    String[] usedAddresses = ctx.getUsedAddresses();
+  private static Collection<Address<?>> getUsedAddresses(NativeWafHandle nativeWafHandle) {
+    String[] usedAddresses = nativeWafHandle.getKnownAddresses();
     Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
       Address<?> address = KnownAddresses.forName(addrKey);
@@ -365,7 +363,7 @@ public class WAFModule implements AppSecModule {
 
   private class WAFDataCallback extends DataSubscription {
     public WAFDataCallback() {
-      super(ctxAndAddresses.get().addressesOfInterest, Priority.DEFAULT);
+      super(nativeWafHandle.getKnownAddresses(), Priority.DEFAULT);
     }
 
     @Override
@@ -375,8 +373,7 @@ public class WAFModule implements AppSecModule {
         DataBundle newData,
         GatewayContext gwCtx) {
       Waf.ResultWithData resultWithData;
-      NativeWafHandle ctxAndAddr = ctxAndAddresses.get();
-      if (ctxAndAddr == null) {
+      if (nativeWafHandle == null) {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
@@ -400,7 +397,7 @@ public class WAFModule implements AppSecModule {
       }
 
       try {
-        resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
+        resultWithData = doRunWaf(reqCtx, newData, nativeWafHandle, gwCtx);
       } catch (TimeoutWafException tpe) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspTimeouts();
@@ -613,10 +610,9 @@ public class WAFModule implements AppSecModule {
     }
 
     private Waf.ResultWithData runWafWafContext(
-        WafContext wafContext, WafMetrics metrics, DataBundle newData, NativeWafHandle ctxAndAddr)
-        throws AbstractWafException {
+        WafContext wafContext, WafMetrics metrics, DataBundle newData) throws AbstractWafException {
       return wafContext.run(
-          new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+          new DataBundleMapWrapper(nativeWafHandle.getKnownAddresses(), newData), LIMITS, metrics);
     }
   }
 
@@ -624,7 +620,7 @@ public class WAFModule implements AppSecModule {
       WafContext wafContext, WafMetrics metrics, DataBundle bundle, NativeWafHandle ctxAndAddr)
       throws AbstractWafException {
     return wafContext.runEphemeral(
-        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
+        new DataBundleMapWrapper(nativeWafHandle.getKnownAddresses(), bundle), LIMITS, metrics);
   }
 
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
