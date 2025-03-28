@@ -22,6 +22,8 @@ import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketProtocolHandshakeHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -31,6 +33,7 @@ import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.Attribute;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -77,6 +80,10 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
       packageName + ".server.MaybeBlockResponseHandler",
+      packageName + ".server.websocket.WebSocketProtocolHandshakeHandler",
+      packageName + ".server.websocket.WebSocketServerTracingHandler",
+      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
+      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
       packageName + ".NettyHttp2Helper",
     };
   }
@@ -139,15 +146,19 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       try {
         ChannelHandler toAdd = null;
         ChannelHandler toAdd2 = null;
+        ChannelHandler toAdd3 = null;
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
           toAdd = new HttpServerTracingHandler();
           toAdd2 = MaybeBlockResponseHandler.INSTANCE;
+          toAdd3 = new WebSocketServerTracingHandler();
         } else if (handler instanceof HttpRequestDecoder) {
           toAdd = HttpServerRequestTracingHandler.INSTANCE;
         } else if (handler instanceof HttpResponseEncoder) {
           toAdd = HttpServerResponseTracingHandler.INSTANCE;
           toAdd2 = MaybeBlockResponseHandler.INSTANCE;
+        } else if (handler instanceof WebSocketServerProtocolHandler) {
+          toAdd = WebSocketProtocolHandshakeHandler.INSTANCE;
         } else
         // Client pipeline handlers
         if (handler instanceof HttpClientCodec) {
@@ -180,6 +191,13 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
                 pipeline.remove(existing2);
               }
               pipeline.addAfter(pipeline.context(toAdd).name(), null, toAdd2);
+              if (toAdd3 != null) {
+                ChannelHandler existing3 = pipeline.get(toAdd3.getClass());
+                if (existing3 != null) {
+                  pipeline.remove(existing3);
+                }
+                pipeline.addAfter(pipeline.context(toAdd2).name(), null, toAdd3);
+              }
             }
           }
         }
