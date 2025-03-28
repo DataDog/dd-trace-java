@@ -7,8 +7,8 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.NativeWafHandle;
 import com.datadog.ddwaf.WafContext;
-import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -286,27 +286,26 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
-
+  public WafContext getOrCreateWafContext(
+      NativeWafHandle nativeWafHandle, boolean createMetrics, boolean isRasp) {
     if (createMetrics) {
       if (wafMetrics == null) {
-        this.wafMetrics = ctx.createMetrics();
+        this.wafMetrics = new WafMetrics();
       }
       if (isRasp && raspMetrics == null) {
-        this.raspMetrics = ctx.createMetrics();
+        this.raspMetrics = new WafMetrics();
       }
     }
 
     WafContext curWafContext;
     synchronized (this) {
-      curWafContext = this.wafContext;
-      if (curWafContext != null) {
-        return curWafContext;
+      curWafContext = new WafContext(nativeWafHandle);
+      if (this.wafContext != null) {
+        this.wafContext.close();
       }
-      curWafContext = ctx.openContext();
       this.wafContext = curWafContext;
+      return curWafContext;
     }
-    return curWafContext;
   }
 
   public void closeWafContext() {
