@@ -51,11 +51,11 @@ public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibi
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        parentPackageName + ".SkippedByDatadog",
-        parentPackageName + ".TracingListener",
-        parentPackageName + ".JUnit4Utils",
-        parentPackageName + ".TestEventsHandlerHolder",
-        packageName + ".FailFastDescriptionComparator",
+      parentPackageName + ".SkippedByDatadog",
+      parentPackageName + ".TracingListener",
+      parentPackageName + ".JUnit4Utils",
+      parentPackageName + ".TestEventsHandlerHolder",
+      packageName + ".FailFastDescriptionComparator",
     };
   }
 

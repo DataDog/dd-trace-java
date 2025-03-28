@@ -7,7 +7,6 @@ import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
-import junit.runner.Version
 import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.junit.runner.JUnitCore

@@ -51,8 +51,16 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName       | tests         | knownTestsList                                      | expectedOrder
-    "sorting-methods"  | [TestSorter]  | [test("org.example.TestSorter", "test_succeed_1")]  | [test("org.example.TestSorter", "test_succeed_2"), test("org.example.TestSorter", "test_succeed_3"), test("org.example.TestSorter", "test_succeed_1")]
-    "ordering-methods" | [TestOrderer] | [test("org.example.TestOrderer", "test_succeed_2")] | [test("org.example.TestOrderer", "test_succeed_3"), test("org.example.TestOrderer", "test_succeed_1"), test("org.example.TestOrderer", "test_succeed_2")]
+    "sorting-methods"  | [TestSorter]  | [test("org.example.TestSorter", "test_succeed_1")]  | [
+      test("org.example.TestSorter", "test_succeed_2"),
+      test("org.example.TestSorter", "test_succeed_3"),
+      test("org.example.TestSorter", "test_succeed_1")
+    ]
+    "ordering-methods" | [TestOrderer] | [test("org.example.TestOrderer", "test_succeed_2")] | [
+      test("org.example.TestOrderer", "test_succeed_3"),
+      test("org.example.TestOrderer", "test_succeed_1"),
+      test("org.example.TestOrderer", "test_succeed_2")
+    ]
   }
 
   def "test flaky tests ordering #testcaseName"() {
@@ -65,8 +73,19 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName       | tests         | flakyTestList                                                                                          | expectedOrder
-    "sorting-methods"  | [TestSorter]  | [test("org.example.TestSorter", "test_succeed_2"), test("org.example.TestSorter", "test_succeed_3")]   | [test("org.example.TestSorter", "test_succeed_2"), test("org.example.TestSorter", "test_succeed_3"), test("org.example.TestSorter", "test_succeed_1")]
-    "ordering-methods" | [TestOrderer] | [test("org.example.TestOrderer", "test_succeed_1"), test("org.example.TestOrderer", "test_succeed_3")] | [test("org.example.TestOrderer", "test_succeed_3"), test("org.example.TestOrderer", "test_succeed_1"), test("org.example.TestOrderer", "test_succeed_2")]
+    "sorting-methods"  | [TestSorter]  | [test("org.example.TestSorter", "test_succeed_2"), test("org.example.TestSorter", "test_succeed_3")]   | [
+      test("org.example.TestSorter", "test_succeed_2"),
+      test("org.example.TestSorter", "test_succeed_3"),
+      test("org.example.TestSorter", "test_succeed_1")
+    ]
+    "ordering-methods" | [TestOrderer] | [
+      test("org.example.TestOrderer", "test_succeed_1"),
+      test("org.example.TestOrderer", "test_succeed_3")
+    ] | [
+      test("org.example.TestOrderer", "test_succeed_3"),
+      test("org.example.TestOrderer", "test_succeed_1"),
+      test("org.example.TestOrderer", "test_succeed_2")
+    ]
   }
 
   def "test capabilities tagging #testcaseName"() {

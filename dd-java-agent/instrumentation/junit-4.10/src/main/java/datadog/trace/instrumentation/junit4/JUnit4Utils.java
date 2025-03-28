@@ -353,9 +353,14 @@ public abstract class JUnit4Utils {
     }
   }
 
-  public static TestFrameworkInstrumentation frameworkForClass(Class<?> testClass) {
+  public static TestFrameworkInstrumentation classToFramework(Class<?> testClass) {
     Runner runner = Request.aClass(testClass).getRunner();
     return runnerToFramework(runner);
+  }
+
+  public static List<Description> getClassChildren(Class<?> testClass) {
+    Runner runner = Request.aClass(testClass).getRunner();
+    return runner.getDescription().getChildren();
   }
 
   public static String getVersion() {
