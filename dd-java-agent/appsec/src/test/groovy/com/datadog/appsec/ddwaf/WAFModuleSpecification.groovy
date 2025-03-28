@@ -475,7 +475,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> { wafContext.close() }
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     0 * _
 
@@ -560,7 +560,7 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     0 * _
   }
@@ -665,7 +665,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * ctx.reportEvents(_)
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     flow.blocking == true
@@ -731,7 +731,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * ctx.reportEvents(_)
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     flow.blocking == true
@@ -758,7 +758,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * ctx.reportEvents(_)
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     metrics == null
@@ -817,7 +817,7 @@ class WAFModuleSpecification extends DDSpecification {
     }
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.reportEvents(*_)
-    1 * ctx.setBlocked()
+    1 * ctx.setWafBlocked()
     1 * ctx.isThrottled(null)
     1 * ctx.isWafContextClosed() >> false
     0 * ctx._(*_)
@@ -1016,7 +1016,6 @@ class WAFModuleSpecification extends DDSpecification {
       wafContext = it[0].openContext() }
     2 * ctx.getWafMetrics()
     1 * ctx.increaseWafTimeouts()
-    1 * wafMetricCollector.get().wafRequestTimeout()
     0 * _
 
     when:
