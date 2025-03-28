@@ -88,7 +88,7 @@ public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final ExecutionContext executionContext,
         @Advice.Origin("datanucleus.#m") final String operationName) {
 
-      final AgentSpan span = startSpan(operationName);
+      final AgentSpan span = startSpan("datanucleus", operationName);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -121,7 +121,7 @@ public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(operationName);
+      final AgentSpan span = startSpan("datanucleus", operationName);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -151,7 +151,7 @@ public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 
-      final AgentSpan span = startSpan(DATANUCLEUS_FIND_OBJECT);
+      final AgentSpan span = startSpan("datanucleus", DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -182,7 +182,7 @@ public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 
-      final AgentSpan span = startSpan(DATANUCLEUS_FIND_OBJECT);
+      final AgentSpan span = startSpan("datanucleus", DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
       return activateSpan(span);

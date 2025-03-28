@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -30,7 +30,7 @@ public class SendAsyncAdvice {
       if (callDepth > 0) {
         return null;
       }
-      final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("java-http-client", JavaNetClientDecorator.OPERATION_NAME);
       final AgentScope scope = activateSpan(span);
       if (bodyHandler != null) {
         bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));

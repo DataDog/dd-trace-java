@@ -66,7 +66,7 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
       AgentSpan parentSpan = activeSpan();
-      AgentSpan span = startSpan(HTTP_REQUEST);
+      AgentSpan span = startSpan("grizzly-http-client", HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);

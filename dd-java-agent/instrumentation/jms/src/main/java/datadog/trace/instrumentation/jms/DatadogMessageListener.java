@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
@@ -44,12 +45,14 @@ public class DatadogMessageListener implements MessageListener {
     }
     long startMillis = GETTER.extractTimeInQueueStart(message);
     if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
-      span = startSpan(JMS_CONSUME, propagatedContext);
+      span = startSpan(JMS.toString(), JMS_CONSUME, propagatedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        timeInQueue = startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+        timeInQueue =
+            startSpan(
+                JMS.toString(), JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
         BROKER_DECORATE.afterStart(timeInQueue);
         BROKER_DECORATE.onTimeInQueue(
             timeInQueue,
@@ -57,7 +60,7 @@ public class DatadogMessageListener implements MessageListener {
             consumerState.getBrokerServiceName());
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
-      span = startSpan(JMS_CONSUME, timeInQueue.context());
+      span = startSpan(JMS.toString(), JMS_CONSUME, timeInQueue.context());
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());

@@ -26,7 +26,7 @@ public class HandleAdvice {
     }
 
     final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
-    span = DECORATE.startSpan(req, extractedContext);
+    span = DECORATE.startSpan("jetty-server", req, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, extractedContext);
 

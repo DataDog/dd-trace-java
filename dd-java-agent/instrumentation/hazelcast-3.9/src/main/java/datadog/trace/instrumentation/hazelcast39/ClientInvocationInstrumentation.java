@@ -102,7 +102,7 @@ public class ClientInvocationInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast", SPAN_NAME);
       DECORATE.onHazelcastInstance(
           span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);
