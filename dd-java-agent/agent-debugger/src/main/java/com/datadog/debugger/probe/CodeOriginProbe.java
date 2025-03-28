@@ -62,6 +62,7 @@ public class CodeOriginProbe extends ProbeDefinition {
       LOGGER.debug("Code origin probe {} has no location", id);
       return;
     }
+    System.out.println("****** CodeOriginProbe.commit entrySpanProbe = " + entrySpanProbe);
     for (AgentSpan s : agentSpans) {
       if (s.getTag(DD_CODE_ORIGIN_TYPE) == null) {
         s.setTag(DD_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
@@ -82,14 +83,14 @@ public class CodeOriginProbe extends ProbeDefinition {
   public void buildLocation(MethodInfo methodInfo) {
     String type = where.getTypeName();
     String method = where.getMethodName();
-    List<String> lines = null;
+    List<String> lines = where.getLines() != null ? asList(where.getLines()) : null;
 
     String file = where.getSourceFile();
 
     if (methodInfo != null) {
       type = methodInfo.getTypeName();
       method = methodInfo.getMethodName();
-      if (methodInfo.getMethodStart() != -1) {
+      if (entrySpanProbe || where.getLines() == null) {
         lines = singletonList(String.valueOf(methodInfo.getMethodStart()));
       }
       if (file == null) {
