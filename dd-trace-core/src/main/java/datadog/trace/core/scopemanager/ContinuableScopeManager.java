@@ -107,10 +107,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
-    ScopeContinuation continuation = new ScopeContinuation(this, span, source);
-    continuation.register();
-    healthMetrics.onCaptureContinuation();
-    return continuation;
+    return new ScopeContinuation(this, span, source).register();
   }
 
   private AgentScope activate(
@@ -207,7 +204,6 @@ public final class ContinuableScopeManager implements ScopeStateAware {
       scopeStack.cleanup();
       if (finishSpan) {
         top.span.finishWithEndToEnd();
-        healthMetrics.onFinishContinuation();
       }
     }
   }
