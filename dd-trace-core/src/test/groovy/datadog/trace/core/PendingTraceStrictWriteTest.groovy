@@ -56,7 +56,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
     when: "continuation is finished the second time"
     // Yes this should be guarded by the used flag in the continuation,
-    // so cancel it anyway to trigger the exception
+    // so remove it anyway to trigger the exception
     traceCollector.removeContinuation(continuation)
 
     then:
