@@ -69,7 +69,8 @@ public class SamplingMechanism {
    * @return
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
-    return !Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC;
+    return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)
+        || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
 
   private SamplingMechanism() {}

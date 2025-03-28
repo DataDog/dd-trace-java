@@ -25,6 +25,7 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
+    injectSysConfig("dd.integration.openlineage-spark.enabled", "true")
   }
 
   private SparkSession createSparkSession(String appName) {
