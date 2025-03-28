@@ -8,6 +8,12 @@ import datadog.trace.api.TagMap.Entry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.Test;
@@ -250,14 +256,85 @@ public class TagMapEntryTest {
                 checkType(TagMap.Entry.FLOAT, entry)));
   }
 
+  static final int NUM_THREADS = 4;
+  static final ExecutorService EXECUTOR =
+      Executors.newFixedThreadPool(
+          NUM_THREADS,
+          new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+              Thread thread = new Thread(r, "multithreaded-test-runner");
+              thread.setDaemon(true);
+              return thread;
+            }
+          });
+
   static final void test(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checks) {
-    // repeat the test several times to exercise different orderings
+    // repeat the test several times to exercise different orderings in this thread
     for (int i = 0; i < 10; ++i) {
-      Entry entry = entrySupplier.get();
-      assertEquals(rawType, entry.rawType);
+      testSingleThreaded(entrySupplier, rawType, checks);
+    }
 
-      assertChecks(checks.apply(entry));
+    // same for multi-threaded
+    for (int i = 0; i < 5; ++i) {
+      testMultiThreaded(entrySupplier, rawType, checks);
+    }
+  }
+
+  static final void testSingleThreaded(
+      Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
+    Entry entry = entrySupplier.get();
+    assertEquals(rawType, entry.rawType);
+
+    Check checks = checkSupplier.apply(entry);
+    checks.check();
+  }
+
+  static final void testMultiThreaded(
+      Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
+    Entry sharedEntry = entrySupplier.get();
+    assertEquals(rawType, sharedEntry.rawType);
+
+    Check checks = checkSupplier.apply(sharedEntry);
+
+    List<Callable<Void>> callables = new ArrayList<>(NUM_THREADS);
+    for (int i = 0; i < NUM_THREADS; ++i) {
+      // Different shuffle for each thread
+      Check shuffledChecks = checks.shuffle();
+
+      callables.add(
+          () -> {
+            shuffledChecks.check();
+
+            return null;
+          });
+    }
+
+    List<Future<Void>> futures;
+    try {
+      futures = EXECUTOR.invokeAll(callables);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+
+      throw new IllegalStateException(e);
+    }
+
+    for (Future<?> future : futures) {
+      try {
+        future.get();
+      } catch (InterruptedException e) {
+        throw new IllegalStateException(e);
+      } catch (ExecutionException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof Error) {
+          throw (Error) cause;
+        } else if (cause instanceof RuntimeException) {
+          throw (RuntimeException) cause;
+        } else {
+          throw new IllegalStateException(cause);
+        }
+      }
     }
   }
 
@@ -375,6 +452,10 @@ public class TagMapEntryTest {
   interface Check {
     void check();
 
+    default Check shuffle() {
+      return this;
+    }
+
     default void flatten(List<Check> checkAccumulator) {
       checkAccumulator.add(this);
     }
@@ -387,17 +468,35 @@ public class TagMapEntryTest {
       this.checks = checks;
     }
 
-    @Override
-    public void check() {
+    private List<Check> shuffleChecks() {
       List<Check> checkAccumulator = new ArrayList<>();
       for (Check check : this.checks) {
         check.flatten(checkAccumulator);
       }
 
       Collections.shuffle(checkAccumulator);
-      for (Check check : checkAccumulator) {
+      return checkAccumulator;
+    }
+
+    @Override
+    public void check() {
+      for (Check check : this.shuffleChecks()) {
         check.check();
       }
+    }
+
+    @Override
+    public Check shuffle() {
+      List<Check> shuffled = this.shuffleChecks();
+
+      return new Check() {
+        @Override
+        public void check() {
+          for (Check check : shuffled) {
+            check.check();
+          }
+        }
+      };
     }
 
     @Override
