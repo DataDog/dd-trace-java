@@ -266,7 +266,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
     decrementRefAndMaybeWrite(false);
-    healthMetrics.onCancelContinuation();
   }
 
   private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
