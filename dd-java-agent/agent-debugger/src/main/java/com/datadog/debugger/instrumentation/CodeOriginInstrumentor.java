@@ -39,7 +39,7 @@ public class CodeOriginInstrumentor extends Instrumentor {
     CodeOriginProbe probe = (CodeOriginProbe) definition;
     List<String> lines = probe.getLocation().getLines();
     if (!probe.entrySpanProbe() && lines != null && !lines.isEmpty()) {
-      int line = Integer.valueOf(lines.get(0));
+      int line = Integer.parseInt(lines.get(0));
       for (AbstractInsnNode node : methodNode.instructions) {
         if (node instanceof LineNumberNode && ((LineNumberNode) node).line == line) {
           return node;
