@@ -65,7 +65,7 @@ public class AppSecSystem {
       return;
     }
     log.debug("AppSec is starting ({})", appSecEnabledConfig);
-    AppSecSystem.wafBuilder = new WafBuilder(createWafConfig(config));
+    wafBuilder = new WafBuilder(createWafConfig(config));
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
@@ -134,8 +134,8 @@ public class AppSecSystem {
       RESET_SUBSCRIPTION_SERVICE = null;
     }
     Blocking.setBlockingService(BlockingService.NOOP);
-    wafBuilder.destroy();
     APP_SEC_CONFIG_SERVICE.close();
+    wafBuilder.destroy();
   }
 
   private static void loadModules(EventDispatcher eventDispatcher, Monitoring monitoring) {
@@ -148,7 +148,7 @@ public class AppSecSystem {
       try {
         AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject;
         cfgObject = APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
-        module.config(cfgObject);
+        module.config(cfgObject, wafBuilder);
         cfgObject.commit();
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
         log.error("Startup of appsec module {} failed", module.getName(), t);

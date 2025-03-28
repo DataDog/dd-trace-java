@@ -19,8 +19,8 @@ import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.NativeWafHandle;
-import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
@@ -150,11 +150,12 @@ public class WAFModule implements AppSecModule {
   }
 
   @Override
-  public void config(AppSecModuleConfigurer appSecConfigService)
+  public void config(AppSecModuleConfigurer appSecConfigService, WafBuilder wafBuilder)
       throws AppSecModuleActivationException {
 
     Optional<Object> initialConfig =
-        appSecConfigService.addSubConfigListener("waf", this::applyConfig);
+        appSecConfigService.addSubConfigListener(
+            "waf", (appSecConfigSer, config) -> applyConfig(appSecConfigSer, config, wafBuilder));
 
     ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
@@ -163,8 +164,8 @@ public class WAFModule implements AppSecModule {
       }
 
       try {
-        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
-      } catch (ClassCastException e) {
+        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP, wafBuilder);
+      } catch (AbstractWafException e) {
         throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
       }
     }
@@ -177,31 +178,30 @@ public class WAFModule implements AppSecModule {
 
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
-  private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
-      throws AppSecModuleActivationException {
+  private void applyConfig(
+      Object config_, AppSecModuleConfigurer.Reconfiguration reconf, WafBuilder wafBuilder)
+      throws AppSecModuleActivationException, AbstractWafException {
     log.debug("Configuring WAF");
 
     CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
-
-    NativeWafHandle curCtxAndAddresses = this.ctxAndAddresses.get();
 
     if (!WafInitialization.ONLINE) {
       throw new AppSecModuleActivationException(
           "In-app WAF initialization failed. See previous log entries");
     }
 
-    if (curCtxAndAddresses == null) {
+    if (nativeWafHandle == null) {
       config.dirtyStatus.markAllDirty();
     }
 
     boolean success = false;
     try {
       // ddwaf_init/update
-      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      success = initializeNewWafCtx(reconf, config, wafBuilder);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     } finally {
-      if (curCtxAndAddresses == null) {
+      if (nativeWafHandle == null) {
         WafMetricCollector.get().wafInit(Waf.LIB_VERSION, currentRulesVersion, success);
       } else {
         WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
@@ -212,20 +212,19 @@ public class WAFModule implements AppSecModule {
   private boolean initializeNewWafCtx(
       AppSecModuleConfigurer.Reconfiguration reconf,
       CurrentAppSecConfig config,
-      NativeWafHandle previousNativeWafHandle)
+      WafBuilder wafBuilder)
       throws AppSecModuleActivationException, IOException {
-    NativeWafHandle newContextAndAddresses;
-    RuleSetInfo initReport = null;
+    NativeWafHandle previousNativeWafHandle = null;
 
     AppSecConfig ruleConfig = config.getMergedUpdateConfig();
-    NativeWafHandle nativeWafHandle = null;
     try {
       String uniqueId = RandomUtils.randomUUID().toString();
 
-      if (previousNativeWafHandle == null) {
-        nativeWafHandle = builder.createHandle(uniqueId, pwConfig, ruleConfig.getRawConfig());
+      if (nativeWafHandle == null) {
+        nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
       } else {
-        nativeWafHandle = previousNativeWafHandle.ctx.update(uniqueId, ruleConfig.getRawConfig());
+        previousNativeWafHandle = nativeWafHandle;
+        nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(nativeWafHandle);
       }
 
       initReport = nativeWafHandle.getRuleSetInfo();
