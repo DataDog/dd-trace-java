@@ -32,7 +32,9 @@ public class Snapshot {
   private List<EvaluationError> evaluationErrors;
   private transient String message;
   private final transient int maxDepth;
-  private String exceptionId;
+  private String exceptionHash;
+  private String exceptionCaptureId;
+  private String frameIndex;
   private transient int chainedExceptionIdx;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
@@ -88,8 +90,16 @@ public class Snapshot {
     this.message = message;
   }
 
-  public void setExceptionId(String exceptionId) {
-    this.exceptionId = exceptionId;
+  public void setExceptionHash(String exceptionHash) {
+    this.exceptionHash = exceptionHash;
+  }
+
+  public void setExceptionCaptureId(String exceptionCaptureId) {
+    this.exceptionCaptureId = exceptionCaptureId;
+  }
+
+  public void setFrameIndex(String frameIndex) {
+    this.frameIndex = frameIndex;
   }
 
   public void setChainedExceptionIdx(int chainedExceptionIdx) {
@@ -179,8 +189,8 @@ public class Snapshot {
     return maxDepth;
   }
 
-  public String getExceptionId() {
-    return exceptionId;
+  public String getExceptionCaptureId() {
+    return exceptionCaptureId;
   }
 
   public int getChainedExceptionIdx() {

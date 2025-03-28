@@ -28,7 +28,8 @@ import org.slf4j.LoggerFactory;
 public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugger {
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExceptionDebugger.class);
   public static final String DD_DEBUG_ERROR_PREFIX = "_dd.debug.error.";
-  public static final String DD_DEBUG_ERROR_EXCEPTION_ID = DD_DEBUG_ERROR_PREFIX + "exception_id";
+  public static final String DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID =
+      DD_DEBUG_ERROR_PREFIX + "exception_capture_id";
   public static final String DD_DEBUG_ERROR_EXCEPTION_HASH =
       DD_DEBUG_ERROR_PREFIX + "exception_hash";
   public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
@@ -129,7 +130,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ThrowableState state,
       List<Throwable> chainedExceptions,
       String fingerprint) {
-    if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
+    if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
       span.getTags()
@@ -159,17 +160,21 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
       if (!state.isSnapshotSent()) {
+        // decorate snapshot with specific exception information
+        snapshot.setFrameIndex(String.valueOf(frameIndex));
+        snapshot.setExceptionHash(fingerprint);
+        snapshot.setExceptionCaptureId(state.getExceptionId());
         DebuggerAgent.getSink().addSnapshot(snapshot);
       }
       snapshotAssigned = true;
     }
     if (snapshotAssigned) {
       state.markAsSnapshotSent();
-      span.setTag(DD_DEBUG_ERROR_EXCEPTION_ID, state.getExceptionId());
+      span.setTag(DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID, state.getExceptionId());
       LOGGER.debug(
           "add tag to span[{}]: {}: {}",
           span.getSpanId(),
-          DD_DEBUG_ERROR_EXCEPTION_ID,
+          DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID,
           state.getExceptionId());
       span.setTag(ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
