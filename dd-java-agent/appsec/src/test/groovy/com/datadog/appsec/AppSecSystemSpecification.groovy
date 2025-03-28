@@ -13,6 +13,7 @@ import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
+import datadog.trace.api.TagMap
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -72,7 +73,7 @@ class AppSecSystemSpecification extends DDSpecification {
     requestEndedCB.apply(requestContext, span)
 
     then:
-    1 * span.getTags() >> ['http.client_ip':'1.1.1.1']
+    1 * span.getTags() >> TagMap.fromMap(['http.client_ip':'1.1.1.1'])
     1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * requestContext.getData(RequestContextSlot.APPSEC) >> appSecReqCtx
     1 * requestContext.traceSegment >> traceSegment
