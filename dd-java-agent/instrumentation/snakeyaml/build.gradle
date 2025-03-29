@@ -16,10 +16,6 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
-configurations.muzzleBootstrap {
-  exclude group: 'org.yaml', module : 'snakeyaml'
-}
-
 dependencies {
   compileOnly group: 'org.yaml', name: 'snakeyaml', version: '1.33'
 
