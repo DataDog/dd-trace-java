@@ -24,22 +24,21 @@ public final class StableConfigSource extends ConfigProvider.Source {
           StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
 
   private final ConfigOrigin fileOrigin;
-
   private final StableConfig config;
 
   StableConfigSource(String filePath, ConfigOrigin origin) {
     this.fileOrigin = origin;
     File file = new File(filePath);
     if (!file.exists()) {
-      log.debug("Stable configuration file not available at specified path: {}", file);
       this.config = StableConfig.EMPTY;
       return;
     }
     StableConfig cfg;
     try {
+      log.debug("Stable configuration file found at path: {}", file);
       cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
-      log.error(
+      log.warn(
           "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs.\n",
           file,
           e);
