@@ -23,74 +23,73 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
   @Override
   public void write(ChannelHandlerContext ctx, Object frame, ChannelPromise promise)
       throws Exception {
-    if (!(frame instanceof WebSocketFrame)) {
-      ctx.write(frame, promise);
-      return;
-    }
 
-    Channel channel = ctx.channel();
-    HandlerContext.Sender handlerContext = channel.attr(WEBSOCKET_HANDLER_CONTEXT).get();
-    if (handlerContext == null) {
-      ctx.write(frame, promise);
-      return;
-    }
+    if (frame instanceof WebSocketFrame) {
+      Channel channel = ctx.channel();
+      HandlerContext.Sender handlerContext = channel.attr(WEBSOCKET_HANDLER_CONTEXT).get();
+      if (handlerContext != null) {
 
-    if (frame instanceof TextWebSocketFrame) {
-      // WebSocket Write Text Start
-      TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-      final AgentSpan span =
-          DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
-      if (span == null) {
-        ctx.write(frame, promise);
-      } else {
-        try (final AgentScope scope = activateSpan(span)) {
-          ctx.write(frame, promise);
+        if (frame instanceof TextWebSocketFrame) {
+          // WebSocket Write Text Start
+          TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
+          final AgentSpan span =
+              DECORATE.onSendFrameStart(
+                  handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
+          if (span == null) {
+            ctx.write(frame, promise);
+          } else {
+            try (final AgentScope scope = activateSpan(span)) {
+              ctx.write(frame, promise);
 
-          // WebSocket Write Text End
-          if (textFrame.isFinalFragment()) {
-            DECORATE.onFrameEnd(handlerContext);
+              // WebSocket Write Text End
+              if (textFrame.isFinalFragment()) {
+                DECORATE.onFrameEnd(handlerContext);
+              }
+            }
           }
+          return;
         }
-      }
-      return;
-    }
 
-    if (frame instanceof BinaryWebSocketFrame) {
-      // WebSocket Write Binary Start
-      BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-      final AgentSpan span =
-          DECORATE.onSendFrameStart(
-              handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
-      if (span == null) {
-        ctx.write(frame, promise);
-      } else {
-        try (final AgentScope scope = activateSpan(span)) {
-          ctx.write(frame, promise);
+        if (frame instanceof BinaryWebSocketFrame) {
+          // WebSocket Write Binary Start
+          BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
+          final AgentSpan span =
+              DECORATE.onSendFrameStart(
+                  handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
+          if (span == null) {
+            ctx.write(frame, promise);
+          } else {
+            try (final AgentScope scope = activateSpan(span)) {
+              ctx.write(frame, promise);
 
-          // WebSocket Write Binary End
-          if (binaryFrame.isFinalFragment()) {
-            DECORATE.onFrameEnd(handlerContext);
+              // WebSocket Write Binary End
+              if (binaryFrame.isFinalFragment()) {
+                DECORATE.onFrameEnd(handlerContext);
+              }
+            }
           }
+          return;
         }
-      }
-      return;
-    }
 
-    if (frame instanceof CloseWebSocketFrame) {
-      // WebSocket Closed by Server
-      CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
-      int statusCode = closeFrame.statusCode();
-      String reasonText = closeFrame.reasonText();
-      channel.attr(WEBSOCKET_HANDLER_CONTEXT).remove();
-      final AgentSpan span = DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
-      if (span == null) {
-        ctx.write(frame, promise);
-      } else {
-        try (final AgentScope scope = activateSpan(span)) {
-          ctx.write(frame, promise);
-          if (closeFrame.isFinalFragment()) {
-            DECORATE.onFrameEnd(handlerContext);
+        if (frame instanceof CloseWebSocketFrame) {
+          // WebSocket Closed by Server
+          CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
+          int statusCode = closeFrame.statusCode();
+          String reasonText = closeFrame.reasonText();
+          channel.attr(WEBSOCKET_HANDLER_CONTEXT).remove();
+          final AgentSpan span =
+              DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
+          if (span == null) {
+            ctx.write(frame, promise);
+          } else {
+            try (final AgentScope scope = activateSpan(span)) {
+              ctx.write(frame, promise);
+              if (closeFrame.isFinalFragment()) {
+                DECORATE.onFrameEnd(handlerContext);
+              }
+            }
           }
+          return;
         }
       }
     }
