@@ -1514,14 +1514,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String parentServiceName = null;
       boolean isRemote = false;
 
+      TracePropagationBehaviorExtract behaviorExtract =
+          Config.get().getTracePropagationBehaviorExtract();
       if (parentContext != null && parentContext.isRemote()) {
-        if (Config.get().getTracePropagationBehaviorExtract()
-            == TracePropagationBehaviorExtract.IGNORE) {
+        if (behaviorExtract == TracePropagationBehaviorExtract.IGNORE) {
           // reset links that may have come terminated span links
           links = new ArrayList<>();
           parentContext = null;
-        } else if (Config.get().getTracePropagationBehaviorExtract()
-            == TracePropagationBehaviorExtract.RESTART) {
+        } else if (behaviorExtract == TracePropagationBehaviorExtract.RESTART) {
           links = new ArrayList<>();
           SpanLink link =
               (parentContext instanceof ExtractedContext)
