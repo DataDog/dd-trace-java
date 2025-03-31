@@ -1512,6 +1512,14 @@ build_test_jobs: &build_test_jobs
       stage: required
 
 workflows:
+{% if skip_circleci %}
+  build_test:
+    jobs:
+      # Just a "required" job to make GitHub PR checks happy, and run nothing else.
+      - fan_in:
+          name: required
+          stage: required
+{% else %}
 {% if is_regular %}
   build_test:
     jobs:
@@ -1551,4 +1559,5 @@ workflows:
           name: build_cache_profiling
           gradleTarget: :profilingTest
           cacheType: profiling
+{% endif %}
 {% endif %}
