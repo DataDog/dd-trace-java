@@ -679,7 +679,7 @@ public class AgentTracer {
     public void registerContinuation(final AgentScope.Continuation continuation) {}
 
     @Override
-    public void cancelContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final AgentScope.Continuation continuation) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {
