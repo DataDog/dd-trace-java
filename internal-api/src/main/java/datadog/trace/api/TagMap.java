@@ -1068,6 +1068,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         case DOUBLE:
           this.rawObj = prim2Double(this.rawPrim);
           break;
+
+        default:
+          // DQH - satisfy spot bugs
+          break;
       }
 
       if (this.is(REMOVED)) {
