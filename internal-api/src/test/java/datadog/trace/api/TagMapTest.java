@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
@@ -424,11 +425,15 @@ public class TagMapTest {
 
   @Test
   public void _toString() {
-    // DQH - This test assumes an iteration order which isn't guaranteed.  Might need to be updated
-    // in the future.
     int size = 4;
     TagMap map = createTagMap(size);
     assertEquals("{key-1=value-1, key-0=value-0, key-3=value-3, key-2=value-2}", map.toString());
+  }
+
+  @Test
+  public void toInternalString() {
+    TagMap map = createTagMap(128);
+    assertNotEquals("", map.toInternalString());
   }
 
   static final int randomSize() {
