@@ -1333,6 +1333,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1346,6 +1347,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
+{% endif %}
 
   - tests:
       requires:
@@ -1389,6 +1391,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1401,13 +1404,16 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 3
       testJvm: "8"
+{% endif %}
 
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+{% if ssi_smoke %}
         - z_test_<< matrix.testJvm >>_ssi_smoke
+{% endif %}
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1418,7 +1424,9 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+{% if ssi_smoke %}
         - z_test_8_ssi_smoke
+{% endif %}
       name: test_8
       stage: tracing
       testJvm: "8"

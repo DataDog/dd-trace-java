@@ -113,6 +113,7 @@ vars = {
     "use_git_changes": use_git_changes,
     "pr_base_ref": pr_base_ref,
     "skip_circleci": skip_circleci,
+    "ssi_smoke": is_regular and is_master_or_release
 }
 
 print(f"Variables for this build: {vars}")
