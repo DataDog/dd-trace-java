@@ -107,7 +107,7 @@ vars = {
     "all_jdks": all_jdks,
     "all_debugger_jdks": all_debugger_jdks,
     "nocov_jdks": nocov_jdks,
-    "flaky": branch == "master" or "flaky" in labels or "all" in labels,
+    "flaky": "flaky" in labels or "all" in labels,
     "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
     "use_git_changes": use_git_changes,
     "pr_base_ref": pr_base_ref,
