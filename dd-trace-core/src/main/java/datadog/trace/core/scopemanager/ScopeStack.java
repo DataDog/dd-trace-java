@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.ArrayDeque;
 
@@ -84,14 +85,20 @@ final class ScopeStack {
     // avoid calling close() as we're already in that method, instead just clear any
     // remaining references so the scope gets removed in the subsequent cleanup() call
     top.clearReferences();
-    top.span.finishWithEndToEnd();
+    AgentSpan span = top.span();
+    if (span != null) {
+      span.finishWithEndToEnd();
+    }
     // now do the same for any previous iteration scopes ahead of the expected scope
     for (ContinuableScope scope : stack) {
       if (scope.source() != ITERATION) {
         return expectedScope.equals(scope);
       } else {
         scope.clearReferences();
-        scope.span.finishWithEndToEnd();
+        span = scope.span();
+        if (span != null) {
+          span.finishWithEndToEnd();
+        }
       }
     }
     return false; // we didn't find the expected scope

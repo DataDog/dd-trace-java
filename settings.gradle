@@ -19,7 +19,7 @@ pluginManagement {
 }
 
 plugins {
-  id 'com.gradle.develocity' version '3.18'
+  id 'com.gradle.develocity' version '3.19.2'
 }
 
 def isCI = System.getenv("CI") != null
@@ -86,6 +86,7 @@ include ':dd-java-agent:agent-otel:otel-shim'
 include ':dd-java-agent:agent-otel:otel-tooling'
 
 include ':communication'
+include ':components:cli'
 include ':components:context'
 include ':components:json'
 include ':telemetry'
@@ -544,6 +545,10 @@ include ':dd-java-agent:instrumentation:weaver'
 include ':dd-java-agent:instrumentation:websocket'
 include ':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0'
 include ':dd-java-agent:instrumentation:websocket:javax-websocket-1.0'
+include ':dd-java-agent:instrumentation:websocket:jetty-websocket'
+include ':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10'
+include ':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11'
+include ':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12'
 include ':dd-java-agent:instrumentation:websphere-jmx'
 include ':dd-java-agent:instrumentation:wildfly-9'
 include ':dd-java-agent:instrumentation:zio'

@@ -31,6 +31,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.git.EmbeddedGitInfoBuilder;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -101,9 +103,9 @@ public class Agent {
     CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
     USM(UsmConfig.USM_ENABLED, false),
     TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
-    DEBUGGER(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
-    EXCEPTION_DEBUGGING(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
-    SPAN_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    DYNAMIC_INSTRUMENTATION(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
+    EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
+    CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
@@ -154,9 +156,10 @@ public class Agent {
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
-  private static boolean debuggerEnabled = false;
-  private static boolean exceptionDebuggingEnabled = false;
-  private static boolean spanOriginEnabled = false;
+  private static boolean dynamicInstrumentationEnabled = false;
+  private static boolean exceptionReplayEnabled = false;
+  private static boolean codeOriginEnabled = false;
+  private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
@@ -224,6 +227,12 @@ public class Agent {
       }
     }
 
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
+    }
+
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
       log.info("Data Jobs Monitoring enabled, enabling spark integrations");
@@ -234,6 +243,12 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
@@ -266,9 +281,9 @@ public class Agent {
             || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
-    debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
-    exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
-    spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
+    dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
+    exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
+    codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
@@ -1127,7 +1142,10 @@ public class Agent {
   }
 
   private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
-    if (!debuggerEnabled && !exceptionDebuggingEnabled && !spanOriginEnabled) {
+    if (isExplicitlyDisabled(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.EXCEPTION_REPLAY_ENABLED)
+        && isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
       return;
     }
     if (!remoteConfigEnabled) {
@@ -1135,6 +1153,11 @@ public class Agent {
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);
+  }
+
+  private static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   private static synchronized void startDebuggerAgent(

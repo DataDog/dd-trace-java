@@ -88,6 +88,16 @@ public class AgentTracer {
   }
 
   /**
+   * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
+   *
+   * @deprecated This should only be used when the instrumented code doesn't align with a scope.
+   */
+  @Deprecated
+  public static void activateSpanWithoutScope(final AgentSpan span) {
+    get().activateSpanWithoutScope(span);
+  }
+
+  /**
    * When asynchronous propagation is enabled, prevent the currently active trace from reporting
    * until the returned Continuation is either activated (and the returned scope is closed) or the
    * continuation is canceled.
@@ -142,8 +152,8 @@ public class AgentTracer {
   /**
    * Closes the scope for the currently active span.
    *
-   * @deprecated This should only be used when an instrumentation does not have access to the
-   *     original scope returned by {@link #activateSpan}.
+   * @deprecated This should only be used when the span was previously activated with {@link
+   *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
    */
   @Deprecated
   public static void closeActive() {
@@ -338,6 +348,9 @@ public class AgentTracer {
     /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
     AgentScope activateManualSpan(AgentSpan span);
 
+    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+    void activateSpanWithoutScope(AgentSpan span);
+
     @Override
     AgentScope.Continuation captureActiveSpan();
 
@@ -482,6 +495,9 @@ public class AgentTracer {
     public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
+
+    @Override
+    public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
     public AgentScope.Continuation captureActiveSpan() {
@@ -663,7 +679,7 @@ public class AgentTracer {
     public void registerContinuation(final AgentScope.Continuation continuation) {}
 
     @Override
-    public void cancelContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final AgentScope.Continuation continuation) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

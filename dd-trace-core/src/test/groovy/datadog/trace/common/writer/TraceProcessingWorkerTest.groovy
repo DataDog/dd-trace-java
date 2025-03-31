@@ -7,7 +7,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.postprocessor.SpanPostProcessor
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor
 import datadog.trace.test.util.DDSpecification
 import spock.util.concurrent.PollingConditions
 
@@ -44,7 +44,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
       FAST_LANE,
       1,
       TimeUnit.NANOSECONDS,
-      null,
       null
       ) // stop heartbeats from being throttled
 
@@ -71,7 +70,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
       FAST_LANE,
       1,
       TimeUnit.NANOSECONDS,
-      null,
       null
       ) // stop heartbeats from being throttled
     def timeConditions = new PollingConditions(timeout: 1, initialDelay: 1, factor: 1.25)
@@ -97,7 +95,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
         false
       },
       FAST_LANE,
-      100, TimeUnit.SECONDS, null, null) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS, null) // prevent heartbeats from helping the flush happen
 
     when: "there is pending work it is completed before a flush"
     // processing this span will throw an exception, but it should be caught
@@ -136,7 +134,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       throwingDispatcher, {
         false
       }, FAST_LANE,
-      100, TimeUnit.SECONDS, null, null) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS, null) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but can't be passed on"
@@ -163,9 +161,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     HealthMetrics healthMetrics = Mock(HealthMetrics)
 
-    // Span 1 - should be post-processed
     def span1 = DDSpan.create("test", 0, Mock(DDSpanContext) {
-      isRequiresPostProcessing() >> true
       getTraceCollector() >> Mock(PendingTrace) {
         getCurrentTimeNano() >> 0
       }
@@ -174,14 +170,13 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     // Span 2 - should NOT be post-processed
     def span2 = DDSpan.create("test", 0, Mock(DDSpanContext) {
-      isRequiresPostProcessing() >> false
       getTraceCollector() >> Mock(PendingTrace) {
         getCurrentTimeNano() >> 0
       }
     }, [])
     def processedSpan2 = false
 
-    SpanPostProcessor spanPostProcessor = Mock(SpanPostProcessor) {
+    SpanPostProcessor.Holder.INSTANCE = Mock(SpanPostProcessor) {
       process(span1, _) >> { processedSpan1 = true }
       process(span2, _) >> { processedSpan2 = true }
     }
@@ -189,7 +184,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
-      }, FAST_LANE, 100, TimeUnit.SECONDS, null, spanPostProcessor)
+      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
     worker.start()
 
     when: "traces are submitted"
@@ -198,11 +193,12 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "traces are passed through unless rejected on submission"
     conditions.eventually {
-      assert processedSpan1 == true
-      assert processedSpan2 == false
+      assert processedSpan1
+      assert processedSpan2
     }
 
     cleanup:
+    SpanPostProcessor.Holder.INSTANCE = SpanPostProcessor.Holder.NOOP
     worker.close()
   }
 
@@ -217,7 +213,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
-      }, FAST_LANE, 100, TimeUnit.SECONDS, null, null)
+      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -268,7 +264,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
-      }, FAST_LANE, 100, TimeUnit.SECONDS, null, null)
+      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
     worker.start()
     worker.close()
     int queueSize = 0
@@ -305,7 +301,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
           return false
         }
       }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { true }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler, null)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { true }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
     worker.start()
 
     when: "traces are submitted"
@@ -381,7 +377,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
           return false
         }
       }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { false }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler, null)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, countingDispatcher, { false }, FAST_LANE, 100, TimeUnit.SECONDS, singleSpanSampler)
     worker.start()
 
     when: "traces are submitted"

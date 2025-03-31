@@ -304,6 +304,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     ((Logger) LoggerFactory.getLogger("org.testcontainers")).setLevel(Level.DEBUG)
   }
 
+
   def codeOriginSetup() {
     injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "true", true)
     injectSysConfig(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "false", true)
@@ -312,7 +313,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     def configuration = Configuration.builder()
     .setService("code origin test")
     .build()
-
 
     def config = Config.get()
 
@@ -535,6 +535,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     util.detachMock(STATS_D_CLIENT)
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
+
+    if (Config.get().isDebuggerCodeOriginEnabled()) {
+      injectSysConfig(CODE_ORIGIN_FOR_SPANS_ENABLED, "false", true)
+      rebuildConfig()
+    }
 
     try {
       if (enabledFinishTimingChecks()) {

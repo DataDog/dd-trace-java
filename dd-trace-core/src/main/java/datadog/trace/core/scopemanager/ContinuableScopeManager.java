@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
 import static datadog.trace.core.scopemanager.ContinuableScope.INSTRUMENTATION;
 import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
 import static datadog.trace.core.scopemanager.ContinuableScope.MANUAL;
@@ -10,6 +11,9 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.context.Context;
+import datadog.context.ContextManager;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
@@ -40,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public final class ContinuableScopeManager implements ScopeStateAware {
+public final class ContinuableScopeManager implements ScopeStateAware, ContextManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -83,6 +87,8 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
     this.profilingContextIntegration = profilingContextIntegration;
+
+    ContextManager.register(this);
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -96,10 +102,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   public AgentScope.Continuation captureActiveSpan() {
     ContinuableScope activeScope = scopeStack().active();
     if (null != activeScope && activeScope.isAsyncPropagating()) {
-      return captureSpan(activeScope.span(), activeScope.source());
-    } else {
-      return AgentTracer.noopContinuation();
+      AgentSpan span = activeScope.span();
+      if (span != null) {
+        return captureSpan(span, activeScope.source());
+      }
     }
+    return AgentTracer.noopContinuation();
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
@@ -107,21 +115,18 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   }
 
   private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
-    ScopeContinuation continuation = new ScopeContinuation(this, span, source);
-    continuation.register();
-    healthMetrics.onCaptureContinuation();
-    return continuation;
+    return new ScopeContinuation(this, span, source).register();
   }
 
   private AgentScope activate(
-      final AgentSpan span,
+      final Context context,
       final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
-    if (top != null && top.span.equals(span)) {
+    if (top != null && top.context.equals(context)) {
       top.incrementReferences();
       return top;
     }
@@ -134,7 +139,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
       return noopScope();
     }
 
-    assert span != null;
+    assert context != null;
 
     // Inherit the async propagation from the active scope unless the value is overridden
     boolean asyncPropagation =
@@ -143,7 +148,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
             : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(this, span, source, asyncPropagation, createScopeState(span));
+        new ContinuableScope(this, context, source, asyncPropagation, createScopeState(context));
     scopeStack.push(scope);
     healthMetrics.onActivateScope();
 
@@ -156,13 +161,13 @@ public final class ContinuableScopeManager implements ScopeStateAware {
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final ScopeContinuation continuation, final AgentSpan span, final byte source) {
+      final ScopeContinuation continuation, final Context context, final byte source) {
     ScopeStack scopeStack = scopeStack();
 
     // optimization: if the top scope is already keeping the same span alive
     // then re-use that scope (avoids allocation) and cancel the continuation
     final ContinuableScope top = scopeStack.top;
-    if (top != null && top.span.equals(span)) {
+    if (top != null && top.context.equals(context)) {
       top.incrementReferences();
       if (continuation != null) {
         continuation.cancelFromContinuedScopeClose();
@@ -170,12 +175,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
       return top;
     }
 
-    Stateful scopeState = createScopeState(span);
+    Stateful scopeState = createScopeState(context);
     final ContinuableScope scope;
     if (continuation != null) {
-      scope = new ContinuingScope(this, span, source, true, continuation, scopeState);
+      scope = new ContinuingScope(this, context, source, true, continuation, scopeState);
     } else {
-      scope = new ContinuableScope(this, span, source, true, scopeState);
+      scope = new ContinuableScope(this, context, source, true, scopeState);
     }
     scopeStack.push(scope);
 
@@ -205,9 +210,9 @@ public final class ContinuableScopeManager implements ScopeStateAware {
       }
       top.close();
       scopeStack.cleanup();
-      if (finishSpan) {
-        top.span.finishWithEndToEnd();
-        healthMetrics.onFinishContinuation();
+      AgentSpan span = top.span();
+      if (finishSpan && span != null) {
+        span.finishWithEndToEnd();
       }
     }
   }
@@ -265,7 +270,7 @@ public final class ContinuableScopeManager implements ScopeStateAware {
 
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
-    return active == null ? null : active.span;
+    return active == null ? null : active.span();
   }
 
   /** Attach a listener to scope activation events */
@@ -293,11 +298,12 @@ public final class ContinuableScopeManager implements ScopeStateAware {
     }
   }
 
-  private Stateful createScopeState(AgentSpan span) {
+  private Stateful createScopeState(Context context) {
     // currently this just manages things the profiler has to do per scope, but could be expanded
     // to encapsulate other scope lifecycle activities
     // FIXME DDSpanContext is always a ProfilerContext anyway...
-    if (span.context() instanceof ProfilerContext) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    if (span != null && span.context() instanceof ProfilerContext) {
       return profilingContextIntegration.newScopeState((ProfilerContext) span.context());
     }
     return Stateful.DEFAULT;
@@ -310,6 +316,22 @@ public final class ContinuableScopeManager implements ScopeStateAware {
   @Override
   public ScopeState newScopeState() {
     return new ContinuableScopeState();
+  }
+
+  @Override
+  public Context current() {
+    final ContinuableScope active = scopeStack().active();
+    return active == null ? Context.root() : active.context;
+  }
+
+  @Override
+  public ContextScope attach(Context context) {
+    return activate(context, CONTEXT, false, true);
+  }
+
+  @Override
+  public Context swap(Context context) {
+    throw new UnsupportedOperationException("Not yet implemented");
   }
 
   private class ContinuableScopeState implements ScopeState {
@@ -387,11 +409,14 @@ public final class ContinuableScopeManager implements ScopeStateAware {
 
         if (!rootScope.alive()) { // no need to track this anymore
           itr.remove();
-        } else if (NANOSECONDS.toMillis(rootScope.span.getStartTime()) < cutOff) {
-          // mark scope as overdue to allow cleanup and avoid further spans being attached
-          scopeStack.overdueRootScope = rootScope;
-          rootScope.span.finishWithEndToEnd();
-          itr.remove();
+        } else {
+          AgentSpan span = rootScope.span();
+          if (span != null && NANOSECONDS.toMillis(span.getStartTime()) < cutOff) {
+            // mark scope as overdue to allow cleanup and avoid further spans being attached
+            scopeStack.overdueRootScope = rootScope;
+            span.finishWithEndToEnd();
+            itr.remove();
+          }
         }
       }
     }
