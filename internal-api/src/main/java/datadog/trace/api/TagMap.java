@@ -764,7 +764,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       if (first) {
         first = false;
       } else {
-        builder.append(",");
+        builder.append(", ");
       }
 
       builder.append(entry.tag).append('=').append(entry.stringValue());

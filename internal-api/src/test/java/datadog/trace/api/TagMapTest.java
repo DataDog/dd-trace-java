@@ -422,8 +422,17 @@ public class TagMapTest {
     assertTrue(expectedValues.isEmpty());
   }
 
+  @Test
+  public void _toString() {
+    // DQH - This test assumes an iteration order which isn't guaranteed.  Might need to be updated
+    // in the future.
+    int size = 4;
+    TagMap map = createTagMap(size);
+    assertEquals("{key-1=value-1, key-0=value-0, key-3=value-3, key-2=value-2}", map.toString());
+  }
+
   static final int randomSize() {
-    return ThreadLocalRandom.current().nextInt(MANY_SIZE);
+    return ThreadLocalRandom.current().nextInt(1, MANY_SIZE);
   }
 
   static final TagMap createTagMap() {
