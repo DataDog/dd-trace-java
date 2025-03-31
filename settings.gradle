@@ -1,3 +1,23 @@
+pluginManagement {
+  repositories {
+    mavenLocal()
+    if (settings.hasProperty("gradlePluginProxy")) {
+      maven {
+        url settings["gradlePluginProxy"]
+        allowInsecureProtocol true
+      }
+    }
+    if (settings.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url settings["mavenRepositoryProxy"]
+        allowInsecureProtocol true
+      }
+    }
+    gradlePluginPortal()
+    mavenCentral()
+  }
+}
+
 plugins {
   id 'com.gradle.develocity' version '3.19.2'
 }
