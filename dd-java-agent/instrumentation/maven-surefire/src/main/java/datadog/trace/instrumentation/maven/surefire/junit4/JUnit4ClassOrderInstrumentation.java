@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
+import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,7 +48,7 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
       JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
       JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
       JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      packageName + ".FailFastClassOrderer",
+      JUnit4FailFastClassOrderer.class.getPackage().getName() + ".JUnit4FailFastClassOrderer",
     };
   }
 
@@ -81,7 +82,7 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
       }
 
       testClasses.sort(
-          Comparator.comparing(FailFastClassOrderer::classExecutionPriority).reversed());
+          Comparator.comparing(JUnit4FailFastClassOrderer::classExecutionPriority).reversed());
 
       testsToRun = new TestsToRun(new LinkedHashSet<>(testClasses));
     }

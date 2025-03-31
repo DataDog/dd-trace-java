@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.maven.surefire.junit4;
+package datadog.trace.instrumentation.junit4.order;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -11,7 +11,7 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import java.lang.reflect.Method;
 import java.util.List;
 
-public abstract class FailFastClassOrderer {
+public abstract class JUnit4FailFastClassOrderer {
 
   public static int classExecutionPriority(Class<?> clazz) {
     TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
