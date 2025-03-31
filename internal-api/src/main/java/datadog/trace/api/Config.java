@@ -1042,14 +1042,8 @@ public class Config {
       }
       // Now we can check if we should pick the default injection/extraction
 
-      if (extract.isEmpty()) {
-        extract = DEFAULT_TRACE_PROPAGATION_STYLE;
-      }
-
       tracePropagationStylesToExtract =
-          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-              ? new HashSet<>()
-              : extract;
+          extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
 
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
