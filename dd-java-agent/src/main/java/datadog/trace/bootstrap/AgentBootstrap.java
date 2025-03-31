@@ -284,31 +284,45 @@ public final class AgentBootstrap {
   }
 
   static boolean shouldAbortDueToOtherJavaAgents() {
-    // Simply considering having multiple agents
-    if (getConfig(LIB_INJECTION_ENABLED_FLAG)
-        && !getConfig(LIB_INJECTION_FORCE_FLAG)
-        && getAgentFilesFromVMArguments().size() > 1) {
-      // Formatting agent file list, Java 7 style
-      StringBuilder agentFiles = new StringBuilder();
-      boolean first = true;
-      for (File agentFile : getAgentFilesFromVMArguments()) {
-        if (first) {
-          first = false;
-        } else {
-          agentFiles.append(", ");
-        }
-        agentFiles.append('"');
-        agentFiles.append(agentFile.getAbsolutePath());
-        agentFiles.append('"');
-      }
-      System.err.println(
-          "Info: multiple JVM agents detected, found "
-              + agentFiles
-              + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
-              + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
-      return true;
+    // We don't abort if either
+    // * We are not using SSI
+    // * Injection is forced
+    // * There is only one agent
+    if (!getConfig(LIB_INJECTION_ENABLED_FLAG)
+        || getConfig(LIB_INJECTION_FORCE_FLAG)
+        || getAgentFilesFromVMArguments().size() <= 1) {
+      return false;
     }
-    return false;
+
+    // If there are 2 agents and one of them is for patching log4j, it's fine
+    if (getAgentFilesFromVMArguments().size() == 2) {
+      for (File agentFile : getAgentFilesFromVMArguments()) {
+        if (agentFile.getName().toLowerCase().contains("log4j")) {
+          return false;
+        }
+      }
+    }
+
+    // Simply considering having multiple agents
+    // Formatting agent file list, Java 7 style
+    StringBuilder agentFiles = new StringBuilder();
+    boolean first = true;
+    for (File agentFile : getAgentFilesFromVMArguments()) {
+      if (first) {
+        first = false;
+      } else {
+        agentFiles.append(", ");
+      }
+      agentFiles.append('"');
+      agentFiles.append(agentFile.getAbsolutePath());
+      agentFiles.append('"');
+    }
+    System.err.println(
+        "Info: multiple JVM agents detected, found "
+            + agentFiles
+            + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
+            + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
+    return true;
   }
 
   public static void main(final String[] args) {
