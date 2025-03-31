@@ -34,7 +34,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
-    injectSysConfig("dd.integration.openlineage-spark.enabled", "true")
+    injectSysConfig("dd.integration.spark-openlineage.enabled", "true")
   }
 
   def "generate application span with child job and stages"() {

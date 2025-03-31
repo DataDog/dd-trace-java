@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstanceStore;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.deploy.SparkSubmitArguments;
 import org.apache.spark.scheduler.SparkListenerInterface;
@@ -121,15 +122,12 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
     // If OL is disabled in tracer config but user set it up manually don't interfere
     public static boolean enter(@Advice.Argument(0) SparkListenerInterface listener) {
       Logger log = LoggerFactory.getLogger("LiveListenerBusAdvice");
-      log.debug(
-          "AbstractDatadogSparkListener classloader for LiveListenerBusAdvice is: ({}) {}",
-          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
-          AbstractDatadogSparkListener.class.getClassLoader());
       if (Config.get().isDataJobsOpenLineageEnabled()
           && listener != null
           && "io.openlineage.spark.agent.OpenLineageSparkListener"
               .equals(listener.getClass().getCanonicalName())) {
         log.debug("Detected OpenLineage listener, skipping adding it to ListenerBus");
+        InstanceStore.of(SparkListenerInterface.class).put("openLineageListener", listener);
         return true;
       }
       return false;

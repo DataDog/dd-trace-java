@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -69,8 +70,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
-  public static volatile SparkListenerInterface openLineageSparkListener = null;
-  public static volatile SparkConf openLineageSparkConf = null;
 
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
@@ -79,6 +78,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
+
+  public volatile SparkListenerInterface openLineageSparkListener = null;
+  public volatile SparkConf openLineageSparkConf = null;
 
   private final SparkConf sparkConf;
   private final String sparkVersion;
@@ -180,8 +182,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           "spark.openlineage.run.tags",
           "_dd.trace_id:"
               + traceId.toString()
-              + ";_dd.ol_intake.emit_spans:false;dd.ol_service:"
-              + sparkServiceName);
+              + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
+              + sparkServiceName
+              + ";_dd.ol_app_id:"
+              + appId);
       return;
     }
     log.debug(
@@ -213,6 +217,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
+
+    if (openLineageSparkListener == null) {
+      openLineageSparkListener =
+          InstanceStore.of(SparkListenerInterface.class).get("openLineageListener");
+      openLineageSparkConf = InstanceStore.of(SparkConf.class).get("openLineageSparkConf");
+    }
 
     if (openLineageSparkListener != null) {
       setupOpenLineage(

@@ -46,11 +46,6 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
       Logger log = LoggerFactory.getLogger("Spark212InjectListener");
-      log.debug(
-          "AbstractDatadogSparkListener classloader is: ({}) {}",
-          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
-          AbstractDatadogSparkListener.class.getClassLoader());
-
       if (Config.get().isDataJobsOpenLineageEnabled()
           && AbstractDatadogSparkListener.classIsLoadable(
               "io.openlineage.spark.agent.OpenLineageSparkListener")

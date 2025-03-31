@@ -47,11 +47,6 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
     public static void enter(@Advice.This SparkContext sparkContext) {
       // checking whether OpenLineage integration is enabled, available and that it supports tags
       Logger log = LoggerFactory.getLogger("Spark212InjectListener");
-      log.debug(
-          "AbstractDatadogSparkListener classloader is: ({}) {}",
-          System.identityHashCode(AbstractDatadogSparkListener.class.getClassLoader()),
-          AbstractDatadogSparkListener.class.getClassLoader());
-
       if (Config.get().isDataJobsOpenLineageEnabled()
           && AbstractDatadogSparkListener.classIsLoadable(
               "io.openlineage.spark.agent.OpenLineageSparkListener")

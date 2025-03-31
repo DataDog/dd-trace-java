@@ -252,7 +252,7 @@ public class Agent {
 
       if (Config.get().isDataJobsOpenLineageEnabled()) {
         setSystemPropertyDefault(
-            propertyNameToSystemPropertyName("integration.openlineage-spark.enabled"), "true");
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
       }
 
       String javaCommand = System.getProperty("sun.java.command");

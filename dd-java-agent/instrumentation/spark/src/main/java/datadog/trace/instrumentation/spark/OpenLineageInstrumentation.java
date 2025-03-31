@@ -9,10 +9,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import java.lang.reflect.Field;
+import datadog.trace.bootstrap.InstanceStore;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkConf;
-import org.apache.spark.scheduler.SparkListenerInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +20,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public OpenLineageInstrumentation() {
-    super("openlineage-spark");
+    super("spark-openlineage");
   }
 
   @Override
@@ -70,35 +69,7 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
             "OpenLineage - Data Jobs integration disabled. Not manipulating OpenLineageSparkListener");
         return;
       }
-
-      log.debug("Checking for OpenLineageSparkListener");
-      ClassLoader cl = Thread.currentThread().getContextClassLoader();
-      if (cl.getClass().getName().contains("MutableURLClassLoader")
-          || cl.getClass().getName().contains("ChildFirstURLClassLoader")) {
-        log.debug(
-            "Detected MutableURLClassLoader. Setting OpenLineage on AbstractDatadogSparkListener.class of parent classloader");
-        try {
-          log.debug(
-              "Parent classloader: ({}) {}",
-              System.identityHashCode(cl.getParent()),
-              cl.getParent());
-          Class clazz = cl.getParent().loadClass(AbstractDatadogSparkListener.class.getName());
-          Field openLineageSparkListener = clazz.getDeclaredField("openLineageSparkListener");
-          openLineageSparkListener.setAccessible(true);
-          openLineageSparkListener.set(null, self);
-
-          Field openLineageSparkConf = clazz.getDeclaredField("openLineageSparkConf");
-          openLineageSparkConf.setAccessible(true);
-          openLineageSparkConf.set(null, conf);
-        } catch (Throwable e) {
-          log.info("Failed to setup OpenLineage", e);
-        }
-      } else {
-        log.debug(
-            "Detected other classloader than MutableURLClassLoader. Setting OpenLineage on AbstractDatadogSparkListener.class");
-        AbstractDatadogSparkListener.openLineageSparkListener = (SparkListenerInterface) self;
-        AbstractDatadogSparkListener.openLineageSparkConf = conf;
-      }
+      InstanceStore.of(SparkConf.class).put("openLineageSparkConf", conf);
     }
   }
 }
