@@ -210,6 +210,6 @@ public interface AgentSpan
 
   @Override
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
-    return Context.root().with(SPAN_KEY, this, key, value);
+    return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
 }
