@@ -1,7 +1,10 @@
 package datadog.trace.api;
 
+import datadog.appsec.api.login.EventTrackerV2;
 import java.util.Map;
 
+/** This class has been deprecated in favor of {@link EventTrackerV2} */
+@Deprecated
 public class EventTracker {
 
   public static final EventTracker NO_EVENT_TRACKER = new EventTracker();
@@ -12,7 +15,9 @@ public class EventTracker {
    *
    * @param userId user id used for login
    * @param metadata custom metadata data represented as key/value map
+   * @deprecated use {@link EventTrackerV2#trackUserLoginSuccess(String, String, Map)}
    */
+  @Deprecated
   public void trackLoginSuccessEvent(String userId, Map<String, String> metadata) {}
 
   /**
@@ -22,6 +27,7 @@ public class EventTracker {
    * @param userId user id used for login
    * @param exists flag indicates if provided userId exists
    * @param metadata custom metadata data represented as key/value map
+   * @deprecated use {@link EventTrackerV2#trackUserLoginFailure(String, boolean, Map)}
    */
   public void trackLoginFailureEvent(String userId, boolean exists, Map<String, String> metadata) {}
 
@@ -31,6 +37,7 @@ public class EventTracker {
    *
    * @param eventName name of the custom event
    * @param metadata custom metadata data represented as key/value map
+   * @deprecated use {@link EventTrackerV2#trackCustomEvent(String, Map)}
    */
   public void trackCustomEvent(String eventName, Map<String, String> metadata) {}
 }

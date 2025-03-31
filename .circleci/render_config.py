@@ -2,6 +2,7 @@
 
 import os
 import os.path
+import subprocess
 import time
 
 import jinja2
@@ -14,9 +15,10 @@ OUT_FILENAME = "config.continue.yml"
 GENERATED_CONFIG_PATH = os.path.join(SCRIPT_DIR, OUT_FILENAME)
 
 # JDKs that will run on every pipeline.
-ALWAYS_ON_JDKS = {"8", "11", "17", "21"}
+ALWAYS_ON_JDKS = {"8", "17", "21"}
 # And these will run only in master and release/ branches.
 MASTER_ONLY_JDKS = {
+    "11",
     "ibm8",
     "oracle8",
     "semeru8",
@@ -74,6 +76,13 @@ branch = os.environ.get("CIRCLE_BRANCH", "")
 run_all = "all" in labels
 is_master_or_release = branch == "master" or branch.startswith("release/v")
 
+skip_circleci = False
+if pr_base_ref:
+   ret = subprocess.call([".circleci/no_circleci_changes.sh", f"{pr_base_ref}..HEAD"], shell=False)
+   if ret == 1:
+       # Only GitLab-related files have changed, just skip Circle CI jobs.
+       skip_circleci = True
+
 if is_master_or_release or run_all:
     all_jdks = ALWAYS_ON_JDKS | MASTER_ONLY_JDKS
 else:
@@ -99,10 +108,12 @@ vars = {
     "all_jdks": all_jdks,
     "all_debugger_jdks": all_debugger_jdks,
     "nocov_jdks": nocov_jdks,
-    "flaky": branch == "master" or "flaky" in labels or "all" in labels,
+    "flaky": "flaky" in labels or "all" in labels,
     "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
     "use_git_changes": use_git_changes,
     "pr_base_ref": pr_base_ref,
+    "skip_circleci": skip_circleci,
+    "ssi_smoke": is_regular and is_master_or_release
 }
 
 print(f"Variables for this build: {vars}")

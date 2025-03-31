@@ -38,6 +38,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp',
   'datadog.appsec.api.blocking.*',
   'datadog.appsec.api.user.*',
+  'datadog.appsec.api.login.*',
   // Default fallback methods to not break legacy API
   'datadog.trace.context.TraceScope',
   'datadog.trace.context.NoopTraceScope.NoopContinuation',
