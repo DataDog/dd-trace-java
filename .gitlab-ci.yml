@@ -95,16 +95,16 @@ default:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-    BUILD_CACHE_TYPE: lib #default
+    CACHE_TYPE: lib #default
   cache:
-    - key: '$CI_SERVER_VERSION-$BUILD_CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+    - key: '$CI_SERVER_VERSION-$CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
       paths:
         # Cached dependencies and wrappers for gradle
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
-    - key: $CI_PIPELINE_ID-$BUILD_CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
+    - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
         - .gradle/$GRADLE_VERSION/executionHistory
@@ -131,7 +131,7 @@ build:
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
-    BUILD_CACHE_TYPE: lib
+    CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks; fi
@@ -154,7 +154,7 @@ build_tests:
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
-    BUILD_CACHE_TYPE: test
+    CACHE_TYPE: test
     DEPENDENCY_CACHE_POLICY: pull
     GRADLE_MEM: 4G
     GRADLE_WORKERS: 4
@@ -199,7 +199,7 @@ test_published_artifacts:
   stage: tests
   needs: [ build ]
   variables:
-    BUILD_CACHE_TYPE: lib
+    CACHE_TYPE: lib
   script:
     - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
     - rm -rf "${mvn_local_repo}/com/datadoghq"
@@ -225,7 +225,7 @@ test_published_artifacts:
   needs: [ build ]
   stage: tests
   variables:
-    BUILD_CACHE_TYPE: lib
+    CACHE_TYPE: lib
   script:
     - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
@@ -272,7 +272,7 @@ muzzle:
   stage: tests
   parallel: 8
   variables:
-    BUILD_CACHE_TYPE: test
+    CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
@@ -295,7 +295,7 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    BUILD_CACHE_TYPE: test
+    CACHE_TYPE: test
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
@@ -333,7 +333,7 @@ muzzle-dep-report:
     KUBERNETES_MEMORY_LIMIT: 16Gi
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
-    BUILD_CACHE_TYPE: test
+    CACHE_TYPE: test
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -598,7 +598,7 @@ deploy_to_sonatype:
   stage: publish
   needs: [ build ]
   variables:
-    BUILD_CACHE_TYPE: lib
+    CACHE_TYPE: lib
   rules:
     - if: '$POPULATE_CACHE'
       when: never
