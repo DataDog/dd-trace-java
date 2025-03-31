@@ -22,6 +22,7 @@ import javax.servlet.http.HttpServletRequest
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ENDPOINT_DISCOVERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -155,6 +156,16 @@ class TestController {
   ResponseEntity exception() {
     HttpServerTest.controller(EXCEPTION) {
       throw new Exception(EXCEPTION.body)
+    }
+  }
+
+  @RequestMapping(value = "/discovery",
+  method = [RequestMethod.POST, RequestMethod.PATCH, RequestMethod.PUT],
+  consumes = MediaType.APPLICATION_JSON_VALUE,
+  produces = MediaType.TEXT_PLAIN_VALUE)
+  ResponseEntity discovery() {
+    HttpServerTest.controller(ENDPOINT_DISCOVERY) {
+      new ResponseEntity(ENDPOINT_DISCOVERY.body, HttpStatus.valueOf(ENDPOINT_DISCOVERY.status))
     }
   }
 

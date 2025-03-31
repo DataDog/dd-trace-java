@@ -79,7 +79,11 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(4, named("io.grpc.MethodDescriptor"))),
-        getClass().getName() + "$CaptureCall");
+        getClass().getName() + "$CaptureCallPos4");
+    // from 1.32.3
+    transformer.applyAdvice(
+        isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
+        getClass().getName() + "$CaptureCallPos2");
     transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
@@ -100,10 +104,21 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
     }
   }
 
-  public static final class CaptureCall {
+  public static final class CaptureCallPos4 {
     @Advice.OnMethodExit
     public static void capture(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(4) MethodDescriptor<?, ?> method) {
+      AgentSpan span = DECORATE.startCall(method);
+      if (null != span) {
+        InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);
+      }
+    }
+  }
+
+  public static final class CaptureCallPos2 {
+    @Advice.OnMethodExit
+    public static void capture(
+        @Advice.This ClientCall<?, ?> call, @Advice.Argument(2) MethodDescriptor<?, ?> method) {
       AgentSpan span = DECORATE.startCall(method);
       if (null != span) {
         InstrumentationContext.get(ClientCall.class, AgentSpan.class).put(call, span);

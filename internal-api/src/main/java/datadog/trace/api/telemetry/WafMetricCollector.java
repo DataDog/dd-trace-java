@@ -47,6 +47,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(WafTruncatedType.values().length);
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
+  private static final AtomicLongArray raspRuleSkippedCounter =
+      new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspTimeoutCounter =
@@ -67,6 +69,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
   private static final AtomicLongArray missingUserIdQueue =
       new AtomicLongArray(LoginFramework.getNumValues());
+  private static final AtomicLongArray appSecSdkEventQueue =
+      new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -135,6 +139,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
   }
 
+  public void raspRuleSkipped(final RuleType ruleType) {
+    raspRuleSkippedCounter.incrementAndGet(ruleType.ordinal());
+  }
+
   public void raspRuleMatch(final RuleType ruleType) {
     raspRuleMatchCounter.incrementAndGet(ruleType.ordinal());
   }
@@ -158,6 +166,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void missingUserId(final LoginFramework framework) {
     missingUserIdQueue.incrementAndGet(framework.ordinal());
+  }
+
+  public void appSecSdkEvent(final LoginEvent event, final LoginVersion version) {
+    final int index = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+    appSecSdkEventQueue.incrementAndGet(index);
   }
 
   @Override
@@ -347,6 +360,30 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         }
       }
     }
+
+    // ATO login events
+    for (LoginEvent event : LoginEvent.values()) {
+      for (LoginVersion version : LoginVersion.values()) {
+        final int ordinal = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+        long counter = appSecSdkEventQueue.getAndSet(ordinal, 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new AppSecSdkEvent(counter, event.getTag(), version.getTag()))) {
+            return;
+          }
+        }
+      }
+    }
+
+    // RASP rule skipped per rule type for after-request reason
+    for (RuleType ruleType : RuleType.values()) {
+      long counter = raspRuleSkippedCounter.getAndSet(ruleType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(new AfterRequestRaspRuleSkipped(counter, ruleType))) {
+          return;
+        }
+      }
+    }
   }
 
   public abstract static class WafMetric extends MetricCollector.Metric {
@@ -408,6 +445,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
   }
 
+  public static class AppSecSdkEvent extends WafMetric {
+
+    public AppSecSdkEvent(long counter, String event, final String version) {
+      super("sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
+    }
+  }
+
   public static class WafRequestsRawMetric extends WafMetric {
     public WafRequestsRawMetric(
         final long counter,
@@ -448,6 +492,22 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "event_rules_version:" + rulesVersion
               }
               : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+    }
+  }
+
+  // Although rasp.rule.skipped reason could be before-request, there is no real case scenario
+  public static class AfterRequestRaspRuleSkipped extends WafMetric {
+    public AfterRequestRaspRuleSkipped(final long counter, final RuleType ruleType) {
+      super(
+          "rasp.rule.skipped",
+          counter,
+          ruleType.variant != null
+              ? new String[] {
+                "rule_type:" + ruleType.type,
+                "rule_variant:" + ruleType.variant,
+                "reason:" + "after-request"
+              }
+              : new String[] {"rule_type:" + ruleType.type, "reason:" + "after-request"});
     }
   }
 

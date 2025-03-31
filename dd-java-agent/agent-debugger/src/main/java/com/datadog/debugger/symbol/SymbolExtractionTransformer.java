@@ -1,6 +1,7 @@
 package com.datadog.debugger.symbol;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
+import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
         // Don't parse our own classes to avoid duplicate class definition
         return null;
       }
-      if (classNameFiltering.isExcluded(className)) {
+      if (classNameFiltering.isExcluded(Strings.getClassName(className))) {
         return null;
       }
       symbolAggregator.parseClass(className, classfileBuffer, protectionDomain);

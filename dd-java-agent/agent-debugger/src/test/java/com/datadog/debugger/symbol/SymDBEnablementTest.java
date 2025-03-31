@@ -169,7 +169,8 @@ class SymDBEnablementTest {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Collections.singleton("org.springframework."),
-            Collections.singleton("com.datadog.debugger."));
+            Collections.singleton("com.datadog.debugger."),
+            Collections.emptySet());
     SymbolAggregator symbolAggregator = new SymbolAggregator(classNameFiltering, mockSymbolSink, 1);
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
