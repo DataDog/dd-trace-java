@@ -92,14 +92,14 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       mockBackend.givenKnownTest(":test", flakyTest.getSuite(), flakyTest.getName())
     }
 
-    BuildResult buildResult = runGradleTests(gradleVersion, true, false, [("${Strings.propertyNameToEnvironmentVariableName(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER)}" as String): "${CIConstants.FAIL_FAST_TEST_ORDER}" as String])
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false)
     assertBuildSuccessful(buildResult)
 
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
 
     where:
     gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "8.0"                 | "test-succeed-junit-4-class-ordering" | [
+    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -193,7 +193,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
-  private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false, Map<String, String> environment = [:]) {
+  private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
     def arguments = ["test", "--stacktrace"]
     if (gradleVersion > "4.5") {
       // warning mode available starting from Gradle 4.5
@@ -202,7 +202,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     if (configurationCache) {
       arguments += ["--configuration-cache", "--rerun-tasks"]
     }
-    BuildResult buildResult = runGradle(gradleVersion, arguments, successExpected, environment)
+    BuildResult buildResult = runGradle(gradleVersion, arguments, successExpected)
     buildResult
   }
 
@@ -239,13 +239,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
   }
 
-  private runGradle(String gradleVersion, List<String> arguments, boolean successExpected, Map<String, String> environment) {
+  private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
-      .withEnvironment(environment)
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"

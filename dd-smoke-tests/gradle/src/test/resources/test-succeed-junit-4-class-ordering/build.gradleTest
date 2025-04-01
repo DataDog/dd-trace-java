@@ -1,19 +1,15 @@
 apply plugin: 'java'
-apply plugin: 'jvm-test-suite'
 
 repositories {
   mavenLocal()
   mavenCentral()
 }
 
-testing {
-    suites {
-        test {
-            useJUnit()
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
 
-            dependencies {
-              implementation 'junit:junit:4.13'
-            }
-        }
-    }
+test {
+    useJUnit()
+    environment "DD_CIVISIBILITY_TEST_ORDER", "FAILFAST"
 }
