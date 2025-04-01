@@ -320,7 +320,6 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
         delay(10)
       }
     }
-    // FIXME: This span is detached
     childSpan("3-after-timeout").activateAndUse {
       delay(10)
     }
@@ -351,7 +350,6 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
       }
     }
 
-    // FIXME: This span is detached
     tracedChild("after-process")
 
     6
