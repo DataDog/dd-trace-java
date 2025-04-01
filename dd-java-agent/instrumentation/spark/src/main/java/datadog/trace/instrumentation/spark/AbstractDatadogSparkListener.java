@@ -239,6 +239,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
   }
 
+  // This function is called using reflection in SparkExitInstrumentation, make sure to update if
+  // the signature of this function is changed
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
     log.info("Finishing spark application trace");
