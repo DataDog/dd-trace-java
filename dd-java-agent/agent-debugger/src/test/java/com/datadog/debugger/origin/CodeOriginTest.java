@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.CapturingTestBase;
@@ -130,12 +131,34 @@ public class CodeOriginTest extends CapturingTestBase {
     final String className = "com.datadog.debugger.CodeOrigin05";
 
     installProbes(
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53"), true),
-        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62"), true),
+        new CodeOriginProbe(
+            CODE_ORIGIN_ID1,
+            true,
+            Where.of(
+                className,
+                "entry",
+                "()",
+                "" + getLineForLineProbe("com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_ID1)),
+            true),
+        new CodeOriginProbe(
+            CODE_ORIGIN_ID2,
+            false,
+            Where.of(
+                className,
+                "exit",
+                "()",
+                "" + getLineForLineProbe("com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_ID2)),
+            true),
         new CodeOriginProbe(
             CODE_ORIGIN_DOUBLE_ENTRY_ID,
             true,
-            Where.of(className, "doubleEntry", "()", "66"),
+            Where.of(
+                className,
+                "doubleEntry",
+                "()",
+                ""
+                    + getLineForLineProbe(
+                        "com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_DOUBLE_ENTRY_ID)),
             true));
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", 0);

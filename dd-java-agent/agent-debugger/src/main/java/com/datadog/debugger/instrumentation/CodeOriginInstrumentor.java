@@ -4,6 +4,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
+import static java.lang.Integer.parseInt;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
 import com.datadog.debugger.probe.CodeOriginProbe;
@@ -13,7 +14,7 @@ import java.util.List;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.LabelNode;
 
 public class CodeOriginInstrumentor extends Instrumentor {
   public CodeOriginInstrumentor(
@@ -39,11 +40,9 @@ public class CodeOriginInstrumentor extends Instrumentor {
     CodeOriginProbe probe = (CodeOriginProbe) definition;
     List<String> lines = probe.getLocation().getLines();
     if (!probe.entrySpanProbe() && lines != null && !lines.isEmpty()) {
-      int line = Integer.parseInt(lines.get(0));
-      for (AbstractInsnNode node : methodNode.instructions) {
-        if (node instanceof LineNumberNode && ((LineNumberNode) node).line == line) {
-          return node;
-        }
+      LabelNode lineLabel = classFileLines.getLineLabel(parseInt(lines.get(0)));
+      if (lineLabel != null) {
+        return lineLabel.getNext();
       }
     }
     return methodEnterLabel;
