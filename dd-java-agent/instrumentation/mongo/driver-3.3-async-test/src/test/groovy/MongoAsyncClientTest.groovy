@@ -56,7 +56,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
   def "test create collection no description"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName, toCallback {})
