@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.gradle.junit4;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -12,12 +14,11 @@ import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.gradle.api.Action;
-import org.gradle.api.services.ServiceReference;
 
 @AutoService(InstrumenterModule.class)
-public class AbstractJUnitTestClassProcessorInstrumentation extends InstrumenterModule.CiVisibility
+public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AbstractJUnitTestClassProcessorInstrumentation() {
+  public JUnitTestClassProcessorInstrumentation() {
     super("ci-visibility", "gradle", "junit4");
   }
 
@@ -28,7 +29,7 @@ public class AbstractJUnitTestClassProcessorInstrumentation extends Instrumenter
 
   @Override
   public String instrumentedType() {
-    return "org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor";
+    return "org.gradle.api.internal.tasks.testing.junit.JUnitTestClassProcessor";
   }
 
   @Override
@@ -46,28 +47,23 @@ public class AbstractJUnitTestClassProcessorInstrumentation extends Instrumenter
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("stop"),
-        AbstractJUnitTestClassProcessorInstrumentation.class.getName()
-            + "$ProcessAllTestClassesAdvice");
+        named("createTestExecutor").and(takesArgument(0, named("org.gradle.internal.actor.Actor"))).and(returns(named("org.gradle.api.Action"))),
+        JUnitTestClassProcessorInstrumentation.class.getName() + "$TestExecutorAdvice");
   }
 
-  public static class ProcessAllTestClassesAdvice {
-    @Advice.OnMethodEnter
-    public static void onStop(
-        @Advice.FieldValue(value = "executor") final Action<String> executor) {
+  public static class TestExecutorAdvice {
+    @SuppressWarnings("bytebuddy-exception-suppression")
+    @Advice.OnMethodExit
+    public static void onTestExecutorCreation(
+        @Advice.Return(readOnly = false) Action<String> executor) {
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (!CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
 
-      if (executor instanceof DDCollectAllTestClassesExecutor) {
-        ((DDCollectAllTestClassesExecutor) executor).processAllTestClasses();
-      }
+      executor =
+          new DDCollectAllTestClassesExecutor(
+              executor, Thread.currentThread().getContextClassLoader());
     }
-  }
-
-  // Gradle 8.0 and above
-  public static String muzzleCheck(ServiceReference serviceReference) {
-    return serviceReference.value();
   }
 }

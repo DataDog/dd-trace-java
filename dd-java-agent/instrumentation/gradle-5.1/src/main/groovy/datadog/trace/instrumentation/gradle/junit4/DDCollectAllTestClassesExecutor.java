@@ -7,6 +7,7 @@ import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.gradle.api.Action;
 import org.gradle.internal.UncheckedException;
 
@@ -26,7 +27,7 @@ public class DDCollectAllTestClassesExecutor implements Action<String> {
   }
 
   @Override
-  public void execute(String testClassName) {
+  public void execute(@Nonnull String testClassName) {
     Class<?> clazz = loadClass(testClassName);
 
     TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
