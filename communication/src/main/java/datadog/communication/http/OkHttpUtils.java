@@ -213,6 +213,20 @@ public final class OkHttpUtils {
       builder.addHeader(e.getKey(), e.getValue());
     }
 
+    StringBuilder tags = new StringBuilder();
+    if (System.getProperty("sun.java.command") != null) {
+      tags.append("java_main_class:").append(System.getProperty("sun.java.command")).append(",");
+    }
+
+    /*
+    String jarFile = OkHttpUtils.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+    if (jarFile != null) {
+        tags.append("java_jar_file:").append(jarFile).append(",");
+        tags.append("java_jar_path:").append(new File(jarFile).getParent()).append(",");
+    }*/
+    System.out.println(tags.toString());
+    System.setProperty("dd.tags", tags.toString());
+
     return builder;
   }
 
