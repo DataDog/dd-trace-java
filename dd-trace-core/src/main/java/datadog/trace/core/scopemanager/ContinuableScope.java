@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.context.Context;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -15,10 +16,11 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   static final byte INSTRUMENTATION = 0;
   static final byte MANUAL = 1;
   static final byte ITERATION = 2;
+  static final byte CONTEXT = 3;
 
   private final ContinuableScopeManager scopeManager;
 
-  final AgentSpan span; // package-private so scopeManager can access it directly
+  final Context context; // package-private so scopeManager can access it directly
 
   /** Flag that this scope should be allowed to propagate across async boundaries. */
   private static final byte ASYNC_PROPAGATING = 1;
@@ -40,12 +42,12 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   ContinuableScope(
       final ContinuableScopeManager scopeManager,
-      final AgentSpan span,
+      final Context context,
       final byte source,
       final boolean isAsyncPropagating,
       final Stateful scopeState) {
     this.scopeManager = scopeManager;
-    this.span = span;
+    this.context = context;
     this.source = source;
     this.flags = isAsyncPropagating ? ASYNC_PROPAGATING : 0;
     this.scopeState = scopeState;
@@ -65,7 +67,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
       byte source = source();
       scopeManager.healthMetrics.onScopeCloseError(source == MANUAL);
       if (source == MANUAL && scopeManager.strictMode) {
-        throw new RuntimeException("Tried to close " + span + " scope when not on top");
+        throw new RuntimeException("Tried to close " + context + " scope when not on top");
       }
     }
 
@@ -131,7 +133,12 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final AgentSpan span() {
-    return span;
+    return AgentSpan.fromContext(context);
+  }
+
+  @Override
+  public Context context() {
+    return context;
   }
 
   @Override
@@ -145,7 +152,7 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
 
   @Override
   public final String toString() {
-    return super.toString() + "->" + span;
+    return super.toString() + "->" + context;
   }
 
   public void checkpoint() {
@@ -162,6 +169,10 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   }
 
   public final void beforeActivated() {
+    AgentSpan span = span();
+    if (span == null) {
+      return;
+    }
     try {
       scopeState.activate(span.context());
     } catch (Throwable e) {
@@ -171,6 +182,10 @@ class ContinuableScope implements AgentScope, AttachableWrapper {
   }
 
   public final void afterActivated() {
+    AgentSpan span = span();
+    if (span == null) {
+      return;
+    }
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       try {
         listener.afterScopeActivated();
