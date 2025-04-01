@@ -135,19 +135,12 @@ public class CodeOriginTest extends CapturingTestBase {
             CODE_ORIGIN_ID1,
             true,
             Where.of(
-                className,
-                "entry",
-                "()",
-                "" + getLineForLineProbe("com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_ID1)),
+                className, "entry", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID1)),
             true),
         new CodeOriginProbe(
             CODE_ORIGIN_ID2,
             false,
-            Where.of(
-                className,
-                "exit",
-                "()",
-                "" + getLineForLineProbe("com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_ID2)),
+            Where.of(className, "exit", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID2)),
             true),
         new CodeOriginProbe(
             CODE_ORIGIN_DOUBLE_ENTRY_ID,
@@ -156,9 +149,7 @@ public class CodeOriginTest extends CapturingTestBase {
                 className,
                 "doubleEntry",
                 "()",
-                ""
-                    + getLineForLineProbe(
-                        "com.datadog.debugger.CodeOrigin05", CODE_ORIGIN_DOUBLE_ENTRY_ID)),
+                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID)),
             true));
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", 0);
