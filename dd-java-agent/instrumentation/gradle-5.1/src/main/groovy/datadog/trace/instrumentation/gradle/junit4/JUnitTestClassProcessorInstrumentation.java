@@ -47,7 +47,9 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("createTestExecutor").and(takesArgument(0, named("org.gradle.internal.actor.Actor"))).and(returns(named("org.gradle.api.Action"))),
+        named("createTestExecutor")
+            .and(takesArgument(0, named("org.gradle.internal.actor.Actor")))
+            .and(returns(named("org.gradle.api.Action"))),
         JUnitTestClassProcessorInstrumentation.class.getName() + "$TestExecutorAdvice");
   }
 
