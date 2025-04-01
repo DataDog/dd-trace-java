@@ -154,36 +154,50 @@ build_tests:
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
-    CACHE_TYPE: test
     DEPENDENCY_CACHE_POLICY: pull
     GRADLE_MEM: 4G
     GRADLE_WORKERS: 4
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
+  parallel:
+    matrix:
+      - GRADLE_TARGET: ":baseTest"
+        CACHE_TYPE: "base"
+      - GRADLE_TARGET: ":instrumentationTest"
+        CACHE_TYPE: "inst"
+      - GRADLE_TARGET: ":instrumentationLatestDepTest"
+        CACHE_TYPE: "latestdep"
+      - GRADLE_TARGET: ":smokeTest"
+        CACHE_TYPE: "smoke"
+      - GRADLE_TARGET: ":profilingTest"
+        CACHE_TYPE: "profiling"
   script:
-    - ./gradlew clean :baseTest :instrumentationTest :instrumentationLatestDepTest :instrumentationTest :profilingTest -PskipTests $GRADLE_ARGS
+    - ./gradlew clean $GRADLE_TARGET -PskipTests $GRADLE_ARGS
 
-build_and_populate_dep_cache:
-  extends: build
-  variables:
-    BUILD_CACHE_POLICY: push
-    DEPENDENCY_CACHE_POLICY: push
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: on_success
-    - when: manual
-      allow_failure: true
-
-build_and_populate_test_dep_cache:
+populate_dep_cache:
   extends: build_tests
   variables:
-    BUILD_CACHE_POLICY: push
+    BUILD_CACHE_POLICY: pull
     DEPENDENCY_CACHE_POLICY: push
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
     - when: manual
       allow_failure: true
+  parallel:
+    matrix:
+      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
+        CACHE_TYPE: "lib"
+      - GRADLE_TARGET: ":baseTest"
+        CACHE_TYPE: "base"
+      - GRADLE_TARGET: ":instrumentationTest"
+        CACHE_TYPE: "inst"
+      - GRADLE_TARGET: ":instrumentationLatestDepTest"
+        CACHE_TYPE: "latestdep"
+      - GRADLE_TARGET: ":smokeTest"
+        CACHE_TYPE: "smoke"
+      - GRADLE_TARGET: ":profilingTest"
+        CACHE_TYPE: "profiling"
 
 spotless:
   extends: .gradle_build
@@ -272,7 +286,7 @@ muzzle:
   stage: tests
   parallel: 8
   variables:
-    CACHE_TYPE: test
+    CACHE_TYPE: inst
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
@@ -295,7 +309,7 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    CACHE_TYPE: test
+    CACHE_TYPE: inst
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
@@ -333,7 +347,6 @@ muzzle-dep-report:
     KUBERNETES_MEMORY_LIMIT: 16Gi
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
-    CACHE_TYPE: test
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -393,6 +406,7 @@ agent_integration_tests:
     testJvm: "8"
     CI_AGENT_HOST: local-agent
     GRADLE_TARGET: "traceAgentTest"
+    CACHE_TYPE: "base"
   services:
     - name: datadog/agent:7.34.0
       alias: local-agent
@@ -405,6 +419,7 @@ test_base:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":baseTest"
+    CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix_4
   script:
@@ -415,6 +430,7 @@ test_inst:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
   parallel:
     matrix: *test_matrix_12
 
@@ -422,6 +438,7 @@ test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestDep"
   parallel:
     matrix:
       - testJvm: ["8", "17", "21" ]
@@ -433,11 +450,12 @@ test_flaky:
   extends: .test_job_with_test_agent
   variables:
     GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "base"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   parallel:
     matrix:
-      - GRADLE_TARGET: [":baseTest", ":instrumentationTest", ":smokeTest", ":debuggerTest"]
+      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
@@ -447,6 +465,7 @@ test_flaky_inst:
   variables:
     GRADLE_TARGET: ":instrumentationTest"
     GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "inst"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   parallel:
@@ -459,6 +478,7 @@ test_profiling:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":profilingTest"
+    CACHE_TYPE: "profiling"
   parallel:
     matrix: *test_matrix
 
@@ -466,6 +486,7 @@ test_debugger:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":debuggerTest"
+    CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
 
@@ -474,6 +495,7 @@ test_smoke:
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
+    CACHE_TYPE: "smoke"
   parallel:
     matrix: *test_matrix_4
 
@@ -481,6 +503,7 @@ test_ssi_smoke:
   extends: .test_job
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
+    CACHE_TYPE: "smoke"
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
@@ -490,6 +513,7 @@ test_smoke_graalvm:
   extends: .test_job
   variables:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    CACHE_TYPE: "smoke"
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21"]
@@ -498,6 +522,7 @@ test_smoke_semeru8_debugger:
   extends: .test_job
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+    CACHE_TYPE: "smoke"
     testJvm: "semeru8"
 
 required:
