@@ -130,7 +130,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
-            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" redisServer.firstMappedPort
             peerServiceFrom(Tags.PEER_HOSTNAME)
@@ -326,7 +326,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         "$Tags.COMPONENT" "redis-command"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" "redis"
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" redisServer.getHost()
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" redisServer.firstMappedPort
         peerServiceFrom(Tags.PEER_HOSTNAME)

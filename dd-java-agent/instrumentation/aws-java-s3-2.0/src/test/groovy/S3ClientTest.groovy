@@ -365,7 +365,7 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "POST"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
             tag "peer.hostname", "localhost"
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
