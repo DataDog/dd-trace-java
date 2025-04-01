@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
-import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.gradle.api.Action;
@@ -39,7 +38,7 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
       JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
       JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
       JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4FailFastClassOrderer.class.getPackage().getName() + ".JUnit4FailFastClassOrderer",
+      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
       packageName + ".DDCollectAllTestClassesExecutor",
     };
   }

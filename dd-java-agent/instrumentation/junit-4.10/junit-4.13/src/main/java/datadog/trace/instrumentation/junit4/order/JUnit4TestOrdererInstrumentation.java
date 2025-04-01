@@ -11,7 +11,7 @@ import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.instrumentation.junit4.JUnit4Utils;
+import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -24,7 +24,8 @@ import org.junit.runner.Description;
 @AutoService(InstrumenterModule.class)
 public class JUnit4TestOrdererInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
+  private final String parentPackageName =
+      Strings.getPackageName(JUnit4Instrumentation.class.getName());
 
   public JUnit4TestOrdererInstrumentation() {
     super("ci-visibility", "junit-4", "test-order");

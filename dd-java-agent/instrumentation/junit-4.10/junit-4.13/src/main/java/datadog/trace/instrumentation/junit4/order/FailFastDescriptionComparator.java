@@ -12,12 +12,10 @@ import org.junit.runner.Description;
 public class FailFastDescriptionComparator implements Comparator<Description> {
 
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler;
-  private final Comparator<Description> comparator;
 
   public FailFastDescriptionComparator(
       TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler) {
     this.handler = handler;
-    this.comparator = Comparator.comparing(this::executionPriority).reversed();
   }
 
   private int executionPriority(Description description) {
@@ -28,6 +26,6 @@ public class FailFastDescriptionComparator implements Comparator<Description> {
 
   @Override
   public int compare(Description o1, Description o2) {
-    return comparator.compare(o1, o2);
+    return executionPriority(o2) - executionPriority(o1);
   }
 }

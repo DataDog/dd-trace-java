@@ -5,11 +5,13 @@ muzzle {
     group = 'org.apache.maven.surefire'
     module = 'surefire-junit4'
     versions = '[3.0.0,)'
+    extraDependency 'junit:junit:4.10'
   }
   pass {
     group = 'org.apache.maven.surefire'
     module = 'surefire-junit47'
     versions = '[3.0.0,)'
+    extraDependency 'junit:junit:4.10'
   }
 }
 

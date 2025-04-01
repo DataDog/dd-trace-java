@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.maven.surefire.junit4;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,7 +14,6 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -82,7 +81,8 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
       }
 
       testClasses.sort(
-          Comparator.comparing(JUnit4FailFastClassOrderer::classExecutionPriority).reversed());
+          new JUnit4FailFastClassOrderer(
+              TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
 
       testsToRun = new TestsToRun(new LinkedHashSet<>(testClasses));
     }

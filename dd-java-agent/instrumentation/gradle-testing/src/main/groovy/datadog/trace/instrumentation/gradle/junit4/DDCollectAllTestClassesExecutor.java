@@ -5,7 +5,6 @@ import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.gradle.api.Action;
@@ -18,8 +17,8 @@ import org.gradle.internal.UncheckedException;
  */
 public class DDCollectAllTestClassesExecutor implements Action<String> {
   private final List<Class<?>> testClasses = new ArrayList<>();
-  Action<String> delegate;
-  ClassLoader classLoader;
+  private final Action<String> delegate;
+  private final ClassLoader classLoader;
 
   public DDCollectAllTestClassesExecutor(Action<String> delegate, ClassLoader junitClassLoader) {
     this.delegate = delegate;
@@ -41,7 +40,8 @@ public class DDCollectAllTestClassesExecutor implements Action<String> {
 
   public void processAllTestClasses() {
     testClasses.sort(
-        Comparator.comparing(JUnit4FailFastClassOrderer::classExecutionPriority).reversed());
+        new JUnit4FailFastClassOrderer(
+            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
 
     for (Class<?> clazz : testClasses) {
       delegate.execute(clazz.getName());

@@ -14,7 +14,7 @@ import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.instrumentation.junit4.JUnit4Utils;
+import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import java.util.Set;
@@ -26,7 +26,8 @@ import org.junit.runner.manipulation.Sorter;
 @AutoService(InstrumenterModule.class)
 public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
+  private final String parentPackageName =
+      Strings.getPackageName(JUnit4Instrumentation.class.getName());
 
   public JUnit4TestSorterInstrumentation() {
     super("ci-visibility", "junit-4", "test-order");

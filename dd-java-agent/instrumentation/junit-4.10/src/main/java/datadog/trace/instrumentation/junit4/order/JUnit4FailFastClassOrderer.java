@@ -7,20 +7,25 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
-import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.List;
+import javax.annotation.Nullable;
 
-public abstract class JUnit4FailFastClassOrderer {
+public class JUnit4FailFastClassOrderer implements Comparator<Class<?>> {
 
-  public static int classExecutionPriority(Class<?> clazz) {
+  @Nullable private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler;
+
+  public JUnit4FailFastClassOrderer(
+      @Nullable TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler) {
+    this.testEventsHandler = testEventsHandler;
+  }
+
+  public int classExecutionPriority(Class<?> clazz) {
     TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
-    if (framework != TestFrameworkInstrumentation.JUNIT4) {
+    if (testEventsHandler == null || framework != TestFrameworkInstrumentation.JUNIT4) {
       return 0;
     }
-
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> testEventsHandler =
-        TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4);
 
     List<Method> children = JUnit4Utils.getTestMethods(clazz);
     if (children.isEmpty()) {
@@ -35,5 +40,10 @@ public abstract class JUnit4FailFastClassOrderer {
     }
 
     return childrenPrioritySum / children.size();
+  }
+
+  @Override
+  public int compare(Class<?> o1, Class<?> o2) {
+    return classExecutionPriority(o2) - classExecutionPriority(o1);
   }
 }
