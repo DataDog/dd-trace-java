@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
@@ -209,23 +210,58 @@ public final class OkHttpUtils {
       builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
 
+    String javaCommand = System.getProperty("sun.java.command", "unknown");
+    String[] parts = javaCommand.split(" ");
+    String mainTarget = parts.length > 0 ? parts[0] : "unknown";
+    System.out.println("javacommand is: " + javaCommand);
+    boolean isJar = mainTarget.endsWith(".jar");
+    String javaMainClass = isJar ? "unknown" : mainTarget;
+    String javaJarFile = "unknown";
+    String javaJarPath = "unknown";
+
+    if (isJar) {
+      javaJarFile = mainTarget;
+      try {
+        // Load it as a resource
+        URL jarUrl = new File(javaJarFile).toURI().toURL(); // Assumes relative path
+        File jarFile = new File(jarUrl.toURI());
+
+        if (jarFile.exists()) {
+          javaJarPath = jarFile.getAbsolutePath();
+        }
+      } catch (Exception e) {
+        System.out.println("Unable to get JAR file: " + e.getMessage());
+      }
+    } else {
+      try {
+        Class<?> mainClass = Class.forName(javaMainClass);
+        javaJarPath =
+            mainClass.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+      } catch (Exception e) {
+        System.out.println("Unable to load main class or get JAR file: " + e.getMessage());
+      }
+    }
+
+    String jbossHome = System.getProperty("jboss.home.dir", "unknown");
+    String jbossMode = System.getProperty("jboss.server.mode", "unknown");
+    String jbossServerName = System.getProperty("jboss.server.name", "unknown");
+
+    String customTags =
+        String.format(
+            "JavaMainClass:%s,JavaJarFile:%s,JavaJarPath:%s,JbossHome:%s,JbossMode:%s,JbossServerName:%s",
+            javaMainClass, javaJarFile, javaJarPath, jbossHome, jbossMode, jbossServerName);
+
+    String existingProcessTags = headers.getOrDefault("X-Datadog-Process-Tags", "");
+    if (!existingProcessTags.isEmpty() && !existingProcessTags.endsWith(",")) {
+      existingProcessTags += ",";
+    }
+    headers.put("X-Datadog-Process-Tags", existingProcessTags + customTags);
+
+    System.out.println(customTags);
+
     for (Map.Entry<String, String> e : headers.entrySet()) {
       builder.addHeader(e.getKey(), e.getValue());
     }
-
-    StringBuilder tags = new StringBuilder();
-    if (System.getProperty("sun.java.command") != null) {
-      tags.append("java_main_class:").append(System.getProperty("sun.java.command")).append(",");
-    }
-
-    /*
-    String jarFile = OkHttpUtils.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
-    if (jarFile != null) {
-        tags.append("java_jar_file:").append(jarFile).append(",");
-        tags.append("java_jar_path:").append(new File(jarFile).getParent()).append(",");
-    }*/
-    System.out.println(tags.toString());
-    System.setProperty("dd.tags", tags.toString());
 
     return builder;
   }
