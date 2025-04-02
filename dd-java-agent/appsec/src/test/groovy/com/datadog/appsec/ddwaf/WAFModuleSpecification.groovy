@@ -1826,8 +1826,8 @@ class WAFModuleSpecification extends DDSpecification {
 
   def 'internal-api WafErrorCode enum matches libddwaf-java by name and code'() {
     given:
-    def libddwaf = com.datadog.ddwaf.WafErrorCode.values().collectEntries { [it.name(), it.code] }
-    def internal = datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode.values().collectEntries { [it.name(), it.code] }
+    def libddwaf = LibWafErrorCode.values().collectEntries { [it.name(), it.code] }
+    def internal = InternalWafErrorCode.values().collectEntries { [it.name(), it.code] }
 
     expect:
     internal == libddwaf
