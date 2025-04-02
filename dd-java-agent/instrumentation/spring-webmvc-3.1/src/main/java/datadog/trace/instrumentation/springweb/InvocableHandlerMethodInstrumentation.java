@@ -55,6 +55,13 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
       ServletWebRequest servletWebRequest = (ServletWebRequest) nativeWebRequest;
       final String handlerSpanKey =
           DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
+
+      if (Boolean.TRUE.equals(
+          servletWebRequest.getAttribute(
+              handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
+        return;
+      }
+
       Object span = servletWebRequest.getAttribute(handlerSpanKey, ServletWebRequest.SCOPE_REQUEST);
       if (!(span instanceof AgentSpan)) {
         return;
