@@ -89,7 +89,7 @@ default:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
   variables:
-    MAVEN_OPTS: "-Xms64M -Xmx512M"
+    MAVEN_OPTS: "-Xms64M -Xmx512M -Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
     GRADLE_WORKERS: 2
     GRADLE_MEM: 2560M
     KUBERNETES_CPU_REQUEST: 8
