@@ -446,7 +446,7 @@ public class WAFModule implements AppSecModule {
         if (!reqCtx.isWafContextClosed()) {
           log.error("Error calling WAF", e);
         }
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
         incrementErrorCodeMetric(reqCtx, gwCtx, e.code);

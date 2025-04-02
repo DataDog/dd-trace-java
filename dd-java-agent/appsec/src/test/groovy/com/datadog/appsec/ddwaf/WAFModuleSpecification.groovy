@@ -1786,7 +1786,6 @@ class WAFModuleSpecification extends DDSpecification {
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * ctx.getRaspMetrics()
     1 * ctx.getRaspMetricsCounter()
-    (0..1) * WafMetricCollector.get().wafRequestError() // TODO: remove this line when WAFModule is removed
     1 * wafMetricCollector.raspErrorCode(RuleType.SQL_INJECTION, wafErrorCode.code)
     0 * _
 
@@ -1815,7 +1814,6 @@ class WAFModuleSpecification extends DDSpecification {
     1 * wafContext.run(_, _, _) >> { throw createWafException(wafErrorCode) }
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     2 * ctx.getWafMetrics()
-    (0..1) * WafMetricCollector.get().wafRequestError() // TODO: remove this line when WAFModule is removed
     1 * wafMetricCollector.wafErrorCode(wafErrorCode.code)
     0 * _
 
