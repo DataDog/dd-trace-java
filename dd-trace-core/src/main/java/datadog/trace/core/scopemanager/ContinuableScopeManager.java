@@ -20,6 +20,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -104,25 +105,63 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
     if (null != activeScope && activeScope.isAsyncPropagating()) {
       AgentSpan span = activeScope.span();
       if (span != null) {
-        return captureSpan(span, activeScope.source());
+        return captureSpan(activeScope.context, activeScope.source(), span);
       }
     }
     return AgentTracer.noopContinuation();
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return captureSpan(span, INSTRUMENTATION);
+    ContinuableScope top = scopeStack().top;
+    Context context = top != null ? top.context.with(span) : span;
+    return captureSpan(context, INSTRUMENTATION, span);
   }
 
-  private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
-    return new ScopeContinuation(this, span, source).register();
+  private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
+    AgentTraceCollector traceCollector = span.context().getTraceCollector();
+    return new ScopeContinuation(this, context, source, traceCollector).register();
   }
 
   private AgentScope activate(
-      final Context context,
+      final AgentSpan span,
       final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
+    ScopeStack scopeStack = scopeStack();
+
+    final ContinuableScope top = scopeStack.top;
+    if (top != null && span.equals(top.span())) {
+      top.incrementReferences();
+      return top;
+    }
+
+    // DQH - This check could go before the check above, since depth limit checking is fast
+    final int currentDepth = scopeStack.depth();
+    if (depthLimit <= currentDepth) {
+      healthMetrics.onScopeStackOverflow();
+      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+      return noopScope();
+    }
+
+    assert span != null;
+
+    // Inherit the async propagation from the active scope unless the value is overridden
+    boolean asyncPropagation =
+        overrideAsyncPropagation
+            ? isAsyncPropagating
+            : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
+
+    Context context = top != null ? top.context.with(span) : span;
+
+    final ContinuableScope scope =
+        new ContinuableScope(this, context, source, asyncPropagation, createScopeState(context));
+    scopeStack.push(scope);
+    healthMetrics.onActivateScope();
+
+    return scope;
+  }
+
+  private AgentScope activate(final Context context) {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
@@ -141,14 +180,11 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
     assert context != null;
 
-    // Inherit the async propagation from the active scope unless the value is overridden
-    boolean asyncPropagation =
-        overrideAsyncPropagation
-            ? isAsyncPropagating
-            : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
+    // Inherit the async propagation from the active scope
+    boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     final ContinuableScope scope =
-        new ContinuableScope(this, context, source, asyncPropagation, createScopeState(context));
+        new ContinuableScope(this, context, CONTEXT, asyncPropagation, createScopeState(context));
     scopeStack.push(scope);
     healthMetrics.onActivateScope();
 
@@ -326,7 +362,7 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
   @Override
   public ContextScope attach(Context context) {
-    return activate(context, CONTEXT, false, true);
+    return activate(context);
   }
 
   @Override

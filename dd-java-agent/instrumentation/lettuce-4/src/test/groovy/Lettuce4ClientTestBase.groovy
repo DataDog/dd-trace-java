@@ -1,6 +1,7 @@
 import com.lambdaworks.redis.ClientOptions
 import com.lambdaworks.redis.RedisClient
 import com.lambdaworks.redis.api.StatefulConnection
+import com.lambdaworks.redis.api.async.RedisAsyncCommands
 import com.lambdaworks.redis.api.sync.RedisCommands
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -41,6 +42,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   RedisClient redisClient
   StatefulConnection connection
   RedisCommands<String, ?> syncCommands
+  RedisAsyncCommands<String, ?> asyncCommands
 
   def setupSpec() {
     port = PortUtils.randomOpenPort()
@@ -51,9 +53,9 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.builder()
-    // bind to localhost to avoid firewall popup
+      // bind to localhost to avoid firewall popup
       .setting("bind " + HOST)
-    // set max memory to avoid problems in CI
+      // set max memory to avoid problems in CI
       .setting("maxmemory 128M")
       .port(port).build()
   }
@@ -67,6 +69,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     runUnderTrace("setup") {
       connection = redisClient.connect()
       syncCommands = connection.sync()
+      asyncCommands = connection.async()
 
       syncCommands.set("TESTKEY", "TESTVAL")
       syncCommands.hmset("TESTHM", testHashMap)

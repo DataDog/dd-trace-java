@@ -9,6 +9,7 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
+import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -18,7 +19,8 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
   public static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build()
 
-  public static final Map<String, String> testHashMap = [
+  @Shared
+  Map<String, String> testHashMap = [
     firstname: "John",
     lastname : "Doe",
     age      : "53"
@@ -32,7 +34,7 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String embeddedDbUri
 
   RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-    .waitingFor(Wait.forListeningPort())
+  .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
   StatefulRedisConnection connection
