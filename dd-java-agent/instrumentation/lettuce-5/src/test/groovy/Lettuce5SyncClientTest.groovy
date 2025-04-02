@@ -1,21 +1,11 @@
-import org.testcontainers.utility.DockerImageName
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-import com.redis.testcontainers.RedisContainer
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.lettuce.core.ClientOptions
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.api.StatefulConnection
-import io.lettuce.core.api.sync.RedisCommands
-import org.testcontainers.containers.wait.strategy.Wait
-import spock.lang.Shared
 
 import java.util.concurrent.CompletionException
 

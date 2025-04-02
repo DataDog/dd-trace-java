@@ -1,22 +1,11 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-import com.redis.testcontainers.RedisContainer
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.lettuce.core.ClientOptions
-import io.lettuce.core.RedisClient
-import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.api.reactive.RedisReactiveCommands
-import io.lettuce.core.api.sync.RedisCommands
-import org.testcontainers.containers.wait.strategy.Wait
 import reactor.core.scheduler.Schedulers
-import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
-import spock.util.concurrent.PollingConditions
 
 import java.util.function.Consumer
 
@@ -69,7 +58,11 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
     def conds = new AsyncConditions()
 
     when:
-    reactiveCommands.get("TESTKEY").subscribe { res -> conds.evaluate { assert res == "TESTVAL" } }
+    reactiveCommands.get("TESTKEY").subscribe { res ->
+      conds.evaluate {
+        assert res == "TESTVAL"
+      }
+    }
 
     then:
     conds.await()

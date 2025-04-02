@@ -1,21 +1,13 @@
-import com.redis.testcontainers.RedisContainer
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.lettuce.core.ClientOptions
 import io.lettuce.core.ConnectionFuture
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisFuture
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulConnection
-import io.lettuce.core.api.async.RedisAsyncCommands
-import io.lettuce.core.api.sync.RedisCommands
 import io.lettuce.core.codec.StringCodec
 import io.lettuce.core.protocol.AsyncCommand
-import org.testcontainers.containers.wait.strategy.Wait
-import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
 import java.time.Duration
@@ -28,7 +20,6 @@ import java.util.function.BiFunction
 import java.util.function.Consumer
 import java.util.function.Function
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {

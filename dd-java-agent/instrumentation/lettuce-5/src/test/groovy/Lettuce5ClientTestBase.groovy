@@ -32,7 +32,7 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String embeddedDbUri
 
   RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-    .waitingFor(Wait.forListeningPort())
+  .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
   StatefulRedisConnection connection
