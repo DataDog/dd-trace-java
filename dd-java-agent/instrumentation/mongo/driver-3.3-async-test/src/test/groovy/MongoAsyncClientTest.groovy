@@ -27,7 +27,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
       .clusterSettings(
       ClusterSettings.builder()
       .description("some-description")
-      .applyConnectionString(new ConnectionString("mongodb://localhost:$port"))
+      .applyConnectionString(new ConnectionString("mongodb://${mongoDbContainer.getHost()}:$port"))
       .build())
       .build())
   }
