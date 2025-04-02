@@ -42,8 +42,8 @@ variables:
 #      - "semeru8"
 #      - "ibm8"
 #      - "zulu11"
-#      - "11"
-#      - "17"
+      - "11"
+      - "17"
 #      - "semeru17"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
