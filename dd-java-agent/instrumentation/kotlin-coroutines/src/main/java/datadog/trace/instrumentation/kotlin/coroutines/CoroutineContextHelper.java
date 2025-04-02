@@ -10,12 +10,15 @@ import kotlinx.coroutines.Job;
 import kotlinx.coroutines.JobNode;
 import kotlinx.coroutines.JobSupport;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CoroutineContextHelper {
+  private static final Logger log = LoggerFactory.getLogger(CoroutineContextHelper.class);
+
   /*
   IntelliJ shows a warning here for Job being out of bounds, but that's not true, the class compiles.
    */
-
   @Nullable
   @SuppressWarnings("unchecked")
   public static Job getJob(final CoroutineContext context) {
@@ -73,7 +76,8 @@ public class CoroutineContextHelper {
         // Kotlin coroutines 1.3
         parentHandleField = lookup.findGetter(JobSupport.class, "parentHandle", ChildHandle.class);
         jobField = lookup.findGetter(JobNode.class, "job", Job.class);
-      } catch (Throwable ignored) {
+      } catch (Throwable e) {
+        log.debug("Unable to access parent handle", e);
       }
     }
 
@@ -93,7 +97,8 @@ public class CoroutineContextHelper {
       if (parentHandle instanceof JobNode) {
         return (Job) JOB_FIELD.invoke((JobNode) parentHandle);
       }
-    } catch (Throwable ignore) {
+    } catch (Throwable e) {
+      log.debug("Unable to extract parent job", e);
     }
     return null;
   }
