@@ -6,7 +6,7 @@ import java.util.Map;
 // ConfigurationMap represents configuration key-values found in stable configuration files
 public class ConfigurationMap extends HashMap<String, ConfigurationValue> {
   public ConfigurationMap() {
-    return;
+    super();
   }
 
   public ConfigurationMap(Map<String, ConfigurationValue> map) {
