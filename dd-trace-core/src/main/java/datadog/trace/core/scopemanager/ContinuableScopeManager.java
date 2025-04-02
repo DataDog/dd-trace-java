@@ -20,6 +20,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -104,18 +105,21 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
     if (null != activeScope && activeScope.isAsyncPropagating()) {
       AgentSpan span = activeScope.span();
       if (span != null) {
-        return captureSpan(span, activeScope.source());
+        return captureSpan(activeScope.context, activeScope.source(), span);
       }
     }
     return AgentTracer.noopContinuation();
   }
 
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return captureSpan(span, INSTRUMENTATION);
+    ContinuableScope top = scopeStack().top;
+    Context context = top != null ? top.context.with(span) : span;
+    return captureSpan(context, INSTRUMENTATION, span);
   }
 
-  private AgentScope.Continuation captureSpan(final AgentSpan span, byte source) {
-    return new ScopeContinuation(this, span, source).register();
+  private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
+    AgentTraceCollector traceCollector = span.context().getTraceCollector();
+    return new ScopeContinuation(this, context, source, traceCollector).register();
   }
 
   private AgentScope activate(
