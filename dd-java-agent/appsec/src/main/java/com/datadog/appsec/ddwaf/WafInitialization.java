@@ -1,22 +1,22 @@
-package com.datadog.appsec.powerwaf;
+package com.datadog.appsec.ddwaf;
 
 import com.datadog.appsec.util.StandardizedLogging;
-import io.sqreen.powerwaf.Powerwaf;
+import com.datadog.ddwaf.Waf;
 import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LibSqreenInitialization {
-  public static final boolean ONLINE = initPowerWAF();
+public class WafInitialization {
+  public static final boolean ONLINE = initWAF();
 
-  private static boolean initPowerWAF() {
+  private static boolean initWAF() {
     try {
       boolean simpleLoad = System.getProperty("POWERWAF_SIMPLE_LOAD") != null;
-      Powerwaf.initialize(simpleLoad);
+      Waf.initialize(simpleLoad);
     } catch (Exception e) {
-      Logger logger = LoggerFactory.getLogger(LibSqreenInitialization.class);
+      Logger logger = LoggerFactory.getLogger(WafInitialization.class);
       logger.warn("Error initializing WAF library", e);
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
       return false;

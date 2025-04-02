@@ -1,10 +1,10 @@
 package com.datadog.appsec.util;
 
-import static com.datadog.appsec.powerwaf.PowerWAFResultData.Rule;
+import static com.datadog.appsec.ddwaf.WAFResultData.Rule;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.report.AppSecEvent;
-import io.sqreen.powerwaf.Powerwaf;
+import com.datadog.ddwaf.Waf;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -127,7 +127,7 @@ public class StandardizedLogging {
    */
 
   // D5
-  public static void inAppWafReturn(Logger logger, Powerwaf.ResultWithData resultWithData) {
+  public static void inAppWafReturn(Logger logger, Waf.ResultWithData resultWithData) {
     logger.debug("AppSec In-App WAF returned: {}", resultWithData);
   }
 
@@ -185,9 +185,7 @@ public class StandardizedLogging {
   public static void _initialConfigSourceAndLibddwafVersion(Logger logger, String source) {
     if (logger.isDebugEnabled()) {
       logger.info(
-          "AppSec initial configuration from {}, libddwaf version: {}",
-          source,
-          Powerwaf.LIB_VERSION);
+          "AppSec initial configuration from {}, libddwaf version: {}", source, Waf.LIB_VERSION);
     }
   }
 

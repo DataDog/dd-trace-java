@@ -670,7 +670,7 @@ public class GatewayBridge {
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     } else {
-      ctx.closeAdditive();
+      ctx.closeWafContext();
     }
 
     // AppSec report metric and events for web span only
