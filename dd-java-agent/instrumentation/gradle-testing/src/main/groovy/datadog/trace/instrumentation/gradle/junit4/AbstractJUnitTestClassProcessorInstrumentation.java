@@ -50,6 +50,11 @@ public class AbstractJUnitTestClassProcessorInstrumentation extends Instrumenter
             + "$ProcessAllTestClassesAdvice");
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
+  }
+
   public static class ProcessAllTestClassesAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter

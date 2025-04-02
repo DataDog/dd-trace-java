@@ -47,7 +47,7 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
       JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
       JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
       JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4FailFastClassOrderer.class.getPackage().getName() + ".JUnit4FailFastClassOrderer",
+      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
     };
   }
 

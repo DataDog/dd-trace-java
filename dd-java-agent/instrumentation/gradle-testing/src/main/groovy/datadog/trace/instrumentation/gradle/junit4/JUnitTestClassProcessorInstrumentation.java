@@ -44,6 +44,11 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
   }
 
   @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("createTestExecutor")
