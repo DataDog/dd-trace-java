@@ -1815,6 +1815,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     2 * ctx.getWafMetrics()
     1 * wafMetricCollector.wafErrorCode(wafErrorCode.code)
+    1 * ctx.setWafErrors()
     0 * _
 
     where:
