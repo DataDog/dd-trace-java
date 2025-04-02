@@ -35,7 +35,7 @@ public class SpringWebHttpServerDecorator
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
 
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
-  public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".suffix";
+  public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
 
   public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;
