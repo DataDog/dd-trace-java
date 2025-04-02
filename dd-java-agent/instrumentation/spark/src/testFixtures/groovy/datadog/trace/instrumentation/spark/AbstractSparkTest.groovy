@@ -25,11 +25,16 @@ import spock.lang.IgnoreIf
   Platform.isJ9()
 })
 abstract class AbstractSparkTest extends AgentTestRunner {
+  @Override
+  protected boolean isDataJobsEnabled() {
+    return true
+  }
 
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
+    injectSysConfig("dd.integration.spark-openlineage.enabled", "true")
   }
 
   def "generate application span with child job and stages"() {
@@ -53,6 +58,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           resourceName "spark.application"
           spanType "spark"
           errored false
+          assert span.context().getTraceId() != DDTraceId.ZERO
           assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
           assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
