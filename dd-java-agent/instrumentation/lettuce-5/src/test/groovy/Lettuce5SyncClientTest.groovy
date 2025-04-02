@@ -1,5 +1,6 @@
 import org.testcontainers.utility.DockerImageName
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 import com.redis.testcontainers.RedisContainer
@@ -18,71 +19,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.CompletionException
 
-abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
-  public static final int DB_INDEX = 0
-  // Disable autoreconnect so we do not get stray traces popping up on server shutdown
-  public static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build()
-
-  @Shared
-  int port
-  @Shared
-  int incorrectPort
-  @Shared
-  String dbAddr
-  @Shared
-  String dbAddrNonExistent
-  @Shared
-  String dbUriNonExistent
-  @Shared
-  String embeddedDbUri
-
-  @Shared
-  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-  .waitingFor(Wait.forListeningPort())
-
-  @Shared
-  Map<String, String> testHashMap = [
-    firstname: "John",
-    lastname : "Doe",
-    age      : "53"
-  ]
-
-  RedisClient redisClient
-  StatefulConnection connection
-  RedisCommands<String, ?> syncCommands
-
-  def setupSpec() {
-    redisServer.start()
-    println "Using redis: $redisServer.redisURI"
-    port = redisServer.firstMappedPort
-    incorrectPort = PortUtils.randomOpenPort()
-    dbAddr = redisServer.getHost() + ":" + port + "/" + DB_INDEX
-    dbAddrNonExistent = redisServer.getHost() + ":" + incorrectPort + "/" + DB_INDEX
-    dbUriNonExistent = "redis://" + dbAddrNonExistent
-    embeddedDbUri = "redis://" + dbAddr
-  }
-
-  def setup() {
-    redisClient = RedisClient.create(embeddedDbUri)
-    connection = redisClient.connect()
-    syncCommands = connection.sync()
-
-    syncCommands.set("TESTKEY", "TESTVAL")
-    syncCommands.hmset("TESTHM", testHashMap)
-
-    // 2 sets + 1 connect trace
-    TEST_WRITER.waitForTraces(3)
-    TEST_WRITER.clear()
-  }
-
-  def cleanup() {
-    connection.close()
-  }
-
-  def cleanupSpec() {
-    redisServer.stop()
-  }
-
+abstract class Lettuce5SyncClientTest extends Lettuce5ClientTestBase {
   def "connect"() {
     setup:
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
@@ -232,7 +169,10 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
+            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
+            "db.redis.dbIndex" 0
             peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
@@ -419,7 +359,8 @@ abstract class Lettuce5SyncClientTest extends VersionedNamingTestBase {
     }
   }
 }
-class Lettuce5AsyncClientV0Test extends Lettuce5AsyncClientTest {
+
+class Lettuce5SyncClientV0Test extends Lettuce5SyncClientTest {
 
   @Override
   int version() {
@@ -437,7 +378,7 @@ class Lettuce5AsyncClientV0Test extends Lettuce5AsyncClientTest {
   }
 }
 
-class Lettuce5AsyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
+class Lettuce5SyncClientV1ForkedTest extends Lettuce5SyncClientTest {
 
   @Override
   int version() {
@@ -452,5 +393,30 @@ class Lettuce5AsyncClientV1ForkedTest extends Lettuce5AsyncClientTest {
   @Override
   String operation() {
     return "redis.command"
+  }
+}
+
+class Lettuce5SyncClientProfilingForkedTest extends Lettuce5SyncClientTest {
+
+  @Override
+  protected void configurePreAgent() {
+
+    super.configurePreAgent()
+    injectSysConfig('dd.profiling.enabled', 'true')
+  }
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return "redis"
+  }
+
+  @Override
+  String operation() {
+    return "redis.query"
   }
 }
