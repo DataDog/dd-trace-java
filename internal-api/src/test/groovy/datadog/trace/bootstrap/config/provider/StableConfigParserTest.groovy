@@ -64,7 +64,6 @@ apm_configuration_rules:
     Files.delete(filePath)
   }
 
-  // TODO: This test will fail if we make selectorMatch private again
   def "test selectorMatch"() {
     when:
     // Env vars

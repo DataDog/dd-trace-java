@@ -125,11 +125,9 @@ public class StableConfigParser {
     return false;
   }
 
-  // TODO: Make this private again after testing?
   // We do all of the case insensitivity modifications in this function, because each selector will
   // be viewed just once
-  public static boolean selectorMatch(
-      String origin, List<String> matches, String operator, String key) {
+  static boolean selectorMatch(String origin, List<String> matches, String operator, String key) {
     switch (origin.toLowerCase()) {
       case "language":
         if (!validOperatorForLanguageOrigin(operator)) {
