@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
@@ -93,7 +94,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       // This scope will be closed by AwsHttpClientInstrumentation since ExecutionInterceptor API
       // doesn't provide a way to run code in same thread after transmission has been scheduled.
-      activateSpan(span);
+      activateSpanWithoutScope(span);
     }
   }
 

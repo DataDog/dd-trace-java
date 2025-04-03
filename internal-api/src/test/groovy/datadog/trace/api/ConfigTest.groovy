@@ -637,6 +637,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "invalid")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "invalid")
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, " ")
 
     when:
     def config = new Config()
@@ -666,6 +667,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.longRunningTraceEnabled == false
+    config.experimentalFeaturesEnabled == [].toSet()
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -1928,6 +1930,17 @@ class ConfigTest extends DDSpecification {
     config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
   }
 
+  def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "all")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION"].toSet()
+  }
+
   def "detect if agent is configured using default values"() {
     setup:
     if (host != null) {
@@ -2664,20 +2677,6 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
-  }
-
-  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
-    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-    config.tracePropagationStylesToExtract.toList() == []
   }
 
   def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {

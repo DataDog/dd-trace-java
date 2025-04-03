@@ -1,10 +1,11 @@
 repositories {
+  mavenLocal()
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
+      allowInsecureProtocol true
     }
   }
-  mavenLocal()
   mavenCentral()
   // add sonatype repository for snapshot dependencies
   maven {
@@ -21,6 +22,19 @@ repositories {
     ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
     content {
       includeGroup 'io.sqreen'
+    }
+  }
+  maven {
+    url 'https://packages.confluent.io/maven/'
+    content {
+      includeGroupAndSubgroups "io.confluent"
+      includeGroupAndSubgroups "org.apache.kafka"
+    }
+  }
+  maven {
+    url 'https://repo.spring.io/libs-milestone'
+    content {
+      includeGroupAndSubgroups "org.springframework"
     }
   }
 }

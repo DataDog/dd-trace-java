@@ -131,12 +131,13 @@ public final class TracerConfig {
       "trace.experimental.long-running.initial.flush.interval";
   public static final String TRACE_LONG_RUNNING_FLUSH_INTERVAL =
       "trace.experimental.long-running.flush.interval";
+
+  public static final String TRACE_PEER_HOSTNAME_ENABLED = "trace.peer.hostname.enabled";
+
   public static final String TRACE_PEER_SERVICE_DEFAULTS_ENABLED =
       "trace.peer.service.defaults.enabled";
-
   public static final String TRACE_PEER_SERVICE_COMPONENT_OVERRIDES =
       "trace.peer.service.component.overrides";
-
   public static final String TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED =
       "trace.remove.integration-service-names.enabled";
 

@@ -1,5 +1,25 @@
+pluginManagement {
+  repositories {
+    mavenLocal()
+    if (settings.hasProperty("gradlePluginProxy")) {
+      maven {
+        url settings["gradlePluginProxy"]
+        allowInsecureProtocol true
+      }
+    }
+    if (settings.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url settings["mavenRepositoryProxy"]
+        allowInsecureProtocol true
+      }
+    }
+    gradlePluginPortal()
+    mavenCentral()
+  }
+}
+
 plugins {
-  id 'com.gradle.develocity' version '3.18'
+  id 'com.gradle.develocity' version '3.19.2'
 }
 
 def isCI = System.getenv("CI") != null
@@ -66,6 +86,7 @@ include ':dd-java-agent:agent-otel:otel-shim'
 include ':dd-java-agent:agent-otel:otel-tooling'
 
 include ':communication'
+include ':components:cli'
 include ':components:context'
 include ':components:json'
 include ':telemetry'
