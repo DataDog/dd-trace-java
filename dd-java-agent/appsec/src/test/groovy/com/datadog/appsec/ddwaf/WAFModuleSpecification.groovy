@@ -641,7 +641,7 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
-    flow.blocking == true
+    flow.blocking
     flow.action instanceof Flow.Action.RequestBlockingAction
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == statusCode
@@ -869,7 +869,6 @@ class WAFModuleSpecification extends DDSpecification {
 
     when:
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
-    ctx.closeWafContext()
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, _)
@@ -1127,7 +1126,6 @@ class WAFModuleSpecification extends DDSpecification {
     dataListener = wafModule.dataSubscriptions.first()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
-    ctx.closeWafContext()
 
     then: 'no match; rule is disabled'
     1 * wafMetricCollector.wafUpdates(_, true)
@@ -1234,7 +1232,6 @@ class WAFModuleSpecification extends DDSpecification {
     }
     dataListener = wafModule.dataSubscriptions.first()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
-    ctx.closeWafContext()
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
@@ -1243,7 +1240,6 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateWafContext(_, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext() >> {wafContext.close()}
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1443,7 +1439,6 @@ class WAFModuleSpecification extends DDSpecification {
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
-    ctx.closeWafContext()
 
     then:
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
@@ -1455,7 +1450,6 @@ class WAFModuleSpecification extends DDSpecification {
     }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext()
     1 * ctx.isThrottled(null)
     1 * flow.isBlocking()
     0 * _
@@ -1525,7 +1519,6 @@ class WAFModuleSpecification extends DDSpecification {
 
     when:
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
-    ctx.closeWafContext()
 
     then:
     1 * ctx.isWafContextClosed()
@@ -1535,7 +1528,6 @@ class WAFModuleSpecification extends DDSpecification {
     2 * ctx.getWafMetrics()
     1 * ctx.isThrottled(null)
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
-    1 * ctx.closeWafContext()
     2 * tracer.activeSpan()
     1 * flow.isBlocking()
     0 * flow.setAction(_)
