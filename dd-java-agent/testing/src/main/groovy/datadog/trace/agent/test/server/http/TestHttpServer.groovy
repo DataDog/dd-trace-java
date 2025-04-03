@@ -19,6 +19,7 @@ import org.eclipse.jetty.server.SslConnectionFactory
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.util.ssl.SslContextFactory
+import org.eclipse.jetty.util.thread.QueuedThreadPool
 
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
@@ -124,6 +125,11 @@ class TestHttpServer implements AutoCloseable {
         internalServer.addConnector(https)
 
         customizer.call(internalServer)
+
+        // Jetty uses a heuristic to set reserved threads that breaks in CI
+        // It depends on Runtime.getRuntime().availableProcessors() which is not always correct in kubernetes
+        // Set explicitly to a reasonable number
+        (internalServer.getThreadPool() as QueuedThreadPool).setReservedThreads(10)
 
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
