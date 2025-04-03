@@ -1,79 +1,15 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-import com.redis.testcontainers.RedisContainer
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.lettuce.core.ClientOptions
-import io.lettuce.core.RedisClient
-import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.api.reactive.RedisReactiveCommands
-import io.lettuce.core.api.sync.RedisCommands
-import org.testcontainers.containers.wait.strategy.Wait
 import reactor.core.scheduler.Schedulers
-import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
-import spock.util.concurrent.PollingConditions
 
 import java.util.function.Consumer
 
-abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
-  public static final int DB_INDEX = 0
-  // Disable autoreconnect so we do not get stray traces popping up on server shutdown
-  public static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build()
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Shared
-  String embeddedDbUri
-
-  @Shared
-  int port
-
-  @Shared
-  RedisContainer redisServer = new RedisContainer(RedisContainer.DEFAULT_TAG)
-  .waitingFor(Wait.forListeningPort())
-
-  RedisClient redisClient
-  StatefulRedisConnection connection
-  RedisReactiveCommands<String, ?> reactiveCommands
-  RedisCommands<String, ?> syncCommands
-
-  def setup() {
-    redisServer.start()
-    println "Using redis: $redisServer.redisURI"
-    port = redisServer.firstMappedPort
-    String dbAddr = redisServer.getHost() + ":" + port + "/" + DB_INDEX
-    embeddedDbUri = "redis://" + dbAddr
-    redisClient = RedisClient.create(embeddedDbUri)
-
-    redisClient.setOptions(CLIENT_OPTIONS)
-
-    new PollingConditions(delay: 3, timeout: 15).eventually {
-      (connection = redisClient.connect()) != null
-    }
-    reactiveCommands = connection.reactive()
-    syncCommands = connection.sync()
-
-    syncCommands.set("TESTKEY", "TESTVAL")
-
-    // 1 set + 1 connect trace
-    TEST_WRITER.waitForTraces(2)
-    TEST_WRITER.clear()
-  }
-
-  def cleanup() {
-    connection.close()
-    redisClient.shutdown()
-    redisServer.stop()
-  }
-
+abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
   def "set command with subscribe on a defined consumer"() {
 
     def conds = new AsyncConditions()
@@ -122,7 +58,11 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
     def conds = new AsyncConditions()
 
     when:
-    reactiveCommands.get("TESTKEY").subscribe { res -> conds.evaluate { assert res == "TESTVAL" } }
+    reactiveCommands.get("TESTKEY").subscribe { res ->
+      conds.evaluate {
+        assert res == "TESTVAL"
+      }
+    }
 
     then:
     conds.await()
@@ -198,7 +138,7 @@ abstract class Lettuce5ReactiveClientTest extends VersionedNamingTestBase {
     when:
     reactiveCommands.randomkey().subscribe { res ->
       conds.evaluate {
-        assert res == "TESTKEY"
+        assert res == "TESTKEY" || res == "TESTHM"
       }
     }
 
