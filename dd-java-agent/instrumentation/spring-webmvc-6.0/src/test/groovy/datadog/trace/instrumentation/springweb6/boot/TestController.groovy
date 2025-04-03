@@ -12,6 +12,8 @@ import org.springframework.web.servlet.view.RedirectView
 
 import jakarta.servlet.http.HttpServletRequest
 
+import java.util.concurrent.CompletableFuture
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 
 @Controller
@@ -27,9 +29,11 @@ class TestController {
 
   @RequestMapping("/forwarded")
   @ResponseBody
-  String forwarded(HttpServletRequest request) {
-    HttpServerTest.controller(FORWARDED) {
-      request.getHeader("x-forwarded-for")
+  CompletableFuture<String> forwarded(HttpServletRequest request) {
+    CompletableFuture.supplyAsync {
+      HttpServerTest.controller(FORWARDED) {
+        request.getHeader("x-forwarded-for")
+      }
     }
   }
 

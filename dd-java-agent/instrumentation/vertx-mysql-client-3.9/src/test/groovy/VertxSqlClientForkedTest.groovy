@@ -37,6 +37,13 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())
 
+  @Override
+  boolean useStrictTraceWrites() {
+    // given how the test without parent is done, we cannot guarantee that the handler callback finishes always
+    // after the sql span since things are going asynchronously. Indeed we should not enforce that unbuffered write.
+    false
+  }
+
   def "test #type"() {
     when:
     AsyncResult<RowSet<Row>> asyncResult = runUnderTrace("parent") {
