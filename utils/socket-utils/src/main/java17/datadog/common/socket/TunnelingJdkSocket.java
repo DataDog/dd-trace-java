@@ -36,7 +36,7 @@ final class TunnelingJdkSocket extends Socket {
   private boolean closed;
 
   protected static final int DEFAULT_BUFFER_SIZE = 8192;
-  // Initial buffer sizes to -1, meaning not set
+  // Indicate that the buffer size is not set by initializing to -1
   private int sendBufferSize = -1;
   private int receiveBufferSize = -1;
 
