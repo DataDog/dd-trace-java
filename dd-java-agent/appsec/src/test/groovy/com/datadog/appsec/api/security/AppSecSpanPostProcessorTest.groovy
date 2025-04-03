@@ -37,7 +37,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * producer.publishDataEvent(_, ctx, _, _)
     1 * ctx.commitDerivatives(traceSegment)
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close()
     1 * sampler.releaseOne()
     0 * _
@@ -62,7 +62,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * sampler.sampleRequest(_) >> false
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close()
     1 * sampler.releaseOne()
     0 * _
@@ -90,7 +90,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> null
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close() >> { throw new RuntimeException() }
     1 * sampler.releaseOne()
     0 * _
@@ -114,7 +114,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * reqCtx.getData(_) >> ctx
     1 * ctx.isKeepOpenForApiSecurityPostProcessing() >> true
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close()
     1 * sampler.releaseOne()
     0 * _
@@ -212,7 +212,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> true
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close()
     1 * sampler.releaseOne()
     0 * _
@@ -243,7 +243,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _) >> { throw new ExpiredSubscriberInfoException() }
     1 * ctx.setKeepOpenForApiSecurityPostProcessing(false)
-    1 * ctx.closeAdditive()
+    1 * ctx.closeWafContext()
     1 * ctx.close()
     1 * sampler.releaseOne()
     0 * _
