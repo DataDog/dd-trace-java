@@ -88,12 +88,11 @@ public class TunnelingJdkSocketTest {
     startServer(socketAddress);
     TunnelingJdkSocket clientSocket = createClient(socketPath);
 
-    int defaultBufferSize = clientSocket.getDefaultBufferSize();
-    assertEquals(defaultBufferSize, clientSocket.getSendBufferSize());
-    assertEquals(defaultBufferSize, clientSocket.getReceiveBufferSize());
-    assertEquals(defaultBufferSize, clientSocket.getStreamBufferSize());
+    assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getSendBufferSize());
+    assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getReceiveBufferSize());
+    assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getStreamBufferSize());
 
-    int newBufferSize = defaultBufferSize / 2;
+    int newBufferSize = TunnelingJdkSocket.DEFAULT_BUFFER_SIZE / 2;
     clientSocket.setSendBufferSize(newBufferSize);
     clientSocket.setReceiveBufferSize(newBufferSize / 2);
     assertEquals(newBufferSize, clientSocket.getSendBufferSize());
@@ -107,8 +106,12 @@ public class TunnelingJdkSocketTest {
         IllegalArgumentException.class, () -> clientSocket.setReceiveBufferSize(invalidBufferSize));
 
     clientSocket.close();
-    assertThrows(SocketException.class, () -> clientSocket.setSendBufferSize(defaultBufferSize));
-    assertThrows(SocketException.class, () -> clientSocket.setReceiveBufferSize(defaultBufferSize));
+    assertThrows(
+        SocketException.class,
+        () -> clientSocket.setSendBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
+    assertThrows(
+        SocketException.class,
+        () -> clientSocket.setReceiveBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
     assertThrows(SocketException.class, () -> clientSocket.getSendBufferSize());
     assertThrows(SocketException.class, () -> clientSocket.getReceiveBufferSize());
     assertThrows(SocketException.class, () -> clientSocket.getStreamBufferSize());

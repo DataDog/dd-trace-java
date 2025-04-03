@@ -35,10 +35,10 @@ final class TunnelingJdkSocket extends Socket {
   private boolean shutOut;
   private boolean closed;
 
-  // Indicate that the buffer size is not set by initializing to -1
+  protected static final int DEFAULT_BUFFER_SIZE = 8192;
+  // Initial buffer sizes to -1, meaning not set
   private int sendBufferSize = -1;
   private int receiveBufferSize = -1;
-  static final int DEFAULT_BUFFER_SIZE = 8192;
 
   TunnelingJdkSocket(final Path path) {
     this.unixSocketAddress = UnixDomainSocketAddress.of(path);
@@ -142,7 +142,7 @@ final class TunnelingJdkSocket extends Socket {
       throw new SocketException("Socket is closed");
     }
     if (sendBufferSize == -1) {
-      return defaultBufferSize;
+      return DEFAULT_BUFFER_SIZE;
     }
     return sendBufferSize;
   }
@@ -169,7 +169,7 @@ final class TunnelingJdkSocket extends Socket {
       throw new SocketException("Socket is closed");
     }
     if (receiveBufferSize == -1) {
-      return defaultBufferSize;
+      return DEFAULT_BUFFER_SIZE;
     }
     return receiveBufferSize;
   }
@@ -179,13 +179,9 @@ final class TunnelingJdkSocket extends Socket {
       throw new SocketException("Socket is closed");
     }
     if (sendBufferSize == -1 && receiveBufferSize == -1) {
-      return defaultBufferSize;
+      return DEFAULT_BUFFER_SIZE;
     }
     return Math.max(sendBufferSize, receiveBufferSize);
-  }
-
-  public int getDefaultBufferSize() {
-    return defaultBufferSize;
   }
 
   @Override
