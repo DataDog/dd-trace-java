@@ -109,6 +109,12 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+      status_code: 403,
+      type:'auto',
+      grpc_status_code: 10
+    ]
   }
 
   void 'override default actions by config'() {
@@ -117,6 +123,11 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+      status_code: 500,
+      type:'html',
+    ]
   }
 
   void 'override actions through reconfiguration'() {
@@ -145,6 +156,11 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 1
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+      status_code: 501,
+      type: 'json',
+    ]
   }
 
   void 'override on_match through reconfiguration'() {
@@ -539,8 +555,20 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     wafModule.ctxAndAddresses.get().actionInfoMap.size() == 2
-    wafModule.ctxAndAddresses.get().actionInfoMap.containsKey('block')
-    wafModule.ctxAndAddresses.get().actionInfoMap.containsKey('test')
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('block').parameters == [
+      status_code: 403,
+      type:'auto',
+      grpc_status_code: 10
+    ]
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
+    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
+      status_code: 302,
+      type:'xxx'
+    ]
+
+    cleanup:
+    release powerWAFModule
   }
 
   void 'replace actions through runtime configuration'() {
@@ -684,6 +712,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'no metrics are set if waf metrics are off'() {
     setup:
+    metrics = null
     injectSysConfig('appsec.waf.metrics', 'false')
     wafModule = new WAFModule() // replace the one created too soon
     setupWithStubConfigService()

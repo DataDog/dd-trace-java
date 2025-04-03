@@ -219,15 +219,15 @@ public class AppSecSystem {
   }
 
   private static WafConfig createWafConfig(Config config) {
-    WafConfig pwConfig = new WafConfig();
+    WafConfig wafConfig = new WafConfig();
     String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
-    if (keyRegexp != null) {
-      pwConfig.obfuscatorKeyRegex = keyRegexp;
+    if (keyRegexp != null && !keyRegexp.isEmpty()) {
+      wafConfig.obfuscatorKeyRegex = keyRegexp;
     }
     String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
-    if (valueRegexp != null) {
-      pwConfig.obfuscatorValueRegex = valueRegexp;
+    if (valueRegexp != null && !valueRegexp.isEmpty()) {
+      wafConfig.obfuscatorValueRegex = valueRegexp;
     }
-    return pwConfig;
+    return wafConfig;
   }
 }
