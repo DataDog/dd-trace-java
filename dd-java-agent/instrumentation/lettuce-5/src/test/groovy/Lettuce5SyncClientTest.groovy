@@ -1,6 +1,3 @@
-import org.testcontainers.utility.DockerImageName
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
 import datadog.trace.api.Config
