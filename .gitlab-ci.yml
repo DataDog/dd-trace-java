@@ -359,6 +359,7 @@ muzzle-dep-report:
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
+    JETTY_AVAILABLE_PROCESSORS: 4 # Jetty incorrectly calculates processor count in containers
   script:
     - > 
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];

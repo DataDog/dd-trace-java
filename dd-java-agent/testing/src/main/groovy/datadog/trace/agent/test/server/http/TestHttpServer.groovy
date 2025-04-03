@@ -125,12 +125,6 @@ class TestHttpServer implements AutoCloseable {
         internalServer.addConnector(https)
 
         customizer.call(internalServer)
-
-        // Jetty uses a heuristic to set reserved threads that breaks in CI
-        // It depends on Runtime.getRuntime().availableProcessors() which is not always correct in kubernetes
-        // Set explicitly to a reasonable number
-        (internalServer.getThreadPool() as QueuedThreadPool).setReservedThreads(10)
-
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
         internalServer.stopAtShutdown = true
