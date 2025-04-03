@@ -595,13 +595,19 @@ public class WAFModule implements AppSecModule {
 
     private Waf.ResultWithData runWafContext(
         WafContext wafContext, WafMetrics metrics, DataBundle newData) throws AbstractWafException {
-      return wafContext.run(newData, LIMITS, metrics);
+      return wafContext.run(
+          new DataBundleMapWrapper(ctxAndAddresses.get().addressesOfInterest, newData),
+          LIMITS,
+          metrics);
     }
   }
 
   private Waf.ResultWithData runWafTransient(
-      WafContext wafContext, WafMetrics metrics, DataBundle bundle) throws AbstractWafException {
-    return wafContext.runEphemeral(new DataBundleMapWrapper(bundle), LIMITS, metrics);
+      WafContext wafContext, WafMetrics metrics, DataBundle newData) throws AbstractWafException {
+    return wafContext.runEphemeral(
+        new DataBundleMapWrapper(ctxAndAddresses.get().addressesOfInterest, newData),
+        LIMITS,
+        metrics);
   }
 
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
