@@ -7,6 +7,7 @@ import spock.lang.Shared
 import spock.lang.TempDir
 
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
+import spock.util.concurrent.PollingConditions
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -70,6 +71,7 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
   def "check native instrumentation"() {
     setup:
     String url = "http://localhost:${httpPort}/hello"
+    def conditions = new PollingConditions(initialDelay: 2, timeout: 6)
 
     when:
     def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
@@ -81,13 +83,9 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
 
-    // sanity test for profiler generating JFR files
-    // the recording is collected after 1 second of execution
-    // make sure the app has been up and running for at least 1.5 seconds
-    while (System.nanoTime() - ts < 1_500_000_000L) {
-      LockSupport.parkNanos(1_000_000)
+    conditions.eventually {
+      assert countJfrs() > 0
     }
-    countJfrs() > 0
   }
 
   int countJfrs() {
