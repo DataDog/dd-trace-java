@@ -15,7 +15,6 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.locks.LockSupport
 
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
   @Shared
@@ -77,7 +76,6 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
 
     then:
-    def ts = System.nanoTime()
     def responseBodyStr = response.body().string()
     responseBodyStr != null
     responseBodyStr.contains("Hello world")
