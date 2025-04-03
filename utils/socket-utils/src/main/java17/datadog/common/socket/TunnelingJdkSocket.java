@@ -38,7 +38,7 @@ final class TunnelingJdkSocket extends Socket {
   // Indicate that the buffer size is not set by initializing to -1
   private int sendBufferSize = -1;
   private int receiveBufferSize = -1;
-  private int defaultBufferSize = 8192;
+  static final int DEFAULT_BUFFER_SIZE = 8192;
 
   TunnelingJdkSocket(final Path path) {
     this.unixSocketAddress = UnixDomainSocketAddress.of(path);
