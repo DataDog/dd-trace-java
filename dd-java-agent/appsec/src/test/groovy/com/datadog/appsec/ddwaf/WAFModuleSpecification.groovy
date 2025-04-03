@@ -17,7 +17,6 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
-import com.datadog.ddwaf.NativeWafHandle
 import com.datadog.ddwaf.WafBuilder
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.util.stacktrace.StackTraceEvent
@@ -209,7 +208,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 501 &&
         rba.blockingContentType == BlockingContentType.JSON
     })
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -242,7 +241,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -283,7 +282,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -306,7 +305,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -362,7 +361,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -381,7 +380,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false)
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1504,7 +1503,7 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * ctx.isWafContextClosed()
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false) >> {
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false) >> {
       wafContext
     }
     2 * ctx.getWafMetrics()
@@ -1543,7 +1542,7 @@ class WAFModuleSpecification extends DDSpecification {
     })
     1 * flow.isBlocking()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.getOrCreateWafContext(_ as NativeWafHandle, true, false) >> {
+    1 * ctx.getOrCreateWafContext(_ as WafBuilder, true, false) >> {
       wafContext
     }
     2 * ctx.getWafMetrics()
