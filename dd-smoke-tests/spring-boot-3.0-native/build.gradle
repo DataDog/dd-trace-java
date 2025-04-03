@@ -76,6 +76,7 @@ if (version >= 17) {
     jvmArgs "-Ddd.profiling.enabled=true"
   }
 } else {
+  project.logger.lifecycle("Skipping test: testJvm: {}, matcher: {} {}", testJvm, matcher, matcher?.size())
   tasks.withType(Test).configureEach {
     enabled = false
   }
