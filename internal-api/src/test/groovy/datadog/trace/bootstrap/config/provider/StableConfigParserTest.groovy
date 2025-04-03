@@ -70,7 +70,6 @@ apm_configuration_rules:
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
     injectEnvConfig("DD_SERVICE", "mysvc")
     injectEnvConfig("DD_TAGS", "team:apm,component:web")
-    //    injectSysConfig("--DCustomKey", "value")
     def match = StableConfigParser.selectorMatch(origin, matches, operator, key)
 
     then:
