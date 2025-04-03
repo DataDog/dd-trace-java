@@ -561,14 +561,11 @@ class WAFModuleSpecification extends DDSpecification {
       type:'auto',
       grpc_status_code: 10
     ]
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
-    powerWAFModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('test') != null
+    wafModule.ctxAndAddresses.get().actionInfoMap.get('test').parameters == [
       status_code: 302,
       type:'xxx'
     ]
-
-    cleanup:
-    release powerWAFModule
   }
 
   void 'replace actions through runtime configuration'() {
