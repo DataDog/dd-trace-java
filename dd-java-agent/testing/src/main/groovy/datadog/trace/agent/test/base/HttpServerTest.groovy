@@ -46,8 +46,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.WebSocketListener
-import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -402,6 +400,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testWebsockets() {
     server instanceof WebsocketServer
+  }
+
+  WebsocketClient websocketClient() {
+    new OkHttpWebsocketClient()
   }
 
   @Override
@@ -1923,12 +1925,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-
+    def client = websocketClient()
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     runUnderTrace("parent", {
       if (messages[0] instanceof String) {
@@ -1970,21 +1969,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads())
+    def client = websocketClient()
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads() || client.supportMessageChunks())
 
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    def ws = client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     wsServer.setMaxPayloadSize(10)
+    // in case the client can also send partial fragments
+    client.setSplitChunksAfter(10)
     if (message instanceof String) {
-      ws.send(message as String)
+      client.send(message as String)
     } else {
-      ws.send(ByteString.of(message as byte[]))
+      client.send(message as byte[])
     }
-    ws.close(1000, "goodbye")
+    client.close(1000, "goodbye")
 
     then:
     assertTraces(3, {

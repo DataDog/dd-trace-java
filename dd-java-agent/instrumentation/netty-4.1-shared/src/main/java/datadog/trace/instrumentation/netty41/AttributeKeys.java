@@ -34,8 +34,11 @@ public final class AttributeKeys {
   public static final AttributeKey<Boolean> BLOCKED_RESPONSE_KEY =
       attributeKey("datadog.server.blocked_response");
 
-  public static final AttributeKey<HandlerContext.Sender> WEBSOCKET_HANDLER_CONTEXT =
-      attributeKey("datadog.server.websocket.handler_context");
+  public static final AttributeKey<HandlerContext.Sender> WEBSOCKET_SENDER_HANDLER_CONTEXT =
+      attributeKey("datadog.server.websocket.sender.handler_context");
+
+  public static final AttributeKey<HandlerContext.Receiver> WEBSOCKET_RECEIVER_HANDLER_CONTEXT =
+      attributeKey("datadog.server.websocket.receiver.handler_context");
 
   /**
    * Generate an attribute key or reuse the one existing in the global app map. This implementation

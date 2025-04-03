@@ -22,7 +22,6 @@ import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
-import datadog.trace.instrumentation.netty41.server.websocket.WebSocketProtocolHandshakeHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -33,7 +32,6 @@ import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.Attribute;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -80,7 +78,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
       packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketProtocolHandshakeHandler",
       packageName + ".server.websocket.WebSocketServerTracingHandler",
       packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
       packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
@@ -157,8 +154,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
         } else if (handler instanceof HttpResponseEncoder) {
           toAdd = HttpServerResponseTracingHandler.INSTANCE;
           toAdd2 = MaybeBlockResponseHandler.INSTANCE;
-        } else if (handler instanceof WebSocketServerProtocolHandler) {
-          toAdd = WebSocketProtocolHandshakeHandler.INSTANCE;
         } else
         // Client pipeline handlers
         if (handler instanceof HttpClientCodec) {
