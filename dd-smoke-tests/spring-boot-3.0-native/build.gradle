@@ -13,6 +13,8 @@ def java17Home = System.getenv('JAVA_17_HOME')
 // Check 'testJvm' gradle command parameter to be at least GraalVM 17
 def matcher = testJvm?.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
 def version = matcher?.size() == 1 ? Integer.parseInt(matcher[0][1]) : -1
+project.logger.lifecycle("TESTLOG: testJvm: {}, matcher: {} {}", testJvm, matcher, matcher?.size())
+println("TESTLOG2")
 if (version >= 17) {
   // Retrieve GRAALVM_HOME from JVM environment variables
   def testJvmEnv = "JAVA_${testJvm}_HOME"
@@ -76,7 +78,6 @@ if (version >= 17) {
     jvmArgs "-Ddd.profiling.enabled=true"
   }
 } else {
-  project.logger.lifecycle("Skipping test: testJvm: {}, matcher: {} {}", testJvm, matcher, matcher?.size())
   tasks.withType(Test).configureEach {
     enabled = false
   }
