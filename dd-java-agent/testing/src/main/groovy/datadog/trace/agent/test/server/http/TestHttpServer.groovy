@@ -19,7 +19,6 @@ import org.eclipse.jetty.server.SslConnectionFactory
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.util.ssl.SslContextFactory
-import org.eclipse.jetty.util.thread.QueuedThreadPool
 
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
