@@ -4,6 +4,7 @@ import com.datadog.crashtracking.CrashUploader;
 import com.datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import datadog.trace.agent.tooling.profiler.EnvironmentChecker;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -124,6 +125,12 @@ public final class AgentCLI {
     }
 
     System.out.println("Scan finished");
+  }
+
+  public static void checkProfilerEnv(String temp) {
+    if (!EnvironmentChecker.checkEnvironment(temp)) {
+      System.exit(1);
+    }
   }
 
   private static void recursiveDependencySearch(Consumer<File> invoker, File origin)
