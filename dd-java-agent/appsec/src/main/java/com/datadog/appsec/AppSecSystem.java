@@ -7,11 +7,14 @@ import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.ddwaf.WAFModule;
+import com.datadog.appsec.ddwaf.WafInitialization;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafBuilder;
+import com.datadog.ddwaf.WafConfig;
 import datadog.appsec.api.blocking.Blocking;
 import datadog.appsec.api.blocking.BlockingService;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -43,6 +46,7 @@ public class AppSecSystem {
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
+  private static WafBuilder wafBuilder;
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -64,7 +68,11 @@ public class AppSecSystem {
       return;
     }
     log.debug("AppSec is starting ({})", appSecEnabledConfig);
-
+    if (!WafInitialization.ONLINE) {
+      log.debug("In-app WAF initialization failed. See previous log entries");
+      return;
+    }
+    wafBuilder = new WafBuilder(createWafConfig(config));
     REPLACEABLE_EVENT_PRODUCER = new ReplaceableEventProducerService();
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
@@ -86,7 +94,7 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
             config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
-    APP_SEC_CONFIG_SERVICE.init();
+    APP_SEC_CONFIG_SERVICE.init(wafBuilder);
 
     sco.createRemaining(config);
 
@@ -105,7 +113,7 @@ public class AppSecSystem {
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
-    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
+    APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling(AppSecSystem.wafBuilder);
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
 
@@ -143,8 +151,8 @@ public class AppSecSystem {
       RESET_SUBSCRIPTION_SERVICE = null;
     }
     Blocking.setBlockingService(BlockingService.NOOP);
-
     APP_SEC_CONFIG_SERVICE.close();
+    wafBuilder.destroy();
   }
 
   private static void loadModules(EventDispatcher eventDispatcher, Monitoring monitoring) {
@@ -157,7 +165,7 @@ public class AppSecSystem {
       try {
         AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject;
         cfgObject = APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
-        module.config(cfgObject);
+        module.config(cfgObject, wafBuilder);
         cfgObject.commit();
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
         log.error("Startup of appsec module {} failed", module.getName(), t);
@@ -208,5 +216,18 @@ public class AppSecSystem {
     } else {
       return Collections.emptySet();
     }
+  }
+
+  private static WafConfig createWafConfig(Config config) {
+    WafConfig wafConfig = new WafConfig();
+    String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
+    if (keyRegexp != null && !keyRegexp.isEmpty()) {
+      wafConfig.obfuscatorKeyRegex = keyRegexp;
+    }
+    String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
+    if (valueRegexp != null && !valueRegexp.isEmpty()) {
+      wafConfig.obfuscatorValueRegex = valueRegexp;
+    }
+    return wafConfig;
   }
 }

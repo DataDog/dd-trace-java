@@ -913,7 +913,7 @@ class GatewayBridgeSpecification extends DDSpecification {
         }
 
         @Override
-        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
           return null
         }
 
