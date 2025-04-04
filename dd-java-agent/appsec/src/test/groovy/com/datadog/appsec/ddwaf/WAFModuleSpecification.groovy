@@ -18,6 +18,8 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.ddwaf.WafBuilder
+import com.datadog.ddwaf.WafConfig
+import datadog.trace.api.Config
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
@@ -33,6 +35,7 @@ import datadog.trace.test.util.DDSpecification
 import com.datadog.ddwaf.WafContext
 import com.datadog.ddwaf.Waf
 import com.datadog.ddwaf.WafMetrics
+import org.apache.groovy.parser.antlr4.util.StringUtils
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -97,6 +100,16 @@ class WAFModuleSpecification extends DDSpecification {
 
   private void setupWithStubConfigService(String location = "test_multi_config.json") {
     service = new StubAppSecConfigService(location)
+    WafConfig wafConfig = new WafConfig()
+    wafConfig.obfuscatorKeyRegex = StringUtils.isEmpty(Config.get().getAppSecObfuscationParameterKeyRegexp()) ?
+      null : Config.get().getAppSecObfuscationParameterKeyRegexp()
+    wafConfig.obfuscatorValueRegex = StringUtils.isEmpty(Config.get().getAppSecObfuscationParameterValueRegexp())?
+      null : Config.get().getAppSecObfuscationParameterValueRegexp()
+    if(StringUtils.isEmpty(wafConfig.obfuscatorKeyRegex)) {
+      wafBuilder = new WafBuilder()
+    } else {
+      wafBuilder = new WafBuilder(wafConfig)
+    }
     service.init(wafBuilder)
     wafModule.config(service, wafBuilder)
 
