@@ -570,6 +570,7 @@ public class Config {
   private final Set<String> experimentalFeaturesEnabled;
 
   private final boolean jdkSocketEnabled;
+  private final boolean experimentalProcessTagsEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2010,6 +2011,9 @@ public class Config {
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    this.experimentalProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROCESS_TAGS_ENABLED, false);
 
     log.debug("New instance: {}", this);
   }
@@ -3615,6 +3619,10 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
+  }
+
+  public boolean isExperimentalProcessTagsEnabled() {
+    return experimentalProcessTagsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */

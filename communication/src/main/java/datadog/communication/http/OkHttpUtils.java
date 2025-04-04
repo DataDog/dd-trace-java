@@ -210,6 +210,26 @@ public final class OkHttpUtils {
       builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
 
+    if (Config.get().isExperimentalProcessTagsEnabled()) {
+      // custom X-Datadog-Process-Tags
+      String customTags = getCustomTags();
+      String existingProcessTags = headers.getOrDefault("X-Datadog-Process-Tags", "");
+      if (!existingProcessTags.isEmpty() && !existingProcessTags.endsWith(",")) {
+        existingProcessTags += ",";
+      }
+      if (customTags.length() > 0) {
+        headers.put("X-Datadog-Process-Tags", existingProcessTags + customTags);
+      }
+    }
+
+    for (Map.Entry<String, String> e : headers.entrySet()) {
+      builder.addHeader(e.getKey(), e.getValue());
+    }
+
+    return builder;
+  }
+
+  private static String getCustomTags() {
     String javaCommand = System.getProperty("sun.java.command", "unknown");
     String[] parts = javaCommand.split(" ");
     String mainTarget = parts.length > 0 ? parts[0] : "unknown";
@@ -246,24 +266,34 @@ public final class OkHttpUtils {
     String jbossMode = System.getProperty("jboss.server.mode", "unknown");
     String jbossServerName = System.getProperty("jboss.server.name", "unknown");
 
-    String customTags =
-        String.format(
-            "JavaMainClass:%s,JavaJarFile:%s,JavaJarPath:%s,JbossHome:%s,JbossMode:%s,JbossServerName:%s",
-            javaMainClass, javaJarFile, javaJarPath, jbossHome, jbossMode, jbossServerName);
-
-    String existingProcessTags = headers.getOrDefault("X-Datadog-Process-Tags", "");
-    if (!existingProcessTags.isEmpty() && !existingProcessTags.endsWith(",")) {
-      existingProcessTags += ",";
+    StringBuilder customTags = new StringBuilder();
+    if (!"unknown".equals(javaMainClass)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("java_main_class:").append(javaMainClass);
     }
-    headers.put("X-Datadog-Process-Tags", existingProcessTags + customTags);
+    if (!"unknown".equals(javaJarFile)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("java_jar_file:").append(javaJarFile);
+    }
+    if (!"unknown".equals(javaJarPath)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("java_jar_path:").append(javaJarPath);
+    }
+    if (!"unknown".equals(jbossHome)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("jboss_home:").append(jbossHome);
+    }
+    if (!"unknown".equals(jbossMode)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("jboss_mode:").append(jbossMode);
+    }
+    if (!"unknown".equals(jbossServerName)) {
+      if (customTags.length() > 0) customTags.append(",");
+      customTags.append("jboss_server_name:").append(jbossServerName);
+    }
 
     System.out.println(customTags);
-
-    for (Map.Entry<String, String> e : headers.entrySet()) {
-      builder.addHeader(e.getKey(), e.getValue());
-    }
-
-    return builder;
+    return customTags.toString();
   }
 
   public static Request.Builder prepareRequest(
