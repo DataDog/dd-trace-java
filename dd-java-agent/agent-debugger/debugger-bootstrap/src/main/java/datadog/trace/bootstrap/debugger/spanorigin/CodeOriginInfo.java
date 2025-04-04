@@ -8,9 +8,7 @@ import java.lang.reflect.Method;
 
 public class CodeOriginInfo {
   public static void entry(Method method) {
-    if (InstrumenterConfig.get().isCodeOriginEnabled()) {
-      captureCodeOrigin(method, true);
-    }
+    captureCodeOrigin(method, true);
   }
 
   public static void exit(AgentSpan span) {

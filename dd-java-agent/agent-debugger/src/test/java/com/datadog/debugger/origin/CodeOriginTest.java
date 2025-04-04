@@ -7,6 +7,9 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -44,6 +47,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.agent.builder.AgentBuilder.InitializationStrategy;
+import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy;
+import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
 import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,7 +101,21 @@ public class CodeOriginTest extends CapturingTestBase {
 
     setFieldInConfig(Config.get(), "debuggerCodeOriginEnabled", true);
     setFieldInConfig(Config.get(), "distributedDebuggerEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
+
+    new AgentBuilder.Default()
+        .with(RedefinitionStrategy.RETRANSFORMATION)
+        .with(InitializationStrategy.NoOp.INSTANCE)
+        .with(TypeStrategy.Default.REDEFINE)
+        .type(nameStartsWith("com.datadog.debugger."))
+        .transform(
+            (builder, typeDescription, classLoader, module, protectionDomain) ->
+                builder.visit(
+                    Advice.to(CodeOriginTestAdvice.class)
+                        .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))))
+    //        .installOn(instr)
+    ;
   }
 
   @Test
