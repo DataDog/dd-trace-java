@@ -237,6 +237,7 @@ project.afterEvaluate {
 
   tasks.withType(JavaExec).configureEach {
     if (!it.maxHeapSize) {
+      project.logger.lifecycle("SETTING MAX HEAP for main class {}", (String)it.mainClass)
       it.maxHeapSize('256M')
     }
   }

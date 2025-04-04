@@ -27,7 +27,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
       .clusterSettings(
       ClusterSettings.builder()
       .description("some-description")
-      .applyConnectionString(new ConnectionString("mongodb://localhost:$port"))
+      .applyConnectionString(new ConnectionString("mongodb://${mongoDbContainer.getHost()}:$port"))
       .build())
       .build())
   }
@@ -56,7 +56,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
   def "test create collection no description"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName, toCallback {})
