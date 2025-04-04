@@ -1,0 +1,15 @@
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
+
+test {
+    useJUnit()
+    environment "DD_CIVISIBILITY_TEST_ORDER", "FAILFAST"
+}
