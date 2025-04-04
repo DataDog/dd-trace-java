@@ -78,7 +78,7 @@ public class WafBenchmark {
     AppSecConfig waf = cfg.get("waf");
     wafBuilder = new WafBuilder();
     RuleSetInfo[] infoRef = new RuleSetInfo[1];
-    wafBuilder.addOrUpdateRuleConfig("waf", waf.getRawConfig(), infoRef);
+    wafBuilder.addOrUpdateConfig("waf", waf.getRawConfig(), infoRef);
 
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(

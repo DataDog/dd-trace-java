@@ -142,15 +142,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           if (newConfig == null || newConfig.getRawConfig() == null) {
             log.debug("AppSec config given by remote config was pulled. Removing WAF config");
-            wafBuilder.removeRuleConfig(configKey);
+            wafBuilder.removeConfig(configKey);
           } else {
             if (defaultConfigActivated) {
               log.debug("Removing default config");
-              wafBuilder.removeRuleConfig(DEFAULT_WAF_CONFIG_RULE);
+              wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
               defaultConfigActivated = false;
             }
             try {
-              wafBuilder.addOrUpdateRuleConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
             } catch (InvalidRuleSetException e) {
               throw new RuntimeException(e);
             }
@@ -168,11 +168,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
           if (newConfig == null) {
             currentAppSecConfig.mergedAsmData.removeConfig(configKey);
-            wafBuilder.removeRuleConfig(configKey);
+            wafBuilder.removeConfig(configKey);
           } else {
             currentAppSecConfig.mergedAsmData.addConfig(configKey, newConfig);
             try {
-              wafBuilder.addOrUpdateRuleConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
             } catch (InvalidRuleSetException e) {
               throw new RuntimeException(e);
             }
@@ -189,12 +189,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           DirtyStatus dirtyStatus;
           if (newConfig == null) {
             dirtyStatus = currentAppSecConfig.userConfigs.removeConfig(configKey);
-            wafBuilder.removeRuleConfig(configKey);
+            wafBuilder.removeConfig(configKey);
           } else {
             AppSecUserConfig userCfg = newConfig.build(configKey);
             dirtyStatus = currentAppSecConfig.userConfigs.addConfig(userCfg);
             try {
-              wafBuilder.addOrUpdateRuleConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
+              wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig(), ruleSetInfo);
             } catch (InvalidRuleSetException e) {
               throw new RuntimeException(e);
             }

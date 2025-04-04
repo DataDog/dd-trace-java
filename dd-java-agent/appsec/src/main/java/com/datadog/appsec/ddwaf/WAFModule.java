@@ -18,11 +18,11 @@ import com.datadog.appsec.gateway.GatewayContext;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.datadog.ddwaf.NativeWafHandle;
 import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
 import com.datadog.ddwaf.exception.InternalWafException;
@@ -263,7 +263,7 @@ public class WAFModule implements AppSecModule {
     CtxAndAddresses newContextAndAddresses;
     try {
       RuleSetInfo[] infoRef = new RuleSetInfo[1];
-      wafBuilder.addOrUpdateRuleConfig(
+      wafBuilder.addOrUpdateConfig(
           config.getKey(), config.getMergedUpdateConfig().getRawConfig(), infoRef);
       initReport = infoRef[0];
 
@@ -278,15 +278,15 @@ public class WAFModule implements AppSecModule {
 
       log.info(
           "Created new WAF context with rules ({} OK, {} BAD), version {}",
-          initReport.getNumRulesOK(),
-          initReport.getNumRulesError(),
+          initReport.getNumConfigOK(),
+          initReport.getNumConfigError(),
           initReport.rulesetVersion);
-      NativeWafHandle nativeWafHandle = wafBuilder.buildNativeWafHandleInstance(null);
+      WafHandle wafHandle = wafBuilder.buildWafHandleInstance(null);
       newContextAndAddresses =
           new CtxAndAddresses(
-              getUsedAddresses(nativeWafHandle),
+              getUsedAddresses(wafHandle),
               calculateEffectiveActions(ctxAndAddresses.get(), config.getMergedUpdateConfig()));
-      nativeWafHandle.destroy();
+      wafHandle.destroy();
       this.statsReporter.rulesVersion = initReport.rulesetVersion;
     } catch (InvalidRuleSetException irse) {
       initReport = irse.ruleSetInfo;
@@ -342,8 +342,8 @@ public class WAFModule implements AppSecModule {
     return singletonList(new WAFDataCallback());
   }
 
-  private static Collection<Address<?>> getUsedAddresses(NativeWafHandle nativeWafHandle) {
-    String[] usedAddresses = nativeWafHandle.getKnownAddresses();
+  private static Collection<Address<?>> getUsedAddresses(WafHandle wafHandle) {
+    String[] usedAddresses = wafHandle.getKnownAddresses();
     Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
       Address<?> address = KnownAddresses.forName(addrKey);

@@ -45,9 +45,9 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
       return;
     }
 
-    segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.getErrors()));
-    segment.setTagTop(RULES_LOADED, report.getNumRulesOK());
-    segment.setTagTop(RULE_ERROR_COUNT, report.getNumRulesError());
+    segment.setTagTop(RULE_ERRORS, RULES_ERRORS_ADAPTER.toJson(report.getAllErrors()));
+    segment.setTagTop(RULES_LOADED, report.getNumConfigOK());
+    segment.setTagTop(RULE_ERROR_COUNT, report.getNumConfigError());
     segment.setTagTop(WAF_VERSION, Waf.LIB_VERSION);
 
     segment.setTagTop(Tags.ASM_KEEP, true);
