@@ -478,20 +478,21 @@ public class DebuggerContext {
     return null;
   }
 
-  public static String captureCodeOrigin(Method method, boolean entry) {
-    return captureCodeOrigin(method, entry, true);
+  public static void marker() {}
+
+  public static void captureCodeOrigin(Method method, boolean entry) {
+    captureCodeOrigin(method, entry, true);
   }
 
-  public static String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
+  public static void captureCodeOrigin(Method method, boolean entry, boolean instrument) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(method, entry, instrument);
+        recorder.captureCodeOrigin(method, entry, instrument);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
     }
-    return null;
   }
 
   public static void handleException(Throwable t, AgentSpan span) {
