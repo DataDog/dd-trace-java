@@ -97,13 +97,13 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
 
   // DeepOops exception stacktrace:
   // java.lang.RuntimeException: oops
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException(ServerDebuggerTestApplication.java:190)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5(ServerDebuggerTestApplication.java:210)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4(ServerDebuggerTestApplication.java:206)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3(ServerDebuggerTestApplication.java:202)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2(ServerDebuggerTestApplication.java:198)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException1(ServerDebuggerTestApplication.java:194)
-  // datadog.smoketest.debugger.ServerDebuggerTestApplication.runTracedMethod(ServerDebuggerTestApplication.java:140)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException(ServerDebuggerTestApplication.java:190)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5(ServerDebuggerTestApplication.java:210)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4(ServerDebuggerTestApplication.java:206)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3(ServerDebuggerTestApplication.java:202)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2(ServerDebuggerTestApplication.java:198)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException1(ServerDebuggerTestApplication.java:194)
+  // ddog.smoketest.debugger.ServerDebuggerTestApplication.runTracedMethod(ServerDebuggerTestApplication.java:140)
   @Test
   @DisplayName("test3CapturedFrames")
   @DisabledIf(
@@ -135,7 +135,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 1
@@ -143,7 +143,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 2
@@ -151,7 +151,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             return true;
@@ -196,7 +196,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 1
@@ -204,7 +204,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 2
@@ -212,7 +212,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 3
@@ -220,7 +220,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             // snapshot 4
@@ -228,7 +228,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
             assertEquals(
                 "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             return true;
@@ -262,7 +262,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
                 "lambdaOops",
                 snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
             assertEquals(
-                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithLambdaException",
+                "ddog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithLambdaException",
                 snapshot.getStack().get(0).getFunction());
             assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
             return true;

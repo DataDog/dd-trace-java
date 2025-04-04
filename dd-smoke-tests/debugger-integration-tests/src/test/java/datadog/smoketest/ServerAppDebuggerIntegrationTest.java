@@ -11,6 +11,7 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
+import ddog.smoketest.debugger.ServerDebuggerTestApplication;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +29,7 @@ import org.junit.jupiter.api.TestInfo;
 
 public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String SERVER_DEBUGGER_TEST_APP_CLASS =
-      "datadog.smoketest.debugger.ServerDebuggerTestApplication";
+      ServerDebuggerTestApplication.class.getName();
   protected static final String CONTROL_URL = "/control";
   protected static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
   protected static final ProbeId PROBE_ID2 = new ProbeId("1233565367", 12);
