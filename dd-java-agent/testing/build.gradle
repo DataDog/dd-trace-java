@@ -38,6 +38,10 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
 
+configurations.api {
+  exclude group: 'org.yaml', module: 'snakeyaml' // we vendor this in the agent jar
+}
+
 dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent
