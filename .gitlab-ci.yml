@@ -79,6 +79,7 @@ default:
 
 # CI_NODE_INDEX and CI_NODE_TOTAL are 1-indexed and not always set. These steps normalize the numbers for jobs
 .normalize_node_index: &normalize_node_index
+  - if [ "$CI_NO_SPLIT" == "true" ] ; then CI_NODE_INDEX=1; CI_NODE_TOTAL=1; fi # A job uses parallel but doesn't intend to split by index
   - if [ -n "$CI_SPLIT" ]; then CI_NODE_INDEX="${CI_SPLIT%%/*}"; CI_NODE_TOTAL="${CI_SPLIT##*/}"; fi
   - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
   - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
@@ -522,6 +523,7 @@ test_smoke_graalvm:
   variables:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
+    CI_NO_SPLIT: "true"
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21"]
