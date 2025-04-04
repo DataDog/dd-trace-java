@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static datadog.smoketest.debugger.TestApplicationHelper.waitForSpecificLine;
-
 import com.datadog.debugger.probe.LogProbe;
 import java.io.IOException;
 import java.nio.file.Path;
