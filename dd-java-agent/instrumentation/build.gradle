@@ -59,6 +59,9 @@ subprojects { Project subProj ->
       def name = "java$version.majorVersion"
       jdkCompile = "main_${name}Implementation"
     }
+    configurations.muzzleBootstrap {
+      exclude group: 'org.yaml', module : 'snakeyaml' // we vendor this in the agent jar
+    }
     dependencies {
       // Apply common dependencies for instrumentation.
       implementation project(':dd-trace-api')

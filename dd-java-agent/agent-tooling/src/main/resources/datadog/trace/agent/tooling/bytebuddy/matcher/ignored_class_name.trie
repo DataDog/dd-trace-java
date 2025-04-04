@@ -357,6 +357,7 @@
 0 org.springframework.util.StreamUtils
 # Included for IAST Spring mvc unvalidated redirect and xss vulnerability
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
+0 org.springframework.web.method.support.InvocableHandlerMethod
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # Need for IAST sink
