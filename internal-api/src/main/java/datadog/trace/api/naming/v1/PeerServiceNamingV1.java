@@ -1,6 +1,7 @@
 package datadog.trace.api.naming.v1;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -52,8 +53,8 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     return true;
   }
 
-  private void resolve(@Nonnull final Map<String, Object> unsafeTags) {
-    final Object component = unsafeTags.get(Tags.COMPONENT);
+  private void resolve(@Nonnull final TagMap unsafeTags) {
+    final Object component = unsafeTags.getObject(Tags.COMPONENT);
     // avoid issues with UTF8ByteString or others
     final String componentString = component == null ? null : component.toString();
     final String override = overridesByComponent.get(componentString);
@@ -70,15 +71,14 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     resolveBy(unsafeTags, DEFAULT_PRECURSORS);
   }
 
-  private boolean resolveBy(
-      @Nonnull final Map<String, Object> unsafeTags, @Nullable final String[] precursors) {
+  private boolean resolveBy(@Nonnull final TagMap unsafeTags, @Nullable final String[] precursors) {
     if (precursors == null) {
       return false;
     }
     Object value = null;
     String source = null;
     for (String precursor : precursors) {
-      value = unsafeTags.get(precursor);
+      value = unsafeTags.getObject(precursor);
       if (value != null) {
         // we have a match. Use the tag name for the source
         source = precursor;
@@ -90,7 +90,7 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     return true;
   }
 
-  private void set(@Nonnull final Map<String, Object> unsafeTags, Object value, String source) {
+  private void set(@Nonnull final TagMap unsafeTags, Object value, String source) {
     if (value != null) {
       unsafeTags.put(Tags.PEER_SERVICE, value);
       unsafeTags.put(DDTags.PEER_SERVICE_SOURCE, source);
@@ -99,13 +99,12 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
 
   @Nonnull
   @Override
-  public Map<String, Object> tags(@Nonnull final Map<String, Object> unsafeTags) {
+  public void tags(@Nonnull final TagMap unsafeTags) {
     // check span.kind eligibility
-    final Object kind = unsafeTags.get(Tags.SPAN_KIND);
+    final Object kind = unsafeTags.getObject(Tags.SPAN_KIND);
     if (Tags.SPAN_KIND_CLIENT.equals(kind) || Tags.SPAN_KIND_PRODUCER.equals(kind)) {
       // we can calculate the peer service now
       resolve(unsafeTags);
     }
-    return unsafeTags;
   }
 }
