@@ -1,12 +1,23 @@
 package datadog.smoketest
 
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.nio.file.Paths
+
+
 abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
   static final String LIB_INJECTION_ENABLED_FLAG = 'DD_INJECTION_ENABLED'
   static final String LIB_INJECTION_FORCE_FLAG = 'DD_INJECT_FORCE'
 
   @Override
   ProcessBuilder createProcessBuilder() {
+
     def jarPath = System.getProperty("datadog.smoketest.shadowJar.path")
+    if (extraAgentFilename() != null) {
+      def renamedJar = Paths.get(jarPath).getParent().resolve(extraAgentFilename())
+      Files.copy(Paths.get(jarPath), renamedJar, StandardCopyOption.REPLACE_EXISTING)
+      jarPath = renamedJar.toString()
+    }
     def command = []
     command+= javaPath()
     command.addAll(defaultJavaProperties)
@@ -27,6 +38,11 @@ abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
 
   abstract boolean isLibInjectionEnabled()
   abstract boolean isLibInjectionForced()
+
+  String extraAgentFilename() {
+    return null
+  }
+
 
   boolean isExpectingTrace() {
     return !isLibInjectionEnabled() || isLibInjectionForced()
@@ -75,6 +91,29 @@ class LibInjectionForcedTest extends MultipleAgentGuardrailsTest {
 
   @Override
   boolean isLibInjectionForced() {
+    return true
+  }
+}
+
+// Test that injection still works if we have to agent if one of them is the aws emr log4j patcher
+class LibsInjectionWorksEmr extends MultipleAgentGuardrailsTest {
+  @Override
+  boolean isLibInjectionEnabled() {
+    return true
+  }
+
+  @Override
+  boolean isLibInjectionForced() {
+    return false
+  }
+
+  @Override
+  String extraAgentFilename() {
+    return "Log4jHotPatchFat.jar"
+  }
+
+  @Override
+  boolean isExpectingTrace() {
     return true
   }
 }
