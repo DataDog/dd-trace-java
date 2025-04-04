@@ -2,7 +2,7 @@ package com.datadog.appsec.event.data
 
 import spock.lang.Specification
 
-class KnownAddressesSpecification extends Specification {
+class KnownAddressesSpecificationForkedTest extends Specification {
   void 'forName works for address #name'() {
     expect:
     KnownAddresses.forName(name).key == name

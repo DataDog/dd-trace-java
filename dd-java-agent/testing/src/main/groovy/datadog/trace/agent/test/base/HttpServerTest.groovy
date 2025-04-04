@@ -26,6 +26,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -80,6 +82,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -159,6 +162,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
+    // allow endpoint discover for the tests
+    injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -405,6 +410,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   WebsocketClient websocketClient() {
     new OkHttpWebsocketClient()
   }
+  
+  boolean testEndpointDiscovery() {
+    false
+  }
 
   @Override
   int version() {
@@ -458,7 +467,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
-    WEBSOCKET("websocket", 101, null)
+    WEBSOCKET("websocket", 101, null),
+
+    ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
     private final String path
     private final String rawPath
@@ -2098,6 +2109,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
   }
+
+  void 'test endpoint discovery'() {
+    setup:
+    assumeTrue(testEndpointDiscovery())
+
+    when:
+    final endpoints = EndpointCollector.get().drain().toList()
+    final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+
+    then:
+    !endpoints.isEmpty()
+    endpoints.eachWithIndex { Endpoint entry, int i ->
+      assert entry.first == (i == 0)
+    }
+
+    !discovered.isEmpty()
+    discovered.eachWithIndex { endpoint, index ->
+      assert endpoint.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert endpoint.type == Endpoint.Type.REST
+      assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
+    }
+    assertEndpointDiscovery(discovered)
+  }
+
+  // to be overridden for more specific asserts
+  void assertEndpointDiscovery(final List<?> endpoints) { }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()

@@ -16,7 +16,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public static WafMetricCollector INSTANCE = new WafMetricCollector();
   private static final int ABSTRACT_POWERWAF_EXCEPTION_NUMBER =
-      3; // only 3 error codes are possible for now in AbstractPowerwafException
+      3; // only 3 error codes are possible for now in AbstractWafException
 
   public static WafMetricCollector get() {
     return WafMetricCollector.INSTANCE;
@@ -69,6 +69,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
   private static final AtomicLongArray missingUserIdQueue =
       new AtomicLongArray(LoginFramework.getNumValues());
+  private static final AtomicLongArray appSecSdkEventQueue =
+      new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -164,6 +166,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void missingUserId(final LoginFramework framework) {
     missingUserIdQueue.incrementAndGet(framework.ordinal());
+  }
+
+  public void appSecSdkEvent(final LoginEvent event, final LoginVersion version) {
+    final int index = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+    appSecSdkEventQueue.incrementAndGet(index);
   }
 
   @Override
@@ -354,6 +361,20 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       }
     }
 
+    // ATO login events
+    for (LoginEvent event : LoginEvent.values()) {
+      for (LoginVersion version : LoginVersion.values()) {
+        final int ordinal = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+        long counter = appSecSdkEventQueue.getAndSet(ordinal, 0);
+        if (counter > 0) {
+          if (!rawMetricsQueue.offer(
+              new AppSecSdkEvent(counter, event.getTag(), version.getTag()))) {
+            return;
+          }
+        }
+      }
+    }
+
     // RASP rule skipped per rule type for after-request reason
     for (RuleType ruleType : RuleType.values()) {
       long counter = raspRuleSkippedCounter.getAndSet(ruleType.ordinal(), 0);
@@ -421,6 +442,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           counter,
           "framework:" + framework,
           "event_type:authenticated_request");
+    }
+  }
+
+  public static class AppSecSdkEvent extends WafMetric {
+
+    public AppSecSdkEvent(long counter, String event, final String version) {
+      super("sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
     }
   }
 

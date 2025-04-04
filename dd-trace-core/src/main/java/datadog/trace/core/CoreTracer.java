@@ -966,11 +966,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope activeScope() {
-    return scopeManager.active();
-  }
-
-  @Override
   public void checkpointActiveForRollback() {
     this.scopeManager.checkpointActiveForRollback();
   }
@@ -1514,28 +1509,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       String parentServiceName = null;
       boolean isRemote = false;
 
-      if (parentContext != null
-          && parentContext.isRemote()
-          && Config.get().getTracePropagationBehaviorExtract()
-              == TracePropagationBehaviorExtract.RESTART) {
-        SpanLink link;
-        if (parentContext instanceof ExtractedContext) {
-          ExtractedContext pc = (ExtractedContext) parentContext;
-          link =
-              DDSpanLink.from(
-                  pc,
-                  SpanAttributes.builder()
-                      .put("reason", "propagation_behavior_extract")
-                      .put("context_headers", pc.getPropagationStyle().toString())
-                      .build());
-        } else {
-          link = SpanLink.from(parentContext);
+      TracePropagationBehaviorExtract behaviorExtract =
+          Config.get().getTracePropagationBehaviorExtract();
+      if (parentContext != null && parentContext.isRemote()) {
+        if (behaviorExtract == TracePropagationBehaviorExtract.IGNORE) {
+          // reset links that may have come terminated span links
+          links = new ArrayList<>();
+          parentContext = null;
+        } else if (behaviorExtract == TracePropagationBehaviorExtract.RESTART) {
+          links = new ArrayList<>();
+          SpanLink link =
+              (parentContext instanceof ExtractedContext)
+                  ? DDSpanLink.from(
+                      (ExtractedContext) parentContext,
+                      SpanAttributes.builder()
+                          .put("reason", "propagation_behavior_extract")
+                          .put(
+                              "context_headers",
+                              ((ExtractedContext) parentContext).getPropagationStyle().toString())
+                          .build())
+                  : SpanLink.from(parentContext);
+          links.add(link);
+          parentContext = null;
         }
-        // reset links that may have come terminated span links
-        links = new ArrayList<>();
-        links.add(link);
-        parentContext = null;
       }
+
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.

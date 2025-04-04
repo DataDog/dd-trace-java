@@ -2679,20 +2679,6 @@ class ConfigTest extends DDSpecification {
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
   }
 
-  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
-    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-    config.tracePropagationStylesToExtract.toList() == []
-  }
-
   def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {
     setup:
     def prop = new Properties()

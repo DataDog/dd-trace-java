@@ -46,7 +46,7 @@ class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutin
       emit(1)
     }.flowOn(Dispatchers.IO)
     val ff = f.single()
-    // FIXME: This span is detached
+
     childSpan("outside-flow").activateAndUse {
       println("hello $ff")
     }

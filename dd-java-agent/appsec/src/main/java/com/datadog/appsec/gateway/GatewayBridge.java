@@ -68,8 +68,12 @@ public class GatewayBridge {
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
-    "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
+    "appsec.events.users.login.success.track",
+    "appsec.events.users.login.failure.track",
+    "appsec.events.users.signup.track"
   };
+
+  private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
 
   private static final Map<LoginEvent, Address<?>> EVENT_MAPPINGS = new EnumMap<>(LoginEvent.class);
 
@@ -666,7 +670,7 @@ public class GatewayBridge {
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     } else {
-      ctx.closeAdditive();
+      ctx.closeWafContext();
     }
 
     // AppSec report metric and events for web span only
@@ -708,7 +712,7 @@ public class GatewayBridge {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
-      } else if (hasUserTrackingEvent(traceSeg)) {
+      } else if (hasUserInfo(traceSeg)) {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
       } else {
@@ -803,6 +807,10 @@ public class GatewayBridge {
     subscriptionService.reset();
   }
 
+  private static boolean hasUserInfo(final TraceSegment traceSegment) {
+    return hasUserTrackingEvent(traceSegment) || hasUserCollectionEvent(traceSegment);
+  }
+
   private static boolean hasUserTrackingEvent(final TraceSegment traceSeg) {
     for (String tagName : USER_TRACKING_TAGS) {
       final Object value = traceSeg.getTagTop(tagName);
@@ -811,6 +819,10 @@ public class GatewayBridge {
       }
     }
     return false;
+  }
+
+  private static boolean hasUserCollectionEvent(final TraceSegment traceSeg) {
+    return traceSeg.getTagTop(USER_COLLECTION_MODE_TAG) != null;
   }
 
   private static void writeRequestHeaders(

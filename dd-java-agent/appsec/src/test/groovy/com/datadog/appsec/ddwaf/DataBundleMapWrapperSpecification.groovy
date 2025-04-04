@@ -1,4 +1,4 @@
-package com.datadog.appsec.powerwaf
+package com.datadog.appsec.ddwaf
 
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
@@ -11,7 +11,7 @@ class DataBundleMapWrapperSpecification extends DDSpecification {
     (KnownAddresses.REQUEST_URI_RAW): '/b',
     (KnownAddresses.REQUEST_CLIENT_IP): '::1'])
   Map<String, Object> mapWrapper =
-  new PowerWAFModule.DataBundleMapWrapper(
+  new WAFModule.DataBundleMapWrapper(
   [KnownAddresses.REQUEST_URI_RAW], // REQUEST_CLIENT_IP will be filtered into an empty map
   dataBundle)
 

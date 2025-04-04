@@ -61,17 +61,17 @@ public final class AsyncResultExtensions {
       }
       return null;
     }
+  }
 
-    private <T> BiConsumer<T, Throwable> finishSpan(AgentSpan span) {
-      return (o, throwable) -> {
-        if (throwable != null) {
-          span.addThrowable(
-              throwable instanceof ExecutionException || throwable instanceof CompletionException
-                  ? throwable.getCause()
-                  : throwable);
-        }
-        span.finish();
-      };
-    }
+  public static <T> BiConsumer<T, Throwable> finishSpan(AgentSpan span) {
+    return (o, throwable) -> {
+      if (throwable != null) {
+        span.addThrowable(
+            throwable instanceof ExecutionException || throwable instanceof CompletionException
+                ? throwable.getCause()
+                : throwable);
+      }
+      span.finish();
+    };
   }
 }

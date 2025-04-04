@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
@@ -24,7 +25,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
   private static final int HELD = (Integer.MAX_VALUE >> 1) + 1;
 
   final ContinuableScopeManager scopeManager;
-  final AgentSpan spanUnderScope;
+  final Context context;
   final byte source;
   final AgentTraceCollector traceCollector;
 
@@ -51,17 +52,18 @@ final class ScopeContinuation implements AgentScope.Continuation {
 
   ScopeContinuation(
       final ContinuableScopeManager scopeManager,
-      final AgentSpan spanUnderScope,
-      final byte source) {
+      final Context context,
+      final byte source,
+      final AgentTraceCollector traceCollector) {
     this.scopeManager = scopeManager;
-    this.spanUnderScope = spanUnderScope;
+    this.context = context;
     this.source = source;
-
-    this.traceCollector = spanUnderScope.context().getTraceCollector();
+    this.traceCollector = traceCollector;
   }
 
   ScopeContinuation register() {
     traceCollector.registerContinuation(this);
+    scopeManager.healthMetrics.onCaptureContinuation();
     return this;
   }
 
@@ -76,7 +78,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
   public AgentScope activate() {
     if (COUNT.incrementAndGet(this) > 0) {
       // speculative update succeeded, continuation can be activated
-      return scopeManager.continueSpan(this, spanUnderScope, source);
+      return scopeManager.continueSpan(this, context, source);
     } else {
       // continuation cancelled or too many activations; rollback count
       COUNT.decrementAndGet(this);
@@ -95,17 +97,20 @@ final class ScopeContinuation implements AgentScope.Continuation {
     while (current == 0) {
       // no outstanding activations and hold has been removed
       if (COUNT.compareAndSet(this, current, CANCELLED)) {
-        traceCollector.cancelContinuation(this);
+        traceCollector.removeContinuation(this);
+        scopeManager.healthMetrics.onFinishContinuation();
         return;
       }
       current = count;
     }
+    scopeManager.healthMetrics.onCancelContinuation();
   }
 
   void cancelFromContinuedScopeClose() {
     if (COUNT.compareAndSet(this, 1, CANCELLED)) {
       // fast path: only one activation of the continuation (no hold)
-      traceCollector.cancelContinuation(this);
+      traceCollector.removeContinuation(this);
+      scopeManager.healthMetrics.onFinishContinuation();
     } else if (COUNT.decrementAndGet(this) == 0) {
       // slow path: multiple activations, all have now closed (no hold)
       cancel();
@@ -114,15 +119,11 @@ final class ScopeContinuation implements AgentScope.Continuation {
 
   @Override
   public AgentSpan span() {
-    return spanUnderScope;
+    return AgentSpan.fromContext(context);
   }
 
   @Override
   public String toString() {
-    return getClass().getSimpleName()
-        + "@"
-        + Integer.toHexString(hashCode())
-        + "->"
-        + spanUnderScope;
+    return getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + "->" + context;
   }
 }
