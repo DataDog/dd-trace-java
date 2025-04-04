@@ -64,7 +64,7 @@ public class TracingRequestHandler extends RequestHandler2 {
         span.setOperationName(AwsNameCache.spanName(request));
       } else {
         // this is the most common code path
-        span = startSpan(AwsNameCache.spanName(request));
+        span = startSpan("aws-sdk", AwsNameCache.spanName(request));
       }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

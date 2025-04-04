@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.GOOGLE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -72,7 +73,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
       }
-      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
+      return activateSpan(
+          DECORATE.prepareSpan(startSpan(GOOGLE_HTTP_CLIENT.toString(), HTTP_REQUEST), request));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -100,7 +102,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
-      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
+      return activateSpan(
+          DECORATE.prepareSpan(startSpan(GOOGLE_HTTP_CLIENT.toString(), HTTP_REQUEST), request));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

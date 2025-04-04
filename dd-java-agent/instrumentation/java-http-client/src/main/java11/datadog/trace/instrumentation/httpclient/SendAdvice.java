@@ -26,7 +26,7 @@ public class SendAdvice {
       if (callDepth > 0) {
         return null;
       }
-      final AgentSpan span = startSpan(JavaNetClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("java-http-client", JavaNetClientDecorator.OPERATION_NAME);
       final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);

@@ -17,7 +17,7 @@ import scala.reflect.ClassTag$;
 
 public class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, HttpRequest> {
-  private static final CharSequence AKKA_HTTP_SERVER = UTF8BytesString.create("akka-http-server");
+  public static final CharSequence AKKA_HTTP_SERVER = UTF8BytesString.create("akka-http-server");
 
   public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
   public static final CharSequence AKKA_SERVER_REQUEST =

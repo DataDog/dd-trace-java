@@ -48,7 +48,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
     }
   }
 
-  private static final String PUBSUB = "google-pubsub";
+  public static final String PUBSUB = "google-pubsub";
   public static final CharSequence JAVA_PUBSUB = UTF8BytesString.create("java-google-pubsub");
   public static final CharSequence PUBSUB_CONSUME =
       UTF8BytesString.create(
@@ -131,7 +131,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
   public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
     final AgentSpanContext spanContext =
         extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
-    final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
+    final AgentSpan span = startSpan(PUBSUB, PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
     sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
