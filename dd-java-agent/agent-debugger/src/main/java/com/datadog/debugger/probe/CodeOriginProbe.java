@@ -40,7 +40,7 @@ public class CodeOriginProbe extends ProbeDefinition {
   public Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     if (instrument) {
-      return new CodeOriginInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      return new CodeOriginInstrumentor(this, methodInfo, probeIds).instrument();
     }
     return Status.INSTALLED;
   }

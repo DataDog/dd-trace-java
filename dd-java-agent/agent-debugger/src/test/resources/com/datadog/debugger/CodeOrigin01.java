@@ -1,5 +1,6 @@
 package com.datadog.debugger;
 
+import com.datadog.debugger.origin.CodeOrigin;
 import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,7 +30,8 @@ public class CodeOrigin01 {
     return 0;
   }
 
-  private static void fullTrace() throws NoSuchMethodException {
+  @CodeOrigin
+  public static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
     AgentScope scope = tracerAPI.activateManualSpan(span);
     entry();
@@ -47,6 +49,7 @@ public class CodeOrigin01 {
     return tracerAPI.buildSpan("code origin tests", name).start();
   }
 
+  @CodeOrigin
   public static void entry() throws NoSuchMethodException {
     // just to fill out the method body
     boolean dummyCode = true;
@@ -55,6 +58,7 @@ public class CodeOrigin01 {
     }
   }
 
+  @CodeOrigin
   private static void exit() {
     int x = 47 / 3;
   }
