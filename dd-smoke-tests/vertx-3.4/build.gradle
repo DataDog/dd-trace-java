@@ -17,7 +17,8 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the quarkus project
 tasks.register('vertxBuild', Exec) {
   workingDir "$appDir"
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  def toolchain8 = getJavaLauncherFor(8).get()
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain8.metadata.installationPath"]
   commandLine "$appDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
