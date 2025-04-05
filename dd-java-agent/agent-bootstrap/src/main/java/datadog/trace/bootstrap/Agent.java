@@ -291,6 +291,8 @@ public class Agent {
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
+    patchJPSAccess(inst);
+
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
         // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
@@ -417,6 +419,19 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  public static void patchJPSAccess(Instrumentation inst) {
+    if (Platform.isJavaVersionAtLeast(9)) {
+      // Unclear if supported for J9, may need to revisit
+      try {
+        Class.forName("datadog.trace.util.JPMSJPSAccess")
+            .getMethod("patchModuleAccess")
+            .invoke(inst);
+      } catch (Exception e) {
+        log.warn("Failed to patch module access for jvmstat");
+      }
     }
   }
 
