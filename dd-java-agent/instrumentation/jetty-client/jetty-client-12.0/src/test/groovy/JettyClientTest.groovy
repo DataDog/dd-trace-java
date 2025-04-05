@@ -45,11 +45,11 @@ abstract class JettyClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def proxy = uri.fragment != null && uri.fragment.equals("proxy")
     Request req = (proxy ? proxiedClient : client).newRequest(uri).method(method)
-    headers.entrySet().each { h ->
-      req.headers {it.add(h.key, h.value)}
+    headers.each { h ->
+      req.headers {it.add(h[0], h[1])}
     }
     if (body) {
       req.body(new StringRequestContent(body))
