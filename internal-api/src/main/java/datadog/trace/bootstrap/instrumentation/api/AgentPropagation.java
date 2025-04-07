@@ -9,6 +9,7 @@ import datadog.context.propagation.Concern;
 import datadog.context.propagation.Propagators;
 import java.util.function.BiConsumer;
 import javax.annotation.ParametersAreNonnullByDefault;
+import javax.swing.*;
 
 public final class AgentPropagation {
   public static final Concern TRACING_CONCERN = named("tracing");
@@ -43,6 +44,7 @@ public final class AgentPropagation {
       forEachKey(
           carrier,
           (key, value) -> {
+            System.out.println("carrier key: " + key + " value: " + value);
             visitor.accept(key, value);
             return true;
           });

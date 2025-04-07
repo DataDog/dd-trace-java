@@ -27,7 +27,9 @@ class CompositePropagator implements Propagator {
     // Run the multiple extractions on cache
     for (Propagator propagator : this.propagators) {
       context = propagator.extract(context, carrierCache, carrierCache);
+
     }
+    System.out.println("Context after composite propagator: " + context);
     return context;
   }
 

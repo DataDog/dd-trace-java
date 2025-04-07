@@ -12,6 +12,8 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,10 +21,12 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -122,16 +126,39 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
-      req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
+      final Context extractedContext = DECORATE.extract(req, true);
+      AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
-      final AgentSpan span = DECORATE.startSpan(req, extractedContext);
+      req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedSpanContext);
+
+      final AgentSpan span = DECORATE.startSpan(req, extractedSpanContext);
+//      extractedContext.with(span);
+
+      System.out.println("ExtractedContext: " + extractedContext);
+      Baggage baggage = Baggage.fromContext(extractedContext);
+      if(baggage != null) {
+        System.out.println("Extracted Baggage: " + baggage.getW3cHeader());
+      }
+      final ContextScope contextScope = extractedContext.attach();
+      System.out.println("Context Scope: " + contextScope);
+      System.out.print("after attach: ");
+      System.out.println(Context.current().getClass());
+
       final AgentScope scope = activateSpan(span);
+      System.out.println("Scope: " + scope);
+
+
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
+//      System.out.println("DECORATE.afterStart(span);");
       DECORATE.afterStart(span);
 
+//      System.out.println("req.setAttribute(DD_SPAN_ATTRIBUTE, span);");
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+
+//      System.out.println("req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());");
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+//      System.out.println("req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());");
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
       return scope;
     }

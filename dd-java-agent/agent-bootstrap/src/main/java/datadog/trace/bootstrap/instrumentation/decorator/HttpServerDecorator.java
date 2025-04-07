@@ -8,6 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -130,6 +132,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return null;
     }
     return extractContextAndGetSpanContext(carrier, getter);
+  }
+
+  public Context extract(REQUEST_CARRIER carrier, boolean temp) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return null;
+    }
+    Context context = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    System.out.println("context in extract: " + context);
+    return context;
   }
 
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
