@@ -13,10 +13,6 @@ java {
   sourceCompatibility = '1.8'
 }
 
-repositories {
-  mavenCentral()
-}
-
 sourceSets {
   main {
     resources.srcDir("src/main/webapp")

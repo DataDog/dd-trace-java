@@ -11,9 +11,9 @@ import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackTraceFrame
-import io.sqreen.powerwaf.Additive
-import io.sqreen.powerwaf.Powerwaf
-import io.sqreen.powerwaf.PowerwafContext
+import com.datadog.ddwaf.WafContext
+import com.datadog.ddwaf.Waf
+import com.datadog.ddwaf.WafHandle
 
 class AppSecRequestContextSpecification extends DDSpecification {
 
@@ -203,28 +203,28 @@ class AppSecRequestContextSpecification extends DDSpecification {
       'accept': ['application/json', 'application/xml']] as Map
   }
 
-  private Additive createAdditive() {
-    Powerwaf.initialize false
+  private WafContext createWafContext() {
+    Waf.initialize false
     def service = new StubAppSecConfigService()
     service.init()
     CurrentAppSecConfig config = service.lastConfig['waf']
     String uniqueId = UUID.randomUUID() as String
     config.dirtyStatus.markAllDirty()
-    PowerwafContext context = Powerwaf.createContext(uniqueId, config.mergedUpdateConfig.rawConfig)
-    new Additive(context)
+    WafHandle context = Waf.createHandle(uniqueId, config.mergedUpdateConfig.rawConfig)
+    new WafContext(context)
   }
 
-  void 'close closes the additive'() {
+  void 'close closes the wafContext'() {
     setup:
-    def additive = createAdditive()
+    def wafContext = createWafContext()
 
     when:
-    ctx.additive = additive
+    ctx.wafContext = wafContext
     ctx.close()
 
     then:
-    ctx.additive == null
-    !additive.online
+    ctx.wafContext == null
+    !wafContext.online
   }
 
   void 'test isThrottled'(){
@@ -258,13 +258,12 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.collectedCookies = [cookie : ['test']]
     ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
     ctx.derivatives = ['a': 'b']
-    ctx.additive = createAdditive()
+    ctx.wafContext = createWafContext()
     ctx.close()
 
     then:
-    ctx.additive == null
+    ctx.wafContext == null
     ctx.derivatives == null
-    ctx.additive == null
 
     ctx.requestHeaders.isEmpty()
     ctx.responseHeaders.isEmpty()
@@ -288,32 +287,6 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     then:
     ctx.getRaspTimeouts() == 2
-  }
-
-  def "test increase and get RaspErrors"() {
-    when:
-    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
-    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
-    ctx.increaseRaspErrorCode(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR)
-
-    then:
-    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR) == 2
-    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
-    ctx.getRaspError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
-    ctx.getRaspError(0) == 0
-  }
-
-  def "test increase and get WafErrors"() {
-    when:
-    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
-    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR)
-    ctx.increaseWafErrorCode(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR)
-
-    then:
-    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INTERNAL_ERROR) == 2
-    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_OBJECT_ERROR) == 1
-    ctx.getWafError(AppSecRequestContext.DD_WAF_RUN_INVALID_ARGUMENT_ERROR) == 0
-    ctx.getWafError(0) == 0
   }
 
   void 'close logs if request end was not called'() {

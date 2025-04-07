@@ -7,13 +7,13 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.util.stacktrace.StackTraceEvent;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,9 +74,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3;
-  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2;
-  public static final int DD_WAF_RUN_INVALID_ARGUMENT_ERROR = -1;
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
@@ -116,21 +113,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean throttled;
 
   // should be guarded by this
-  private volatile Additive additive;
-  private volatile boolean additiveClosed;
-  // set after additive is set
-  private volatile PowerwafMetrics wafMetrics;
-  private volatile PowerwafMetrics raspMetrics;
+  private volatile WafContext wafContext;
+  private volatile boolean wafContextClosed;
+  // set after wafContext is set
+  private volatile WafMetrics wafMetrics;
+  private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
-  private volatile int raspInternalErrors;
-  private volatile int raspInvalidObjectErrors;
-  private volatile int raspInvalidArgumentErrors;
-  private volatile int wafInternalErrors;
-  private volatile int wafInvalidObjectErrors;
-  private volatile int wafInvalidArgumentErrors;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -149,29 +140,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INTERNAL_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidArgumentErrors");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_INTERNAL_ERRORS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidArgumentErrors");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -194,11 +162,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public PowerwafMetrics getWafMetrics() {
+  public WafMetrics getWafMetrics() {
     return wafMetrics;
   }
 
-  public PowerwafMetrics getRaspMetrics() {
+  public WafMetrics getRaspMetrics() {
     return raspMetrics;
   }
 
@@ -222,38 +190,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public void increaseRaspErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        RASP_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        RASP_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        RASP_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
-  public void increaseWafErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        WAF_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        WAF_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        WAF_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
   public int getWafTimeouts() {
     return wafTimeouts;
   }
@@ -262,33 +198,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspTimeouts;
   }
 
-  public int getRaspError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return raspInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return raspInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return raspInvalidArgumentErrors;
-      default:
-        return 0;
-    }
-  }
-
-  public int getWafError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return wafInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return wafInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return wafInvalidArgumentErrors;
-      default:
-        return 0;
-    }
-  }
-
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
       if (wafMetrics == null) {
@@ -299,27 +209,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    Additive curAdditive;
+    WafContext curWafContext;
     synchronized (this) {
-      curAdditive = this.additive;
-      if (curAdditive != null) {
-        return curAdditive;
+      curWafContext = this.wafContext;
+      if (curWafContext != null) {
+        return curWafContext;
       }
-      curAdditive = ctx.openAdditive();
-      this.additive = curAdditive;
+      curWafContext = ctx.openContext();
+      this.wafContext = curWafContext;
     }
-    return curAdditive;
+    return curWafContext;
   }
 
-  public void closeAdditive() {
-    if (additive != null) {
+  public void closeWafContext() {
+    if (wafContext != null) {
       synchronized (this) {
-        if (additive != null) {
+        if (wafContext != null) {
           try {
-            additiveClosed = true;
-            additive.close();
+            wafContextClosed = true;
+            wafContext.close();
           } finally {
-            additive = null;
+            wafContext = null;
           }
         }
       }
@@ -607,10 +517,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     // flag needs to be
     // later reset by the API Security post-processor and close must be called again.
     if (!keepOpenForApiSecurityPostProcessing) {
-      if (additive != null) {
+      if (wafContext != null) {
         log.debug(
             SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-        closeAdditive();
+        closeWafContext();
       }
       collectedCookies = null;
       requestHeaders.clear();
@@ -719,8 +629,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return throttled;
   }
 
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
+  public boolean isWafContextClosed() {
+    return wafContextClosed;
   }
 
   /** Must be called during request end event processing. */

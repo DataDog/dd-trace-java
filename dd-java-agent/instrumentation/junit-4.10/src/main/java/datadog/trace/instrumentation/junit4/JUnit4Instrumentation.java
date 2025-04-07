@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -82,18 +83,32 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
+        isConstructor(), JUnit4Instrumentation.class.getName() + "$HandlerAdvice");
+    transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
         JUnit4Instrumentation.class.getName() + "$JUnit4Advice");
+  }
+
+  public static class HandlerAdvice {
+    @Advice.OnMethodExit
+    public static void onRunnerCreation(@Advice.This final Runner runner) {
+      if (!JUnit4Utils.runnerToFramework(runner).equals(TestFrameworkInstrumentation.JUNIT4)) {
+        // checking class names in hierarchyMatcher alone is not enough:
+        // for example, Karate calls #run method of its super class,
+        // that was transformed
+        return;
+      }
+
+      TestEventsHandlerHolder.start(
+          TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false));
+    }
   }
 
   public static class JUnit4Advice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addTracingListener(
         @Advice.This final Runner runner, @Advice.Argument(0) final RunNotifier runNotifier) {
-      String runnerClassName = runner.getClass().getName();
-      if ("datadog.trace.agent.test.SpockRunner".equals(runnerClassName)
-          || runnerClassName.startsWith("com.intuit.karate")
-          || runnerClassName.startsWith("io.cucumber")) {
+      if (!JUnit4Utils.runnerToFramework(runner).equals(TestFrameworkInstrumentation.JUNIT4)) {
         // checking class names in hierarchyMatcher alone is not enough:
         // for example, Karate calls #run method of its super class,
         // that was transformed
@@ -114,8 +129,6 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
           return;
         }
       }
-
-      TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.CAPABILITIES);
 
       final TracingListener tracingListener =
           new JUnit4TracingListener(
