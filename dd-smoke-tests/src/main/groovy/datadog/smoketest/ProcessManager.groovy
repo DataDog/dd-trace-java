@@ -260,13 +260,11 @@ abstract class ProcessManager extends Specification {
     return "01234567890abcdef123456789ABCDEF"
   }
 
-  protected static final int MAX_LINE_SIZE = 1024 * 1024
-
   @CompileStatic
   @SuppressForbidden
   private static void eachLine(File file, Closure closure) {
     def reader = new InputStreamReader(new FileInputStream(file))
-    CharBuffer buffer = CharBuffer.allocate(MAX_LINE_SIZE)
+    CharBuffer buffer = CharBuffer.allocate(OutputThreads.MAX_LINE_SIZE)
     while (reader.read(buffer) != -1) {
       buffer.flip()
       while (buffer.hasRemaining()) {

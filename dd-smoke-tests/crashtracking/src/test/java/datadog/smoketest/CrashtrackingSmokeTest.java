@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import datadog.trace.api.Platform;
@@ -11,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
@@ -120,13 +122,14 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
+    outputThreads.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    outputThreads.processTestLogLines((line) -> line.contains(" was uploaded successfully"));
-    outputThreads.processTestLogLines((line) -> line.contains(
-            "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertOutputContains(" was uploaded successfully");
+    assertOutputContains(
+        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
   }
 
   /*
@@ -158,13 +161,14 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingLegacy.log").toFile());
+    outputThreads.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingLegacy.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    outputThreads.processTestLogLines((line) -> line.contains(" was uploaded successfully"));
-    outputThreads.processTestLogLines((line) -> line.contains(
-        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertOutputContains(" was uploaded successfully");
+    assertOutputContains(
+        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
   }
 
   /*
@@ -193,12 +197,13 @@ public class CrashtrackingSmokeTest {
                 script.toString()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
+    outputThreads.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    outputThreads.processTestLogLines((line) -> line.contains("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
-    outputThreads.processTestLogLines((line) -> line.contains("OOME Event generated successfully"));
+    assertOutputContains("com.datadog.crashtracking.OOMENotifier - OOME event sent");
+    assertOutputContains("OOME Event generated successfully");
   }
 
   @Test
@@ -227,17 +232,26 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
+    outputThreads.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
     // Crash uploader did get triggered
-    outputThreads.processTestLogLines((line) -> line.contains(" was uploaded successfully"));
-    outputThreads.processTestLogLines((line) -> line.contains(
-        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files"));
+    assertOutputContains(" was uploaded successfully");
+    assertOutputContains(
+        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
 
     // OOME notifier did get triggered
-    outputThreads.processTestLogLines((line) -> line.contains("com.datadog.crashtracking.OOMENotifier - OOME event sent"));
-    outputThreads.processTestLogLines((line) -> line.contains("OOME Event generated successfully"));
+    assertOutputContains("com.datadog.crashtracking.OOMENotifier - OOME event sent");
+    assertOutputContains("OOME Event generated successfully");
+  }
+
+  private void assertOutputContains(String s) {
+    try {
+      outputThreads.processTestLogLines((line) -> line.contains(s));
+    } catch (TimeoutException e) {
+      fail("String: '" + s + "' not found in output");
+    }
   }
 }

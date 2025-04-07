@@ -20,6 +20,8 @@ import java.util.function.Function;
 
 public class OutputThreads implements Closeable {
   private static final long THREAD_JOIN_TIMEOUT_MILLIS = 10 * 1000;
+  public static final int MAX_LINE_SIZE = 1024 * 1024;
+
   final ThreadGroup tg = new ThreadGroup("smoke-output");
   final List<String> testLogMessages = new ArrayList<>();
 
@@ -39,7 +41,7 @@ public class OutputThreads implements Closeable {
 
   class ProcessOutputRunnable implements Runnable {
     final ReadableByteChannel rc;
-    ByteBuffer buffer = ByteBuffer.allocate(ProcessManager.MAX_LINE_SIZE);
+    ByteBuffer buffer = ByteBuffer.allocate(MAX_LINE_SIZE);
     final WritableByteChannel wc;
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
 
