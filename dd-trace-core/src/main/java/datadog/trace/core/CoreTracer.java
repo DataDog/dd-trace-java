@@ -115,6 +115,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
@@ -210,6 +211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
   private final boolean flushOnClose;
+  private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -1125,6 +1127,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void addShutdownListener(Runnable listener) {
+    this.shutdownListeners.add(listener);
+  }
+
+  @Override
   public void addScopeListener(final ScopeListener listener) {
     this.scopeManager.addScopeListener(listener);
   }
@@ -1152,6 +1159,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    for (Runnable shutdownListener : shutdownListeners) {
+      try {
+        shutdownListener.run();
+      } catch (Exception e) {
+        log.error("Error while running shutdown listener", e);
+      }
+    }
     if (flushOnClose) {
       flush();
     }
