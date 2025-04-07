@@ -104,7 +104,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
   public TagMap() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
-    this.buckets = new Object[1 << 4];
+    this.buckets = new Object[1 << 5];
     this.frozen = false;
   }
 
