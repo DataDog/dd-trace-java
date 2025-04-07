@@ -251,7 +251,10 @@ public class CrashtrackingSmokeTest {
     try {
       outputThreads.processTestLogLines((line) -> line.contains(s));
     } catch (TimeoutException e) {
-      fail("String: '" + s + "' not found in output");
+      // FIXME JUNit fail() is more correct but doesn't work. SEE: https://github.com/gradle/gradle/issues/27871
+      // fixed in Gradle version 8.7
+      // fail("String: '" + s + "' not found in output");
+      throw new RuntimeException("String: '" + s + "' not found in output");
     }
   }
 }

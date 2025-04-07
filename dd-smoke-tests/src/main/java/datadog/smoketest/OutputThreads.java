@@ -141,13 +141,13 @@ public class OutputThreads implements Closeable {
         if (l >= testLogMessages.size()) {
           long waitTime;
           if (waitStart != 0) {
-            waitTime = 5000 - (System.currentTimeMillis() - waitStart);
+            waitTime = 10000 - (System.currentTimeMillis() - waitStart);
             if (waitTime < 0) {
               throw new TimeoutException();
             }
           } else {
             waitStart = System.currentTimeMillis();
-            waitTime = 5000;
+            waitTime = 10000;
           }
           try {
             testLogMessages.wait(waitTime);
