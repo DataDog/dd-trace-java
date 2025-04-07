@@ -448,16 +448,12 @@ public class WAFModule implements AppSecModule {
         if (!reqCtx.isWafContextClosed()) {
           log.error("Error calling WAF", e);
         }
+        // TODO this is wrong and will be fixed in another PR
         WafMetricCollector.get().wafRequestError();
+        incrementErrorCodeMetric(gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
-        if (gwCtx.isRasp) {
-          reqCtx.increaseRaspErrorCode(e.code);
-          WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, e.code);
-        } else {
-          reqCtx.increaseWafErrorCode(e.code);
-          WafMetricCollector.get().wafErrorCode(gwCtx.raspRuleType, e.code);
-        }
+        incrementErrorCodeMetric(gwCtx, e.code);
         return;
       } finally {
         if (log.isDebugEnabled()) {
@@ -650,6 +646,14 @@ public class WAFModule implements AppSecModule {
         throws AbstractWafException {
       return wafContext.run(
           new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+    }
+  }
+
+  private static void incrementErrorCodeMetric(GatewayContext gwCtx, int code) {
+    if (gwCtx.isRasp) {
+      WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
+    } else {
+      WafMetricCollector.get().wafErrorCode(code);
     }
   }
 
