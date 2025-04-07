@@ -30,4 +30,6 @@ public interface InternalTracer {
    * @return DataStreamsCheckpointer instance.
    */
   DataStreamsCheckpointer getDataStreamsCheckpointer();
+
+  void addShutdownListener(Runnable listener);
 }

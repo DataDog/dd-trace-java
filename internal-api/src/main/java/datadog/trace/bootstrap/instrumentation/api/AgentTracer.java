@@ -600,6 +600,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void addShutdownListener(Runnable listener) {}
+
+    @Override
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
