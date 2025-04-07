@@ -59,6 +59,7 @@ dependencies {
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
+  jmhAnnotationProcessor group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.32'
 }
 
 jmh {
