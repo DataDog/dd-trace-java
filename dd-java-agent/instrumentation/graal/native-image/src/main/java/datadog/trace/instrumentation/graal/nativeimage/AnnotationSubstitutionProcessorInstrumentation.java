@@ -41,6 +41,7 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       packageName + ".Target_org_datadog_jmxfetch_App",
       "com.fasterxml.jackson.core.JsonProcessingException", // referenced by jmxfetch.App
       packageName + ".Target_org_datadog_jmxfetch_Status",
+      packageName + ".Target_org_datadog_jmxfetch_reporter_JsonReporter",
     };
   }
 
@@ -55,6 +56,7 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
       packageName + ".Target_org_datadog_jmxfetch_App",
       packageName + ".Target_org_datadog_jmxfetch_Status",
+      packageName + ".Target_org_datadog_jmxfetch_reporter_JsonReporter",
     };
   }
 
@@ -65,6 +67,7 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       result.add(Target_datadog_jctools_util_UnsafeRefArrayAccess.class);
       result.add(Target_org_datadog_jmxfetch_App.class);
       result.add(Target_org_datadog_jmxfetch_Status.class);
+      result.add(Target_org_datadog_jmxfetch_reporter_JsonReporter.class);
     }
   }
 }
