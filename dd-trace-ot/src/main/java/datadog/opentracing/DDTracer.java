@@ -462,11 +462,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
-  public void addShutdownListener(Runnable listener) {
-    tracer.addShutdownListener(listener);
-  }
-
-  @Override
   public ScopeManager scopeManager() {
     return scopeManager;
   }

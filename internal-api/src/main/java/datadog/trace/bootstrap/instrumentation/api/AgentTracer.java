@@ -412,6 +412,8 @@ public class AgentTracer {
      * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
+
+    void addShutdownListener(Runnable listener);
   }
 
   public interface SpanBuilder {
