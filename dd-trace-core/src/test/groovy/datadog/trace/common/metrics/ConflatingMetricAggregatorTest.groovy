@@ -23,7 +23,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
   static final int HTTP_OK = 200
 
   @Shared
-  long reportingInterval = 100
+  long reportingInterval = 1
   @Shared
   int queueSize = 256
 
