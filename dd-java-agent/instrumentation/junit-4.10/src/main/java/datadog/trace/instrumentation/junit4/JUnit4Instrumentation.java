@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -54,6 +55,9 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         // do not instrument Karate JUnit 4 runner
         // since Karate has a dedicated instrumentation
         .and(not(extendsClass(named("com.intuit.karate.junit4.Karate"))))
+        // do not instrument MUnit-JUnit 4 interface runner
+        // since MUnit has a dedicated instrumentation
+        .and(not(extendsClass(nameStartsWith("munit.internal.junitinterface."))))
         // PowerMock runner is being instrumented,
         // so do not instrument its internal delegates
         .and(
