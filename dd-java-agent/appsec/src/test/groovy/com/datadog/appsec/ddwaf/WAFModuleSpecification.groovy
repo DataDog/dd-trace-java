@@ -1,5 +1,8 @@
 package com.datadog.appsec.ddwaf
 
+import com.datadog.ddwaf.WafErrorCode as LibWafErrorCode
+import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode as InternalWafErrorCode
+
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecData
@@ -17,6 +20,11 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.ddwaf.exception.AbstractWafException
+import com.datadog.ddwaf.exception.InternalWafException
+import com.datadog.ddwaf.exception.InvalidArgumentWafException
+import com.datadog.ddwaf.exception.InvalidObjectWafException
+import com.datadog.ddwaf.exception.UnclassifiedWafException
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.util.stacktrace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
@@ -1753,6 +1761,94 @@ class WAFModuleSpecification extends DDSpecification {
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * wafMetricCollector.raspRuleSkipped(RuleType.SQL_INJECTION)
     0 * _
+  }
+
+  void 'test raspErrorCode metric is increased when waf  call throws #wafErrorCode '() {
+    setup:
+    ChangeableFlow flow = Mock()
+    GatewayContext gwCtxMock = new GatewayContext(false, RuleType.SQL_INJECTION)
+    WafContext wafContext = Mock()
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = wafModule.dataSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'legit-user'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtxMock)
+
+    then:
+    (1..2) * ctx.isWafContextClosed() >> false // if UnclassifiedWafException it's called twice
+    1 * ctx.getOrCreateWafContext(_, true, true) >> wafContext
+    1 * wafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
+    1 * wafContext.run(_, _, _) >> { throw createWafException(wafErrorCode) }
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
+    1 * ctx.getRaspMetrics()
+    1 * ctx.getRaspMetricsCounter()
+    (0..1) * WafMetricCollector.get().wafRequestError() // TODO: remove this line when WAFModule is removed
+    1 * wafMetricCollector.raspErrorCode(RuleType.SQL_INJECTION, wafErrorCode.code)
+    0 * _
+
+    where:
+    wafErrorCode << LibWafErrorCode.values()
+  }
+
+  void 'test wafErrorCode metric is increased when waf  call throws #wafErrorCode '() {
+    setup:
+    ChangeableFlow flow = Mock()
+    WafContext wafContext = Mock()
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = wafModule.dataSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+      KnownAddresses.USER_ID,
+      'legit-user'
+      )
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+
+    then:
+    (1..2) * ctx.isWafContextClosed() >> false // if UnclassifiedWafException it's called twice
+    1 * ctx.getOrCreateWafContext(_, true, false) >> wafContext
+    1 * wafContext.run(_, _, _) >> { throw createWafException(wafErrorCode) }
+    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
+    2 * ctx.getWafMetrics()
+    (0..1) * WafMetricCollector.get().wafRequestError() // TODO: remove this line when WAFModule is removed
+    1 * wafMetricCollector.wafErrorCode(wafErrorCode.code)
+    0 * _
+
+    where:
+    wafErrorCode << LibWafErrorCode.values()
+  }
+
+  def 'internal-api WafErrorCode enum matches libddwaf-java by name and code'() {
+    given:
+    def libddwaf = LibWafErrorCode.values().collectEntries { [it.name(), it.code] }
+    def internal = InternalWafErrorCode.values().collectEntries { [it.name(), it.code] }
+
+    expect:
+    internal == libddwaf
+  }
+
+  /**
+   * Helper to return a concrete Waf exception for each WafErrorCode
+   */
+  static AbstractWafException createWafException(LibWafErrorCode code) {
+    switch (code) {
+      case LibWafErrorCode.INVALID_ARGUMENT:
+        return new InvalidArgumentWafException(code.code)
+      case LibWafErrorCode.INVALID_OBJECT:
+        return new InvalidObjectWafException(code.code)
+      case LibWafErrorCode.INTERNAL_ERROR:
+        return new InternalWafException(code.code)
+      case LibWafErrorCode.BINDING_ERROR:
+        return new UnclassifiedWafException(code.code)
+      default:
+        throw new IllegalStateException("Unhandled WafErrorCode: $code")
+    }
   }
 
   private Map<String, Object> getDefaultConfig() {
