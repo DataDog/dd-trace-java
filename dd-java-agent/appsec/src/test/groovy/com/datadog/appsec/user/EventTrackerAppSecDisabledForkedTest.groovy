@@ -1,5 +1,6 @@
 package com.datadog.appsec.user
 
+import datadog.appsec.api.login.EventTrackerV2
 import datadog.appsec.api.user.User
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.UserIdCollectionMode
@@ -26,6 +27,7 @@ class EventTrackerAppSecDisabledForkedTest extends DDSpecification {
   void setup() {
     tracker = new AppSecEventTracker()
     GlobalTracer.setEventTracker(tracker)
+    EventTrackerV2.setEventTrackerService(tracker)
     User.setUserService(tracker)
     traceSegment = Mock(TraceSegment)
     final tracer = Stub(AgentTracer.TracerAPI) {
@@ -40,7 +42,7 @@ class EventTrackerAppSecDisabledForkedTest extends DDSpecification {
     GlobalTracer.getEventTracker().trackLoginSuccessEvent('user', ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
   }
 
   void 'test track login failure event (SDK)'() {
@@ -48,12 +50,36 @@ class EventTrackerAppSecDisabledForkedTest extends DDSpecification {
     GlobalTracer.getEventTracker().trackLoginFailureEvent('user', true, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
   }
 
   void 'test track custom event (SDK)'() {
     when:
     GlobalTracer.getEventTracker().trackCustomEvent('myevent', ['key1': 'value1', 'key2': 'value2'])
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.events.myevent.sdk', true, true)
+  }
+
+  void 'test track login success event V2 (SDK)'() {
+    when:
+    EventTrackerV2.trackUserLoginSuccess('user', 'id', ['key1': 'value1', 'key2': 'value2'])
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
+  }
+
+  void 'test track login failure event V2 (SDK)'() {
+    when:
+    EventTrackerV2.trackUserLoginFailure('user', true, ['key1': 'value1', 'key2': 'value2'])
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
+  }
+
+  void 'test track custom event V2 (SDK)'() {
+    when:
+    EventTrackerV2.trackCustomEvent('myevent', ['key1': 'value1', 'key2': 'value2'])
 
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.myevent.sdk', true, true)

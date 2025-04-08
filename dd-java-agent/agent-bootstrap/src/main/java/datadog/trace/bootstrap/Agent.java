@@ -31,6 +31,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.git.EmbeddedGitInfoBuilder;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -226,6 +228,12 @@ public class Agent {
       }
     }
 
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
+    }
+
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
       log.info("Data Jobs Monitoring enabled, enabling spark integrations");
@@ -242,6 +250,11 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if (Config.get().isDataJobsOpenLineageEnabled()) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();

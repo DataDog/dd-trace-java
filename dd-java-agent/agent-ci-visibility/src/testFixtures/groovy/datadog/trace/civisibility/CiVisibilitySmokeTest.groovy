@@ -1,6 +1,6 @@
 package datadog.trace.civisibility
 
-
+import datadog.trace.api.civisibility.config.TestFQN
 import spock.lang.Specification
 
 abstract class CiVisibilitySmokeTest extends Specification {
@@ -14,6 +14,14 @@ abstract class CiVisibilitySmokeTest extends Specification {
     } else {
       CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements, [])
     }
+  }
+
+  protected test(String suiteName, String testName) {
+    return new TestFQN(suiteName, testName)
+  }
+
+  protected verifyTestOrder(List<Map<String, Object>> events, List<TestFQN> expectedOrder) {
+    CiVisibilityTestUtils.assertTestsOrder(events, expectedOrder)
   }
 
   /**

@@ -7,6 +7,7 @@ import datadog.telemetry.api.Metric
 import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
 
@@ -23,7 +24,8 @@ class EventSourceTest extends DDSpecification{
       metricQueue            : new LinkedBlockingQueue<Metric>(),
       distributionSeriesQueue: new LinkedBlockingQueue<DistributionSeries>(),
       logMessageQueue        : new LinkedBlockingQueue<LogMessage>(),
-      productChanges         : new LinkedBlockingQueue<ProductChange>()
+      productChanges         : new LinkedBlockingQueue<ProductChange>(),
+      endpointQueue          : new LinkedBlockingQueue<Endpoint>()
     ]
 
     def eventSource = new EventSource.Queued(
@@ -33,7 +35,8 @@ class EventSourceTest extends DDSpecification{
       eventQueues.metricQueue,
       eventQueues.distributionSeriesQueue,
       eventQueues.logMessageQueue,
-      eventQueues.productChanges
+      eventQueues.productChanges,
+      eventQueues.endpointQueue
       )
 
     expect:
@@ -60,5 +63,6 @@ class EventSourceTest extends DDSpecification{
     "Distribution Series" | "distributionSeriesQueue" | new DistributionSeries()
     "Log Message"         | "logMessageQueue"         | new LogMessage()
     "Product Change"      | "productChanges"          | new ProductChange()
+    "Endpoint"            | "endpointQueue"           | new Endpoint()
   }
 }
