@@ -1,11 +1,11 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import datadog.trace.api.Platform;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +18,7 @@ import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import okio.BufferedSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,6 +53,18 @@ public class CrashtrackingSmokeTest {
         new Dispatcher() {
           @Override
           public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
+            System.out.println("URL ====== " + request.getPath());
+            BufferedSource source = request.getBody();
+            String line = null;
+            do {
+              try {
+                line = source.readUtf8Line();
+              } catch (IOException e) {
+                System.out.println("Error reading line " + e.getMessage());
+                break;
+              }
+              System.out.println(line);
+            } while (line != null);
             return new MockResponse().setResponseCode(200);
           }
         });
@@ -251,7 +264,8 @@ public class CrashtrackingSmokeTest {
     try {
       outputThreads.processTestLogLines((line) -> line.contains(s));
     } catch (TimeoutException e) {
-      // FIXME JUNit fail() is more correct but doesn't work. SEE: https://github.com/gradle/gradle/issues/27871
+      // FIXME JUNit fail() is more correct but doesn't work. SEE:
+      // https://github.com/gradle/gradle/issues/27871
       // fixed in Gradle version 8.7
       // fail("String: '" + s + "' not found in output");
       throw new RuntimeException("String: '" + s + "' not found in output");
