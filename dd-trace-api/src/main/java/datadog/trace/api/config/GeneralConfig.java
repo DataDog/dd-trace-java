@@ -13,6 +13,7 @@ package datadog.trace.api.config;
  */
 public final class GeneralConfig {
 
+  public static final String IGNORE_RESOURCE = "ignore.resource"
   public static final String CONFIGURATION_FILE = "trace.config";
   public static final String API_KEY = "api-key";
   public static final String APPLICATION_KEY = "application-key";
