@@ -1,24 +1,32 @@
 package datadog.smoketest;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 import datadog.trace.api.Platform;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import okio.BufferedSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,6 +40,7 @@ import org.junit.jupiter.api.Test;
 public class CrashtrackingSmokeTest {
   private static Path LOG_FILE_DIR;
   private MockWebServer tracingServer;
+  private BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
 
   @BeforeAll
   static void setupAll() {
@@ -48,23 +57,33 @@ public class CrashtrackingSmokeTest {
   void setup() throws Exception {
     tempDir = Files.createTempDirectory("dd-smoketest-");
 
+    crashEvents.clear();
+
+    Moshi moshi = new Moshi.Builder().build();
     tracingServer = new MockWebServer();
     tracingServer.setDispatcher(
         new Dispatcher() {
           @Override
           public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
-            System.out.println("URL ====== " + request.getPath());
-            BufferedSource source = request.getBody();
-            String line = null;
-            do {
+            String data = request.getBody().readString(StandardCharsets.UTF_8);
+
+            if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
               try {
-                line = source.readUtf8Line();
+                JsonAdapter<MinimalTelemetryData> adapter =
+                    moshi.adapter(MinimalTelemetryData.class);
+                MinimalTelemetryData minimal = adapter.fromJson(data);
+                if ("logs".equals(minimal.request_type)) {
+                  JsonAdapter<CrashTelemetryData> crashAdapter =
+                      moshi.adapter(CrashTelemetryData.class);
+                  crashEvents.add(crashAdapter.fromJson(data));
+                }
               } catch (IOException e) {
-                System.out.println("Error reading line " + e.getMessage());
-                break;
+                System.out.println("Unable to parse " + e);
               }
-              System.out.println(line);
-            } while (line != null);
+            }
+            System.out.println("URL ====== " + request.getPath());
+            System.out.println(data);
+
             return new MockResponse().setResponseCode(200);
           }
         });
@@ -139,10 +158,7 @@ public class CrashtrackingSmokeTest {
         p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
-
-    assertOutputContains(" was uploaded successfully");
-    assertOutputContains(
-        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
+    assertCrashData();
   }
 
   /*
@@ -179,9 +195,8 @@ public class CrashtrackingSmokeTest {
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    assertOutputContains(" was uploaded successfully");
-    assertOutputContains(
-        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
+    assertNotEquals(0, p.waitFor(), "Application should have crashed");
+    assertCrashData();
   }
 
   /*
@@ -212,6 +227,7 @@ public class CrashtrackingSmokeTest {
     Process p = pb.start();
     outputThreads.captureOutput(
         p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(tracingServer.getPort()));
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
@@ -243,6 +259,7 @@ public class CrashtrackingSmokeTest {
                 appShadowJar(),
                 oomeScript.toString()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
     outputThreads.captureOutput(
@@ -251,9 +268,7 @@ public class CrashtrackingSmokeTest {
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
     // Crash uploader did get triggered
-    assertOutputContains(" was uploaded successfully");
-    assertOutputContains(
-        "com.datadog.crashtracking.CrashUploader - Successfully uploaded the crash files");
+    assertCrashData();
 
     // OOME notifier did get triggered
     assertOutputContains("com.datadog.crashtracking.OOMENotifier - OOME event sent");
@@ -270,5 +285,12 @@ public class CrashtrackingSmokeTest {
       // fail("String: '" + s + "' not found in output");
       throw new RuntimeException("String: '" + s + "' not found in output");
     }
+  }
+
+  private void assertCrashData() throws InterruptedException {
+    CrashTelemetryData crashData = crashEvents.poll(10, TimeUnit.SECONDS);
+    assertNotNull(crashData, "Crash data not uploaded");
+    assertThat(crashData.payload.get(0).message, containsString("OutOfMemory"));
+    assertThat(crashData.payload.get(0).tags, containsString("severity:crash"));
   }
 }
