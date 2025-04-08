@@ -144,46 +144,46 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       try {
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               new HttpServerTracingHandler(),
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof HttpRequestDecoder) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               HttpServerRequestTracingHandler.INSTANCE);
         } else if (handler instanceof HttpResponseEncoder) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               HttpServerResponseTracingHandler.INSTANCE,
               MaybeBlockResponseHandler.INSTANCE);
         }
         else if (handler instanceof WebSocketServerProtocolHandler) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               "HttpServerTracingHandler#0",
               new WebSocketServerTracingHandler());
         }
         // Client pipeline handlers
         else if (handler instanceof HttpClientCodec) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               new HttpClientTracingHandler());
         } else if (handler instanceof HttpRequestEncoder) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               HttpClientRequestTracingHandler.INSTANCE);
         } else if (handler instanceof HttpResponseDecoder) {
-          addHandlerAfter(pipeline,
+          NettyHttp2Helper.addHandlerAfter(pipeline,
               handler,
               HttpClientResponseTracingHandler.INSTANCE);
         } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
           if (NettyHttp2Helper.isServer(handler)) {
-            addHandlerAfter(pipeline,
+            NettyHttp2Helper.addHandlerAfter(pipeline,
                 handler,
                 new HttpServerTracingHandler(),
                 MaybeBlockResponseHandler.INSTANCE);
           } else {
-            addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
+            NettyHttp2Helper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
           }
         }
       } catch (final IllegalArgumentException e) {
@@ -207,34 +207,4 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       }
     }
   }
-
-  public static void addHandlerAfter(
-      final ChannelPipeline pipeline,
-      final String name,
-      final ChannelHandler... toAdd) {
-    String handlerName = name;
-    for (ChannelHandler handler : toAdd) {
-      ChannelHandler existing = pipeline.get(handler.getClass());
-      if (existing != null) {
-        pipeline.remove(existing);
-      }
-      pipeline.addAfter(handlerName, null, handler);
-      ChannelHandlerContext handlerContext = pipeline.context(handler);
-      if (handlerContext != null) {
-        handlerName = handlerContext.name();
-      }
-    }
-  }
-
-  public static void addHandlerAfter(
-      final ChannelPipeline pipeline,
-      final ChannelHandler handler,
-      final ChannelHandler... toAdd) {
-    ChannelHandlerContext handlerContext = pipeline.context(handler);
-    if (handlerContext != null) {
-      String handlerName = handlerContext.name();
-      addHandlerAfter(pipeline, handlerName, toAdd);
-    }
-  }
-
 }

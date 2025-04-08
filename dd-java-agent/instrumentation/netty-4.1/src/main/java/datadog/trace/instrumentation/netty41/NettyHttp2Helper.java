@@ -5,6 +5,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +54,35 @@ public class NettyHttp2Helper {
       return IS_SERVER_FIELD != null && (boolean) IS_SERVER_FIELD.invokeExact(handler);
     } catch (Throwable t) {
       return false;
+    }
+  }
+
+  public static void addHandlerAfter(
+      final ChannelPipeline pipeline,
+      final String name,
+      final ChannelHandler... toAdd) {
+    String handlerName = name;
+    for (ChannelHandler handler : toAdd) {
+      ChannelHandler existing = pipeline.get(handler.getClass());
+      if (existing != null) {
+        pipeline.remove(existing);
+      }
+      pipeline.addAfter(handlerName, null, handler);
+      ChannelHandlerContext handlerContext = pipeline.context(handler);
+      if (handlerContext != null) {
+        handlerName = handlerContext.name();
+      }
+    }
+  }
+
+  public static void addHandlerAfter(
+      final ChannelPipeline pipeline,
+      final ChannelHandler handler,
+      final ChannelHandler... toAdd) {
+    ChannelHandlerContext handlerContext = pipeline.context(handler);
+    if (handlerContext != null) {
+      String handlerName = handlerContext.name();
+      addHandlerAfter(pipeline, handlerName, toAdd);
     }
   }
 }
