@@ -383,6 +383,7 @@ public class Config {
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
+  private final boolean ciVisibilityScalatestForkMonitorEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1607,6 +1608,8 @@ public class Config {
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityScalatestForkMonitorEnabled =
+        configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3112,6 +3115,10 @@ public class Config {
     return ciVisibilityFlakyRetryEnabled
         || ciVisibilityEarlyFlakeDetectionEnabled
         || ciVisibilityTestManagementEnabled;
+  }
+
+  public boolean isCiVisibilityScalatestForkMonitorEnabled() {
+    return ciVisibilityScalatestForkMonitorEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
