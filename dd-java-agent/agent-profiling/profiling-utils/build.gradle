@@ -1,7 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  // In order to patch access for jvmstat for JDK >8
-  minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 apply from: "$rootDir/gradle/java.gradle"
