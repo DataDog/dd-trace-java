@@ -402,7 +402,7 @@ public class Config {
   private final int dynamicInstrumentationUploadFlushInterval;
   private final boolean dynamicInstrumentationClassFileDumpEnabled;
   private final int dynamicInstrumentationPollInterval;
-  private final int dynamicInstrumentationDiagnosticsInterval;
+  private final double dynamicInstrumentationDiagnosticsInterval;
   private final boolean dynamicInstrumentationMetricEnabled;
   private final String dynamicInstrumentationProbeFile;
   private final int dynamicInstrumentationUploadBatchSize;
@@ -1653,7 +1653,7 @@ public class Config {
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
     dynamicInstrumentationDiagnosticsInterval =
-        configProvider.getInteger(
+        configProvider.getDouble(
             DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
             DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
     dynamicInstrumentationMetricEnabled =
@@ -3222,7 +3222,7 @@ public class Config {
     return dynamicInstrumentationPollInterval;
   }
 
-  public int getDynamicInstrumentationDiagnosticsInterval() {
+  public double getDynamicInstrumentationDiagnosticsInterval() {
     return dynamicInstrumentationDiagnosticsInterval;
   }
 

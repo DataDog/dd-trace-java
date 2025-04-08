@@ -55,7 +55,7 @@ public class ProbeStatusSink {
     this.diagnosticUploader = diagnosticUploader;
     this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
-    this.interval = Duration.ofSeconds(config.getDynamicInstrumentationDiagnosticsInterval());
+    this.interval = Duration.ofMillis((long) (config.getDynamicInstrumentationDiagnosticsInterval() * 1000));
     this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
     this.isInstrumentTheWorld = config.isDynamicInstrumentationInstrumentTheWorld();
