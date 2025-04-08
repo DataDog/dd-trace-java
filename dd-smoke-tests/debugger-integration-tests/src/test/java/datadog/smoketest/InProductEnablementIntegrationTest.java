@@ -68,7 +68,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   }
 
   private void waitForFeatureStarted(String appUrl, String feature) throws IOException {
-    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Starting " + feature;
+    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Started " + feature;
     waitForSpecificLine(appUrl, line);
     LOG.info("feature {} started", feature);
   }

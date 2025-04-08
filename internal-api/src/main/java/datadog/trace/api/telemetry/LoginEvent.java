@@ -3,7 +3,8 @@ package datadog.trace.api.telemetry;
 public enum LoginEvent {
   LOGIN_SUCCESS("login_success"),
   LOGIN_FAILURE("login_failure"),
-  SIGN_UP("signup");
+  SIGN_UP("signup"),
+  CUSTOM("custom");
 
   private static final int numValues = LoginEvent.values().length;
 

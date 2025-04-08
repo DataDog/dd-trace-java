@@ -210,7 +210,7 @@ public class ExecutionStrategy {
           .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
 
     } catch (Exception e) {
-      LOGGER.error("Could not determine if {} was modified, assuming false", testSourceData, e);
+      LOGGER.debug("Could not determine if {} was modified, assuming false", testSourceData, e);
       return false;
     }
   }

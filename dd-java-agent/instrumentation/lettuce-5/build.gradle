@@ -11,6 +11,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
