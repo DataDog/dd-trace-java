@@ -1,8 +1,6 @@
-package mule4
+import datadog.trace.agent.test.AgentTestRunner
 
-import datadog.trace.test.util.DDSpecification
-
-class MuleMemoryForkedTest extends DDSpecification {
+class MuleMemoryForkedTest extends AgentTestRunner {
 
   def "Forked memory should be high"() {
     when:
