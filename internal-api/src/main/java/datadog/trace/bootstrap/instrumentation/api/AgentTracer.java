@@ -412,6 +412,8 @@ public class AgentTracer {
      * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
+
+    void addShutdownListener(Runnable listener);
   }
 
   public interface SpanBuilder {
@@ -598,6 +600,9 @@ public class AgentTracer {
     public DataStreamsCheckpointer getDataStreamsCheckpointer() {
       return getDataStreamsMonitoring();
     }
+
+    @Override
+    public void addShutdownListener(Runnable listener) {}
 
     @Override
     public void addScopeListener(final ScopeListener listener) {}
