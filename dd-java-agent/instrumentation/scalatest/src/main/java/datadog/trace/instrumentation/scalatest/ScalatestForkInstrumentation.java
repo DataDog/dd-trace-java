@@ -55,6 +55,12 @@ public class ScalatestForkInstrumentation extends InstrumenterModule.CiVisibilit
    * the tests) and not the parent one. The way to distinguish between the two is by examining the
    * "remoteArgs" passed to the runner method: the args are non-empty in the child process, and
    * empty in the parent one.
+   *
+   * <p>The instrumentation works by increasing the Reporter.class counter in the call depth thread
+   * local map. The counter is decreased when the runner method exits.
+   *
+   * <p>Since the tracing instrumentation is checking the counter value to avoid nested calls,
+   * increasing it here results in effectively disabling the tracing.
    */
   public static class RunnerAdvice {
     @Advice.OnMethodEnter
