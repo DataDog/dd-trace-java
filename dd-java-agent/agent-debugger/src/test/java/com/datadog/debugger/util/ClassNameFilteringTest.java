@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -52,7 +52,8 @@ class ClassNameFilteringTest {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Collections.singleton("com.datadog.debugger"),
-            Collections.singleton("com.datadog.debugger"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -60,7 +61,9 @@ class ClassNameFilteringTest {
   public void testIncludePrefixOverridesExclude() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Collections.singleton("com.datadog.debugger"), Collections.singleton("com.datadog"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.singleton("com.datadog"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -69,7 +72,8 @@ class ClassNameFilteringTest {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Stream.of("com.datadog.debugger", "org.junit").collect(Collectors.toSet()),
-            Collections.singleton("com.datadog.debugger"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.emptySet());
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
     assertTrue(classNameFiltering.isExcluded("org.junit.FooBar"));
   }
@@ -88,8 +92,43 @@ class ClassNameFilteringTest {
     Config config = mock(Config.class);
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
-    ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config));
+    when(config.getThirdPartyShadingIdentifiers()).thenReturn(Collections.emptySet());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     assertTrue(classNameFiltering.isExcluded(input));
+  }
+
+  @Test
+  public void testShaded() {
+    Config config = mock(Config.class);
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyIncludes())
+        .thenReturn(new HashSet<>(Arrays.asList("com.google", "org.junit")));
+    when(config.getThirdPartyShadingIdentifiers()).thenReturn(Collections.emptySet());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
+    assertTrue(classNameFiltering.isExcluded("com.google.FooBar"));
+    assertTrue(classNameFiltering.isExcluded("shaded.com.google.FooBar"));
+    assertFalse(classNameFiltering.isExcluded("com.example.shaded.com.example.FooBar"));
+    assertTrue(classNameFiltering.isExcluded("com.example.shaded.com.google.FooBar"));
+  }
+
+  @Test
+  void lambdaProxyClasses() {
+    // jdk8:  at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$231/1770027171.apply(<Unknown>:1000008)
+    // jdk11: at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$262/0x0000000800467040.apply(Unknown Source)
+    // jdk17:	at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$303/0x00000008013dd1f8.apply(Unknown Source)
+    // jdk21: at
+    // datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda/0x000000b801392c58.apply(Unknown Source)
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$231/1770027171"));
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda$262/0x0000000800467040"));
+    assertTrue(
+        ClassNameFiltering.isLambdaProxyClass(
+            "at datadog.smoketest.debugger.ServerDebuggerTestApplication$$Lambda/0x000000b801392c58"));
   }
 }

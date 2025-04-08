@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.util.AgentThreadFactory;
 import org.testng.ITestResult;
 
 public abstract class TestEventsHandlerHolder {
@@ -14,15 +13,6 @@ public abstract class TestEventsHandlerHolder {
 
   private static ContextStore<ITestResult, DDTest> TEST_STORE;
 
-  static {
-    Runtime.getRuntime()
-        .addShutdownHook(
-            AgentThreadFactory.newAgentThread(
-                AgentThreadFactory.AgentThread.CI_TEST_EVENTS_SHUTDOWN_HOOK,
-                TestEventsHandlerHolder::stop,
-                false));
-  }
-
   public static synchronized void setContextStore(ContextStore<ITestResult, DDTest> testStore) {
     if (TEST_STORE == null) {
       TEST_STORE = testStore;
@@ -30,9 +20,12 @@ public abstract class TestEventsHandlerHolder {
   }
 
   public static void start() {
-    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("testng", null, TEST_STORE);
+    TEST_EVENTS_HANDLER =
+        InstrumentationBridge.createTestEventsHandler(
+            "testng", null, TEST_STORE, TestNGUtils.capabilities(TestNGUtils.getTestNGVersion()));
   }
 
+  /** Used by instrumentation tests */
   public static void stop() {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();

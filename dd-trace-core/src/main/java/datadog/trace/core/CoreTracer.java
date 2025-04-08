@@ -1,11 +1,13 @@
 package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.*;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -19,7 +21,6 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
-import datadog.context.propagation.InferredProxyPropagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
@@ -28,9 +29,9 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -52,7 +53,6 @@ import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -60,8 +60,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -77,6 +78,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.flare.TracerFlarePoller;
@@ -84,7 +86,6 @@ import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
-import datadog.trace.core.propagation.ApmTracingDisabledPropagator;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.PropagationTags;
@@ -114,6 +115,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
@@ -209,6 +211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
   private final boolean flushOnClose;
+  private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -225,7 +228,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
-  private final AgentPropagation propagation;
   private final boolean logs128bTraceIdEnabled;
 
   private final InstrumentationGateway instrumentationGateway;
@@ -607,7 +609,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTracingTags(config.getMergedSpanTags())
             .apply();
 
-    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
+    this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -711,30 +713,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
-    // TODO Need to be removed
-    this.propagation = AgentTracer.NOOP_TRACER.propagate();
-
     // Register context propagators
     HttpCodec.Extractor tracingExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
-    TracingPropagator tracingPropagator = new TracingPropagator(injector, tracingExtractor);
-    // Check if apm tracing is disabled:
-    // If disabled, use the APM tracing disabled propagator by default that will limit tracing
-    // concern
-    // injection and delegate to the tracing propagator if needed,
-    // If disabled, the most common case, use the usual tracing propagator by default.
-    boolean apmTracingDisabled = !config.isApmTracingEnabled();
-    boolean dsm = config.isDataStreamsEnabled();
-    boolean inferredProxy = config.isInferredProxyPropagationEnabled();
-    Propagators.register(
-        STANDALONE_ASM_CONCERN, new ApmTracingDisabledPropagator(), apmTracingDisabled);
-    Propagators.register(TRACING_CONCERN, tracingPropagator, !apmTracingDisabled);
+    TracingPropagator tracingPropagator =
+        new TracingPropagator(config.isApmTracingEnabled(), injector, tracingExtractor);
+    Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
-    if (dsm) {
+    if (config.isDataStreamsEnabled()) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
-    if (inferredProxy) {
-      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
+    if (config.isBaggagePropagationEnabled()) {
+      Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
     }
 
     this.tagInterceptor =
@@ -918,47 +908,40 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .start();
   }
 
-  public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+  @Override
+  public AgentScope activateSpan(AgentSpan span) {
+    return scopeManager.activateSpan(span);
   }
 
   @Override
-  public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
-    return scopeManager.activate(span, source);
+  public AgentScope activateManualSpan(final AgentSpan span) {
+    return scopeManager.activateManualSpan(span);
   }
 
   @Override
-  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
-    return scopeManager.activate(span, source, isAsyncPropagating);
+  @SuppressWarnings("resource")
+  public void activateSpanWithoutScope(AgentSpan span) {
+    scopeManager.activateSpan(span);
   }
 
   @Override
   public AgentScope.Continuation captureActiveSpan() {
-    AgentScope activeScope = this.scopeManager.active();
-    if (null != activeScope && activeScope.isAsyncPropagating()) {
-      return scopeManager.captureSpan(activeScope.span(), activeScope.source());
-    } else {
-      return AgentTracer.noopContinuation();
-    }
+    return scopeManager.captureActiveSpan();
   }
 
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span, ScopeSource.INSTRUMENTATION.id());
+    return scopeManager.captureSpan(span);
   }
 
   @Override
   public boolean isAsyncPropagationEnabled() {
-    AgentScope activeScope = this.scopeManager.active();
-    return activeScope != null && activeScope.isAsyncPropagating();
+    return scopeManager.isAsyncPropagationEnabled();
   }
 
   @Override
   public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    AgentScope activeScope = this.scopeManager.active();
-    if (activeScope != null) {
-      activeScope.setAsyncPropagation(asyncPropagationEnabled);
-    }
+    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
   }
 
   @Override
@@ -985,13 +968,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public AgentScope activeScope() {
-    return scopeManager.active();
+  public void checkpointActiveForRollback() {
+    this.scopeManager.checkpointActiveForRollback();
   }
 
   @Override
-  public AgentPropagation propagate() {
-    return this.propagation;
+  public void rollbackActiveToCheckpoint() {
+    this.scopeManager.rollbackActiveToCheckpoint();
+  }
+
+  @Override
+  public void closeActive() {
+    AgentScope activeScope = this.scopeManager.active();
+    if (activeScope != null) {
+      activeScope.close();
+    }
   }
 
   @Override
@@ -1136,6 +1127,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void addShutdownListener(Runnable listener) {
+    this.shutdownListeners.add(listener);
+  }
+
+  @Override
   public void addScopeListener(final ScopeListener listener) {
     this.scopeManager.addScopeListener(listener);
   }
@@ -1163,6 +1159,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    for (Runnable shutdownListener : shutdownListeners) {
+      try {
+        shutdownListener.run();
+      } catch (Exception e) {
+        log.error("Error while running shutdown listener", e);
+      }
+    }
     if (flushOnClose) {
       flush();
     }
@@ -1519,6 +1522,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       String parentServiceName = null;
       boolean isRemote = false;
+
+      TracePropagationBehaviorExtract behaviorExtract =
+          Config.get().getTracePropagationBehaviorExtract();
+      if (parentContext != null && parentContext.isRemote()) {
+        if (behaviorExtract == TracePropagationBehaviorExtract.IGNORE) {
+          // reset links that may have come terminated span links
+          links = new ArrayList<>();
+          parentContext = null;
+        } else if (behaviorExtract == TracePropagationBehaviorExtract.RESTART) {
+          links = new ArrayList<>();
+          SpanLink link =
+              (parentContext instanceof ExtractedContext)
+                  ? DDSpanLink.from(
+                      (ExtractedContext) parentContext,
+                      SpanAttributes.builder()
+                          .put("reason", "propagation_behavior_extract")
+                          .put(
+                              "context_headers",
+                              ((ExtractedContext) parentContext).getPropagationStyle().toString())
+                          .build())
+                  : SpanLink.from(parentContext);
+          links.add(link);
+          parentContext = null;
+        }
+      }
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first

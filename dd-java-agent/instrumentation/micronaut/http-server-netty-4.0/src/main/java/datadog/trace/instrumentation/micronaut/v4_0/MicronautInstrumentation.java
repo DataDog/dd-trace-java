@@ -23,6 +23,8 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
   public String[] knownMatchingTypes() {
     return new String[] {
       "io.micronaut.http.server.netty.RoutingInBoundHandler",
+      // starting with 4.8.0, encodeHttpResponse methods have been moved from 👆 to 👇
+      "io.micronaut.http.server.ResponseLifecycle",
       "io.micronaut.http.server.RouteExecutor",
       "io.micronaut.http.server.netty.NettyRequestLifecycle",
     };
@@ -70,6 +72,13 @@ public final class MicronautInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(0, named("io.micronaut.http.server.netty.NettyHttpRequest")))
             .and(takesArgument(1, named("io.micronaut.http.HttpResponse"))),
         packageName + ".EncodeHttpResponseAdvice2");
+    // for micronaut 4.8 onwards
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("encodeHttpResponse"))
+            .and(takesArgument(0, named("io.micronaut.http.HttpRequest")))
+            .and(takesArgument(1, named("io.micronaut.http.HttpResponse"))),
+        packageName + ".EncodeHttpResponseAdvice3");
   }
 
   @Override

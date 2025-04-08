@@ -1,9 +1,11 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.MUnitTracingListener
+import datadog.trace.instrumentation.junit4.MUnitUtils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
@@ -11,6 +13,7 @@ import org.example.TestFailedThenSucceedMUnit
 import org.example.TestSkippedMUnit
 import org.example.TestSkippedSuiteMUnit
 import org.example.TestSucceedMUnit
+import org.example.TestSucceedMUnitSkipEfd
 import org.example.TestSucceedMUnitSlow
 import org.junit.runner.JUnitCore
 
@@ -56,10 +59,11 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName             | tests                  | knownTestsList
-    "test-efd-known-test"    | [TestSucceedMUnit]     | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
-    "test-efd-new-test"      | [TestSucceedMUnit]     | []
-    "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | [] // is executed only twice
+    testcaseName             | tests                     | knownTestsList
+    "test-efd-known-test"    | [TestSucceedMUnit]        | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
+    "test-efd-new-test"      | [TestSucceedMUnit]        | []
+    "test-efd-new-slow-test" | [TestSucceedMUnitSlow]    | [] // is executed only twice
+    "test-efd-skip-new-test" | [TestSucceedMUnitSkipEfd] | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -143,8 +147,16 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
   }
 
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    runTests([TestSucceedMUnit], true)
+
+    expect:
+    assertCapabilities(MUnitUtils.CAPABILITIES, 4)
+  }
+
   private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.MUNIT, MUnitUtils.CAPABILITIES)
     try {
       Class[] array = tests.toArray(new Class[0])
       def result = runner.run(array)
@@ -158,7 +170,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
         }
       }
     } finally {
-      TestEventsHandlerHolder.stop()
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.MUNIT)
     }
   }
 

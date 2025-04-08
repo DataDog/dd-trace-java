@@ -6,8 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.NotUsed;
+import org.apache.pekko.http.scaladsl.HttpExt;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import org.apache.pekko.http.scaladsl.settings.ServerSettings;
@@ -89,9 +91,16 @@ public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 0, readOnly = false)
             Flow<HttpRequest, HttpResponse, NotUsed> handler,
         @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
-      final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
-          BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
-      handler = wrapper.reversed().join(handler.asJava()).asScala();
+      if (CallDepthThreadLocalMap.incrementCallDepth(HttpExt.class) == 0) {
+        final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
+            BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
+        handler = wrapper.reversed().join(handler.asJava()).asScala();
+      }
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit() {
+      CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }
   }
 }

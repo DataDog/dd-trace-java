@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -158,11 +160,11 @@ public class InjectorBenchmark {
     }
   }
 
-  private static final AgentPropagation.Setter<Map<String, String>> MAP_SETTER =
-      new MapContextSetter<>();
+  private static final CarrierSetter<Map<String, String>> MAP_SETTER = new MapContextSetter<>();
 
+  @ParametersAreNonnullByDefault
   private static final class MapContextSetter<T extends Map<String, String>>
-      implements AgentPropagation.Setter<T> {
+      implements CarrierSetter<T> {
     @Override
     public void set(T carrier, String key, String value) {
       carrier.put(key, value);

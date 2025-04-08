@@ -6,6 +6,7 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.telemetry.TelemetryRunnable.TelemetryPeriodicAction;
 import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
+import datadog.telemetry.endpoint.EndpointPeriodicAction;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
@@ -67,6 +68,9 @@ public class TelemetrySystem {
       log.debug("Telemetry log collection enabled");
     }
     actions.add(new ProductChangeAction());
+    if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
+      actions.add(new EndpointPeriodicAction());
+    }
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
     return AgentThreadFactory.newAgentThread(

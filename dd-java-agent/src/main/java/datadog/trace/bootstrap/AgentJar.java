@@ -33,6 +33,9 @@ public final class AgentJar {
           case "scanDependencies":
             scanDependencies(args);
             break;
+          case "checkProfilerEnv":
+            checkProfilerEnv(args);
+            break;
           case "--list-integrations":
           case "-li":
             printIntegrationNames();
@@ -63,6 +66,7 @@ public final class AgentJar {
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash file ...");
     System.out.println("  scanDependencies <path> ...");
+    System.out.println("  checkProfilerEnv [temp]");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -163,5 +167,11 @@ public final class AgentJar {
     }
 
     return sb.toString().trim();
+  }
+
+  private static void checkProfilerEnv(final String[] args) throws Exception {
+    String tmpDir = args.length == 2 ? args[1] : System.getProperty("java.io.tmpdir");
+
+    installAgentCLI().getMethod("checkProfilerEnv", String.class).invoke(null, tmpDir);
   }
 }

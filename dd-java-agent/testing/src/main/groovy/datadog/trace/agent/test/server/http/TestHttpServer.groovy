@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.HttpServletRequestExtractAdapter.GETTER
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static org.eclipse.jetty.http.HttpMethod.CONNECT
 import static org.eclipse.jetty.http.HttpMethod.GET
@@ -379,13 +379,13 @@ class TestHttpServer implements AutoCloseable {
         isDDServer = Boolean.parseBoolean(request.getHeader("is-dd-server"))
       }
       if (isDDServer) {
-        final AgentSpanContext extractedContext = propagate().extract(req.orig, GETTER)
+        final AgentSpanContext extractedContext = extractContextAndGetSpanContext(req.orig, GETTER)
         if (extractedContext != null) {
-          startSpan("test-http-server", extractedContext)
+          startSpan("test", "test-http-server", extractedContext)
             .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         } else {
-          startSpan("test-http-server")
+          startSpan("test", "test-http-server")
             .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         }

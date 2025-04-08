@@ -65,16 +65,18 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String testSuiteName = CucumberUtils.getFeatureName(suiteDescriptor);
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        testFramework,
-        testFrameworkVersion,
-        null,
-        tags,
-        false,
-        TestFrameworkInstrumentation.CUCUMBER,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            testFramework,
+            testFrameworkVersion,
+            null,
+            tags,
+            false,
+            TestFrameworkInstrumentation.CUCUMBER,
+            null);
   }
 
   private void containerExecutionFinished(
@@ -87,16 +89,22 @@ public class CucumberTracingListener implements EngineExecutionListener {
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         String reason = throwable.getMessage();
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.CUCUMBER)
+            .onTestSuiteSkip(suiteDescriptor, reason);
 
         for (TestDescriptor child : suiteDescriptor.getChildren()) {
           executionSkipped(child, reason);
         }
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.CUCUMBER)
+            .onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -113,19 +121,20 @@ public class CucumberTracingListener implements EngineExecutionListener {
     Pair<String, String> names =
         CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
     String testName = names.getRight();
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        testFramework,
-        testFrameworkVersion,
-        null,
-        tags,
-        TestSourceData.UNKNOWN,
-        null,
-        TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestStart(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            testFramework,
+            testFrameworkVersion,
+            null,
+            tags,
+            TestSourceData.UNKNOWN,
+            null,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
@@ -143,16 +152,20 @@ public class CucumberTracingListener implements EngineExecutionListener {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-            testDescriptor, throwable.getMessage());
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.CUCUMBER)
+            .onTestSkip(testDescriptor, throwable.getMessage());
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.CUCUMBER)
+            .onTestFailure(testDescriptor, throwable);
       }
     }
     TestExecutionHistory executionHistory =
         TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionHistory);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   @Override
@@ -172,15 +185,17 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String testName = names.getRight();
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        testFramework,
-        testFrameworkVersion,
-        null,
-        tags,
-        TestSourceData.UNKNOWN,
-        reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .onTestIgnore(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            testFramework,
+            testFrameworkVersion,
+            null,
+            tags,
+            TestSourceData.UNKNOWN,
+            reason);
   }
 }

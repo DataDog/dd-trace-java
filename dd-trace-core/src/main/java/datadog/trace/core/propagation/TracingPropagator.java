@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ProductTraceSource.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
@@ -19,16 +20,19 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /** Propagator for tracing concern. */
 @ParametersAreNonnullByDefault
 public class TracingPropagator implements Propagator {
+  private final boolean enabled;
   private final Injector injector;
   private final Extractor extractor;
 
   /**
    * Constructor.
    *
+   * @param enabled Whether APM tracing is enabled.
    * @param injector The {@link Injector} used for tracing context injection.
    * @param extractor The {@link Extractor} used for tracing context extraction.
    */
-  public TracingPropagator(Injector injector, Extractor extractor) {
+  public TracingPropagator(boolean enabled, Injector injector, Extractor extractor) {
+    this.enabled = enabled;
     this.injector = injector;
     this.extractor = extractor;
   }
@@ -46,8 +50,12 @@ public class TracingPropagator implements Propagator {
     AgentSpanContext spanContext = span.context();
     if (spanContext instanceof DDSpanContext) {
       DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
+      // Stop injection if tracing is disabled and tracing span is coming from tracing only
+      if (!this.enabled && ddSpanContext.getPropagationTags().getTraceSource() == UNSET) {
+        return;
+      }
       ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
-      this.injector.inject(ddSpanContext, carrier, setter::set);
+      this.injector.inject(ddSpanContext, carrier, setter);
     }
   }
 

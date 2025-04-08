@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.util.AgentThreadFactory;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,21 +26,15 @@ public class DatadogWeaverReporter {
   private static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor>
       TEST_EVENTS_HANDLER;
 
-  static {
-    Runtime.getRuntime()
-        .addShutdownHook(
-            AgentThreadFactory.newAgentThread(
-                AgentThreadFactory.AgentThread.CI_TEST_EVENTS_SHUTDOWN_HOOK,
-                DatadogWeaverReporter::stop,
-                false));
-  }
-
   public static synchronized void start() {
     if (TEST_EVENTS_HANDLER == null) {
-      TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("weaver", null, null);
+      TEST_EVENTS_HANDLER =
+          InstrumentationBridge.createTestEventsHandler(
+              "weaver", null, null, WeaverUtils.CAPABILITIES);
     }
   }
 
+  /** Used by instrumentation tests */
   public static synchronized void stop() {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();

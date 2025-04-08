@@ -1,23 +1,41 @@
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
-
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.WebsocketServer
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.websocket.CloseReason
+import jakarta.websocket.Endpoint
+import jakarta.websocket.EndpointConfig
+import jakarta.websocket.MessageHandler
+import jakarta.websocket.OnClose
+import jakarta.websocket.OnMessage
+import jakarta.websocket.OnOpen
+import jakarta.websocket.Session
+import jakarta.websocket.server.ServerEndpoint
+import jakarta.websocket.server.ServerEndpointConfig
 import org.eclipse.jetty.ee10.servlet.ErrorHandler
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler
+import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
 
-class JettyServer implements HttpServer {
+import java.nio.ByteBuffer
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+class JettyServer implements WebsocketServer {
   def port = 0
   final server = new Server(0) // select random open port
 
-  JettyServer(Handler handler) {
+  JettyServer(ServletContextHandler handler, usePojoWebsocketHandler = false) {
     server.handler = handler
     server.addBean(errorHandler)
+    def endpointClass = usePojoWebsocketHandler ? PojoEndpoint : WsEndpoint
+    JakartaWebSocketServletContainerInitializer.configure(handler, (servletContext, container) -> {
+      container.addEndpoint(ServerEndpointConfig.Builder.create(endpointClass, "/websocket").build())
+    })
   }
 
   @Override
@@ -63,6 +81,120 @@ class JettyServer implements HttpServer {
       if (message) {
         writer.write(message)
       }
+    }
+  }
+
+  @Override
+  void serverSendText(String[] messages) {
+    if (messages.length == 1) {
+      Lock.activeSession.getBasicRemote().sendText(messages[0])
+    } else {
+      def remoteEndpoint = Lock.activeSession.getBasicRemote()
+      for (int i = 0; i < messages.length; i++) {
+        remoteEndpoint.sendText(messages[i], i == messages.length - 1)
+      }
+    }
+  }
+
+  @Override
+  void serverSendBinary(byte[][] binaries) {
+    if (binaries.length == 1) {
+      Lock.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+    } else {
+      try (def stream = Lock.activeSession.getBasicRemote().getSendStream()) {
+        binaries.each { stream.write(it) }
+      }
+    }
+  }
+
+  @Override
+  synchronized void awaitConnected() {
+    synchronized (Lock) {
+      try {
+        while (Lock.activeSession == null) {
+          Lock.wait()
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt()
+      }
+    }
+  }
+
+  @Override
+  void serverClose() {
+    Lock.activeSession?.close()
+    Lock.activeSession = null
+  }
+
+  @Override
+  void setMaxPayloadSize(int size) {
+    Lock.activeSession?.setMaxTextMessageBufferSize(size)
+    Lock.activeSession?.setMaxBinaryMessageBufferSize(size)
+  }
+
+  @Override
+  boolean canSplitLargeWebsocketPayloads() {
+    false
+  }
+
+  static class Lock {
+    static Session activeSession
+  }
+
+  @ServerEndpoint("/websocket")
+  static class PojoEndpoint {
+
+    @OnOpen
+    void onOpen(Session session) {
+      Lock.activeSession = session
+      synchronized (Lock) {
+        Lock.notifyAll()
+      }
+    }
+
+    @OnMessage
+    void onText(String text, Session session, boolean last) {
+      runUnderTrace("onRead", {})
+
+    }
+
+    @OnMessage
+    void onBytes(byte[] binary) {
+      runUnderTrace("onRead", {})
+    }
+
+    @OnClose
+    void onClose() {
+      Lock.activeSession = null
+    }
+  }
+
+  static class WsEndpoint extends Endpoint {
+
+    @Override
+    void onOpen(Session session, EndpointConfig endpointConfig) {
+      session.addMessageHandler(new MessageHandler.Partial<String>() {
+          @Override
+          void onMessage(String s, boolean b) {
+            runUnderTrace("onRead", {})
+          }
+        })
+      session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+
+          @Override
+          void onMessage(ByteBuffer buffer) {
+            runUnderTrace("onRead", {})
+          }
+        })
+      Lock.activeSession = session
+      synchronized (Lock) {
+        Lock.notifyAll()
+      }
+    }
+
+    @Override
+    void onClose(Session session, CloseReason closeReason) {
+      Lock.activeSession = null
     }
   }
 }

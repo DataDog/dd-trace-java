@@ -3,19 +3,19 @@ package datadog.trace.civisibility.domain.buildsystem;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 
 import datadog.communication.ddagent.TracerVersion;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
@@ -112,8 +112,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   @ParametersAreNonnullByDefault
   private static final class ChildProcessPropertiesPropagationSetter
-      implements AgentPropagation.Setter<Map<String, String>> {
-    static final AgentPropagation.Setter<Map<String, String>> INSTANCE =
+      implements CarrierSetter<Map<String, String>> {
+    static final CarrierSetter<Map<String, String>> INSTANCE =
         new ChildProcessPropertiesPropagationSetter();
 
     private ChildProcessPropertiesPropagationSetter() {}
@@ -269,7 +269,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     if (result.isEarlyFlakeDetectionEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
       if (result.isEarlyFlakeDetectionFaulty()) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, Constants.EFD_ABORT_REASON_FAULTY);
       }
     }
 

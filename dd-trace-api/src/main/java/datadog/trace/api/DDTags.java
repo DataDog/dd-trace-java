@@ -6,7 +6,25 @@ public class DDTags {
 
   public static final String DD_CODE_ORIGIN_TYPE = DD_CODE_ORIGIN_PREFIX + "type";
   // _dd.code_origin.frames.%d.file|line|method|type|snapshot_id
-  public static final String DD_CODE_ORIGIN_FRAME = DD_CODE_ORIGIN_PREFIX + "frames.%d.%s";
+  public static final String DD_CODE_ORIGIN_FRAME_FILE = DD_CODE_ORIGIN_PREFIX + "frames.0.file";
+  public static final String DD_CODE_ORIGIN_FRAME_TYPE = DD_CODE_ORIGIN_PREFIX + "frames.0.type";
+  public static final String DD_CODE_ORIGIN_FRAME_METHOD =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.method";
+  public static final String DD_CODE_ORIGIN_FRAME_SIGNATURE =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.signature";
+  public static final String DD_CODE_ORIGIN_FRAME_LINE = DD_CODE_ORIGIN_PREFIX + "frames.0.line";
+  public static final String DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.snapshot_id";
+
+  public static final String[] REQUIRED_CODE_ORIGIN_TAGS =
+      new String[] {
+        DD_CODE_ORIGIN_TYPE,
+        DD_CODE_ORIGIN_FRAME_FILE,
+        DD_CODE_ORIGIN_FRAME_METHOD,
+        DD_CODE_ORIGIN_FRAME_LINE,
+        DD_CODE_ORIGIN_FRAME_TYPE,
+        DD_CODE_ORIGIN_FRAME_SIGNATURE,
+      };
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
@@ -37,6 +55,7 @@ public class DDTags {
 
   /** Manually force tracer to keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";
+
   /** Manually force tracer to drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 
@@ -76,4 +95,7 @@ public class DDTags {
   public static final String BASE_SERVICE = "_dd.base_service";
   public static final String PARENT_ID = "_dd.parent_id";
   public static final String APM_ENABLED = "_dd.apm.enabled";
+  public static final String DECISION_MAKER_INHERITED = "_dd.dm.inherited";
+  public static final String DECISION_MAKER_SERVICE = "_dd.dm.service";
+  public static final String DECISION_MAKER_RESOURCE = "_dd.dm.resource";
 }

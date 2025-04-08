@@ -1,4 +1,4 @@
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.trace.api.Trace;
 import java.util.concurrent.CompletableFuture;
@@ -52,11 +52,11 @@ public class Fanout {
   }
 
   private void untracedWork() {
-    assert null != activeScope();
+    assert null != activeSpan();
   }
 
   @Trace
   private void tracedWork() {
-    assert null != activeScope();
+    assert null != activeSpan();
   }
 }

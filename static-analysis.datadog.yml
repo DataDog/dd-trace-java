@@ -22,6 +22,9 @@ rulesets:
       one-declaration-per-line:
         ignore:
           - "**"
+      missing-switch-statement-default:
+        ignore:
+          - "**"
       redundant-initializer:
         ignore:
           - "**"
@@ -31,6 +34,9 @@ rulesets:
         ignore:
           - "**"
       boolean-get-method-name:
+        ignore:
+          - "**"
+      call-super-in-constructor:
         ignore:
           - "**"
       control-statement-braces:

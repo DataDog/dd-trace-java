@@ -16,6 +16,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CwsConfig;
@@ -30,6 +31,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.git.EmbeddedGitInfoBuilder;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -68,6 +71,10 @@ public class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
       "datadog.slf4j.simpleLogger.showDateTime";
+  private static final String SIMPLE_LOGGER_JSON_ENABLED_PROPERTY =
+      "datadog.slf4j.simpleLogger.jsonEnabled";
+  private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT =
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
       "datadog.slf4j.simpleLogger.dateTimeFormat";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT =
@@ -83,41 +90,37 @@ public class Agent {
   private static final Logger log;
 
   private enum AgentFeature {
-    TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
-    JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(
-        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
-        DEFAULT_STARTUP_LOGS_ENABLED),
-    PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
-    APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
-    IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
-    DEPRECATED_REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
-    CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
-    CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
-    CIVISIBILITY_AGENTLESS(
-        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
-    USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
-    TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(
-        propertyNameToSystemPropertyName(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED), false),
-    EXCEPTION_DEBUGGING(
-        propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED), false),
-    SPAN_ORIGIN(
-        propertyNameToSystemPropertyName(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED),
-        false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
-    AGENTLESS_LOG_SUBMISSION(
-        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
+    TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
+    JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
+    STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
+    APPSEC(AppSecConfig.APPSEC_ENABLED, false),
+    IAST(IastConfig.IAST_ENABLED, false),
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    CWS(CwsConfig.CWS_ENABLED, false),
+    CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
+    CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
+    USM(UsmConfig.USM_ENABLED, false),
+    TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
+    DYNAMIC_INSTRUMENTATION(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED, false),
+    EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
+    CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
+    DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
 
+    private final String configKey;
     private final String systemProp;
     private final boolean enabledByDefault;
 
-    AgentFeature(final String systemProp, final boolean enabledByDefault) {
-      this.systemProp = systemProp;
+    AgentFeature(final String configKey, final boolean enabledByDefault) {
+      this.configKey = configKey;
+      this.systemProp = propertyNameToSystemPropertyName(configKey);
       this.enabledByDefault = enabledByDefault;
+    }
+
+    public String getConfigKey() {
+      return configKey;
     }
 
     public String getSystemProp() {
@@ -153,9 +156,10 @@ public class Agent {
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
-  private static boolean debuggerEnabled = false;
-  private static boolean exceptionDebuggingEnabled = false;
-  private static boolean spanOriginEnabled = false;
+  private static boolean dynamicInstrumentationEnabled = false;
+  private static boolean exceptionReplayEnabled = false;
+  private static boolean codeOriginEnabled = false;
+  private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
@@ -223,6 +227,12 @@ public class Agent {
       }
     }
 
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
+    }
+
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
       log.info("Data Jobs Monitoring enabled, enabling spark integrations");
@@ -233,6 +243,17 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if (Config.get().isDataJobsOpenLineageEnabled()) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
@@ -265,9 +286,9 @@ public class Agent {
             || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
-    debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
-    exceptionDebuggingEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_DEBUGGING);
-    spanOriginEnabled = isFeatureEnabled(AgentFeature.SPAN_ORIGIN);
+    dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
+    exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
+    codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
@@ -816,6 +837,14 @@ public class Agent {
   }
 
   private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+
+    try {
+      // event tracking SDK must be available for customers even if AppSec is fully disabled
+      AppSecEventTracker.install();
+    } catch (final Exception e) {
+      log.debug("Error starting AppSec Event Tracker", e);
+    }
+
     if (!(appSecEnabled || (remoteConfigEnabled && !appSecFullyDisabled))) {
       return;
     }
@@ -1118,7 +1147,10 @@ public class Agent {
   }
 
   private static void maybeStartDebugger(Instrumentation inst, Class<?> scoClass, Object sco) {
-    if (!debuggerEnabled && !exceptionDebuggingEnabled && !spanOriginEnabled) {
+    if (isExplicitlyDisabled(DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.EXCEPTION_REPLAY_ENABLED)
+        && isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)
+        && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
       return;
     }
     if (!remoteConfigEnabled) {
@@ -1126,6 +1158,11 @@ public class Agent {
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);
+  }
+
+  private static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   private static synchronized void startDebuggerAgent(
@@ -1151,8 +1188,14 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(
-        SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
+    } else {
+      setSystemPropertyDefault(
+          SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    }
 
     String logLevel;
     if (isDebugMode()) {
@@ -1213,16 +1256,17 @@ public class Agent {
   /** @return {@code true} if the agent feature is enabled */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureEnabledSysprop);
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String featureEnabled = System.getProperty(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.MANAGED, featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
-      featureEnabled = ddGetEnv(featureEnabledSysprop);
+      featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.USER, featureEnabledSysprop);
+      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1242,11 +1286,17 @@ public class Agent {
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
+    final String featureConfigKey = feature.getConfigKey();
+    final String featureSystemProp = feature.getSystemProp();
+    String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
     }
 
     // defaults to inactive

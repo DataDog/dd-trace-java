@@ -12,6 +12,7 @@ import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
+import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
@@ -22,7 +23,11 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
 
@@ -42,9 +47,14 @@ public class SqsInterceptor extends RequestHandler2 {
 
       Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context context = newContext(request, queueUrl);
+      // making a copy of the MessageAttributes before modifying them because they can be stored in
+      // a kind of ImmutableMap
+      Map<String, MessageAttributeValue> messageAttributes =
+          new HashMap<>(smRequest.getMessageAttributes());
+      dsmPropagator.inject(context, messageAttributes, SETTER);
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
-      dsmPropagator.inject(context, smRequest.getMessageAttributes(), SETTER);
+      smRequest.setMessageAttributes(messageAttributes);
     } else if (request instanceof SendMessageBatchRequest) {
       SendMessageBatchRequest smbRequest = (SendMessageBatchRequest) request;
 
@@ -54,13 +64,18 @@ public class SqsInterceptor extends RequestHandler2 {
       Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
-        dsmPropagator.inject(context, entry.getMessageAttributes(), SETTER);
+        Map<String, MessageAttributeValue> messageAttributes =
+            new HashMap<>(entry.getMessageAttributes());
+        dsmPropagator.inject(context, messageAttributes, SETTER);
+        entry.setMessageAttributes(messageAttributes);
       }
     } else if (request instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;
       if (rmRequest.getMessageAttributeNames().size() < 10
           && !rmRequest.getMessageAttributeNames().contains(DATADOG_KEY)) {
-        rmRequest.getMessageAttributeNames().add(DATADOG_KEY);
+        List<String> attributeNames = new ArrayList<>(rmRequest.getMessageAttributeNames());
+        attributeNames.add(DATADOG_KEY);
+        rmRequest.setMessageAttributeNames(attributeNames);
       }
     }
     return request;

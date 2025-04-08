@@ -1,10 +1,9 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.UserIdCollectionMode;
-import datadog.trace.api.appsec.LoginEventCallback;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -279,8 +278,8 @@ public final class Events<D> {
 
   /** Triggered in every authenticated request to the application */
   @SuppressWarnings("unchecked")
-  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> user() {
-    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>) USER;
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> user() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) USER;
   }
 
   static final int LOGIN_EVENT_ID = 23;
@@ -288,10 +287,9 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType LOGIN_EVENT = new ET<>("login.event", LOGIN_EVENT_ID);
 
-  /** Triggered when the SDK sends a custom event */
   @SuppressWarnings("unchecked")
-  public EventType<LoginEventCallback> loginEvent() {
-    return (EventType<LoginEventCallback>) LOGIN_EVENT;
+  public EventType<TriFunction<RequestContext, LoginEvent, String, Flow<Void>>> loginEvent() {
+    return (EventType<TriFunction<RequestContext, LoginEvent, String, Flow<Void>>>) LOGIN_EVENT;
   }
 
   static final int EXEC_CMD_ID = 24;

@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
+import com.datadog.appsec.api.security.ApiSecuritySamplerImpl
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -8,9 +9,6 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
-import datadog.trace.api.ProductTraceSource
-import datadog.trace.api.UserIdCollectionMode
-import datadog.trace.api.appsec.LoginEventCallback
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -21,6 +19,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -31,16 +30,14 @@ import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
 
-import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
-import static datadog.trace.api.UserIdCollectionMode.DISABLED
-import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION
-import static datadog.trace.api.UserIdCollectionMode.SDK
 import static datadog.trace.api.gateway.Events.EVENTS
+import static datadog.trace.api.telemetry.LoginEvent.LOGIN_FAILURE
+import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS
+import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP
 
 class GatewayBridgeSpecification extends DDSpecification {
 
   private static final String USER_ID = 'user'
-  private static final String ANONYMIZED_USER_ID = 'anon_04f8996da763b7a969b1028ee3007569'
 
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
@@ -79,7 +76,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
+  ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -105,8 +103,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
-  TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userCB
-  LoginEventCallback loginEventCB
+  BiFunction<RequestContext, String, Flow<Void>> userCB
+  TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -163,7 +161,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close(false)
+    1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -171,7 +169,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -973,7 +970,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
     }
-    final spanInfo = Mock(AgentSpan)
+    final spanInfo = Mock(AgentSpan) {
+      getTags() >> ['http.route':'/']
+    }
 
     when:
     requestEndedCB.apply(mockCtx, spanInfo)
@@ -1055,285 +1054,73 @@ class GatewayBridgeSpecification extends DDSpecification {
     gatewayContext.isTransient == false
   }
 
-  void "test onUserEvent (#mode)"() {
+  void "test onUserEvent"() {
     setup:
-    final expectedUser = mode == ANONYMIZATION ? ANONYMIZED_USER_ID : USER_ID
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    userCB.apply(ctx, mode, USER_ID)
+    userCB.apply(ctx, USER_ID)
 
     then:
-    if (mode == DISABLED) {
-      0 * _
-    } else {
-      1 * traceSegment.setTagTop('usr.id', expectedUser)
-      if (mode != SDK) {
-        1 * traceSegment.setTagTop('_dd.appsec.usr.id', expectedUser)
-      }
-      1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', mode.fullName())
-      1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        assert db.get(KnownAddresses.USER_ID) == expectedUser
-        assert !gw.isTransient
-        return NoopFlow.INSTANCE
-      }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+      assert db.get(KnownAddresses.USER_ID) == USER_ID
+      assert !gw.isTransient
+      return NoopFlow.INSTANCE
     }
 
     when:
-    userCB.apply(ctx, mode, USER_ID)
+    userCB.apply(ctx, USER_ID)
 
     then: 'no call to the WAF for duplicated calls'
     0 * eventDispatcher.publishDataEvent
-
-    where:
-    mode << UserIdCollectionMode.values()
   }
 
-  void "test onSignup (#mode)"() {
+  void "test onSignup"() {
     setup:
-    final expectedUser = mode == ANONYMIZATION ? ANONYMIZED_USER_ID : USER_ID
-    final metadata = ['key1': 'value1', 'key2': 'value2']
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'users.signup', null, USER_ID, metadata)
+    loginEventCB.apply(ctx, SIGN_UP, USER_ID)
 
     then:
-    if (mode == DISABLED) {
-      0 * _
-    } else {
-      1 * traceSegment.setTagTop('appsec.events.users.signup.usr.login', expectedUser, true)
-      if (mode != SDK) {
-        1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', mode.fullName(), true)
-      } else {
-        1 * traceSegment.setTagTop('appsec.events.users.signup.usr.id', expectedUser, true)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.sdk', true, true)
-      }
-      1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
-      1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1': 'value1', 'key2': 'value2'], true)
-      1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-      1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        if (mode == SDK) {
-          assert db.get(KnownAddresses.USER_ID) == expectedUser
-        }
-        assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
-        assert !gw.isTransient
-        return NoopFlow.INSTANCE
-      }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+      assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
+      assert db.get(KnownAddresses.SIGN_UP) != null
+      assert !gw.isTransient
+      return NoopFlow.INSTANCE
     }
-
-    where:
-    mode << UserIdCollectionMode.values()
   }
 
-  void "test onLoginSuccess (#mode)"() {
+  void "test onLoginSuccess"() {
     setup:
-    final expectedUser = mode == ANONYMIZATION ? ANONYMIZED_USER_ID : USER_ID
-    final metadata = ['key1': 'value1', 'key2': 'value2']
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'users.login.success', null, USER_ID, metadata)
+    loginEventCB.apply(ctx, LOGIN_SUCCESS, USER_ID)
 
     then:
-    if (mode == DISABLED) {
-      0 * _
-    } else {
-      1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', expectedUser, true)
-      if (mode != SDK) {
-        1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', mode.fullName(), true)
-      } else {
-        1 * traceSegment.setTagTop('usr.id', expectedUser, false)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
-      }
-      1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
-      1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], true)
-      1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-      1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        if (mode == SDK) {
-          assert db.get(KnownAddresses.USER_ID) == expectedUser
-        }
-        assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
-        assert db.get(KnownAddresses.LOGIN_SUCCESS) != null
-        assert !gw.isTransient
-        return NoopFlow.INSTANCE
-      }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+      assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
+      assert db.get(KnownAddresses.LOGIN_SUCCESS) != null
+      assert !gw.isTransient
+      return NoopFlow.INSTANCE
     }
-
-    where:
-    mode << UserIdCollectionMode.values()
   }
 
   void "test onLoginFailure (#mode)"() {
     setup:
-    final expectedUser = mode == ANONYMIZATION ? ANONYMIZED_USER_ID : USER_ID
-    final metadata = ['key1': 'value1', 'key2': 'value2']
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
     when:
-    loginEventCB.apply(ctx, mode, 'users.login.failure', false, USER_ID, metadata)
+    loginEventCB.apply(ctx, LOGIN_FAILURE, USER_ID)
 
     then:
-    if (mode == DISABLED) {
-      0 * _
-    } else {
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', expectedUser, true)
-      if (mode != SDK) {
-        1 * traceSegment.setTagTop('_dd.appsec.usr.login', expectedUser)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', mode.fullName(), true)
-      } else {
-        1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', expectedUser, true)
-        1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
-      }
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', false, true)
-      1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'], true)
-      1 * traceSegment.setTagTop('asm.keep', true)
-      1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-      1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
-        if (mode == SDK) {
-          assert db.get(KnownAddresses.USER_ID) == expectedUser
-        }
-        assert db.get(KnownAddresses.USER_LOGIN) == expectedUser
-        assert db.get(KnownAddresses.LOGIN_FAILURE) != null
-        assert !gw.isTransient
-        return NoopFlow.INSTANCE
-      }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+      assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
+      assert db.get(KnownAddresses.LOGIN_FAILURE) != null
+      assert !gw.isTransient
+      return NoopFlow.INSTANCE
     }
-
-    where:
-    mode << UserIdCollectionMode.values()
-  }
-
-  void "test onCustomEvent (#mode)"() {
-    setup:
-    final metadata = ['key1': 'value1', 'key2': 'value2']
-    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-
-    when:
-    loginEventCB.apply(ctx, SDK, 'my.event', null, null, metadata)
-
-    then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.my.event.sdk', true, true)
-    1 * traceSegment.setTagTop('appsec.events.my.event.track', true, true)
-    1 * traceSegment.setTagTop('appsec.events.my.event', ['key1': 'value1', 'key2': 'value2'], true)
-    1 * traceSegment.setTagTop('asm.keep', true)
-    1 * traceSegment.setTagTop('_dd.p.ts', ProductTraceSource.ASM)
-    0 * eventDispatcher.publishDataEvent
-  }
-
-  void "test onUserEvent (automated login events should not overwrite SDK)"() {
-    setup:
-    final firstUser = 'first-user'
-    final secondUser = 'second-user'
-    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-
-    when:
-    userCB.apply(ctx, SDK, firstUser)
-
-    then:
-    1 * traceSegment.setTagTop('usr.id', firstUser)
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', SDK.fullName())
-    0 * traceSegment.setTagTop('_dd.appsec.usr.id', _)
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
-
-    when:
-    userCB.apply(ctx, IDENTIFICATION, secondUser)
-
-    then: 'SDK data remains untouched'
-    0 * traceSegment.setTagTop('usr.id', _)
-    0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
-    1 * traceSegment.setTagTop('_dd.appsec.usr.id', secondUser)
-    0 * eventDispatcher.publishDataEvent
-  }
-
-  void "test onLoginSuccess (automated login events should not overwrite SDK)"() {
-    setup:
-    final firstUser = 'user1'
-    final secondUser = 'user2'
-    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-
-    when:
-    loginEventCB.apply(ctx, SDK, 'users.login.success', null, firstUser, null)
-
-    then:
-    1 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', firstUser, true)
-    1 * traceSegment.setTagTop('usr.id', firstUser, false)
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, true)
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
-
-    0 * traceSegment.setTagTop('_dd.appsec.usr.login', _)
-    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', _, _)
-
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
-
-    when:
-    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.success', null, secondUser, null)
-
-    then:
-    0 * traceSegment.setTagTop('appsec.events.users.login.success.usr.login', _, _)
-    0 * traceSegment.setTagTop('usr.id', _, _)
-    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', _, _)
-    0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
-
-    1 * traceSegment.setTagTop('_dd.appsec.usr.login', secondUser)
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', IDENTIFICATION.fullName(), true)
-
-    0 * eventDispatcher.publishDataEvent
-  }
-
-  void "test onLoginFailure (automated login events should not overwrite SDK)"() {
-    setup:
-    final firstUser = 'user1'
-    final secondUser = 'user2'
-    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-
-    when:
-    loginEventCB.apply(ctx, SDK, 'users.login.failure', true, firstUser, null)
-
-    then:
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', firstUser, true)
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, true)
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', true, true)
-
-    0 * traceSegment.setTagTop('_dd.appsec.usr.login', _)
-    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', _, _)
-
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> NoopFlow.INSTANCE
-
-    when:
-    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', false, secondUser, null)
-
-    then:
-    0 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.login', _, _)
-    0 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', _, _)
-    0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
-    0 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', _, _)
-
-    1 * traceSegment.setTagTop('_dd.appsec.usr.login', secondUser)
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', IDENTIFICATION.fullName(), true)
-
-    0 * eventDispatcher.publishDataEvent
-  }
-
-  void 'test onUserNotFound'() {
-    setup:
-    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-
-    when:
-    loginEventCB.apply(ctx, IDENTIFICATION, 'users.login.failure', exists, null, null)
-
-    then:
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', exists, true)
-    0 * eventDispatcher.publishDataEvent
-
-    where:
-    exists << [true, false]
   }
 
   void 'test configuration updates should reset cached subscriptions'() {

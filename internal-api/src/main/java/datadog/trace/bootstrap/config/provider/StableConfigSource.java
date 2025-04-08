@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
+import java.io.File;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -12,27 +13,35 @@ import org.slf4j.LoggerFactory;
 public final class StableConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
 
-  public static final String USER_STABLE_CONFIG_PATH =
+  public static final String LOCAL_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/application_monitoring.yaml";
-  public static final String MANAGED_STABLE_CONFIG_PATH =
+  public static final String FLEET_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml";
-  public static final StableConfigSource USER =
-      new StableConfigSource(USER_STABLE_CONFIG_PATH, ConfigOrigin.USER_STABLE_CONFIG);
-  public static final StableConfigSource MANAGED =
+  public static final StableConfigSource LOCAL =
+      new StableConfigSource(LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
+  public static final StableConfigSource FLEET =
       new StableConfigSource(
-          StableConfigSource.MANAGED_STABLE_CONFIG_PATH, ConfigOrigin.MANAGED_STABLE_CONFIG);
+          StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
 
   private final ConfigOrigin fileOrigin;
-
   private final StableConfig config;
 
-  StableConfigSource(String file, ConfigOrigin origin) {
+  StableConfigSource(String filePath, ConfigOrigin origin) {
     this.fileOrigin = origin;
+    File file = new File(filePath);
+    if (!file.exists()) {
+      this.config = StableConfig.EMPTY;
+      return;
+    }
     StableConfig cfg;
     try {
-      cfg = StableConfigParser.parse(file);
+      log.debug("Stable configuration file found at path: {}", file);
+      cfg = StableConfigParser.parse(filePath);
     } catch (Throwable e) {
-      log.debug("Stable configuration file not readable at specified path: {}", file);
+      log.warn(
+          "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs.",
+          file,
+          e);
       cfg = StableConfig.EMPTY;
     }
     this.config = cfg;
@@ -61,16 +70,17 @@ public final class StableConfigSource extends ConfigProvider.Source {
 
   public static class StableConfig {
     public static final StableConfig EMPTY = new StableConfig(null, Collections.emptyMap());
-    private final Map<String, String> apmConfiguration;
+    private final Map<String, Object> apmConfiguration;
     private final String configId;
 
-    StableConfig(String configId, Map<String, String> configMap) {
+    public StableConfig(String configId, Map<String, Object> configMap) {
       this.configId = configId;
       this.apmConfiguration = configMap;
     }
 
     public String get(String key) {
-      return this.apmConfiguration.get(key);
+      Object value = this.apmConfiguration.get(key);
+      return (value == null) ? null : String.valueOf(value);
     }
 
     public Set<String> getKeys() {

@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -86,11 +84,17 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
+    return get().activateSpan(span);
   }
 
-  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
+  /**
+   * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
+   *
+   * @deprecated This should only be used when the instrumented code doesn't align with a scope.
+   */
+  @Deprecated
+  public static void activateSpanWithoutScope(final AgentSpan span) {
+    get().activateSpanWithoutScope(span);
   }
 
   /**
@@ -122,6 +126,41 @@ public class AgentTracer {
   }
 
   /**
+   * Checkpoints the active scope. A subsequent call to {@link #rollbackActiveToCheckpoint()} closes
+   * outstanding scopes up to but not including the most recent checkpointed scope.
+   *
+   * @deprecated This should only be used when scopes might leak onto the scope stack which cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void checkpointActiveForRollback() {
+    get().checkpointActiveForRollback();
+  }
+
+  /**
+   * Closes outstanding scopes up to but not including the most recent scope checkpointed with
+   * {@link #checkpointActiveForRollback()}. Closes all scopes if none have been checkpointed.
+   *
+   * @deprecated This should only be used when scopes have leaked onto the scope stack that cannot
+   *     be cleaned up by other means.
+   */
+  @Deprecated
+  public static void rollbackActiveToCheckpoint() {
+    get().rollbackActiveToCheckpoint();
+  }
+
+  /**
+   * Closes the scope for the currently active span.
+   *
+   * @deprecated This should only be used when the span was previously activated with {@link
+   *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
+   */
+  @Deprecated
+  public static void closeActive() {
+    get().closeActive();
+  }
+
+  /**
    * Closes the immediately previous iteration scope. Should be called before creating a new span
    * for {@link #activateNext(AgentSpan)}.
    */
@@ -150,10 +189,6 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
-  public static AgentScope activeScope() {
-    return get().activeScope();
-  }
-
   /**
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
@@ -175,10 +210,6 @@ public class AgentTracer {
    */
   public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
     get().setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  public static AgentPropagation propagate() {
-    return get().propagate();
   }
 
   /**
@@ -305,24 +336,31 @@ public class AgentTracer {
         AgentSpanContext parent,
         long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
+    /** Activate a span from inside auto-instrumentation. */
+    AgentScope activateSpan(AgentSpan span);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+    /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
+    AgentScope activateManualSpan(AgentSpan span);
+
+    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+    void activateSpanWithoutScope(AgentSpan span);
 
     @Override
     AgentScope.Continuation captureActiveSpan();
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    void checkpointActiveForRollback();
+
+    void rollbackActiveToCheckpoint();
+
+    void closeActive();
+
     void closePrevious(boolean finishSpan);
 
     AgentScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
-
-    AgentScope activeScope();
-
-    AgentPropagation propagate();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -374,6 +412,8 @@ public class AgentTracer {
      * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
+
+    void addShutdownListener(Runnable listener);
   }
 
   public interface SpanBuilder {
@@ -441,15 +481,17 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+    public AgentScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
+
+    @Override
+    public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
     public AgentScope.Continuation captureActiveSpan() {
@@ -470,6 +512,15 @@ public class AgentTracer {
     public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
+    public void checkpointActiveForRollback() {}
+
+    @Override
+    public void rollbackActiveToCheckpoint() {}
+
+    @Override
+    public void closeActive() {}
+
+    @Override
     public void closePrevious(final boolean finishSpan) {}
 
     @Override
@@ -480,16 +531,6 @@ public class AgentTracer {
     @Override
     public AgentSpan activeSpan() {
       return NoopSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentScope activeScope() {
-      return null;
-    }
-
-    @Override
-    public AgentPropagation propagate() {
-      return NoopAgentPropagation.INSTANCE;
     }
 
     @Override
@@ -561,6 +602,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void addShutdownListener(Runnable listener) {}
+
+    @Override
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
@@ -620,10 +664,6 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentPropagation implements AgentPropagation {
-    static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
-  }
-
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
@@ -631,7 +671,7 @@ public class AgentTracer {
     public void registerContinuation(final AgentScope.Continuation continuation) {}
 
     @Override
-    public void cancelContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final AgentScope.Continuation continuation) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

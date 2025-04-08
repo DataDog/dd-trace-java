@@ -9,6 +9,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -19,6 +20,7 @@ import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.http.MediaType
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import test.SetupSpecHelper
@@ -27,6 +29,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -34,6 +37,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -46,7 +50,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
+    new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController, WebsocketConfig)
   }
 
   def setupSpec() {
@@ -126,6 +130,22 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testUserBlocking() {
     true
+  }
+
+  @Override
+  boolean testEndpointDiscovery() {
+    true
+  }
+
+  @Override
+  void assertEndpointDiscovery(final List<?> endpoints) {
+    final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
+    assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])
+    discovered.values().each {
+      assert it.requestBodyType.containsAll([MediaType.APPLICATION_JSON_VALUE])
+      assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
+      assert it.metadata['handler'] == 'public org.springframework.http.ResponseEntity test.boot.TestController.discovery()'
+    }
   }
 
   @Override
@@ -239,7 +259,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(2)
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
 
     then:
     response.code() == PATH_PARAM.status
@@ -274,12 +294,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(2)
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
 
     then:
     response.code() == MATRIX_PARAM.status
     response.body().string() == MATRIX_PARAM.body
-    span.getTag(IG_PATH_PARAMS_TAG) == [var:['a=x,y;a=z', [a:['x', 'y', 'z']]]]
+    span.getTag(IG_PATH_PARAMS_TAG) == [var: ['a=x,y;a=z', [a: ['x', 'y', 'z']]]]
   }
 
   void 'tainting on matrix var'() {
@@ -322,14 +342,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     when:
     client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan span = TEST_WRITER.flatten().find {"servlet.request".contentEquals(it.operationName)}
+    DDSpan span = TEST_WRITER.flatten().find { "servlet.request".contentEquals(it.operationName) }
 
     then:
     span.getResourceName().toString() == "GET " + testPathParam()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
+    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN || endpoint == FORWARDED
   }
 
   @Override
@@ -380,6 +400,18 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           defaultTags()
         }
       }
+    }  else if (endpoint == FORWARDED) {
+      trace.span {
+        serviceName expectedServiceName()
+        operationName 'servlet.dispatch'
+        resourceName 'servlet.dispatch'
+        tags {
+          "$Tags.COMPONENT" 'java-web-servlet-async-dispatcher'
+          'servlet.context' "/$servletContext"
+          'servlet.path' '/forwarded'
+          defaultTags()
+        }
+      }
     } else {
       throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
@@ -391,7 +423,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       serviceName expectedServiceName()
       operationName "spring.handler"
       resourceName {
-        it == "TestController.${endpoint.name().toLowerCase()}" || endpoint == NOT_FOUND && it == "ResourceHttpRequestHandler.handleRequest"
+        it == "TestController.${endpoint.name().toLowerCase()}"
+        || endpoint == NOT_FOUND && it == "ResourceHttpRequestHandler.handleRequest"
+        || endpoint == WEBSOCKET && it == "WebSocketHttpRequestHandler.handleRequest"
       }
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == EXCEPTION

@@ -15,6 +15,7 @@ minimumInstructionCoverage = 0.5
 excludedClassesCoverage += [
   // This is mainly equals() and hashCode()
   "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTScopeManager.FakeScope",
   "datadog.opentracing.OTSpan",
   "datadog.opentracing.OTSpanContext",
   "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",

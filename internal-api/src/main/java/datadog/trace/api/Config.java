@@ -146,6 +146,7 @@ public class Config {
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
+  private final boolean peerHostNameEnabled;
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
@@ -189,8 +190,10 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
-  private final boolean inferredProxyEnabled;
+  private final int traceBaggageMaxItems;
+  private final int traceBaggageMaxBytes;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -289,7 +292,9 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
-  private final float apiSecurityRequestSampleRate;
+  private final float apiSecuritySampleDelay;
+  private final boolean apiSecurityEndpointCollectionEnabled;
+  private final int apiSecurityEndpointCollectionMessageLimit;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -427,6 +432,7 @@ public class Config {
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
+  private final Set<String> debuggerShadingIdentifiers;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -482,6 +488,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean logs128bitTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -494,6 +501,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final String dataJobsCommandPattern;
+  private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -513,6 +521,7 @@ public class Config {
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
+  private final boolean azureFunctions;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -535,7 +544,9 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
-
+  private final boolean websocketMessagesInheritSampling;
+  private final boolean websocketMessagesSeparateTraces;
+  private final boolean websocketTagSessionId;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
@@ -557,6 +568,9 @@ public class Config {
   private final long dependecyResolutionPeriodMillis;
 
   private final boolean apmTracingEnabled;
+  private final Set<String> experimentalFeaturesEnabled;
+
+  private final boolean jdkSocketEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -622,6 +636,11 @@ public class Config {
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
+    experimentalFeaturesEnabled =
+        configProvider.getString(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "").equals("all")
+            ? DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED
+            : configProvider.getSet(TRACE_EXPERIMENTAL_FEATURES_ENABLED, new HashSet<>());
+
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
@@ -653,6 +672,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+
+    logs128bitTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
@@ -766,7 +790,14 @@ public class Config {
 
     {
       final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
-      tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      if (experimentalFeaturesEnabled.contains("DD_TAGS")) {
+        tags.putAll(configProvider.getMergedTagsMap(TRACE_TAGS, TAGS));
+      } else {
+        tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      }
+      if (serviceNameSetByUser) { // prioritize service name set by DD_SERVICE over DD_TAGS config
+        tags.remove("service");
+      }
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 
@@ -797,7 +828,12 @@ public class Config {
 
     baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
+    azureFunctions =
+        getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
+
     spanAttributeSchemaVersion = schemaVersionFromConfig();
+
+    peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
     // following two only used in v0.
     // in v1+ defaults are always calculated regardless this feature flag
@@ -919,6 +955,22 @@ public class Config {
 
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+
+    TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
+    try {
+      tmpTracePropagationBehaviorExtract =
+          TracePropagationBehaviorExtract.valueOf(
+              configProvider
+                  .getString(
+                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                  .toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
+      log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
+    }
+    tracePropagationBehaviorExtract = tmpTracePropagationBehaviorExtract;
+
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -991,9 +1043,17 @@ public class Config {
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
       // Now we can check if we should pick the default injection/extraction
+
       tracePropagationStylesToExtract =
           extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
+
+      traceBaggageMaxItems =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+      traceBaggageMaxBytes =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
       propagationStylesToExtract =
@@ -1009,9 +1069,15 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
-    logsInjectionEnabled =
-        configProvider.getBoolean(
-            LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    if (experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(LOGS_INJECTION))) {
+      logsInjectionEnabled =
+          configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
+    } else {
+      logsInjectionEnabled =
+          configProvider.getBoolean(
+              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    }
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -1064,7 +1130,8 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    // Enable tracer computed trace metrics by default for Azure Functions
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -1317,9 +1384,16 @@ public class Config {
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
-    apiSecurityRequestSampleRate =
-        configProvider.getFloat(
-            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecuritySampleDelay =
+        configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionMessageLimit =
+        configProvider.getInteger(
+            API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1668,6 +1742,8 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerShadingIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1760,6 +1836,9 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsOpenLineageEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
@@ -1837,6 +1916,15 @@ public class Config {
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
+
+    websocketMessagesInheritSampling =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING);
+    websocketMessagesSeparateTraces =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES);
+    websocketTagSessionId =
+        configProvider.getBoolean(TRACE_WEBSOCKET_TAG_SESSION_ID, DEFAULT_WEBSOCKET_TAG_SESSION_ID);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -1927,6 +2015,8 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
     log.debug("New instance: {}", this);
   }
 
@@ -1991,6 +2081,10 @@ public class Config {
 
   public String getRootContextServiceName() {
     return rootContextServiceName;
+  }
+
+  public Set<String> getExperimentalFeaturesEnabled() {
+    return experimentalFeaturesEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -2087,6 +2181,10 @@ public class Config {
 
   public int getSpanAttributeSchemaVersion() {
     return spanAttributeSchemaVersion;
+  }
+
+  public boolean isPeerHostNameEnabled() {
+    return peerHostNameEnabled;
   }
 
   public boolean isPeerServiceDefaultsEnabled() {
@@ -2251,24 +2349,32 @@ public class Config {
     return tracePropagationStylesToInject;
   }
 
+  public TracePropagationBehaviorExtract getTracePropagationBehaviorExtract() {
+    return tracePropagationBehaviorExtract;
+  }
+
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
   }
 
-  public boolean isInferredProxyToExtract() {
-    return tracePropagationStylesToExtract.contains(TracePropagationStyle.INFERREDPROXY);
+  public boolean isBaggageExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
   }
 
-  public boolean isInferredProxyToInject() {
-    return tracePropagationStylesToInject.contains(TracePropagationStyle.INFERREDPROXY);
+  public boolean isBaggageInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE);
   }
 
-  public boolean isInferredProxyEnabledByEnv() {
-    return inferredProxyEnabled;
+  public boolean isBaggagePropagationEnabled() {
+    return isBaggageInject() || isBaggageExtract();
   }
 
-  public boolean isInferredProxyPropagationEnabled() {
-    return isInferredProxyToExtract() || isInferredProxyToInject() || isInferredProxyEnabledByEnv();
+  public int getTraceBaggageMaxItems() {
+    return traceBaggageMaxItems;
+  }
+
+  public int getTraceBaggageMaxBytes() {
+    return traceBaggageMaxBytes;
   }
 
   public int getClockSyncPeriod() {
@@ -2666,8 +2772,16 @@ public class Config {
     return apiSecurityEnabled;
   }
 
-  public float getApiSecurityRequestSampleRate() {
-    return apiSecurityRequestSampleRate;
+  public float getApiSecuritySampleDelay() {
+    return apiSecuritySampleDelay;
+  }
+
+  public int getApiSecurityEndpointCollectionMessageLimit() {
+    return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
   }
 
   public ProductActivation getIastActivation() {
@@ -3206,6 +3320,10 @@ public class Config {
     return debuggerThirdPartyExcludes;
   }
 
+  public Set<String> getThirdPartyShadingIdentifiers() {
+    return debuggerShadingIdentifiers;
+  }
+
   private String getFinalDebuggerBaseUrl() {
     if (agentUrl.startsWith("unix:")) {
       // provide placeholder agent URL, in practice we'll be tunnelling over UDS
@@ -3417,6 +3535,10 @@ public class Config {
     return trace128bitTraceIdGenerationEnabled;
   }
 
+  public boolean isLogs128bitTraceIdEnabled() {
+    return logs128bitTraceIdEnabled;
+  }
+
   public Set<String> getGrpcIgnoredInboundMethods() {
     return grpcIgnoredInboundMethods;
   }
@@ -3473,8 +3595,24 @@ public class Config {
     return axisPromoteResourceName;
   }
 
+  public boolean isWebsocketMessagesInheritSampling() {
+    return websocketMessagesInheritSampling;
+  }
+
+  public boolean isWebsocketMessagesSeparateTraces() {
+    return websocketMessagesSeparateTraces;
+  }
+
+  public boolean isWebsocketTagSessionId() {
+    return websocketTagSessionId;
+  }
+
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
+  }
+
+  public boolean isDataJobsOpenLineageEnabled() {
+    return dataJobsOpenLineageEnabled;
   }
 
   public String getDataJobsCommandPattern() {
@@ -3483,6 +3621,10 @@ public class Config {
 
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
+  }
+
+  public boolean isJdkSocketEnabled() {
+    return jdkSocketEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3768,8 +3910,14 @@ public class Config {
   }
 
   private int schemaVersionFromConfig() {
-    String versionStr =
-        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    String defaultVersion;
+    // use v1 so Azure Functions operation name is consistent with that of other tracers
+    if (azureFunctions) {
+      defaultVersion = "v1";
+    } else {
+      defaultVersion = "v" + SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    String versionStr = configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, defaultVersion);
     Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
     int parsedVersion = -1;
     if (matcher.matches()) {
@@ -4325,6 +4473,8 @@ public class Config {
         + serviceNameSetByUser
         + ", rootContextServiceName="
         + rootContextServiceName
+        + ", experimentalFeaturesEnabled="
+        + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
         + ", writerType='"
@@ -4398,6 +4548,8 @@ public class Config {
         + dbClientSplitByHost
         + ", DBMPropagationMode="
         + DBMPropagationMode
+        + ", DBMTracePreparedStatements="
+        + DBMTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="
@@ -4420,6 +4572,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationBehaviorExtract="
+        + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
         + ", clockSyncPeriod="
@@ -4641,6 +4795,8 @@ public class Config {
         + idGenerationStrategy
         + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
+        + ", logs128bitTraceIdEnabled="
+        + logs128bitTraceIdEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
@@ -4664,8 +4820,10 @@ public class Config {
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
-        + ", apiSecurityRequestSampleRate="
-        + apiSecurityRequestSampleRate
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
+        + ", apiSecurityEndpointCollectionMessageLimit="
+        + apiSecurityEndpointCollectionMessageLimit
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
@@ -4700,6 +4858,8 @@ public class Config {
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="
         + axisPromoteResourceName
+        + ", peerHostNameEnabled="
+        + peerHostNameEnabled
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="
@@ -4722,6 +4882,10 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
+        + ", jdkSocketEnabled="
+        + jdkSocketEnabled
+        + ", cloudPayloadTaggingServices="
+        + cloudPayloadTaggingServices
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="

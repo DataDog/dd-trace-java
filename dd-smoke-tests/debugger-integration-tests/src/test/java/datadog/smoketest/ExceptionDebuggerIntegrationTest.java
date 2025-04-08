@@ -237,6 +237,40 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
         });
   }
 
+  @Test
+  @DisplayName("testLambdaHiddenFrames")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "HotSpot specific test")
+  void testLambdaHiddenFrames() throws Exception {
+    additionalJvmArgs.add("-XX:+UnlockDiagnosticVMOptions");
+    additionalJvmArgs.add("-XX:+ShowHiddenFrames");
+    appUrl = startAppAndAndGetUrl();
+    execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // instrumenting first exception
+    waitForInstrumentation(appUrl);
+    execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // collecting snapshots and sending them
+    registerTraceListener(this::receiveExceptionReplayTrace);
+    registerSnapshotListener(this::receiveSnapshot);
+    processRequests(
+        () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          String snapshotId0 = snapshotIdTags.get(0);
+          if (traceReceived && snapshotReceived && snapshots.containsKey(snapshotId0)) {
+            Snapshot snapshot = snapshots.get(snapshotId0);
+            assertNotNull(snapshot);
+            assertEquals(
+                "lambdaOops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithLambdaException",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            return true;
+          }
+          return false;
+        });
+  }
+
   private void resetSnapshotsAndTraces() {
     resetTraceListener();
     traceReceived = false;

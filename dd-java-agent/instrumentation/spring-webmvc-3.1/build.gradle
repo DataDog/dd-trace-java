@@ -3,26 +3,7 @@ muzzle {
     group = 'org.springframework'
     module = 'spring-webmvc'
     versions = "[3.1.0.RELEASE,6)"
-    skipVersions += [
-      '1.2.1',
-      '1.2.2',
-      '1.2.3',
-      '1.2.4'] // broken releases... missing dependencies
     skipVersions += '3.2.1.RELEASE' // missing a required class.  (bad release?)
-    extraDependency "javax.servlet:javax.servlet-api:3.0.1"
-    // assertInverse = true
-  }
-
-  // FIXME: webmvc depends on web, so we need a separate integration for spring-web specifically.
-  fail {
-    group = 'org.springframework'
-    module = 'spring-web'
-    versions = "[,]"
-    skipVersions += [
-      '1.2.1',
-      '1.2.2',
-      '1.2.3',
-      '1.2.4'] // broken releases... missing dependencies
     extraDependency "javax.servlet:javax.servlet-api:3.0.1"
   }
 
@@ -34,9 +15,26 @@ muzzle {
     extraDependency "javax.servlet:javax.servlet-api:3.0.1"
     extraDependency "org.springframework:spring-webmvc:3.1.0.RELEASE"
   }
+
+  pass {
+    name = 'spring-mvc-pre-5.3'
+    group = 'org.springframework'
+    module = 'spring-webmvc'
+    versions = "[3.1.0.RELEASE,5.3)"
+    skipVersions += [
+      '1.2.1',
+      '1.2.2',
+      '1.2.3',
+      '1.2.4'] // broken releases... missing dependencies
+    skipVersions += '3.2.1.RELEASE' // missing a required class.  (bad release?)
+    extraDependency "javax.servlet:javax.servlet-api:3.0.1"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuite("latestDepTest")
+addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "latestDepTest")
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '3.1.0.RELEASE'
@@ -45,7 +43,7 @@ dependencies {
   //  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
   testImplementation(project(':dd-java-agent:testing')) {
-    exclude(module: 'jetty-server') // incompatable servlet api
+    exclude(module: 'jetty-server') // incompatible servlet api
   }
 
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
@@ -62,6 +60,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-6')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
 
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
@@ -70,6 +70,7 @@ dependencies {
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
 
@@ -78,4 +79,10 @@ dependencies {
   testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
 
   testImplementation group: 'org.jboss.resteasy', name: 'resteasy-spring', version: '3.0.0.Final'
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.+'
 }

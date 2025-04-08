@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 315bc8a32cc888834726397f088336ba8038277f
+default_system_tests_commit: &default_system_tests_commit 2799fa982318da14c9d3e5f722abdc670d2802c3
 
 parameters:
   nightly:
@@ -696,6 +696,8 @@ jobs:
     <<: *tests
 
     resource_class: medium
+    environment:
+      - CI_AGENT_HOST=localhost
 
     docker:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}8
@@ -850,6 +852,9 @@ jobs:
             DEFAULT
             APM_TRACING_E2E
             APM_TRACING_E2E_SINGLE_SPAN
+            TRACING_CONFIG_NONDEFAULT
+            TRACING_CONFIG_NONDEFAULT_2
+            TRACING_CONFIG_NONDEFAULT_3
             "
             if ! [[ << parameters.weblog-variant >> =~ .*native ]]; then
               echo "
@@ -860,6 +865,8 @@ jobs:
               APPSEC_API_SECURITY
               APPSEC_API_SECURITY_RC
               APPSEC_API_SECURITY_WITH_SAMPLING
+              APPSEC_AUTO_EVENTS_RC
+              APPSEC_AUTO_EVENTS_EXTENDED
               APPSEC_WAF_TELEMETRY
               APPSEC_STANDALONE_V2
               IAST_STANDALONE_V2
@@ -889,6 +896,7 @@ jobs:
             for log_dir in logs*; do
               tar -cvzf ../artifacts/${log_dir}_<< parameters.weblog-variant >>.tar.gz $log_dir
             done
+          when: always
 
       - store_artifacts:
           path: artifacts
@@ -978,6 +986,7 @@ jobs:
             for dir in system-tests/logs*/; do
                 cp -r "$dir" logs_debugger
             done
+          when: always
 
       - store_test_results:
           path: logs_debugger
@@ -1096,7 +1105,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
-      parallelism: 4
+      parallelism: 5
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
       triggeredBy: *instrumentation_modules
@@ -1324,6 +1333,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1337,6 +1347,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
+{% endif %}
 
   - tests:
       requires:
@@ -1380,6 +1391,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1392,13 +1404,16 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 3
       testJvm: "8"
+{% endif %}
 
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+{% if ssi_smoke %}
         - z_test_<< matrix.testJvm >>_ssi_smoke
+{% endif %}
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1409,7 +1424,9 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+{% if ssi_smoke %}
         - z_test_8_ssi_smoke
+{% endif %}
       name: test_8
       stage: tracing
       testJvm: "8"
@@ -1503,6 +1520,14 @@ build_test_jobs: &build_test_jobs
       stage: required
 
 workflows:
+{% if skip_circleci %}
+  build_test:
+    jobs:
+      # Just a "required" job to make GitHub PR checks happy, and run nothing else.
+      - fan_in:
+          name: required
+          stage: required
+{% else %}
 {% if is_regular %}
   build_test:
     jobs:
@@ -1542,4 +1567,5 @@ workflows:
           name: build_cache_profiling
           gradleTarget: :profilingTest
           cacheType: profiling
+{% endif %}
 {% endif %}

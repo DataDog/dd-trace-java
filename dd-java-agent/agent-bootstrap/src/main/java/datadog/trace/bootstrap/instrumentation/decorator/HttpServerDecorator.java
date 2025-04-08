@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -500,7 +501,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null == carrier || null == getter) {
       return null;
     }
-    return tracer().propagate().extract(carrier, getter);
+    return extractContextAndGetSpanContext(carrier, getter);
   }
 
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */

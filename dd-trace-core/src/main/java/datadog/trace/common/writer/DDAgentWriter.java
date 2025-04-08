@@ -162,8 +162,7 @@ public class DDAgentWriter extends RemoteWriter {
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
-              singleSpanSampler,
-              null);
+              singleSpanSampler);
 
       return new DDAgentWriter(
           traceProcessingWorker,

@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.Constants
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import spock.lang.Shared
 
 import java.util.concurrent.TimeoutException
@@ -115,7 +114,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     when:
     AgentScope scope
     runUnderTrace("parent") {
-      scope = TEST_TRACER.activateSpan(noopSpan(), ScopeSource.INSTRUMENTATION)
+      scope = TEST_TRACER.activateManualSpan(noopSpan())
 
       blockUntilChildSpansFinished(1)
     }

@@ -10,6 +10,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
+    injectSysConfig("dd.integration.spark-openlineage.enabled", "true")
   }
 
   def "compute a GROUP BY sql query plan"() {
