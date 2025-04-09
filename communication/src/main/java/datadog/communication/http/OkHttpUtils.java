@@ -210,7 +210,9 @@ public final class OkHttpUtils {
       builder.addHeader(DATADOG_ENTITY_ID, entityId);
     }
 
-    if (Config.get().isExperimentalProcessTagsEnabled()) {
+    if (Config.get()
+        .getExperimentalFeaturesEnabled()
+        .contains("EXPERIMENTAL_PROCESS_TAGS_ENABLED")) {
       // custom X-Datadog-Process-Tags
       String customTags = getCustomTags();
       String existingProcessTags = headers.getOrDefault("X-Datadog-Process-Tags", "");
