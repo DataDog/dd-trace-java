@@ -83,6 +83,11 @@ public class ExtendedHeartbeatData {
     }
 
     @Override
+    public ArrayList<Dependency> allDependencyEvent() {
+      return dependencies;
+    }
+
+    @Override
     public boolean hasMetricEvent() {
       return false;
     }

@@ -7,6 +7,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.telemetry.ProductChange;
+import java.util.ArrayList;
 import java.util.Queue;
 
 /**
@@ -26,6 +27,8 @@ interface EventSource {
   boolean hasDependencyEvent();
 
   Dependency nextDependencyEvent();
+
+  ArrayList<Dependency> allDependencyEvent();
 
   boolean hasMetricEvent();
 
@@ -56,7 +59,7 @@ interface EventSource {
   final class Queued implements EventSource {
     private final Queue<ConfigSetting> configChangeQueue;
     private final Queue<Integration> integrationQueue;
-    private final Queue<Dependency> dependencyQueue;
+    private final ArrayList<Dependency> dependencyQueue;
     private final Queue<Metric> metricQueue;
     private final Queue<DistributionSeries> distributionSeriesQueue;
     private final Queue<LogMessage> logMessageQueue;
@@ -65,7 +68,7 @@ interface EventSource {
     Queued(
         Queue<ConfigSetting> configChangeQueue,
         Queue<Integration> integrationQueue,
-        Queue<Dependency> dependencyQueue,
+        ArrayList<Dependency> dependencyQueue,
         Queue<Metric> metricQueue,
         Queue<DistributionSeries> distributionSeriesQueue,
         Queue<LogMessage> logMessageQueue,
@@ -106,7 +109,12 @@ interface EventSource {
 
     @Override
     public Dependency nextDependencyEvent() {
-      return dependencyQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<Dependency> allDependencyEvent() {
+      return dependencyQueue;
     }
 
     @Override
