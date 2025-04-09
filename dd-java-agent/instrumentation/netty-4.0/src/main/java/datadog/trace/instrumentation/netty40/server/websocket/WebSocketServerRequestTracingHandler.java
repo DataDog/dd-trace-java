@@ -1,20 +1,18 @@
-package datadog.trace.instrumentation.netty41.server.websocket;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
-import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_RECEIVER_HANDLER_CONTEXT;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
+package datadog.trace.instrumentation.netty40.server.websocket;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
-import io.netty.channel.*;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.http.websocketx.*;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.*;
 
 @ChannelHandler.Sharable
 public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
@@ -28,12 +26,14 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
       Channel channel = ctx.channel();
       HandlerContext.Receiver receiverContext =
           channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).get();
+
       if (receiverContext == null) {
         HandlerContext.Sender sessionState = channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
         if (sessionState != null) {
+          String channelId = ctx.channel().attr(CHANNEL_ID).get();
           receiverContext =
               new HandlerContext.Receiver(
-                  sessionState.getHandshakeSpan(), channel.id().asShortText());
+                  sessionState.getHandshakeSpan(), channelId);
           channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).set(receiverContext);
         }
       }
@@ -41,6 +41,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         if (frame instanceof TextWebSocketFrame) {
           // WebSocket Read Text Start
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
+          System.out.println("WebSocket Read Text");
 
           final AgentSpan span =
               DECORATE.onReceiveFrameStart(
@@ -101,6 +102,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
 
         if (frame instanceof CloseWebSocketFrame) {
           // WebSocket Closed by client
+          System.out.println("WebSocket Closed by client");
           CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
           int statusCode = closeFrame.statusCode();
           String reasonText = closeFrame.reasonText();

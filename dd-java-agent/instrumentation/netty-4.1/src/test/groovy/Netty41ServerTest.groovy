@@ -1,6 +1,7 @@
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.base.NettyWebsocketClient
 import datadog.trace.agent.test.base.WebsocketClient
 import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
