@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -419,7 +420,10 @@ public class Agent {
             .getMethod("patchModuleAccess")
             .invoke(inst);
       } catch (Exception e) {
-        log.warn("Failed to patch module access for jvmstat");
+        log.debug(
+            SEND_TELEMETRY,
+            "Failed to patch module access for jvmstat and Java version "
+                + Platform.getRuntimeVersion());
       }
     }
   }
