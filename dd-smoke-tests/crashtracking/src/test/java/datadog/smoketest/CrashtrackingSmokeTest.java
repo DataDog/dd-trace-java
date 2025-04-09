@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -21,7 +22,6 @@ import java.util.Comparator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
@@ -38,8 +38,10 @@ import org.junit.jupiter.api.Test;
  * that ships with OS X by default.
  */
 public class CrashtrackingSmokeTest {
+  private static final long DATA_TIMEOUT_MS = 10 * 1000;
   private static Path LOG_FILE_DIR;
   private MockWebServer tracingServer;
+  private TestUDPServer udpServer;
   private BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
 
   @BeforeAll
@@ -87,7 +89,10 @@ public class CrashtrackingSmokeTest {
             return new MockResponse().setResponseCode(200);
           }
         });
-    //    tracingServer.start(8126);
+
+    udpServer = new TestUDPServer();
+    udpServer.start();
+
     synchronized (outputThreads.testLogMessages) {
       outputThreads.testLogMessages.clear();
     }
@@ -96,6 +101,7 @@ public class CrashtrackingSmokeTest {
   @AfterEach
   void teardown() throws Exception {
     tracingServer.shutdown();
+    udpServer.close();
 
     try (Stream<Path> fileStream = Files.walk(tempDir)) {
       fileStream.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
@@ -227,12 +233,10 @@ public class CrashtrackingSmokeTest {
     Process p = pb.start();
     outputThreads.captureOutput(
         p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
-    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(tracingServer.getPort()));
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
-
-    assertOutputContains("com.datadog.crashtracking.OOMENotifier - OOME event sent");
-    assertOutputContains("OOME Event generated successfully");
+    assertOOMEvent();
   }
 
   @Test
@@ -259,7 +263,7 @@ public class CrashtrackingSmokeTest {
                 appShadowJar(),
                 oomeScript.toString()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
-    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(tracingServer.getPort()));
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     Process p = pb.start();
     outputThreads.captureOutput(
@@ -269,28 +273,24 @@ public class CrashtrackingSmokeTest {
 
     // Crash uploader did get triggered
     assertCrashData();
-
-    // OOME notifier did get triggered
-    assertOutputContains("com.datadog.crashtracking.OOMENotifier - OOME event sent");
-    assertOutputContains("OOME Event generated successfully");
-  }
-
-  private void assertOutputContains(String s) {
-    try {
-      outputThreads.processTestLogLines((line) -> line.contains(s));
-    } catch (TimeoutException e) {
-      // FIXME JUNit fail() is more correct but doesn't work. SEE:
-      // https://github.com/gradle/gradle/issues/27871
-      // fixed in Gradle version 8.7
-      // fail("String: '" + s + "' not found in output");
-      throw new RuntimeException("String: '" + s + "' not found in output");
-    }
+    assertOOMEvent();
   }
 
   private void assertCrashData() throws InterruptedException {
-    CrashTelemetryData crashData = crashEvents.poll(10, TimeUnit.SECONDS);
+    CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
     assertThat(crashData.payload.get(0).message, containsString("OutOfMemory"));
     assertThat(crashData.payload.get(0).tags, containsString("severity:crash"));
+  }
+
+  private void assertOOMEvent() throws InterruptedException {
+    byte[] data = udpServer.getMessages().poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    assertNotNull(data, "OOM Event not received");
+    String event = new String(data);
+
+    assertThat(event, startsWith("_e"));
+    assertThat(event, containsString(":OutOfMemoryError"));
+    assertThat(event, containsString("t:error"));
+    assertThat(event, containsString("s:java"));
   }
 }
