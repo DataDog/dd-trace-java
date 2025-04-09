@@ -1,3 +1,4 @@
+
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
@@ -9,6 +10,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.TagMap
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -158,7 +160,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '1.1.1.1'])
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
@@ -190,7 +192,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
-    1 * spanInfo.getTags() >> ['http.client_ip': '8.8.8.8']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
