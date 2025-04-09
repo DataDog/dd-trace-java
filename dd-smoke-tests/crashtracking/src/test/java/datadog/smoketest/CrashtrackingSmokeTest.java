@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -282,11 +281,13 @@ public class CrashtrackingSmokeTest {
   }
 
   private void assertOOMEvent() throws InterruptedException {
-    byte[] data = udpServer.getMessages().poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-    assertNotNull(data, "OOM Event not received");
-    String event = new String(data);
+    String event;
+    do {
+      event = udpServer.getMessages().poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    } while (event != null && !event.startsWith("_e"));
 
-    assertThat(event, startsWith("_e"));
+    assertNotNull(event, "OOM Event not received");
+
     assertThat(event, containsString(":OutOfMemoryError"));
     assertThat(event, containsString("t:error"));
     assertThat(event, containsString("s:java"));

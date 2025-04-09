@@ -18,7 +18,7 @@ public class TestUDPServer implements Closeable {
 
   private static final byte[] END_MESSAGE = "END____".getBytes();
 
-  private final BlockingQueue<byte[]> dataPackets = new LinkedBlockingQueue<>();
+  private final BlockingQueue<String> dataPackets = new LinkedBlockingQueue<>();
   private final int timeout;
   private final int packetSize;
   private final int port;
@@ -63,17 +63,17 @@ public class TestUDPServer implements Closeable {
                       packet.getData(), packet.getOffset(), trimmedData, 0, packet.getLength());
 
                   if (Arrays.equals(trimmedData, END_MESSAGE)) {
-                    System.out.println("[TestUDPServer] Received message to close");
+                    System.err.println("[TestUDPServer] Received message to close");
                     break;
                   }
-                  System.out.println(
+                  System.err.println(
                       "[TestUDPServer] Received message: " + new String(trimmedData));
-                  dataPackets.add(trimmedData);
+                  dataPackets.add(new String(trimmedData));
                 } catch (SocketTimeoutException e) {
-                  System.out.println("[TestUDPServer] Timeout waiting for message");
+                  System.err.println("[TestUDPServer] Timeout waiting for message");
                   // ignore no data sent
                 } catch (IOException e) {
-                  System.out.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
+                  System.err.println("[TestUDPServer] Error in receiving packet " + e.getMessage());
                   e.printStackTrace();
                   break;
                 }
@@ -103,7 +103,7 @@ public class TestUDPServer implements Closeable {
           new DatagramPacket(
               END_MESSAGE, END_MESSAGE.length, InetAddress.getByName("localhost"), getPort()));
     } catch (IOException e) {
-      System.out.println(
+      System.err.println(
           "[TestUDPServer] Exception sending close message. Will rely on socket timeout");
       e.printStackTrace();
     }
@@ -126,7 +126,7 @@ public class TestUDPServer implements Closeable {
     }
   }
 
-  public BlockingQueue<byte[]> getMessages() {
+  public BlockingQueue<String> getMessages() {
     return dataPackets;
   }
 }
