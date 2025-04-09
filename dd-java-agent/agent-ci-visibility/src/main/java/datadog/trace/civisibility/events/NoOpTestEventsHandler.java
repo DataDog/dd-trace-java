@@ -106,16 +106,6 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean isNew(@Nonnull TestIdentifier test) {
-    return false;
-  }
-
-  @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return false;
-  }
-
-  @Override
   public int executionPriority(
       @Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData) {
     return 0;
