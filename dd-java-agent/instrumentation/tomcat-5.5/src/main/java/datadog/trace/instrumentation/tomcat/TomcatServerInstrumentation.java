@@ -133,32 +133,30 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedSpanContext);
 
       final AgentSpan span = DECORATE.startSpan(req, extractedSpanContext);
+//      System.out.println("span.getContext: " + )
 //      extractedContext.with(span);
 
       System.out.println("ExtractedContext: " + extractedContext);
-      Baggage baggage = Baggage.fromContext(extractedContext);
-      if(baggage != null) {
-        System.out.println("Extracted Baggage: " + baggage.getW3cHeader());
+      Baggage baggage = Baggage.fromContext(extractedContext); //what if there were other contexts
+      final AgentScope scope;
+      if(baggage == null){
+        scope = activateSpan(span);
+      }else {
+        extractedContext.with(span);
+        scope = (AgentScope) extractedContext.attach();
       }
-      final ContextScope contextScope = extractedContext.attach();
-      System.out.println("Context Scope: " + contextScope);
+//      final AgentScope contextScope = (AgentScope) extractedContext.attach();
+//      System.out.println("Context Scope: " + contextScope);
       System.out.print("after attach: ");
+      System.out.println("Scope: " + scope);
       System.out.println(Context.current().getClass());
 
-      final AgentScope scope = activateSpan(span);
-      System.out.println("Scope: " + scope);
-
-
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
-//      System.out.println("DECORATE.afterStart(span);");
       DECORATE.afterStart(span);
 
-//      System.out.println("req.setAttribute(DD_SPAN_ATTRIBUTE, span);");
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-//      System.out.println("req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());");
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-//      System.out.println("req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());");
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
       return scope;
     }
