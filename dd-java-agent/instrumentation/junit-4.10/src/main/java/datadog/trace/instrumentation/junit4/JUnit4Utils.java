@@ -348,7 +348,7 @@ public abstract class JUnit4Utils {
       return TestFrameworkInstrumentation.KARATE;
     } else if (runnerClassName.startsWith("io.cucumber")) {
       return TestFrameworkInstrumentation.CUCUMBER;
-    } else if (runnerClassName.startsWith("munit.internal.junitinterface")) {
+    } else if (runnerClassName.startsWith("munit")) {
       return TestFrameworkInstrumentation.MUNIT;
     } else {
       return TestFrameworkInstrumentation.JUNIT4;
