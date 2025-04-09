@@ -430,8 +430,8 @@ public class Agent {
       // Unclear if supported for J9, may need to revisit
       try {
         Class.forName("datadog.trace.util.JPMSJPSAccess")
-            .getMethod("patchModuleAccess")
-            .invoke(inst);
+            .getMethod("patchModuleAccess", Instrumentation.class)
+            .invoke(null, inst);
       } catch (Exception e) {
         log.debug(
             SEND_TELEMETRY,

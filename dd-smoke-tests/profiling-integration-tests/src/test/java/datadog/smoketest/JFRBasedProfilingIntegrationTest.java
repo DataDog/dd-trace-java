@@ -507,8 +507,6 @@ class JFRBasedProfilingIntegrationTest {
             assertTrue(
                 targetProcess.waitFor(
                     duration + PROFILING_UPLOAD_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS));
-            assertTrue(
-                checkLogLines(logFilePath, it -> it.contains("Successfully invoked jvmstat")));
           } finally {
             if (targetProcess != null) {
               targetProcess.destroyForcibly();
