@@ -217,7 +217,6 @@ final class TunnelingJdkSocket extends Socket {
 
         int readyChannels = selector.select(timeout);
         if (readyChannels == 0) {
-          System.out.println("Timeout (" + timeout + "ms) while waiting for data.");
           return 0;
         }
 
