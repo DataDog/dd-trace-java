@@ -6,6 +6,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 
 /**
@@ -27,6 +28,8 @@ interface EventSink {
   void addLogMessageEvent(LogMessage event);
 
   void addProductChangeEvent(ProductChange event);
+
+  void addEndpointEvent(Endpoint event);
 
   EventSink NOOP = new Noop();
 
@@ -53,5 +56,8 @@ interface EventSink {
 
     @Override
     public void addProductChangeEvent(ProductChange event) {}
+
+    @Override
+    public void addEndpointEvent(Endpoint event) {}
   }
 }

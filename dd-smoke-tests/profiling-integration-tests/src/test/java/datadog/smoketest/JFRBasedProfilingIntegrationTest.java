@@ -567,6 +567,11 @@ class JFRBasedProfilingIntegrationTest {
       final IItemCollection events,
       final boolean expectEndpointEvents,
       final boolean asyncProfilerEnabled) {
+    // Process events should not be collected
+    assertFalse(
+        events.apply(ItemFilters.type("jdk.SystemProcess")).hasItems(),
+        "jdk.SystemProcess events should not be collected");
+
     assertTrue(
         events
             .apply(

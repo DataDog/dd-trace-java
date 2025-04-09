@@ -12,10 +12,6 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Java 11 Smoke Tests.'
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
 

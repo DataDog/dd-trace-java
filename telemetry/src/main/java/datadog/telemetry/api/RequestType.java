@@ -12,7 +12,8 @@ public enum RequestType {
   GENERATE_METRICS("generate-metrics"),
   LOGS("logs"),
   DISTRIBUTIONS("distributions"),
-  MESSAGE_BATCH("message-batch");
+  MESSAGE_BATCH("message-batch"),
+  APP_ENDPOINTS("app-endpoints");
 
   private final String value;
 
