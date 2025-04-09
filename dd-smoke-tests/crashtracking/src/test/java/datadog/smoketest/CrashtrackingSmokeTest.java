@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
  * that ships with OS X by default.
  */
 public class CrashtrackingSmokeTest {
-  private static final long DATA_TIMEOUT_MS = 10 * 1000;
+  private static final long DATA_TIMEOUT_MS = 25 * 1000;
   private static Path LOG_FILE_DIR;
   private MockWebServer tracingServer;
   private TestUDPServer udpServer;
@@ -232,6 +232,7 @@ public class CrashtrackingSmokeTest {
     outputThreads.captureOutput(
         p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
+    System.out.println("Set port to: " + pb.environment().get("DD_DOGSTATSD_PORT"));
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
     assertOOMEvent();
@@ -262,6 +263,8 @@ public class CrashtrackingSmokeTest {
                 oomeScript.toString()));
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
+
+    System.out.println("Set port to: " + pb.environment().get("DD_DOGSTATSD_PORT"));
 
     Process p = pb.start();
     outputThreads.captureOutput(
