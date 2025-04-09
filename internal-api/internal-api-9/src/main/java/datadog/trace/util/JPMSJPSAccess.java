@@ -7,7 +7,7 @@ import java.util.Set;
 
 public class JPMSJPSAccess {
   public static void patchModuleAccess(Instrumentation inst) {
-    Module unnamedModule = JPMSJPSAccess.class.getClassLoader().getUnnamedModule();
+    Module unnamedModule = ClassLoader.getPlatformClassLoader().getUnnamedModule();
     Module jvmstatModule = ModuleLayer.boot().findModule("jdk.internal.jvmstat").orElse(null);
 
     if (jvmstatModule != null) {
