@@ -43,7 +43,7 @@ public class ThrowableInstanceAdvice {
       }
       /*
        * JFR will assign the stacktrace depending on the place where the event is committed.
-       * Therefor we need to commit the event here, right in the 'Exception' constructor
+       * Therefore, we need to commit the event here, right in the 'Exception' constructor
        */
       final ExceptionSampleEvent event = ExceptionProfiling.getInstance().process((Throwable) t);
       if (event != null && event.shouldCommit()) {
