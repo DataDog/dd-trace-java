@@ -24,8 +24,6 @@ import io.netty.handler.codec.http.FullHttpResponse
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpObjectAggregator
 import io.netty.handler.codec.http.HttpRequest
-import io.netty.handler.codec.http.HttpRequestDecoder
-import io.netty.handler.codec.http.HttpResponseEncoder
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.HttpServerCodec
 import io.netty.handler.codec.http.multipart.Attribute
@@ -75,9 +73,7 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
           initChannel: { ch ->
             ChannelPipeline pipeline = ch.pipeline()
             pipeline.addFirst("logger", LOGGING_HANDLER)
-            //pipeline.addLast(new HttpServerCodec())
-            pipeline.addLast(new HttpRequestDecoder())
-            pipeline.addLast(new HttpResponseEncoder())
+            pipeline.addLast(new HttpServerCodec())
             pipeline.addLast(new HttpObjectAggregator(1024))
             pipeline.addLast(new WebSocketServerProtocolHandler("/websocket"))
             pipeline.addLast([
