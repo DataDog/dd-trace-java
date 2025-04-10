@@ -34,17 +34,17 @@ variables:
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
       - "8"
-#      - "semeru11"
-#      - "oracle8"
-#      - "21"
-#      - "ubuntu17"
-#      - "zulu8"
-#      - "semeru8"
-#      - "ibm8"
-#      - "zulu11"
+      - "semeru11"
+      - "oracle8"
+      - "21"
+      - "ubuntu17"
+      - "zulu8"
+      - "semeru8"
+      - "ibm8"
+      - "zulu11"
       - "11"
       - "17"
-#      - "semeru17"
+      - "semeru17"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
@@ -443,45 +443,45 @@ test_inst:
   parallel:
     matrix: *test_matrix_12
 
-#test_inst_latest:
-#  extends: .test_job_with_test_agent
-#  variables:
-#    GRADLE_TARGET: ":instrumentationLatestDepTest"
-#    CACHE_TYPE: "latestDep"
-#  parallel:
-#    matrix:
-#      - testJvm: ["8", "17", "21" ]
-#        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-#        # This emulates "parallel" by including it in the matrix
-#        CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
-#
-#test_flaky:
-#  extends: .test_job_with_test_agent
-#  variables:
-#    GRADLE_PARAMS: "-PrunFlakyTests"
-#    CACHE_TYPE: "base"
-#    testJvm: "8"
-#    CONTINUE_ON_FAILURE: "true"
-#  parallel:
-#    matrix:
-#      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
-#        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-#        # This emulates "parallel" by including it in the matrix
-#        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
-#
-#test_flaky_inst:
-#  extends: .test_job
-#  variables:
-#    GRADLE_TARGET: ":instrumentationTest"
-#    GRADLE_PARAMS: "-PrunFlakyTests"
-#    CACHE_TYPE: "inst"
-#    testJvm: "8"
-#    CONTINUE_ON_FAILURE: "true"
-#  parallel:
-#    matrix:
-#        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-#        # This emulates "parallel" by including it in the matrix
-#      - CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
+test_inst_latest:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestDep"
+  parallel:
+    matrix:
+      - testJvm: ["8", "17", "21" ]
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
+
+test_flaky:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "base"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  parallel:
+    matrix:
+      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
+test_flaky_inst:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "inst"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  parallel:
+    matrix:
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+      - CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
 
 test_profiling:
   extends: .test_job
