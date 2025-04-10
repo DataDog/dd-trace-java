@@ -30,9 +30,10 @@ class TestController {
   @RequestMapping("/forwarded")
   @ResponseBody
   CompletableFuture<String> forwarded(HttpServletRequest request) {
+    def body = request.getHeader("x-forwarded-for")
     CompletableFuture.supplyAsync {
       HttpServerTest.controller(FORWARDED) {
-        request.getHeader("x-forwarded-for")
+        body
       }
     }
   }
