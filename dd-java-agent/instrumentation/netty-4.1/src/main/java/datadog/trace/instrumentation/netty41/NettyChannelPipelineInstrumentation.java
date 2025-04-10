@@ -22,9 +22,10 @@ import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerRequestTracingHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpRequestDecoder;
@@ -160,9 +161,21 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               MaybeBlockResponseHandler.INSTANCE);
         }
         else if (handler instanceof WebSocketServerProtocolHandler) {
-          NettyPipelineHelper.addHandlerAfter(pipeline,
-              "HttpServerTracingHandler#0",
-              new WebSocketServerTracingHandler());
+          if (pipeline.get(HttpServerTracingHandler.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "HttpServerTracingHandler#0",
+                new WebSocketServerTracingHandler());
+          }
+          if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "HttpServerRequestTracingHandler#0",
+                WebSocketServerRequestTracingHandler.INSTANCE);
+          }
+          if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "HttpServerResponseTracingHandler#0",
+                WebSocketServerResponseTracingHandler.INSTANCE);
+          }
         }
         // Client pipeline handlers
         else if (handler instanceof HttpClientCodec) {
