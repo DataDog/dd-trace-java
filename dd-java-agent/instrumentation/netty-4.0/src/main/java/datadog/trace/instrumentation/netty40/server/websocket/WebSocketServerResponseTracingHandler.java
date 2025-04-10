@@ -29,7 +29,6 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
         if (frame instanceof TextWebSocketFrame) {
           // WebSocket Write Text Start
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-          System.out.println("WebSocket Write Text");
           final AgentSpan span =
               DECORATE.onSendFrameStart(
                   handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
@@ -84,7 +83,6 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
 
         if (frame instanceof CloseWebSocketFrame) {
           // WebSocket Closed by Server
-          System.out.println("WebSocket Closed by Server");
           CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
           int statusCode = closeFrame.statusCode();
           String reasonText = closeFrame.reasonText();

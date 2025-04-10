@@ -15,8 +15,7 @@ public class NettyPipelineHelper {
       if (existing != null) {
         pipeline.remove(existing);
       }
-      String handlerName = handler.getClass().getSimpleName() + "#0";
-      pipeline.addAfter(targetHandlerName, handlerName, handler);
+      pipeline.addAfter(targetHandlerName, handler.getClass().getName(), handler);
       ChannelHandlerContext handlerContext = pipeline.context(handler);
       if (handlerContext != null) {
         targetHandlerName = handlerContext.name();

@@ -41,7 +41,6 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         if (frame instanceof TextWebSocketFrame) {
           // WebSocket Read Text Start
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-          System.out.println("WebSocket Read Text");
 
           final AgentSpan span =
               DECORATE.onReceiveFrameStart(
@@ -102,7 +101,6 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
 
         if (frame instanceof CloseWebSocketFrame) {
           // WebSocket Closed by client
-          System.out.println("WebSocket Closed by client");
           CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
           int statusCode = closeFrame.statusCode();
           String reasonText = closeFrame.reasonText();

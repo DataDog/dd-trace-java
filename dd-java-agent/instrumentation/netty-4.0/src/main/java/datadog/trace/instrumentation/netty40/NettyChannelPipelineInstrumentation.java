@@ -22,9 +22,10 @@ import datadog.trace.instrumentation.netty40.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty40.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty40.server.MaybeBlockResponseHandler;
+import datadog.trace.instrumentation.netty40.server.websocket.WebSocketServerRequestTracingHandler;
+import datadog.trace.instrumentation.netty40.server.websocket.WebSocketServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.server.websocket.WebSocketServerTracingHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpRequestDecoder;
@@ -161,9 +162,21 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               HttpServerResponseTracingHandler.INSTANCE,
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof WebSocketServerProtocolHandler) {
-          NettyPipelineHelper.addHandlerAfter(pipeline,
-              "datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler",
-              new WebSocketServerTracingHandler());
+          if (pipeline.get(HttpServerTracingHandler.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler",
+                new WebSocketServerTracingHandler());
+          }
+          if (pipeline.get(HttpRequestDecoder.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "datadog.trace.instrumentation.netty40.server.HttpServerRequestTracingHandler",
+                WebSocketServerRequestTracingHandler.INSTANCE);
+          }
+          if (pipeline.get(HttpResponseEncoder.class) != null) {
+            NettyPipelineHelper.addHandlerAfter(pipeline,
+                "datadog.trace.instrumentation.netty40.server.HttpServerResponseTracingHandler",
+                WebSocketServerResponseTracingHandler.INSTANCE);
+          }
         } else
         // Client pipeline handlers
         if (handler instanceof HttpClientCodec) {

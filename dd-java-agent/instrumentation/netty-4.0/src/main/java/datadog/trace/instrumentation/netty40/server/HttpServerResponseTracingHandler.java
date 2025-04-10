@@ -52,7 +52,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         ctx.channel()
             .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
             .set(new HandlerContext.Sender(span, channelId));
-        System.out.println("WebSocket Handshake");
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE
           && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS || isWebsocketUpgrade)) {
