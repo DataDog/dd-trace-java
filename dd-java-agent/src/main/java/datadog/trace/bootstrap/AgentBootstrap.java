@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 
@@ -381,8 +382,12 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : CLIHelper.getVmArgs()) {
+      Map<String, String> vmArgs = CLIHelper.getVmArgs();
+      for (final Map.Entry<String, String> entry : vmArgs.entrySet()) {
+        final String argument = entry.getKey();
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
+          // TODO: Modify CLIHelper to parse key-vals on JAVA_AGENT_ARGUMENT arguments, so we don't
+          // have to do the parsing here.
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =
               argument.substring(
