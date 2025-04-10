@@ -260,6 +260,15 @@ test_published_artifacts:
     paths:
       - ./check_reports
       - '.gradle/daemon/*/*.out.log'
+  retry:
+    max: 1
+    when:
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
 
 check_base:
   extends: .check_job
@@ -389,6 +398,15 @@ muzzle-dep-report:
       - '.gradle/daemon/*/*.out.log'
     reports:
       junit: results/*.xml
+  retry:
+    max: 1
+    when:
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
 
 .test_job_with_test_agent:
   extends: .test_job
