@@ -4,7 +4,6 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 
 import datadog.trace.api.StatsDClient;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.util.concurrent.locks.LockSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
