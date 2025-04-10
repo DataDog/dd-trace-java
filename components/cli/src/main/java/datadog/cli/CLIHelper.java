@@ -9,25 +9,30 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class CLIHelper {
-  private static final List<String> VM_ARGS = findVmArgs();
+  private static final Map<String, String> VM_ARGS = findVmArgs();
 
-  public static List<String> getVmArgs() {
+  public static Map<String, String> getVmArgs() {
     return VM_ARGS;
   }
 
   @SuppressForbidden
-  private static List<String> findVmArgs() {
+  private static Map<String, String> findVmArgs() {
+    List<String> rawArgs;
+
     // Try ProcFS on Linux
     try {
       if (isLinux()) {
         Path cmdlinePath = Paths.get("/proc/self/cmdline");
         if (Files.exists(cmdlinePath)) {
           try (BufferedReader in = Files.newBufferedReader(cmdlinePath)) {
-            return Arrays.asList(in.readLine().split("\0"));
+            rawArgs = Arrays.asList(in.readLine().split("\0"));
+            return parseVmArgs(rawArgs);
           }
         }
       }
@@ -57,7 +62,8 @@ public final class CLIHelper {
       }
 
       //noinspection unchecked
-      return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
+      rawArgs = (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
+      return parseVmArgs(rawArgs);
     } catch (final ReflectiveOperationException | UnsatisfiedLinkError ignored) {
       // Ignored exception
     }
@@ -66,20 +72,49 @@ public final class CLIHelper {
     try {
       final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
       final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
-      return Arrays.asList(argArray);
+      rawArgs = Arrays.asList(argArray);
+      return parseVmArgs(rawArgs);
     } catch (final ReflectiveOperationException ignored) {
       // Ignored exception
     }
 
     // Fallback to default
     try {
-      return ManagementFactory.getRuntimeMXBean().getInputArguments();
+      rawArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+      return parseVmArgs(rawArgs);
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
       // with non-opened java.management module
       System.err.println("WARNING: Unable to get VM args using managed beans");
     }
-    return Collections.emptyList();
+    return Collections.emptyMap();
+  }
+
+  private static Map<String, String> parseVmArgs(List<String> args) {
+    Map<String, String> result = new HashMap<>();
+
+    // For now, we only support values on system properties (-D arguments)
+    for (String arg : args) {
+      if (arg.startsWith("-D")) {
+        // Handle system properties (-D arguments)
+        int equalsIndex = arg.indexOf('=');
+
+        if (equalsIndex >= 0) {
+          // Key-value pair
+          String key = arg.substring(0, equalsIndex);
+          String value = arg.substring(equalsIndex + 1);
+          result.put(key, value);
+        } else {
+          // Just a key with no value
+          result.put(arg, "");
+        }
+      } else {
+        // Any other type of VM argument
+        result.put(arg, "");
+      }
+    }
+
+    return result;
   }
 
   private static boolean isLinux() {
