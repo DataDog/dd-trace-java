@@ -65,6 +65,11 @@ public final class PidHelper {
   }
 
   public static Set<String> getJavaPids() {
+    // Attempt to use jvmstat directly, fall through to jps process fork strategy
+    Set<String> directlyObtainedPids = JPSUtils.getVMPids();
+    if (directlyObtainedPids != null) {
+      return directlyObtainedPids;
+    }
     // there is no supported Java API to achieve this
     // one could use sun.jvmstat.monitor.MonitoredHost but it is an internal API and can go away at
     // any time -
