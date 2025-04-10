@@ -13,7 +13,7 @@ public final class OOMENotifier {
 
   // This method is called via CLI so we don't need to be paranoid about the forbiddend APIs
   @SuppressForbidden
-  public static void sendOomeEvent(String taglist) {
+  public static void sendOomeEvent(String taglist) throws Exception {
     try (StatsDClient client =
         statsDClientManager().statsDClient(null, null, null, null, null, false)) {
       String[] tags = taglist.split(",");
@@ -24,7 +24,7 @@ public final class OOMENotifier {
           "Java process encountered out of memory error",
           tags);
       log.info("OOME event sent");
-      LockSupport.parkNanos(2_000_000_000L); // wait 2s to allow statsd client flushing the event
+      Thread.sleep(2 * 1000); // wait 2s to allow statsd client flushing the event
     }
   }
 }
