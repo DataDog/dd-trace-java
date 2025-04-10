@@ -10,11 +10,6 @@ public enum RetryReason implements TagValue {
   private final String value;
   private final String description;
 
-  RetryReason(String description) {
-    this.description = description;
-    this.value = name();
-  }
-
   RetryReason(String description, String value) {
     this.description = description;
     this.value = value;
