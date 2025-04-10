@@ -107,7 +107,7 @@ public class SnsInterceptor extends RequestHandler2 {
   }
 
   private AgentSpan newSpan(AmazonWebServiceRequest request) {
-    final AgentSpan span = AgentTracer.startSpan("aws.sns.send");
+    final AgentSpan span = AgentTracer.startSpan("sns", "aws.sns.send");
     // pass the span to TracingRequestHandler in the sdk instrumentation where it'll be enriched &
     // activated
     contextStore.put(request, span);

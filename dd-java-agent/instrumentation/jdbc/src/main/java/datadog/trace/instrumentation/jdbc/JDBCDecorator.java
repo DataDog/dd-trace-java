@@ -40,12 +40,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
   public static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
+  public static final String JDBC = "jdbc";
   private static final UTF8BytesString JDBC_STATEMENT =
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
   private static final String DEFAULT_SERVICE_NAME =
-      SpanNaming.instance().namingSchema().database().service("jdbc");
+      SpanNaming.instance().namingSchema().database().service(JDBC);
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
 

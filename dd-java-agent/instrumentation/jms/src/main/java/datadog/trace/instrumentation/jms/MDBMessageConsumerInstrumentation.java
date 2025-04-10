@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.logJMSException;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
@@ -68,7 +69,7 @@ public final class MDBMessageConsumerInstrumentation
         return null;
       }
       AgentSpanContext propagatedContext = extractContextAndGetSpanContext(message, GETTER);
-      AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
+      AgentSpan span = startSpan(JMS.toString(), JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
       try {
