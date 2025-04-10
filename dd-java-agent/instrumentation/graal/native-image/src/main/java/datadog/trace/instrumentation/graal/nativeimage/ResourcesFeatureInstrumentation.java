@@ -43,7 +43,15 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
         "profiling/jfr/dd.jfp",
         "profiling/jfr/safepoints.jfp",
         "profiling/jfr/overrides/comprehensive.jfp",
-        "profiling/jfr/overrides/minimal.jfp"
+        "profiling/jfr/overrides/minimal.jfp",
+        // jmxfetch configs
+        "metrics/project.properties", // org.datadog.jmxfetch.AppConfig reads its version
+        "metrics/org/datadog/jmxfetch/default-jmx-metrics.yaml",
+        "metrics/org/datadog/jmxfetch/new-gc-default-jmx-metrics.yaml",
+        "metrics/org/datadog/jmxfetch/old-gc-default-jmx-metrics.yaml",
+        // tracer's jmxfetch configs
+        "metrics/jmxfetch-config.yaml",
+        "metrics/jmxfetch-websphere-config.yaml",
       };
 
       for (String original : tracerResources) {
