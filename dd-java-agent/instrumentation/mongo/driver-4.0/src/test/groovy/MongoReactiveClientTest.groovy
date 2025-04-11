@@ -27,7 +27,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
   MongoClient client
 
   def setup() throws Exception {
-    client = MongoClients.create("mongodb://localhost:$port/?appname=some-description")
+    client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port/?appname=some-description")
   }
 
   def cleanup() throws Exception {
@@ -117,7 +117,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
   def "test create collection no description"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName).subscribe(toSubscriber {})
@@ -133,7 +133,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
   def "test create collection no description with parent"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port").getDatabase(databaseName)
 
     when:
     runUnderTrace("parent") {
