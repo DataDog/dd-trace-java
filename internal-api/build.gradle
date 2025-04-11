@@ -175,6 +175,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.ComparableVersion.LongItem",
   "datadog.trace.util.ComparableVersion.StringItem",
   "datadog.trace.util.ConcurrentEnumMap",
+  "datadog.trace.util.JPSUtils",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",

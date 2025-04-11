@@ -12,6 +12,9 @@ import net.bytebuddy.asm.Advice;
 public class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This final Object t) {
+    if (ExceptionProfiling.Exclusion.isEffective()) {
+      return;
+    }
     /*
      * This instrumentation handler is sensitive to any throwables thrown from its body -
      * it will go into infinite loop of trying to handle the new throwable instance and generating
@@ -40,7 +43,7 @@ public class ThrowableInstanceAdvice {
       }
       /*
        * JFR will assign the stacktrace depending on the place where the event is committed.
-       * Therefore we need to commit the event here, right in the 'Exception' constructor
+       * Therefore, we need to commit the event here, right in the 'Exception' constructor
        */
       final ExceptionSampleEvent event = ExceptionProfiling.getInstance().process((Throwable) t);
       if (event != null && event.shouldCommit()) {
