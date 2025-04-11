@@ -3,10 +3,12 @@ package com.datadog.appsec;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
 import com.datadog.appsec.event.DataListener;
 import com.datadog.appsec.event.data.Address;
+import com.datadog.ddwaf.WafBuilder;
 import java.util.Collection;
 
 public interface AppSecModule {
-  void config(AppSecModuleConfigurer appSecConfigService) throws AppSecModuleActivationException;
+  void config(AppSecModuleConfigurer appSecConfigService, WafBuilder wafBuilder)
+      throws AppSecModuleActivationException;
 
   String getName();
 
