@@ -9,6 +9,9 @@ import datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty38.server.MaybeBlockResponseHandler;
+import datadog.trace.instrumentation.netty38.server.websocket.WebSocketServerRequestTracingHandler;
+import datadog.trace.instrumentation.netty38.server.websocket.WebSocketServerResponseTracingHandler;
+import datadog.trace.instrumentation.netty38.server.websocket.WebSocketServerTracingHandler;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -18,6 +21,9 @@ import org.jboss.netty.handler.codec.http.HttpRequestEncoder;
 import org.jboss.netty.handler.codec.http.HttpResponseDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.codec.http.HttpServerCodec;
+import org.jboss.netty.handler.codec.http.websocketx.WebSocket13FrameDecoder;
+import org.jboss.netty.handler.codec.http.websocketx.WebSocket13FrameEncoder;
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 
 /**
  * When certain handlers are added to the pipeline, we want to add our corresponding tracing
@@ -46,6 +52,18 @@ public class ChannelPipelineAdviceUtil {
             new HttpServerResponseTracingHandler(contextStore));
         pipeline.addLast(
             MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
+      } else if (handler instanceof WebSocketServerProtocolHandler) {
+        addHandlerAfter(pipeline,
+            "datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler",
+            new WebSocketServerTracingHandler(contextStore));
+      } else if (handler instanceof WebSocket13FrameEncoder) {
+        addHandlerAfter(pipeline,
+            "datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler",
+            new WebSocketServerRequestTracingHandler(contextStore));
+      } else if (handler instanceof WebSocket13FrameDecoder) {
+        addHandlerAfter(pipeline,
+            "datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler",
+            new WebSocketServerResponseTracingHandler(contextStore));
       } else
       // Client pipeline handlers
       if (handler instanceof HttpClientCodec) {
@@ -63,5 +81,16 @@ public class ChannelPipelineAdviceUtil {
     } finally {
       CallDepthThreadLocalMap.reset(ChannelPipeline.class);
     }
+  }
+
+  private static void addHandlerAfter(
+      final ChannelPipeline pipeline,
+      final String name,
+      final ChannelHandler handler) {
+    ChannelHandler existing = pipeline.get(handler.getClass());
+    if (existing != null) {
+      pipeline.remove(existing);
+    }
+    pipeline.addAfter(name, handler.getClass().getName(), handler);
   }
 }
