@@ -18,30 +18,27 @@ public class AppSecDataDeserializer implements ConfigurationDeserializer<AppSecD
   private AppSecDataDeserializer() {}
 
   @Override
+  @SuppressWarnings("unchecked")
   public AppSecData deserialize(byte[] content) throws IOException {
     if (content == null || content.length == 0) {
       return null;
     }
-    return deserialize(new ByteArrayInputStream(content));
-  }
-
-  @SuppressWarnings("unchecked")
-  private AppSecData deserialize(InputStream is) throws IOException {
+    InputStream is = new ByteArrayInputStream(content);
     AppSecData appSecData = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
-    is.reset();
-    if (appSecData != null && is.available() > 0) {
-      appSecData.setRawConfig(MOSHI.adapter(Map.class).fromJson(Okio.buffer(Okio.source(is))));
-      if (appSecData.getRawConfig().containsKey("rules_data")) {
-        appSecData.getRawConfig().put("rules", appSecData.getRawConfig().get("rules_data"));
-        appSecData.getRawConfig().remove("rules_data");
-      }
-      if (appSecData.getRawConfig().containsKey("exclusion_data")) {
-        appSecData
-            .getRawConfig()
-            .put("exclusions", appSecData.getRawConfig().get("exclusion_data"));
-        appSecData.getRawConfig().remove("exclusion_data");
-      }
+    if (appSecData == null) {
+      return null;
     }
+    is.reset();
+    appSecData.setRawConfig(MOSHI.adapter(Map.class).fromJson(Okio.buffer(Okio.source(is))));
+    if (appSecData.getRawConfig().containsKey("rules_data")) {
+      appSecData.getRawConfig().put("rules", appSecData.getRawConfig().get("rules_data"));
+      appSecData.getRawConfig().remove("rules_data");
+    }
+    if (appSecData.getRawConfig().containsKey("exclusion_data")) {
+      appSecData.getRawConfig().put("exclusions", appSecData.getRawConfig().get("exclusion_data"));
+      appSecData.getRawConfig().remove("exclusion_data");
+    }
+
     return appSecData;
   }
 }

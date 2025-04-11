@@ -7,8 +7,8 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -199,7 +199,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public WafContext getOrCreateWafContext(
-      WafBuilder wafBuilder, boolean createMetrics, boolean isRasp) {
+      WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
       if (wafMetrics == null) {
@@ -212,7 +212,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
     WafContext curWafContext;
     synchronized (this) {
-      curWafContext = new WafContext(wafBuilder);
+      curWafContext = new WafContext(wafHandle);
       if (this.wafContext != null && !wafContextClosed) {
         this.wafContext.close();
       }

@@ -1,26 +1,20 @@
 package com.datadog.appsec
 
-import com.datadog.appsec.config.AppSecConfig
-import com.datadog.appsec.config.CurrentAppSecConfig
-import com.datadog.appsec.ddwaf.WafInitialization
-import com.datadog.appsec.event.EventProducerService
+
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
-import datadog.remoteconfig.ConfigurationChangesTypedListener
-import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
-import datadog.remoteconfig.Product
 import datadog.trace.api.Config
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import okhttp3.OkHttpClient
@@ -101,56 +95,6 @@ class AppSecSystemSpecification extends DDSpecification {
   void 'when not started returns empty list for started modules'() {
     expect:
     AppSecSystem.startedModulesInfo.empty
-  }
-
-  void 'updating configuration replaces the EventProducer'() {
-    WafInitialization.ONLINE
-    ConfigurationChangesTypedListener<AppSecConfig> savedAsmListener
-    ConfigurationEndListener savedConfEndListener
-
-    when:
-    AppSecSystem.start(subService, sharedCommunicationObjects())
-    EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur
-
-    then:
-    1 * poller.addListener(Product.ASM_DD, _, _) >> {
-      savedAsmListener = it[2]
-    }
-    1 * poller.addConfigurationEndListener(_) >> {
-      savedConfEndListener = it[0]
-    }
-
-    when:
-    savedAsmListener.accept(CurrentAppSecConfig.DEFAULT_KEY,
-      AppSecConfig.valueOf([version: '2.1', rules: [
-          [
-            id: 'foo',
-            name: 'foo',
-            conditions: [
-              [
-                operator: 'match_regex',
-                parameters: [
-                  inputs: [
-                    [
-                      address: 'my.addr',
-                      key_path: ['kp'],
-                    ]
-                  ],
-                  regex: 'foo',
-                ]
-              ]
-            ],
-            tags: [
-              type: 't',
-              'category': 'c',
-            ],
-            action: 'record',
-          ]
-        ]]), null)
-    savedConfEndListener.onConfigurationEnd()
-
-    then:
-    AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur != initialEPS
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

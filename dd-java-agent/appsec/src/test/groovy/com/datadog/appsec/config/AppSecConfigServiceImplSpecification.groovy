@@ -328,7 +328,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       '{"version": "2.0"}'.bytes), null)
     listeners.savedWafDataChangesListener.accept(
       CurrentAppSecConfig.DEFAULT_KEY,
-      listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo", "conditions": "foo", "type":"","data":[]}]}'.bytes), null)
+      listeners.savedWafDataDeserializer.deserialize(
+      '{"rules_data":[{"id":"foo", "name": "foo", "tags": {"type": "php_code_injection","crs_id": "933140","category":"attack_attempt","cwe": "94","capec": "1000/225/122/17/650","confidence": "1","module": "waf"}, "conditions": [{"operator": "ip_match","parameters": {"data": "suspicious_ips_data_id","inputs": [{"address": "http.client_ip"}]}}], "type":"","data":[]}]}'.bytes), null)
     listeners.savedWafRulesOverrideListener.accept(
       CurrentAppSecConfig.DEFAULT_KEY,
       listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
@@ -458,7 +459,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       '{"version": "2.0"}'.bytes), null)
     listeners.savedWafDataChangesListener.accept(
       'asm_data config',
-      listeners.savedWafDataDeserializer.deserialize('{"rules_data":[{"id":"foo","type":"","data":[]}]}'.bytes), null)
+      listeners.savedWafDataDeserializer.deserialize(
+      '{"rules_data":[{"id":"foo", "name": "foo", "tags": {"type": "php_code_injection","crs_id": "933140","category":"attack_attempt","cwe": "94","capec": "1000/225/122/17/650","confidence": "1","module": "waf"}, "conditions": [{"operator": "ip_match","parameters": {"data": "suspicious_ips_data_id","inputs": [{"address": "http.client_ip"}]}}], "type":"","data":[]}]}'.bytes), null)
     listeners.savedWafRulesOverrideListener.accept(
       'asm conf',
       listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)

@@ -172,6 +172,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             try {
               wafBuilder.addOrUpdateConfig(configKey, newConfig.getRawConfig());
             } catch (InvalidRuleSetException e) {
+              log.debug("Could not add or update config {}, {}", configKey, e.ruleSetInfo);
               throw new RuntimeException(e);
             }
           }
@@ -213,6 +214,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (newConfig == null) {
             mergedAsmFeatures.removeConfig(configKey);
           } else {
+            if (!configKey.equals(CurrentAppSecConfig.DEFAULT_KEY)) {
+              mergedAsmFeatures.removeConfig(CurrentAppSecConfig.DEFAULT_KEY);
+            }
             mergedAsmFeatures.addConfig(configKey, newConfig);
           }
         });
