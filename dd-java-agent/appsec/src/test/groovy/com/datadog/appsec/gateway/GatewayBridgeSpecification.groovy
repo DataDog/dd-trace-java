@@ -20,10 +20,12 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LoginEvent
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
@@ -36,6 +38,9 @@ import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS
 import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP
 
 class GatewayBridgeSpecification extends DDSpecification {
+
+  @Shared
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   private static final String USER_ID = 'user'
 
@@ -106,12 +111,16 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
 
+  WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+
   void setup() {
     callInitAndCaptureCBs()
     AppSecSystem.active = true
+    WafMetricCollector.INSTANCE = wafMetricCollector
   }
 
   void cleanup() {
+    WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
     bridge.stop()
   }
 
@@ -169,6 +178,13 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
+    1 * mockAppSecCtx.isWafBlocked()
+    1 * mockAppSecCtx.hasWafErrors()
+    1 * mockAppSecCtx.getWafTimeouts()
+    1 * mockAppSecCtx.isWafRequestBlockFailure()
+    1 * mockAppSecCtx.isWafRateLimited()
+    1 * mockAppSecCtx.isWafTruncated()
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
