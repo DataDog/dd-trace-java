@@ -442,17 +442,7 @@ class WafMetricCollectorTest extends DDSpecification {
     def metrics = collector.drain()
     def requestMetrics = metrics.findAll { it.metricName == 'waf.requests' }
 
-    def index = WafMetricCollector.computeWafRequestIndex(
-      triggered,
-      blocked,
-      wafError,
-      wafTimeout,
-      blockFailure,
-      rateLimited,
-      inputTruncated
-      )
-
-    final metric = requestMetrics[index]
+    final metric = requestMetrics[0]
     metric.type == 'count'
     metric.metricName == 'waf.requests'
     metric.namespace == 'appsec'
