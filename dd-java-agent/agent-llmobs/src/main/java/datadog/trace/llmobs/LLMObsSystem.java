@@ -28,22 +28,19 @@ public class LLMObsSystem {
 
     sco.createRemaining(config);
 
-    LLMObsServices llmObsServices = new LLMObsServices(config, sco);
     LLMObsInternal.setLLMObsSpanFactory(
         new LLMObsManualSpanFactory(
-            config.getLlmObsMlApp(), config.getServiceName(), llmObsServices));
+            config.getLlmObsMlApp(), config.getServiceName()));
   }
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
 
-    private final LLMObsServices llmObsServices;
     private final String serviceName;
     private final String defaultMLApp;
 
     public LLMObsManualSpanFactory(
-        String defaultMLApp, String serviceName, LLMObsServices llmObsServices) {
+        String defaultMLApp, String serviceName) {
       this.defaultMLApp = defaultMLApp;
-      this.llmObsServices = llmObsServices;
       this.serviceName = serviceName;
     }
 
