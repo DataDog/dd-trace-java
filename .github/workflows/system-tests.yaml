@@ -4,6 +4,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel long-running jobs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,17 +17,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: 'recursive'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Build dd-trace-java
         run: |
-          ./gradlew clean \
-            :dd-java-agent:shadowJar \
-            :dd-trace-api:jar \
-            :dd-trace-ot:shadowJar \
-            -PskipTests \
-            -Dorg.gradle.java.installations.auto-download=true
-            --no-daemon \ 
-            --parallel --max-workers=4
-            --build-cache
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew clean :dd-java-agent:shadowJar \
+            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
