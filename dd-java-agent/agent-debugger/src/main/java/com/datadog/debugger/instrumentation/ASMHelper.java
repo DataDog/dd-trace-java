@@ -7,6 +7,7 @@ import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -43,6 +43,7 @@ public class ASMHelper {
   public static final Type STRING_TYPE = new Type(Types.STRING_TYPE);
   public static final Type LONG_TYPE = new Type(org.objectweb.asm.Type.LONG_TYPE);
 
+  @SuppressForbidden
   static String extractMethod(ClassNode classNode, String method) {
     StringJoiner joiner = new StringJoiner("\n");
     StringWriter writer = new StringWriter();
