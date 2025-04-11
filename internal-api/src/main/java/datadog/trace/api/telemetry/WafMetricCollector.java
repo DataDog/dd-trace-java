@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
@@ -514,28 +513,6 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "waf_version:" + wafVersion,
           "event_rules_version:" + rulesVersion,
           "waf_error:" + ddwafRunError);
-    }
-  }
-
-  public static class AtomicRequestCounter {
-
-    private final AtomicLong atomicLong = new AtomicLong();
-    private volatile long timestamp;
-
-    public final long get() {
-      return atomicLong.get();
-    }
-
-    public final long getAndReset() {
-      timestamp = 0;
-      return atomicLong.getAndSet(0);
-    }
-
-    public final void increment() {
-      if (timestamp == 0) {
-        timestamp = System.currentTimeMillis();
-      }
-      atomicLong.incrementAndGet();
     }
   }
 
