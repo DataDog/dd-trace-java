@@ -21,7 +21,8 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     return INSTANCE;
   }
 
-  private static final AtomicInteger defaultStatsDPort = new AtomicInteger(Config.get().getDogsStatsDPort());
+  private static final AtomicInteger defaultStatsDPort =
+      new AtomicInteger(Config.get().getDogsStatsDPort());
 
   public static void setDefaultStatsDPort(final int newPort) {
     if (newPort > 0 && defaultStatsDPort.getAndSet(newPort) != newPort) {
