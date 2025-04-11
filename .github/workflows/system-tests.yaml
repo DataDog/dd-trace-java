@@ -12,11 +12,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/datadog/dd-trace-java-docker-build:base
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
         with:
           submodules: 'recursive'
 
@@ -29,8 +27,14 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
-      - name: Build dd-trace-java
+        
+      # - name: Initialize CodeQL
+      #   uses: github/codeql-action/init@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+      #   with:
+      #     languages: 'java'
+      #     build-mode: 'manual'
+      
+      - name: Build dd-trace-java for creating the CodeQL database
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
