@@ -1,0 +1,52 @@
+name: system-tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Set up Gradle 8.4
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build dd-trace-java
+        run: |
+          ./gradlew clean \
+            :dd-java-agent:shadowJar \
+            :dd-trace-api:jar \
+            :dd-trace-ot:shadowJar \
+            -PskipTests \
+            -Dorg.gradle.java.installations.auto-download=true
+            --no-daemon \ 
+            --parallel --max-workers=4
+            --build-cache
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: workspace/dd-java-agent/build/libs/
+
+  main:
+    needs:
+    - build
+    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      scenarios_groups: tracer-release
+      library: java
+      binaries_artifact: binaries
+      skip_empty_scenarios: true
+      desired_execution_time: 300  # 5 minutes
