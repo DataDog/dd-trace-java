@@ -4,13 +4,8 @@ import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
 
 public class CodeOriginInfo {
-  public static void entry(Method method) {
-    captureCodeOrigin(method, true);
-  }
-
   public static void exit(AgentSpan span) {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
       String probeId = captureCodeOrigin(false);

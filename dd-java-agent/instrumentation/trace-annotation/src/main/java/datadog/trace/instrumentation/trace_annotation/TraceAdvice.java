@@ -15,8 +15,7 @@ public class TraceAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     AgentScope agentScope = activateSpan(DECORATE.startMethodSpan(method));
-    DebuggerContext.marker();
-    DebuggerContext.captureCodeOrigin(method, true, true);
+    DebuggerContext.captureCodeOrigin(method, true);
     return agentScope;
   }
 

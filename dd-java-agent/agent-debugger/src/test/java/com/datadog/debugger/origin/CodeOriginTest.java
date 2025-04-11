@@ -132,8 +132,8 @@ public class CodeOriginTest extends CapturingTestBase {
     final String className = "com.datadog.debugger.CodeOrigin02";
     installProbes();
     final Class<?> testClass = compileAndLoadClass(className);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true, true);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false, true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
     checkResults(testClass, "fullTrace", 0);
     checkResults(testClass, "debug_1", 2);
   }
@@ -144,8 +144,8 @@ public class CodeOriginTest extends CapturingTestBase {
     installProbes(
         createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()").captureSnapshot(true).build());
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true, true);
-    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false, true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("entry"), true);
+    codeOriginRecorder.captureCodeOrigin(testClass.getMethod("exit"), false);
     checkResults(testClass, "debug_1", 3);
   }
 
@@ -158,13 +158,12 @@ public class CodeOriginTest extends CapturingTestBase {
             CODE_ORIGIN_ID1,
             true,
             Where.of(
-                className, "entry", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID1)),
-            true),
+                className, "entry", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID1))),
         new CodeOriginProbe(
             CODE_ORIGIN_ID2,
             false,
-            Where.of(className, "exit", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID2)),
-            true),
+            Where.of(
+                className, "exit", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID2))),
         new CodeOriginProbe(
             CODE_ORIGIN_DOUBLE_ENTRY_ID,
             true,
@@ -172,8 +171,7 @@ public class CodeOriginTest extends CapturingTestBase {
                 className,
                 "doubleEntry",
                 "()",
-                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID)),
-            true));
+                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID))));
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", 0);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
@@ -186,7 +184,7 @@ public class CodeOriginTest extends CapturingTestBase {
   public void stackDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     installProbes(
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39"), true));
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39")));
 
     Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
     countFrames(testClass, 10);
@@ -230,8 +228,7 @@ public class CodeOriginTest extends CapturingTestBase {
     installProbes();
     CodeOriginProbe probe =
         codeOriginRecorder.getProbe(
-            codeOriginRecorder.captureCodeOrigin(
-                testClass.getMethod("main", int.class), true, true));
+            codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true));
     assertNotNull(probe, "The probe should have been created.");
     assertTrue(probe.entrySpanProbe(), "Should be an entry probe.");
   }
@@ -243,18 +240,18 @@ public class CodeOriginTest extends CapturingTestBase {
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     installProbes();
     String probe1 =
-        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true, true);
+        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
     String probe2 =
-        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true, true);
+        codeOriginRecorder.captureCodeOrigin(testClass.getMethod("main", int.class), true);
     assertEquals(probe1, probe2);
   }
 
   @NotNull
   private CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"), true);
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"), true);
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"));
     return new CodeOriginProbe[] {entry, exit};
   }
 

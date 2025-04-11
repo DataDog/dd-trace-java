@@ -50,7 +50,7 @@ public class ASMHelper {
     classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
     List<String> strings = Arrays.asList(writer.toString().split("\n"));
     for (int i = 0; i < strings.size(); i++) {
-      if (strings.get(i).matches(format(".*(private|public) %s\\(.*", method))) {
+      if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
         while (!strings.get(i).equals(""))
           joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
       }

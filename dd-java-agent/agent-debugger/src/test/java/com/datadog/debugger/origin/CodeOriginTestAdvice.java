@@ -9,8 +9,6 @@ public class CodeOriginTestAdvice {
   @Advice.OnMethodEnter
   @SuppressWarnings("bytebuddy-exception-suppression")
   public static void onEnter(@Advice.Origin final Method method) {
-    System.out.println("****** CodeOriginTestAdvice.onEnter method = " + method);
-    DebuggerContext.marker();
     DebuggerContext.captureCodeOrigin(method, true);
   }
 }

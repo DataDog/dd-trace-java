@@ -12,6 +12,7 @@ import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import org.objectweb.asm.Type;
@@ -21,12 +22,10 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 public class CodeOriginInstrumentor extends Instrumentor {
-  private static final String MARKER;
   private static final String CAPTURE;
 
   static {
     String className = DebuggerContext.class.getName().replace('.', '/');
-    MARKER = format("%s#%s", className, "marker");
     CAPTURE = format("%s#%s", className, "captureCodeOrigin");
   }
 
@@ -43,11 +42,10 @@ public class CodeOriginInstrumentor extends Instrumentor {
 
   @Override
   public Status instrument() {
-    InsnList insnList = codeOriginCall();
-
     AbstractInsnNode insertionPoint = stripSetup();
     methodNode.instructions.insert(
-        insertionPoint != null ? insertionPoint : findInsertionPoint(), insnList);
+        insertionPoint != null ? insertionPoint : findInsertionPoint(), codeOriginCall());
+
     return Status.INSTALLED;
   }
 
@@ -60,20 +58,21 @@ public class CodeOriginInstrumentor extends Instrumentor {
 
   private AbstractInsnNode stripSetup() {
     ListIterator<AbstractInsnNode> iterator = methodNode.instructions.iterator();
-    InsnList list = new InsnList();
+    List<AbstractInsnNode> list = new ArrayList<>();
     AbstractInsnNode insertionPoint = null;
     while (iterator.hasNext()) {
       AbstractInsnNode next = iterator.next();
-      if (buildDescription(next).equals(MARKER)) {
-        insertionPoint = next.getPrevious();
-        while (!buildDescription(next).equals(CAPTURE)) {
-          next = iterator.next();
+      if (buildDescription(next).equals(CAPTURE)) {
+        for (int i = 0; i < 10; i++) {
+          list.remove(list.size() - 1);
         }
-        next = iterator.next();
+        insertionPoint = list.get(list.size() - 1);
+      } else {
+        list.add(next);
       }
-      list.add(next);
     }
-    methodNode.instructions = list;
+    methodNode.instructions = new InsnList();
+    list.forEach(n -> methodNode.instructions.add(n));
     return insertionPoint;
   }
 
