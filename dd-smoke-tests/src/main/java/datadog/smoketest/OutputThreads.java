@@ -167,4 +167,10 @@ public class OutputThreads implements Closeable {
       }
     }
   }
+
+  public void clearMessages() {
+    synchronized (testLogMessages) {
+      testLogMessages.clear();
+    }
+  }
 }
