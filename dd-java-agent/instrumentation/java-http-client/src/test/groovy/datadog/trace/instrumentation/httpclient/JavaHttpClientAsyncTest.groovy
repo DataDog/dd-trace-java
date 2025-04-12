@@ -5,12 +5,12 @@ import java.net.http.HttpResponse
 
 class JavaHttpClientAsyncTest extends JavaHttpClientTest {
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+  int doRequest(String method, URI uri, List<List<String>> headers, String body, Closure callback) {
     def request = HttpRequest.newBuilder()
       .uri(uri)
       .method(method, HttpRequest.BodyPublishers.ofString(body))
     if (headers != null) {
-      headers.each { key, value -> request.header(key, value) }
+      headers.each { request.header(it[0], it[1]) }
     }
 
     def response = client.sendAsync(request.build(), HttpResponse.BodyHandlers.discarding())
