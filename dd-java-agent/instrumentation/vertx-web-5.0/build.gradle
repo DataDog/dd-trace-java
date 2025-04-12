@@ -1,5 +1,7 @@
 // Set properties before any plugins get loaded
 ext {
+  defaultJdkVersion = 11
+  defaultJavaVersion = 8
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
@@ -20,12 +22,6 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 configurations {
   testArtifacts
-}
-
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
-  }
 }
 
 // Create test artifacts so vertx-rx can reuse the server test instrumentation and base class

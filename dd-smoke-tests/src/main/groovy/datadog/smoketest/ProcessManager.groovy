@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.PortUtils
 import de.thetaphi.forbiddenapis.SuppressForbidden
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.CompileStatic
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -78,10 +79,12 @@ abstract class ProcessManager extends Specification {
   @AutoCleanup
   OutputThreads outputThreads = new OutputThreads()
 
+  @CompileStatic
   class OutputThreads implements Closeable {
     final ThreadGroup tg = new ThreadGroup("smoke-output")
     final List<String> testLogMessages = new ArrayList<>()
 
+    @SuppressFBWarnings(value = "UC_USELESS_OBJECT", justification = "Apparent false positive on threads being unused")
     void close() {
       tg.interrupt()
       Thread[] threads = new Thread[tg.activeCount()]

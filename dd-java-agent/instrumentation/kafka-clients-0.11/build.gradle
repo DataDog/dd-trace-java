@@ -15,6 +15,10 @@ muzzle {
   }
 }
 
+ext {
+  iastLatestDepTest3MinJavaVersionForTests = JavaVersion.VERSION_17
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
@@ -71,8 +75,7 @@ configurations.testRuntimeClasspath {
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }
 
-iastLatestDepTest3.configure {
-  javaLauncher = getJavaLauncherFor(17)
+tasks.named("iastLatestDepTest3").configure {
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }
 
