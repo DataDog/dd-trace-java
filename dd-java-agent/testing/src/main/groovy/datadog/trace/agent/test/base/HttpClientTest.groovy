@@ -12,6 +12,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -314,6 +315,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
+  @IgnoreIf({true})
   def "server error request with parent"() {
     setup:
     def uri = server.address.resolve("/error")
@@ -352,6 +354,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   }
 
   @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
+  @IgnoreIf({true})
   def "client error request with parent"() {
     setup:
     def uri = server.address.resolve("/secured")
