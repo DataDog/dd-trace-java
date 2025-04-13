@@ -18,15 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
+import static datadog.trace.api.config.ProfilingConfig.*;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
@@ -43,11 +35,20 @@ import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProf
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import jdk.jfr.Recording;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,9 +70,83 @@ public final class OpenJdkController implements Controller {
   private final Map<String, String> recordingSettings;
   private final boolean jfrStackDepthApplied;
 
+  private final ScheduledExecutorService burstExecutor =
+      Executors.newSingleThreadScheduledExecutor(
+          r -> {
+            Thread t = new Thread(r, "Burst Trace Scheduler");
+            t.setDaemon(true);
+            return t;
+          });
+
+  private class ScheduledTask implements Runnable {
+    private final Random rnd = new Random(UUID.randomUUID().getLeastSignificantBits());
+    private boolean armed = false;
+    private final Map<String, String> settings;
+    private final Duration interval;
+    private final Duration duration;
+
+    private ScheduledTask() {
+      try {
+        Properties props = new Properties();
+        try (InputStream is = OpenJdkController.class.getResourceAsStream("/jfr/bursty.jfp")) {
+          props.load(is);
+        }
+        settings =
+            props.entrySet().stream()
+                .collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue()));
+        this.interval =
+            Duration.ofMillis(
+                configProvider.getLong(
+                    PROFILING_BURST_INTERVAl_MS, PROFILING_BURST_INTERVAl_MS_DEFAULT));
+        this.duration =
+            Duration.ofMillis(
+                configProvider.getLong(
+                    PROFILING_BURST_DURATION_MS, PROFILING_BURST_DURATION_MS_DEFAULT));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public void run() {
+      if (interval.toMillis() < 0) {
+        // bursts are disabled
+        return;
+      }
+      double u = rnd.nextDouble();
+      long nextMs = Math.round(-(Math.log(u) * interval.toMillis())); // 5 mins average interval
+      if (!armed) {
+        armed = true;
+        log.info("Scheduling bursty tracing in {} ms", nextMs);
+        burstExecutor.schedule(this, nextMs, TimeUnit.MILLISECONDS);
+        return;
+      } else {
+        nextMs += 15_000; // offset the next start by the max recording duration
+      }
+      // Let's start a new recording with extremely detailed latency events.
+      // This recording is not persisted and is automatically discarded.
+      // However, due to have settings-merging works in JFR the thresholds
+      // for latency events will be lowered also for the main recording.
+      // Also, the thresholds will be restored when this recording ends,
+      // automatically.
+      log.info("Burst Trace Scheduler is executing");
+      Recording recording = new Recording();
+      recording.setName("Burst Trace");
+      recording.setSettings(settings);
+      recording.setDuration(duration);
+      recording.setToDisk(false);
+      recording.setMaxSize(64 * 1024);
+      recording.start();
+      log.info("Scheduling next bursty tracing in {} ms", nextMs);
+      burstExecutor.schedule(this, nextMs, TimeUnit.MILLISECONDS);
+    }
+  }
+
   public static Controller instance(ConfigProvider configProvider)
       throws ConfigurationException, ClassNotFoundException {
-    return new OpenJdkController(configProvider);
+    OpenJdkController ctrl = new OpenJdkController(configProvider);
+    ctrl.startBurstTracing();
+    return ctrl;
   }
 
   /**
@@ -319,5 +394,9 @@ public final class OpenJdkController implements Controller {
   private int getConfiguredStackDepth(ConfigProvider configProvider) {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
+  }
+
+  private void startBurstTracing() {
+    burstExecutor.schedule(new ScheduledTask(), 0, TimeUnit.SECONDS);
   }
 }
