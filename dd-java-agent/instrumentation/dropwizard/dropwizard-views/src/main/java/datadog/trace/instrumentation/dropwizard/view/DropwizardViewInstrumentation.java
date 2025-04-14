@@ -69,7 +69,8 @@ public final class DropwizardViewInstrumentation extends InstrumenterModule.Trac
       if (activeSpan() == null) {
         return null;
       }
-      final AgentSpan span = startSpan("view.render").setTag(Tags.COMPONENT, "dropwizard-view");
+      final AgentSpan span =
+          startSpan("dropwizard", "view.render").setTag(Tags.COMPONENT, "dropwizard-view");
       span.setResourceName("View " + view.getTemplateName());
       return activateSpan(span);
     }

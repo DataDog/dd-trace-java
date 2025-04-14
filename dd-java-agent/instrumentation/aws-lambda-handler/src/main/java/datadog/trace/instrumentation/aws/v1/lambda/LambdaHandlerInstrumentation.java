@@ -89,9 +89,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
       final AgentSpan span;
       if (null == lambdaContext) {
-        span = startSpan(INVOCATION_SPAN_NAME);
+        span = startSpan("aws-lambda", INVOCATION_SPAN_NAME);
       } else {
-        span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
+        span = startSpan("aws-lambda", INVOCATION_SPAN_NAME, lambdaContext);
       }
       final AgentScope scope = activateSpan(span);
       return scope;

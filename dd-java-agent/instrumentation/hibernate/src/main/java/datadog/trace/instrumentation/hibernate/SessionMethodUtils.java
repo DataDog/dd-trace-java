@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.hibernate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
+import static datadog.trace.instrumentation.hibernate.HibernateDecorator.HIBERNATE;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
@@ -41,7 +42,8 @@ public class SessionMethodUtils {
 
     final AgentScope scope;
     if (createSpan) {
-      final AgentSpan span = startSpan(operationName, sessionState.getSessionSpan().context());
+      final AgentSpan span =
+          startSpan(HIBERNATE, operationName, sessionState.getSessionSpan().context());
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, entity);
       scope = activateSpan(span);

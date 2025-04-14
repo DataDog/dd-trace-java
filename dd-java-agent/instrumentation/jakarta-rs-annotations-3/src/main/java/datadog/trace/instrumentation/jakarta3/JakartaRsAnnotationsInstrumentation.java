@@ -118,7 +118,7 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan(JAKARTA_ENDPOINT_OPERATION_NAME);
+      final AgentSpan span = startSpan("jakarta-rs", JAKARTA_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);

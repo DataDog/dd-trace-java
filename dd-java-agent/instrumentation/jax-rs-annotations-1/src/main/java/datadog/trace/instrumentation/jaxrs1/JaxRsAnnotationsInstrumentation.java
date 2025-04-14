@@ -95,7 +95,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan(JAX_ENDPOINT_OPERATION_NAME);
+      final AgentSpan span = startSpan("jax-rs", JAX_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);

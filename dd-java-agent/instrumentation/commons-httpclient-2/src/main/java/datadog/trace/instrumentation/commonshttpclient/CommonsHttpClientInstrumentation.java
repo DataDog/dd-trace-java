@@ -64,7 +64,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
 
-        final AgentSpan span = startSpan(HTTP_REQUEST);
+        final AgentSpan span = startSpan("commons-http-client", HTTP_REQUEST);
         final AgentScope scope = activateSpan(span);
 
         DECORATE.afterStart(span);
