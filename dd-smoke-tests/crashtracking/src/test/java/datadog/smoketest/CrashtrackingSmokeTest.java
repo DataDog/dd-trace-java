@@ -1,7 +1,6 @@
 package datadog.smoketest;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -51,12 +50,9 @@ public class CrashtrackingSmokeTest {
   static void setupAll() {
     // Only Hotspot based implementation are supported
     assumeFalse(Platform.isJ9());
-
-    LOG_FILE_DIR = Paths.get(System.getProperty("datadog.smoketest.builddir"), "reports");
   }
 
   private Path tempDir;
-  private static OutputThreads outputThreads = new OutputThreads();
 
   @BeforeEach
   void setup() throws Exception {
