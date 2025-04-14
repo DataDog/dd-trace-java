@@ -2,6 +2,7 @@ package datadog.smoketest.dynamicconfig;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
@@ -13,6 +14,7 @@ public class ServiceMappingApplication {
 
   public static final long TIMEOUT_IN_NANOS = TimeUnit.SECONDS.toNanos(10);
 
+  @SuppressForbidden
   public static void main(String[] args) throws InterruptedException {
     Tracer tracer = GlobalTracer.get();
 

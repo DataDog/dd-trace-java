@@ -1,5 +1,6 @@
 package smoketest.resteasy;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.undertow.Undertow;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
@@ -8,6 +9,7 @@ import org.jboss.resteasy.spi.ResteasyDeployment;
 
 public class Main {
 
+  @SuppressForbidden
   public static void main(String[] args) {
     int port = 8033;
     if (args.length == 1) {

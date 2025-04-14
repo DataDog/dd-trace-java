@@ -4,6 +4,7 @@ import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrument
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.util.HashMap;
@@ -13,6 +14,7 @@ import java.util.function.Consumer;
 public class DebuggerTestApplication {
   private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
 
+  @SuppressForbidden
   public static void main(String[] args) throws Exception {
     waitForTransformerInstalled(LOG_FILENAME);
     System.out.println(DebuggerTestApplication.class.getName());
@@ -24,6 +26,7 @@ class Main {
   private static final Map<String, Consumer<String>> methodsByName = new HashMap<>();
   private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
 
+  @SuppressForbidden
   static void run(String[] args) throws Exception {
     registerMethods();
     String methodName = args[0];
@@ -55,6 +58,7 @@ class Main {
 
   private static void emptyMethod(String arg) {}
 
+  @SuppressForbidden
   private static void managementMethod(String arg) {
     OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
     System.out.println(operatingSystemMXBean.getAvailableProcessors());
@@ -82,6 +86,7 @@ class Main {
     exceptionMethod(s);
   }
 
+  @SuppressForbidden
   private static String fullMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {

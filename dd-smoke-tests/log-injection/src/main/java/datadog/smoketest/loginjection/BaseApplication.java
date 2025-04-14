@@ -6,6 +6,7 @@ import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.Trace;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -52,6 +53,7 @@ public abstract class BaseApplication {
   }
 
   @Trace
+  @SuppressForbidden
   public void firstTracedMethod() {
     doLog("INSIDE FIRST SPAN");
     System.out.println(
@@ -62,6 +64,7 @@ public abstract class BaseApplication {
   }
 
   @Trace
+  @SuppressForbidden
   public void secondTracedMethod() {
     doLog("INSIDE SECOND SPAN");
     System.out.println(
@@ -72,6 +75,7 @@ public abstract class BaseApplication {
   }
 
   @Trace
+  @SuppressForbidden
   public void thirdTracedMethod() {
     doLog("INSIDE THIRD SPAN");
     System.out.println(
@@ -82,6 +86,7 @@ public abstract class BaseApplication {
   }
 
   @Trace
+  @SuppressForbidden
   public void forthTracedMethod() {
     doLog("INSIDE FORTH SPAN");
     System.out.println(

@@ -1,5 +1,6 @@
 package datadog.smoketest.debugger;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,6 +102,7 @@ public class TestApplicationHelper {
         Duration.ofSeconds(TIMEOUT_S));
   }
 
+  @SuppressForbidden
   public static void waitForUpload(String logFileName, int expectedUploads) throws IOException {
     if (expectedUploads == -1) {
       System.out.println("wait for " + TIMEOUT_S + "s");
@@ -133,6 +135,7 @@ public class TestApplicationHelper {
     return waitForSpecificLogLine(logFilePath, null, lineMatcher, init, sleep, timeout);
   }
 
+  @SuppressForbidden
   private static String waitForSpecificLogLine(
       Path logFilePath,
       Predicate<String> fromLineMatcher,

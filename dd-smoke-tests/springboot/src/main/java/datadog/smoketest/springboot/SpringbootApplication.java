@@ -1,6 +1,7 @@
 package datadog.smoketest.springboot;
 
 import datadog.smoketest.springboot.controller.SimpleIastController;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import org.springframework.boot.SpringApplication;
@@ -51,6 +52,7 @@ public class SpringbootApplication {
     return strictHttpFirewall;
   }
 
+  @SuppressForbidden
   public static void main(final String[] args) {
     SpringApplication.run(SpringbootApplication.class, args);
     System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
