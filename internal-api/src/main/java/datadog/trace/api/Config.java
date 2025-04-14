@@ -527,6 +527,7 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -1083,6 +1084,8 @@ public class Config {
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
 
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
@@ -3526,6 +3529,10 @@ public class Config {
 
   public List<String> getDogStatsDArgs() {
     return dogStatsDArgs;
+  }
+
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
   }
 
   public String getConfigFileStatus() {

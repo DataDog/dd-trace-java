@@ -39,10 +39,13 @@ import org.junit.jupiter.api.Test;
  */
 public class CrashtrackingSmokeTest {
   private static final long DATA_TIMEOUT_MS = 10 * 1000;
-  private static Path LOG_FILE_DIR;
+  private static final OutputThreads OUTPUT = new OutputThreads();
+  private static final Path LOG_FILE_DIR =
+      Paths.get(System.getProperty("datadog.smoketest.builddir"), "reports");
+
   private MockWebServer tracingServer;
   private TestUDPServer udpServer;
-  private BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
+  private final BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
 
   @BeforeAll
   static void setupAll() {
@@ -66,7 +69,9 @@ public class CrashtrackingSmokeTest {
     tracingServer.setDispatcher(
         new Dispatcher() {
           @Override
-          public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
+          public MockResponse dispatch(final RecordedRequest request) {
+            System.out.println("URL ====== " + request.getPath());
+
             String data = request.getBody().readString(StandardCharsets.UTF_8);
 
             if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
@@ -83,7 +88,7 @@ public class CrashtrackingSmokeTest {
                 System.out.println("Unable to parse " + e);
               }
             }
-            System.out.println("URL ====== " + request.getPath());
+
             System.out.println(data);
 
             return new MockResponse().setResponseCode(200);
@@ -93,9 +98,7 @@ public class CrashtrackingSmokeTest {
     udpServer = new TestUDPServer();
     udpServer.start();
 
-    synchronized (outputThreads.testLogMessages) {
-      outputThreads.testLogMessages.clear();
-    }
+    OUTPUT.clearMessages();
   }
 
   @AfterEach
@@ -111,7 +114,7 @@ public class CrashtrackingSmokeTest {
 
   @AfterAll
   static void shutdown() {
-    outputThreads.close();
+    OUTPUT.close();
   }
 
   private static String javaPath() {
@@ -160,8 +163,7 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(
-        p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
+    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCrashTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
     assertCrashData();
@@ -196,12 +198,11 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(
+    OUTPUT.captureOutput(
         p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingLegacy.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    assertNotEquals(0, p.waitFor(), "Application should have crashed");
     assertCrashData();
   }
 
@@ -229,11 +230,10 @@ public class CrashtrackingSmokeTest {
                 "-jar",
                 appShadowJar(),
                 script.toString()));
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(
-        p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
-    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
+    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testOomeTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
     assertOOMEvent();
@@ -266,12 +266,10 @@ public class CrashtrackingSmokeTest {
     pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
 
     Process p = pb.start();
-    outputThreads.captureOutput(
-        p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
+    OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.testCombineTracking.log").toFile());
 
     assertNotEquals(0, p.waitFor(), "Application should have crashed");
 
-    // Crash uploader did get triggered
     assertCrashData();
     assertOOMEvent();
   }
@@ -284,11 +282,13 @@ public class CrashtrackingSmokeTest {
   }
 
   private void assertOOMEvent() throws InterruptedException {
-    byte[] data = udpServer.getMessages().poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-    assertNotNull(data, "OOM Event not received");
-    String event = new String(data);
+    String event;
+    do {
+      event = udpServer.getMessages().poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    } while (event != null && !event.startsWith("_e"));
 
-    assertThat(event, startsWith("_e"));
+    assertNotNull(event, "OOM Event not received");
+
     assertThat(event, containsString(":OutOfMemoryError"));
     assertThat(event, containsString("t:error"));
     assertThat(event, containsString("s:java"));
