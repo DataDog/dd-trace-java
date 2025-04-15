@@ -42,10 +42,6 @@ public class TracingInterceptor implements Interceptor {
       final Request.Builder requestBuilder = chain.request().newBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
 
-//     if(scope instanceof ContinuableScope){
-//
-//     }
-      Context context = span.with(dsmContext);
       Baggage baggage = Baggage.fromContext(Context.current());
       if(baggage != null){
         System.out.println("Baggage: " + baggage.getW3cHeader());
