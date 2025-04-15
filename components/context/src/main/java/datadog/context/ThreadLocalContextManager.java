@@ -15,8 +15,6 @@ final class ThreadLocalContextManager implements ContextManager {
     Context[] holder = CURRENT_HOLDER.get();
     Context previous = holder[0];
     holder[0] = context;
-
-    System.out.println("ThreadLocalContextManager");
     return new ContextScope() {
       private boolean closed;
 

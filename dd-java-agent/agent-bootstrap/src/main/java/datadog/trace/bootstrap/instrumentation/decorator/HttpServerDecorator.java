@@ -140,7 +140,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return null;
     }
     Context context = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
-    System.out.println("context in extract: " + context);
     return context;
   }
 
