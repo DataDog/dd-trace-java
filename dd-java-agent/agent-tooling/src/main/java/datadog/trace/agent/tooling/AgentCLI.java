@@ -131,7 +131,6 @@ public final class AgentCLI {
     System.out.println("Scan finished");
   }
 
-  @SuppressForbidden
   public static void checkProfilerEnv(String temp) {
     if (!EnvironmentChecker.checkEnvironment(temp)) {
       System.exit(1);
