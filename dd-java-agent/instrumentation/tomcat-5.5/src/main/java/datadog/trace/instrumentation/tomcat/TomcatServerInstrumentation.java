@@ -141,7 +141,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       DECORATE.afterStart(span);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
-
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
       return scope;
