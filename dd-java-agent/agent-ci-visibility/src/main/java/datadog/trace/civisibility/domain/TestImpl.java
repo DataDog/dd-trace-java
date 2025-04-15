@@ -44,7 +44,6 @@ import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -101,8 +100,7 @@ public class TestImpl implements DDTest {
 
     this.context = new TestContextImpl(coverageStore);
 
-    AgentSpanContext traceContext =
-        new TagContext(CIConstants.CIAPP_TEST_ORIGIN, Collections.emptyMap());
+    AgentSpanContext traceContext = new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")

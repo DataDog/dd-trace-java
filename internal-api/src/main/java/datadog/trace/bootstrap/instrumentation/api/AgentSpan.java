@@ -7,6 +7,7 @@ import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -90,6 +91,9 @@ public interface AgentSpan
 
   @Override
   AgentSpan setSpanType(final CharSequence type);
+
+  @Override
+  TagMap getTags();
 
   Object getTag(String key);
 
