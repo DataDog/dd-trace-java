@@ -7,15 +7,11 @@ import com.oracle.svm.core.annotate.TargetClass;
 public final class Target_org_datadog_jmxfetch_App {
   @Substitute
   private boolean getJsonConfigs() {
-    // Replace org.datadog.jmxfetch.App.getJsonConfigs to fix the GraalVM native build error.
-    //
-    // This method has references to the excluded transitive dependencies:
-    // - jackson-core (catch JsonProcessingException)
-    // - jackson-jr-objects (referenced in org.datadog.jmxfetch.JsonParser).
+    // This method has a reference to the excluded transitive dependency jackson-jr-objects.
     // GraalVM Native detects it during the reachability analysis and results in
     // "Discovered unresolved method during parsing:
     // org.datadog.jmxfetch.App.<init>(org.datadog.jmxfetch.AppConfig)."
     // because of the missing classes that belong to the excluded dependencies.
-    return false;
+    throw new IllegalStateException("Unreachable");
   }
 }
