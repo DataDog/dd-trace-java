@@ -65,7 +65,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   HttpServer server() {
-    new SpringBootServer(application(), servletContext)
+    def app = application()
+    app.setDefaultProperties(["server.forward-headers-strategy": "NONE"])
+    new SpringBootServer(app, servletContext)
   }
 
   @Override
