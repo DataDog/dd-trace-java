@@ -39,7 +39,6 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       packageName + ".Target_datadog_jctools_counters_FixedSizeStripedLongCounterFields",
       packageName + ".Target_datadog_jctools_util_UnsafeRefArrayAccess",
       packageName + ".Target_org_datadog_jmxfetch_App",
-      "com.fasterxml.jackson.core.JsonProcessingException", // referenced by jmxfetch.App
       packageName + ".Target_org_datadog_jmxfetch_Status",
       packageName + ".Target_org_datadog_jmxfetch_reporter_JsonReporter",
     };
