@@ -135,14 +135,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       final AgentSpan span = DECORATE.startSpan(req, extractedSpanContext);
 
       System.out.println("ExtractedContext: " + extractedContext);
-      Baggage baggage = Baggage.fromContext(extractedContext); //what if there were other contexts
-      final AgentScope scope;
-      if(baggage == null){
-        scope = activateSpan(span);
-      }else {
-        extractedContext.with(span);
-        scope = (AgentScope) extractedContext.attach();
-      }
+      extractedContext.with(span);
+      final AgentScope scope = (AgentScope) extractedContext.attach();
       System.out.print("after attach: ");
       System.out.println("Scope: " + scope);
       System.out.println(Context.current().getClass());
