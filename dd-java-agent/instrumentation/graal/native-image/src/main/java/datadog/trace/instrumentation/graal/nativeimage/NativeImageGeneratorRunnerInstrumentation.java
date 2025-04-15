@@ -76,6 +76,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
               + "datadog.trace.api.env.CapturedEnvironment:build_time,"
+              + "datadog.trace.api.env.CapturedEnvironment$ProcessInfo:build_time,"
               + "datadog.trace.api.ConfigCollector:rerun,"
               + "datadog.trace.api.ConfigDefaults:build_time,"
               + "datadog.trace.api.ConfigOrigin:build_time,"

@@ -7,7 +7,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 import org.springframework.core.env.ConfigurableEnvironment;
 
@@ -60,6 +62,17 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
       final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
         AgentTracer.get().updatePreferredServiceName(applicationName);
+        ProcessTags.addTag("springboot.application", applicationName);
+      }
+      final String[] profiles = environment.getActiveProfiles();
+      System.err.println(Arrays.toString(profiles));
+      if (profiles != null && profiles.length > 0) {
+        ProcessTags.addTag("springboot.profile", profiles[0]);
+      } else {
+        final String[] defaultProfiles = environment.getDefaultProfiles();
+        if (defaultProfiles != null && defaultProfiles.length > 0) {
+          ProcessTags.addTag("springboot.profile", defaultProfiles[0]);
+        }
       }
     }
   }
