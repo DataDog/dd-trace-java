@@ -28,28 +28,14 @@ public class TracingInterceptor implements Interceptor {
       return chain.proceed(chain.request());
     }
 
-    System.out.println("before activateSpan: " + Context.current().getClass());
     final AgentSpan span = startSpan("okhttp", OKHTTP_REQUEST);
     try (final AgentScope scope = activateSpan(span)) {
-      System.out.println("AgentScope: " + scope.getClass());
-      System.out.println("scope.context(): " + scope.context().getClass());
-      System.out.print("Context.current(): ");
-      System.out.println(Context.current()==Context.root());
-      System.out.println(Context.current().getClass());
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
 
-      Baggage baggage = Baggage.fromContext(Context.current());
-      if(baggage != null){
-        System.out.println("Baggage: " + baggage.getW3cHeader());
-      }else{
-        System.out.println("null baggage");
-      }
-      System.out.println("span: " + span);
-      System.out.println("span.with(baggage): " + span.with(baggage));
       defaultPropagator().inject(Context.current().with(span).with(dsmContext), requestBuilder, SETTER);
 
       final Response response;
