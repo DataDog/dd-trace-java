@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.bootstrap.SystemUtils.getPropertyOrEnvVar;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.cli.CLIHelper;
@@ -45,7 +46,7 @@ import java.util.jar.JarFile;
  */
 public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_FLAG = "DD_INJECTION_ENABLED";
-  static final String LIB_INJECTION_FORCE_FLAG = "DD_INJECT_FORCE";
+  static final String LIB_INJECTION_FORCE_FLAG = "dd.inject.force";
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -158,8 +159,10 @@ public final class AgentBootstrap {
       case LIB_INJECTION_ENABLED_FLAG:
         return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
       case LIB_INJECTION_FORCE_FLAG:
-        String libInjectionForceFlag = System.getenv(LIB_INJECTION_FORCE_FLAG);
-        return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
+        {
+          String injectionForceFlag = getPropertyOrEnvVar(LIB_INJECTION_FORCE_FLAG);
+          return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
+        }
       default:
         return false;
     }
@@ -285,6 +288,7 @@ public final class AgentBootstrap {
 
   static boolean shouldAbortDueToOtherJavaAgents() {
     // Simply considering having multiple agents
+
     if (getConfig(LIB_INJECTION_ENABLED_FLAG)
         && !getConfig(LIB_INJECTION_FORCE_FLAG)
         && getAgentFilesFromVMArguments().size() > 1) {
@@ -305,7 +309,7 @@ public final class AgentBootstrap {
           "Info: multiple JVM agents detected, found "
               + agentFiles
               + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
-              + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
+              + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
       return true;
     }
     return false;
