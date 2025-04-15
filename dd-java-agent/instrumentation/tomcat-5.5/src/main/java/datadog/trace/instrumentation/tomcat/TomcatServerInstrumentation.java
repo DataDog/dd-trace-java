@@ -133,8 +133,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedSpanContext);
 
       final AgentSpan span = DECORATE.startSpan(req, extractedSpanContext);
-//      System.out.println("span.getContext: " + )
-//      extractedContext.with(span);
 
       System.out.println("ExtractedContext: " + extractedContext);
       Baggage baggage = Baggage.fromContext(extractedContext); //what if there were other contexts
@@ -145,8 +143,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         extractedContext.with(span);
         scope = (AgentScope) extractedContext.attach();
       }
-//      final AgentScope contextScope = (AgentScope) extractedContext.attach();
-//      System.out.println("Context Scope: " + contextScope);
       System.out.print("after attach: ");
       System.out.println("Scope: " + scope);
       System.out.println(Context.current().getClass());
