@@ -1,11 +1,8 @@
 package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.DDAgentStatsDClientManager;
-import datadog.trace.agent.jmxfetch.JMXFetch;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.StatsDClientManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
@@ -28,9 +25,6 @@ public class TracerInstaller {
                 .pollForTracingConfiguration()
                 .build();
         installGlobalTracer(tracer);
-
-        StatsDClientManager statsDClientManager = DDAgentStatsDClientManager.statsDClientManager();
-        JMXFetch.run(statsDClientManager);
       } else {
         log.debug("GlobalTracer already registered.");
       }
