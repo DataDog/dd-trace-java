@@ -139,6 +139,7 @@ public class HttpCodec {
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
+      System.out.println("TracePropagationStyle: " + style);
       switch (style) {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(config, traceConfigSupplier));
@@ -221,7 +222,8 @@ public class HttpCodec {
       TagContext partialContext = null;
       // Extract and cache all headers in advance
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
-
+      System.out.println("extractors size: " + this.extractors.size());
+      System.out.println("extractors size: " + this.extractors);
       for (final Extractor extractor : this.extractors) {
         TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
@@ -260,7 +262,7 @@ public class HttpCodec {
           partialContext = extracted;
         }
       }
-
+      System.out.println("CompoundExtractor context: " + context);
       if (context != null) {
         log.debug("Extract complete context {}", context);
         return context;

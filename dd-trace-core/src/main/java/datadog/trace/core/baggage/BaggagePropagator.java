@@ -61,10 +61,11 @@ public class BaggagePropagator implements Propagator {
     }
 
     String headerValue = baggage.getW3cHeader();
-    if (headerValue != null) {
-      setter.set(carrier, BAGGAGE_KEY, headerValue);
-      return;
-    }
+//    if (headerValue != null) {
+//      System.out.println("Returning cached value immediately");
+//      setter.set(carrier, BAGGAGE_KEY, headerValue);
+//      return;
+//    }e
 
     int processedItems = 0;
     int currentBytes = 0;
@@ -162,6 +163,8 @@ public class BaggagePropagator implements Propagator {
 
     @Override
     public void accept(String key, String value) {
+      System.out.println("key: " + key + " ;value: " + value);
+
       // Only process tags that are relevant to baggage
       if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
         Map<String, String> baggage = parseBaggageHeaders(value);
