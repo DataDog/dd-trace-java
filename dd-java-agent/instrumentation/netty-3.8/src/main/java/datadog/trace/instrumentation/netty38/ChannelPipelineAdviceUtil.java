@@ -54,19 +54,22 @@ public class ChannelPipelineAdviceUtil {
             MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
       } else if (handler instanceof WebSocketServerProtocolHandler) {
         if (pipeline.get(HttpServerTracingHandler.class) != null) {
-          addHandlerAfter(pipeline,
+          addHandlerAfter(
+              pipeline,
               "datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler",
               new WebSocketServerTracingHandler(contextStore));
         }
       } else if (handler instanceof WebSocket13FrameEncoder) {
         if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
-          addHandlerAfter(pipeline,
+          addHandlerAfter(
+              pipeline,
               "datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler",
               new WebSocketServerRequestTracingHandler(contextStore));
         }
       } else if (handler instanceof WebSocket13FrameDecoder) {
         if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
-          addHandlerAfter(pipeline,
+          addHandlerAfter(
+              pipeline,
               "datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler",
               new WebSocketServerResponseTracingHandler(contextStore));
         }
@@ -90,9 +93,7 @@ public class ChannelPipelineAdviceUtil {
   }
 
   private static void addHandlerAfter(
-      final ChannelPipeline pipeline,
-      final String name,
-      final ChannelHandler handler) {
+      final ChannelPipeline pipeline, final String name, final ChannelHandler handler) {
     ChannelHandler existing = pipeline.get(handler.getClass());
     if (existing != null) {
       pipeline.remove(existing);

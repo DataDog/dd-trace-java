@@ -55,7 +55,8 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
         channelTraceContext.setSenderHandlerContext(new HandlerContext.Sender(span, channelId));
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE
-          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS || isWebsocketUpgrade)) {
+          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
+              || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
         span.finish(); // Finish the span manually since finishSpanOnClose was false

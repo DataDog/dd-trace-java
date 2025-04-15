@@ -15,8 +15,6 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
-
 import java.util.UUID;
 
 @ChannelHandler.Sharable
@@ -48,13 +46,17 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
           response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
               && "websocket".equals(response.headers().get(UPGRADE_HEADER));
       if (isWebsocketUpgrade) {
-        String channelId = ctx.channel().attr(CHANNEL_ID).setIfAbsent(UUID.randomUUID().toString().substring(0, 8));
+        String channelId =
+            ctx.channel()
+                .attr(CHANNEL_ID)
+                .setIfAbsent(UUID.randomUUID().toString().substring(0, 8));
         ctx.channel()
             .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
             .set(new HandlerContext.Sender(span, channelId));
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE
-          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS || isWebsocketUpgrade)) {
+          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
+              || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
         ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();

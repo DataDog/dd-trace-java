@@ -1,16 +1,16 @@
 package datadog.trace.instrumentation.netty40.server.websocket;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
-import io.netty.channel.*;
-import io.netty.handler.codec.http.websocketx.*;
-
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.websocketx.*;
 
 @ChannelHandler.Sharable
 public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {

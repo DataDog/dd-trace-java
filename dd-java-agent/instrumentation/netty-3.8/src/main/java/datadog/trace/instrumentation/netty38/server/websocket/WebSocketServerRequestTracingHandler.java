@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.netty38.server.websocket;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
+
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -10,17 +13,11 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
-import org.jboss.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import org.jboss.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import org.jboss.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
-import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
-
+import org.jboss.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
 
@@ -39,7 +36,6 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
 
       ChannelTraceContext traceContext = this.contextStore.get(channel);
       if (traceContext != null) {
-
 
         HandlerContext.Receiver receiverContext = traceContext.getReceiverHandlerContext();
         if (receiverContext == null) {
@@ -131,7 +127,6 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             return;
           }
         }
-
       }
     }
 

@@ -1,5 +1,10 @@
 package datadog.trace.instrumentation.netty40.server.websocket;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.*;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -8,11 +13,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.websocketx.*;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
-import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-import static datadog.trace.instrumentation.netty40.AttributeKeys.*;
 
 @ChannelHandler.Sharable
 public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
@@ -31,9 +31,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         HandlerContext.Sender sessionState = channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
         if (sessionState != null) {
           String channelId = ctx.channel().attr(CHANNEL_ID).get();
-          receiverContext =
-              new HandlerContext.Receiver(
-                  sessionState.getHandshakeSpan(), channelId);
+          receiverContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), channelId);
           channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).set(receiverContext);
         }
       }

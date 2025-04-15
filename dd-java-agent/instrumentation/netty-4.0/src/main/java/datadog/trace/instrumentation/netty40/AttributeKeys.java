@@ -23,7 +23,7 @@ public final class AttributeKeys {
 
   public static final AttributeKey<AgentScope.Continuation>
       CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
-      attributeKey("datadog.connect.parent.continuation");
+          attributeKey("datadog.connect.parent.continuation");
 
   public static final AttributeKey<HttpHeaders> REQUEST_HEADERS_ATTRIBUTE_KEY =
       attributeKey("datadog.server.request.headers");
@@ -34,8 +34,7 @@ public final class AttributeKeys {
   public static final AttributeKey<Boolean> BLOCKED_RESPONSE_KEY =
       new AttributeKey<>("datadog.server.blocked_response");
 
-  public static final AttributeKey<String> CHANNEL_ID =
-      attributeKey("io.netty.channel.id");
+  public static final AttributeKey<String> CHANNEL_ID = attributeKey("io.netty.channel.id");
 
   public static final AttributeKey<HandlerContext.Sender> WEBSOCKET_SENDER_HANDLER_CONTEXT =
       attributeKey("datadog.server.websocket.sender.handler_context");

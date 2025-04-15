@@ -410,7 +410,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   WebsocketClient websocketClient() {
     new OkHttpWebsocketClient()
   }
-  
+
   boolean testEndpointDiscovery() {
     false
   }

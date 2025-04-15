@@ -81,7 +81,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     channelPipeline.addLast("encoder", new HttpResponseEncoder())
     channelPipeline.addLast("aggregator", new HttpChunkAggregator(65536))
     channelPipeline.addLast("controller", new SimpleChannelHandler() {
-      WebSocketServerHandshaker handshaker
+        WebSocketServerHandshaker handshaker
 
         @Override
         void messageReceived(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
@@ -180,7 +180,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
               runUnderTrace("onRead", {})
             } else {
               throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass()
-                .getName()))
+              .getName()))
             }
           }
         }

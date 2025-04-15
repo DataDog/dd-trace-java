@@ -152,9 +152,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof HttpRequestDecoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              HttpServerRequestTracingHandler.INSTANCE);
+              pipeline, handler, HttpServerRequestTracingHandler.INSTANCE);
         } else if (handler instanceof HttpResponseEncoder) {
           NettyPipelineHelper.addHandlerAfter(
               pipeline,
@@ -163,37 +161,33 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof WebSocketServerProtocolHandler) {
           if (pipeline.get(HttpServerTracingHandler.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(pipeline,
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline,
                 "datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler",
                 new WebSocketServerTracingHandler());
           }
           if (pipeline.get(HttpRequestDecoder.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(pipeline,
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline,
                 "datadog.trace.instrumentation.netty40.server.HttpServerRequestTracingHandler",
                 WebSocketServerRequestTracingHandler.INSTANCE);
           }
           if (pipeline.get(HttpResponseEncoder.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(pipeline,
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline,
                 "datadog.trace.instrumentation.netty40.server.HttpServerResponseTracingHandler",
                 WebSocketServerResponseTracingHandler.INSTANCE);
           }
         } else
         // Client pipeline handlers
         if (handler instanceof HttpClientCodec) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              new HttpClientTracingHandler());
+          NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
         } else if (handler instanceof HttpRequestEncoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              HttpClientRequestTracingHandler.INSTANCE);
+              pipeline, handler, HttpClientRequestTracingHandler.INSTANCE);
         } else if (handler instanceof HttpResponseDecoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              HttpClientResponseTracingHandler.INSTANCE);
+              pipeline, handler, HttpClientResponseTracingHandler.INSTANCE);
         }
       } catch (final IllegalArgumentException e) {
         // Prevented adding duplicate handlers.
