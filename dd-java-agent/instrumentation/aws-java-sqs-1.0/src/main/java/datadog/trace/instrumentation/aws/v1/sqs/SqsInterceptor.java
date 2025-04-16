@@ -84,7 +84,7 @@ public class SqsInterceptor extends RequestHandler2 {
   private Context newContext(AmazonWebServiceRequest request, String queueUrl) {
     AgentSpan span = newSpan(request);
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return span.with(dsmContext);
+    return Context.current().with(span).with(dsmContext);
   }
 
   private AgentSpan newSpan(AmazonWebServiceRequest request) {

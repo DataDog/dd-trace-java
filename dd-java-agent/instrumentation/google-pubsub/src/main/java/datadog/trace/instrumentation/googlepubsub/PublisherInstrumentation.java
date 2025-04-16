@@ -82,7 +82,7 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
 
       PubsubMessage.Builder builder = msg.toBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
-      defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), builder, SETTER);
       msg = builder.build();
       return activateSpan(span);
     }

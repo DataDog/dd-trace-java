@@ -72,7 +72,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
         final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
         if (span != null) {
           SdkHttpRequest.Builder requestBuilder = context.httpRequest().toBuilder();
-          Propagators.forConcern(XRAY_TRACING_CONCERN).inject(span, requestBuilder, DECORATE);
+          Propagators.forConcern(XRAY_TRACING_CONCERN)
+              .inject(datadog.context.Context.current().with(span), requestBuilder, DECORATE);
           return requestBuilder.build();
         }
       } catch (Throwable e) {

@@ -275,7 +275,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
             DataStreamsContext dsmContext = create(sortedTags, record.timestamp, payloadSize);
-            dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
+            dsmPropagator.inject(Context.current().with(span).with(dsmContext), record, SR_SETTER);
           }
         }
       } else {
@@ -365,7 +365,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
             Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
             DataStreamsContext dsmContext = create(sortedTags, record.timestamp(), payloadSize);
-            dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
+            dsmPropagator.inject(Context.current().with(span).with(dsmContext), record, PR_SETTER);
           }
         }
       } else {

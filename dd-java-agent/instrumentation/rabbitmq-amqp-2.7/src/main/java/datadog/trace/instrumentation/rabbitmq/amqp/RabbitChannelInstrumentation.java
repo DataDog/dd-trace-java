@@ -37,6 +37,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
@@ -197,7 +198,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
             HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.isEmpty() ? "false" : "true");
         sortedTags.put(TYPE_TAG, "rabbitmq");
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
-        defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
+        defaultPropagator().inject(Context.current().with(span).with(dsmContext), headers, SETTER);
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),

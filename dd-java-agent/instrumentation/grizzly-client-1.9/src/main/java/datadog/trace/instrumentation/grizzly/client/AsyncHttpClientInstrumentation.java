@@ -70,7 +70,7 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }

@@ -25,6 +25,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -153,7 +154,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       sortedTags.put(TOPIC_TAG, record.topic());
       sortedTags.put(TYPE_TAG, "kafka");
       try {
-        defaultPropagator().inject(span, record.headers(), setter);
+        defaultPropagator().inject(Context.current().with(span), record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           // inject the context in the headers, but delay sending the stats until we know the
@@ -161,7 +162,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
-          dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
+          dsmPropagator.inject(
+              Context.current().with(span).with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
@@ -175,12 +177,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.value(),
                 record.headers());
 
-        defaultPropagator().inject(span, record.headers(), setter);
+        defaultPropagator().inject(Context.current().with(span), record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
-          dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
+          dsmPropagator.inject(
+              Context.current().with(span).with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
