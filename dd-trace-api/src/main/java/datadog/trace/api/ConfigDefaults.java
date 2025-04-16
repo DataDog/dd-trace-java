@@ -342,5 +342,7 @@ public final class ConfigDefaults {
           "$.Credentials.SessionToken",
           "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
+  static final String DEFAULT_TRACE_GRAPHQL_ERROR_EXTENSIONS = " , , ,";
+
   private ConfigDefaults() {}
 }

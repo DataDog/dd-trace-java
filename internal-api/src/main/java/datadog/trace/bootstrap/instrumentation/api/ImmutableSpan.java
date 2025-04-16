@@ -185,6 +185,14 @@ public abstract class ImmutableSpan implements AgentSpan {
     return this;
   }
 
+  public AgentSpan addEvent(String name) {
+    return this;
+  }
+
+  public AgentSpan addEvent(String name, SpanNativeAttributes attributes) {
+    return this;
+  }
+
   @Override
   public void setRequestBlockingAction(RequestBlockingAction rba) {}
 

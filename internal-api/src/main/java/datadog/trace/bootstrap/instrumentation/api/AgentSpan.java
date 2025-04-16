@@ -188,6 +188,10 @@ public interface AgentSpan
 
   boolean isOutbound();
 
+  public AgentSpan addEvent(String name);
+
+  public AgentSpan addEvent(String name, SpanNativeAttributes attributes);
+
   default AgentSpan asAgentSpan() {
     return this;
   }

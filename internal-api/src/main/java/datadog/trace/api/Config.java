@@ -554,6 +554,7 @@ public class Config {
   private final String agentlessLogSubmissionLevel;
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
+  private final List<String> traceGraphqlErrorExtensions;
 
   private final Set<String> cloudPayloadTaggingServices;
   @Nullable private final List<String> cloudRequestPayloadTagging;
@@ -2005,7 +2006,30 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
+    this.traceGraphqlErrorExtensions =
+        parseGraphqlErrorExtensions(
+            configProvider.getString(
+                TRACE_GRAPHQL_ERROR_EXTENSIONS, DEFAULT_TRACE_GRAPHQL_ERROR_EXTENSIONS));
+
     log.debug("New instance: {}", this);
+  }
+
+  private static List<String> parseGraphqlErrorExtensions(String config) {
+    if (config == null || config.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<String> patterns = new LinkedList<>();
+    String[] parts = config.split(",");
+
+    for (String part : parts) {
+      String trimmed = part.trim();
+      if (!trimmed.isEmpty()) {
+        patterns.add(trimmed);
+      }
+    }
+
+    return patterns;
   }
 
   /**
@@ -4184,6 +4208,10 @@ public class Config {
     return cloudPayloadTaggingMaxTags;
   }
 
+  public List<String> getTraceGraphqlErrorExtensions() {
+    return traceGraphqlErrorExtensions;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -4860,6 +4888,9 @@ public class Config {
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", traceGraphqlErrorExtensions='"
+        + traceGraphqlErrorExtensions
+        + '\''
         + '}';
   }
 }

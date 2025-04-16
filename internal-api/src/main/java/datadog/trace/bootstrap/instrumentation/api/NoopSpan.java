@@ -140,6 +140,14 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
     return false;
   }
 
+  public AgentSpan addEvent(String name) {
+    return this;
+  }
+
+  public AgentSpan addEvent(String name, SpanNativeAttributes attributes) {
+    return this;
+  }
+
   @Override
   public boolean isRequiresPostProcessing() {
     return false;
