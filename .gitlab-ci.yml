@@ -378,6 +378,8 @@ muzzle-dep-report:
   rules:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: on_success
+    - if: $NON_DEFAULT_JVMS == "true"
+      when: on_success
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
   script:
@@ -535,7 +537,6 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
-  tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
@@ -545,7 +546,6 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
-  tags: [ "arch:amd64" ]
   rules: *master_only
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
@@ -562,6 +562,7 @@ test_smoke_graalvm:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
+    NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21"]
@@ -572,6 +573,7 @@ test_smoke_semeru8_debugger:
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
     CACHE_TYPE: "smoke"
+    NON_DEFAULT_JVMS: "true"
     testJvm: "semeru8"
 
 required:
