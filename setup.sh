@@ -19,7 +19,7 @@ function check-jvm() {
 }
 
 echo "ℹ️ Checking required JVM:"
-if [ -e "$JAVA_HOME" ]; then
+if [ -e "$JAVA_HOME" ] || [ $(java -version | grep -c "1.8") -eq 0 ]; then
     check-jvm "JAVA_HOME" "1.8"
 fi
 check-jvm "JAVA_8_HOME" "1.8"
