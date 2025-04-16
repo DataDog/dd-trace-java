@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.KEEP;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpHeaders;

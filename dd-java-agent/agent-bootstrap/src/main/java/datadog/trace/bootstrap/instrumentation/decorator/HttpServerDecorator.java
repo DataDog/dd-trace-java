@@ -130,8 +130,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null == carrier || null == getter) {
       return null;
     }
-    Context context = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
-    return context;
+
+    return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
   }
 
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
