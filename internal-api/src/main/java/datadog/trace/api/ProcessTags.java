@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessTags {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessTags.class);
+  private static boolean enabled = Config.get().isExperimentalCollectProcessTagsEnabled();
 
   private static class Lazy {
     static final Map<String, String> TAGS = loadTags();
@@ -20,11 +21,13 @@ public class ProcessTags {
 
     private static Map<String, String> loadTags() {
       Map<String, String> tags = new LinkedHashMap<>();
-      try {
-        fillBaseTags(tags);
-        fillJbossTags(tags);
-      } catch (Throwable t) {
-        LOGGER.debug("Unable to calculate default process tags", t);
+      if (enabled) {
+        try {
+          fillBaseTags(tags);
+          fillJbossTags(tags);
+        } catch (Throwable t) {
+          LOGGER.debug("Unable to calculate default process tags", t);
+        }
       }
       return tags;
     }
@@ -94,11 +97,16 @@ public class ProcessTags {
 
   // need to be synchronized on writing. As optimization, it does not need to be sync on read.
   public static synchronized void addTag(String key, String value) {
-    Lazy.TAGS.put(key, value);
-    Lazy.serializedForm = null;
+    if (enabled) {
+      Lazy.TAGS.put(key, value);
+      Lazy.serializedForm = null;
+    }
   }
 
   public static UTF8BytesString getTagsForSerialization() {
+    if (!enabled) {
+      return null;
+    }
     final UTF8BytesString serializedForm = Lazy.serializedForm;
     if (serializedForm != null) {
       return serializedForm;
@@ -115,6 +123,7 @@ public class ProcessTags {
   /** Visible for testing. */
   static void reset() {
     empty();
+    enabled = Config.get().isExperimentalCollectProcessTagsEnabled();
     Lazy.TAGS.putAll(Lazy.loadTags());
   }
 }

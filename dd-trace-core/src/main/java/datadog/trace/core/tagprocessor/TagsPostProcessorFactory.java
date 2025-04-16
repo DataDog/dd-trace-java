@@ -32,9 +32,6 @@ public final class TagsPostProcessorFactory {
       if (Config.get().isAddSpanPointers("aws")) {
         processors.add(new SpanPointersProcessor());
       }
-      if (Config.get().isExperimentalCollectProcessTagsEnabled()) {
-        processors.add(new ProcessTagsAdder());
-      }
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }

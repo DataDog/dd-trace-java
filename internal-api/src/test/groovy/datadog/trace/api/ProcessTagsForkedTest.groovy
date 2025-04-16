@@ -5,21 +5,24 @@ import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Paths
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
+
 class ProcessTagsForkedTest extends DDSpecification {
 
   def originalProcessInfo
 
   def setup() {
     originalProcessInfo = CapturedEnvironment.get().getProcessInfo()
+    ProcessTags.reset()
   }
 
   def cleanup() {
     CapturedEnvironment.useFixedProcessInfo(originalProcessInfo)
-    ProcessTags.reset()
   }
 
   def 'should load default tags for jar #jar and main class #cls'() {
     given:
+    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
     CapturedEnvironment.useFixedProcessInfo(new CapturedEnvironment.ProcessInfo(cls, jar))
     ProcessTags.reset()
     def tags = ProcessTags.getTagsForSerialization()
@@ -35,6 +38,7 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load default tags jboss (mode #mode)'() {
     setup:
+    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
     if (jbossHome != null) {
       System.setProperty("jboss.home.dir", jbossHome)
     }
@@ -55,7 +59,28 @@ class ProcessTagsForkedTest extends DDSpecification {
     "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:.+,jboss.home:myserver,server.name:standalone,jboss.mode:standalone"
     "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:.+,jboss.home:myserver,server.name:server1,jboss.mode:domain"
     null                  | "[Standalone]"    | "standalone" | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
+  }
 
+  def 'should not calculate process tags by default'() {
+    given:
+    def processTags = ProcessTags.tagsForSerialization
+    expect:
+    !ProcessTags.enabled
+    processTags == null
+  }
 
+  def 'should lazily recalculate when a tag is added'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    when:
+    def processTags = ProcessTags.tagsForSerialization
+    then:
+    assert ProcessTags.enabled
+    assert processTags != null
+    when:
+    ProcessTags.addTag("test", "value")
+    then:
+    assert ProcessTags.tagsForSerialization.toString() == "$processTags,test:value"
   }
 }
