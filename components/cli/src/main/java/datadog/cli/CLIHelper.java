@@ -31,8 +31,7 @@ public final class CLIHelper {
         Path cmdlinePath = Paths.get("/proc/self/cmdline");
         if (Files.exists(cmdlinePath)) {
           try (BufferedReader in = Files.newBufferedReader(cmdlinePath)) {
-            rawArgs = Arrays.asList(in.readLine().split("\0"));
-            return parseVmArgs(rawArgs);
+            return parseVmArgs(Arrays.asList(in.readLine().split("\0")));
           }
         }
       }

@@ -65,7 +65,9 @@ public class StableConfigParser {
 
     } catch (IOException e) {
       log.debug(
-          "Stable configuration file either not found or not readable at filepath {}", filePath);
+          "Stable configuration file either not found or not readable at filepath {}. Error: {}",
+          filePath,
+          e.getMessage());
     }
     return StableConfigSource.StableConfig.EMPTY;
   }

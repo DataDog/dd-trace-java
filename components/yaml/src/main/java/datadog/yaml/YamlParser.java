@@ -1,19 +1,87 @@
 package datadog.yaml;
 
-import java.io.FileInputStream;
+import datadog.cli.CLIHelper;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
 public class YamlParser {
-  // Supports clazz == null for default yaml parsing
+  private static final Map<String, String> VM_ARGS = CLIHelper.getVmArgs();
+
   public static <T> T parse(String filePath, Class<T> clazz) throws IOException {
     Yaml yaml = new Yaml();
-    try (FileInputStream fis = new FileInputStream(filePath)) {
-      if (clazz == null) {
-        return yaml.load(fis);
-      } else {
-        return yaml.loadAs(fis, clazz);
-      }
+    String content = new String(Files.readAllBytes(Paths.get(filePath)));
+    String processedContent = processTemplate(content);
+
+    if (clazz == null) {
+      return yaml.load(processedContent);
+    } else {
+      return yaml.loadAs(processedContent, clazz);
     }
+  }
+
+  private static String processTemplate(String content) throws IOException {
+    StringBuilder result = new StringBuilder(content.length());
+    String rest = content;
+
+    while (true) {
+      int openIndex = rest.indexOf("{{");
+      if (openIndex == -1) {
+        result.append(rest);
+        break;
+      }
+
+      // Add everything before the template
+      result.append(rest.substring(0, openIndex));
+
+      // Find the closing braces
+      int closeIndex = rest.indexOf("}}", openIndex);
+      if (closeIndex == -1) {
+        throw new IOException("Unterminated template in config");
+      }
+
+      // Extract the template variable
+      String templateVar = rest.substring(openIndex + 2, closeIndex).trim();
+
+      // Process the template variable and get its value
+      String value = processTemplateVar(templateVar);
+
+      // Add the processed value
+      result.append(value);
+
+      // Continue with the rest of the string
+      rest = rest.substring(closeIndex + 2);
+    }
+
+    return result.toString();
+  }
+
+  private static String processTemplateVar(String templateVar) throws IOException {
+    if (templateVar.startsWith("environment_variables[") && templateVar.endsWith("]")) {
+      String envVar =
+          templateVar.substring("environment_variables[".length(), templateVar.length() - 1).trim();
+      if (envVar.isEmpty()) {
+        throw new IOException("Empty environment variable name in template");
+      }
+      String value = System.getenv(envVar);
+      if (value == null || value.isEmpty()) {
+        return "UNDEFINED";
+      }
+      return value;
+    } else if (templateVar.startsWith("process_arguments[") && templateVar.endsWith("]")) {
+      String processArg =
+          templateVar.substring("process_arguments[".length(), templateVar.length() - 1).trim();
+      if (processArg.isEmpty()) {
+        throw new IOException("Empty process argument in template");
+      }
+      String value = VM_ARGS.get(processArg);
+      if (value == null || value.isEmpty()) {
+        return "UNDEFINED";
+      }
+      return value;
+    }
+    return "UNDEFINED";
   }
 }

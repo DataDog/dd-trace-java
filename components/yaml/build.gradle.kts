@@ -11,4 +11,5 @@ jmh {
 // https://repo1.maven.org/maven2/org/yaml/snakeyaml/2.4/snakeyaml-2.4.pom
 dependencies {
   implementation("org.yaml", "snakeyaml", "2.4")
+  implementation(project(":components:cli"))
 }
