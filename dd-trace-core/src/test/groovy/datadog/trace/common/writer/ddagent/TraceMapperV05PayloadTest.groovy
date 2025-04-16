@@ -3,13 +3,15 @@ package datadog.trace.common.writer.ddagent
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
@@ -21,11 +23,25 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
-import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
-import static org.msgpack.core.MessageFormat.*
+import static org.junit.jupiter.api.Assertions.assertEquals
+import static org.junit.jupiter.api.Assertions.assertNotNull
+import static org.junit.jupiter.api.Assertions.assertTrue
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
@@ -129,6 +145,46 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     100 << 10  | 100 << 10      | 1000       | false
   }
 
+  void 'test process tags serialization'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    assertNotNull(ProcessTags.tagsForSerialization)
+    def spans = (1..2).collect {
+      new TraceGenerator.PojoSpan(
+        'service',
+        'operation',
+        'resource',
+        DDTraceId.ONE,
+        it,
+        -1L,
+        123L,
+        456L,
+        0,
+        [:],
+        [:],
+        'type',
+        false,
+        0,
+        0,
+        'origin')
+    }
+
+    def traces = [spans]
+    TraceMapperV0_5 traceMapper = new TraceMapperV0_5()
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
+
+    when:
+    packer.format(spans, traceMapper)
+    packer.flush()
+
+    then:
+    verifier.verifyTracesConsumed()
+    cleanup:
+    ProcessTags.empty()
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
@@ -203,7 +259,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
               } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
-
+              } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
+                assertTrue(Config.get().isExperimentalCollectProcessTagsEnabled())
+                assertEquals(0, i)
+                assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {
