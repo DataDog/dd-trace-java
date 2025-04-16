@@ -168,7 +168,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
-    log.debug("Setting up OpenLineage configuration");
+    log.error("Setting up OpenLineage configuration with trace id {}", traceId);
     if (openLineageSparkListener != null) {
       openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
@@ -284,6 +284,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
     builder.withTag("openlineage_parent_job_name", context.getParentJobName());
     builder.withTag("openlineage_parent_run_id", context.getParentRunId());
+    builder.withTag("openlineage_root_parent_job_namespace", context.getRootParentJobNamespace());
+    builder.withTag("openlineage_root_parent_job_name", context.getRootParentJobName());
+    builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
   }
 
   @Override
