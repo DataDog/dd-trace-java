@@ -1,12 +1,10 @@
 package datadog.smoketest.cli;
 
 import datadog.trace.api.Trace;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 /** Simple application that sleeps then quits. */
 public class CliApplication {
 
-  @SuppressForbidden
   public static void main(final String[] args) throws InterruptedException {
     final CliApplication app = new CliApplication();
 

@@ -1,6 +1,5 @@
 package datadog.smoketest.systemloader;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URLClassLoader;
 
 public class TestLoader extends URLClassLoader {
@@ -18,7 +17,6 @@ public class TestLoader extends URLClassLoader {
   }
 
   @Override
-  @SuppressForbidden
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     if (name.startsWith("java")
         || name.startsWith("jdk")

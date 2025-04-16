@@ -3,7 +3,6 @@
  */
 package datadog.smoketest.grpc;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.grpc.Grpc;
 import io.grpc.InsecureServerCredentials;
 import io.grpc.Server;
@@ -17,7 +16,6 @@ public class App {
 
   private Server server;
 
-  @SuppressForbidden
   private void start() throws IOException {
     int port = Integer.getInteger("grpc.http.port", 8080);
     server =

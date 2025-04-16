@@ -2,7 +2,6 @@ package com.example.jwt;
 
 import static org.springframework.security.oauth2.core.OAuth2TokenIntrospectionClaimNames.AUD;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.EncodedKeySpec;
@@ -39,7 +38,6 @@ public class SecurityConfig {
         .build();
   }
 
-  @SuppressForbidden
   RSAPublicKey buildKey() {
     try {
       String publicKeyStr = System.getProperty("publickey");

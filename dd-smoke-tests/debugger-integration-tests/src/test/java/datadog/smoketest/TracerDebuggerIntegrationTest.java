@@ -113,15 +113,14 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
         LogProbe.builder()
             .probeId(PROBE_ID)
             // on line: System.out.println(argInt);
-            .where("WebController.java", 17)
+            .where("WebController.java", 15)
             .captureSnapshot(true)
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
-    // same line as the logProbe above
     assertEquals(
-        42, snapshot.getCaptures().getLines().get(17).getArguments().get("argInt").getValue());
+        42, snapshot.getCaptures().getLines().get(15).getArguments().get("argInt").getValue());
     assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
   }
@@ -135,7 +134,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
             .probeId(PROBE_ID)
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             // on line: System.out.println(argInt);
-            .where("WebController.java", 17)
+            .where("WebController.java", 15)
             .captureSnapshot(false)
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);

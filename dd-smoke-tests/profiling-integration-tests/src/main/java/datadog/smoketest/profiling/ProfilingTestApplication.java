@@ -4,7 +4,6 @@ import datadog.trace.api.Trace;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -30,7 +29,6 @@ public class ProfilingTestApplication {
   private static final ExecutorService FJP = new ForkJoinPool(4);
 
   @SuppressWarnings("try")
-  @SuppressForbidden
   public static void main(final String[] args) throws Exception {
     ProfilingContextAttribute foo = Profiling.get().createContextAttribute("foo");
     long duration = -1;
@@ -57,7 +55,6 @@ public class ProfilingTestApplication {
 
   @Trace
   @SuppressFBWarnings("DM_GC")
-  @SuppressForbidden
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();
@@ -72,7 +69,6 @@ public class ProfilingTestApplication {
 
   @Trace
   @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
-  @SuppressForbidden
   private static void tracedBusyMethod() {
     long startTime = THREAD_MX_BEAN.getCurrentThreadCpuTime();
     Random random = new Random();
@@ -97,7 +93,6 @@ public class ProfilingTestApplication {
     submitWorkToExecutor(FJP);
   }
 
-  @SuppressForbidden
   private static void submitWorkToExecutor(ExecutorService executorService)
       throws ExecutionException, InterruptedException {
     AtomicInteger it = new AtomicInteger();

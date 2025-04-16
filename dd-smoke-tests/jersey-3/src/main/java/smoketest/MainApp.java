@@ -1,6 +1,5 @@
 package smoketest;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jakarta.ws.rs.ext.ParamConverter;
 import java.net.URI;
 import java.util.logging.Level;
@@ -20,7 +19,6 @@ public class MainApp {
   public static final String BASE_URI = "http://localhost:";
 
   // Starts Grizzly HTTP server
-  @SuppressForbidden
   public static HttpServer startServer(String httpPort) {
 
     // scan packages
@@ -40,7 +38,6 @@ public class MainApp {
     return httpServer;
   }
 
-  @SuppressForbidden
   public static void main(String[] args) {
     String httpPort = "8034";
     ParamConverter paramConverter =

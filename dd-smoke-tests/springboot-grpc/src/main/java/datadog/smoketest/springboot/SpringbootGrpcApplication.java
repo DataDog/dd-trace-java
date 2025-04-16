@@ -3,7 +3,6 @@ package datadog.smoketest.springboot;
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.spanner.SpannerTask;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import org.springframework.boot.SpringApplication;
@@ -38,7 +37,6 @@ public class SpringbootGrpcApplication {
     return new LocalInterface();
   }
 
-  @SuppressForbidden
   public static void main(final String[] args) {
     ConfigurableApplicationContext app =
         SpringApplication.run(SpringbootGrpcApplication.class, args);

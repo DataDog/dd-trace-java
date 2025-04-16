@@ -1,7 +1,6 @@
 package datadog.smoketest.debugger;
 
 import datadog.trace.api.Trace;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +26,6 @@ public class ServerDebuggerTestApplication {
   private final OkHttpClient httpClient = new OkHttpClient();
   private String lastMatchedLine;
 
-  @SuppressForbidden
   public static void main(String[] args) throws Exception {
     System.out.println(ServerDebuggerTestApplication.class.getName());
     try {
@@ -51,7 +49,6 @@ public class ServerDebuggerTestApplication {
     this.controlServerUrl = controlServerUrl;
   }
 
-  @SuppressForbidden
   public void start() throws Exception {
     webServer.setDispatcher(new AppDispatcher(this));
     webServer.start();
@@ -65,7 +62,6 @@ public class ServerDebuggerTestApplication {
     System.out.println("Send Ack done");
   }
 
-  @SuppressForbidden
   protected void stop() {
     System.out.println("Stopping app...");
     new Thread(
@@ -79,7 +75,6 @@ public class ServerDebuggerTestApplication {
         .start();
   }
 
-  @SuppressForbidden
   protected void waitForInstrumentation(String className) {
     System.out.println("waitForInstrumentation on " + className);
     try {
@@ -91,7 +86,6 @@ public class ServerDebuggerTestApplication {
     }
   }
 
-  @SuppressForbidden
   protected void waitForReTransformation(String className) {
     System.out.println("waitForReTransformation on " + className);
     try {
@@ -103,7 +97,6 @@ public class ServerDebuggerTestApplication {
     }
   }
 
-  @SuppressForbidden
   protected void waitForSpecificLine(String line) {
     System.out.println("waitForSpecificLine...");
     try {
@@ -115,7 +108,6 @@ public class ServerDebuggerTestApplication {
     }
   }
 
-  @SuppressForbidden
   protected void execute(String methodName, String arg) {
     Consumer<String> method = methodsByName.get(methodName);
     if (method == null) {

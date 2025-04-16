@@ -1,6 +1,5 @@
 package datadog.smoketest.profiling;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -119,7 +118,6 @@ public class GenerativeStackTraces {
     span.finish();
   }
 
-  @SuppressForbidden
   public void work() {
     long blackhole = 0;
     for (int i = 0; i < 1000; i++) {

@@ -1,6 +1,5 @@
 package datadog.smoketest.profiling;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -12,7 +11,6 @@ final class QueueProcessing {
   private final BlockingQueue<Consumer<Long>> workQueue;
   private final ExecutorService executor;
 
-  @SuppressForbidden
   QueueProcessing(int queueCapacity, int workers, long meanServiceTimeNs) {
     workQueue = new ArrayBlockingQueue<>(queueCapacity);
     executor =

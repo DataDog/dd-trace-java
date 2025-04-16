@@ -23,4 +23,9 @@ subprojects { Project subProj ->
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
   }
+
+  // Disable forbiddenApis for all smoke-test submodules
+  subProj.tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
+    enabled = false
+  }
 }

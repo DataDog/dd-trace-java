@@ -1,6 +1,5 @@
 package datadog.smoketest.crashtracking;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 public class CrashtrackingTestApplication {
-  @SuppressForbidden
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       throw new RuntimeException("Expecting the control file as an argument");
