@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -171,11 +172,13 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
-      span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span);
+      final Context extractedContext = DECORATE.extract(req);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      span = DECORATE.startSpan(req, extractedSpanContext);
+      final AgentScope scope = (AgentScope) extractedContext.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, extractedContext);
+      DECORATE.onRequest(span, req, req, extractedSpanContext);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

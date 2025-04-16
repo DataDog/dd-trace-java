@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.CorrelationIdentifier;
@@ -73,12 +74,14 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
         return false;
       }
 
-      final AgentSpanContext.Extracted parentContext = DECORATE.extract(request);
-      final AgentSpan span = DECORATE.startSpan(request, parentContext);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request, parentContext);
+      final Context extractedContext = DECORATE.extract(request);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
-      scope = activateSpan(span);
+      final AgentSpan span = DECORATE.startSpan(request, extractedSpanContext);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request, request, extractedSpanContext);
+      scope = (AgentScope) extractedContext.with(span).attach();
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

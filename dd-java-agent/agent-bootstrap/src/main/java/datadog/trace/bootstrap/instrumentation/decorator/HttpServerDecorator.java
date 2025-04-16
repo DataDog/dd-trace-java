@@ -126,15 +126,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
-  public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null == carrier || null == getter) {
-      return null;
-    }
-    return extractContextAndGetSpanContext(carrier, getter);
-  }
-
-  public Context extract(REQUEST_CARRIER carrier, boolean temp) {
+  public Context extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
       return null;

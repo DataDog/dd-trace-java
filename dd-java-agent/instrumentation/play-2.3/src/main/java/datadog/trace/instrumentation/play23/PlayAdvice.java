@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECOR
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -21,18 +22,27 @@ public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final Request req) {
     final AgentSpan span;
+    final Context extractedContext;
     if (activeSpan() == null) {
       Headers headers = req.headers();
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
-      span = DECORATE.startSpan(headers, extractedContext);
+      extractedContext = DECORATE.extract(headers);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      span = DECORATE.startSpan(headers, extractedSpanContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
       span.setMeasured(true);
+      extractedContext = null;
     }
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope;
+    if(extractedContext == null){
+      scope = activateSpan(span);
+    }else{
+     scope = (AgentScope) extractedContext.with(span).attach();
+    }
     DECORATE.afterStart(span);
     return scope;
   }

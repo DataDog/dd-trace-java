@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -114,13 +115,16 @@ public class GrizzlyDecorator
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
-    AgentSpanContext.Extracted context = DECORATE.extract(httpRequest);
-    AgentSpan span = DECORATE.startSpan(httpRequest, context);
-    AgentScope scope = activateSpan(span);
+    final Context extractedContext = DECORATE.extract(httpRequest);
+    final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+
+    AgentSpan span = DECORATE.startSpan(httpRequest, extractedSpanContext);
+    AgentScope scope = (AgentScope) extractedContext.with(span).attach();
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onRequest(span, httpRequest, httpRequest, context);
+    DECORATE.onRequest(span, httpRequest, httpRequest, extractedSpanContext);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {
