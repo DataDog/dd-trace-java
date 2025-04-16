@@ -439,6 +439,7 @@ muzzle-dep-report:
 
 agent_integration_tests:
   extends: .test_job
+  tags: [ "arch:amd64" ]
   variables:
     testJvm: "8"
     CI_AGENT_HOST: local-agent
@@ -534,6 +535,7 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
+  tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
@@ -543,6 +545,7 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
+  tags: [ "arch:amd64" ]
   rules: *master_only
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
@@ -554,6 +557,7 @@ test_ssi_smoke:
 
 test_smoke_graalvm:
   extends: .test_job
+  tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
@@ -564,6 +568,7 @@ test_smoke_graalvm:
 
 test_smoke_semeru8_debugger:
   extends: .test_job
+  tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
     CACHE_TYPE: "smoke"
