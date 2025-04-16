@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_REQUEST;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -21,7 +22,7 @@ public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.Argument(value = 0, readOnly = false) Request req,
-      @Advice.Local("extractedContext") AgentSpanContext.Extracted extractedContext) {
+      @Advice.Local("extractedContext") Context extractedContext) {
     final AgentSpan span;
 
     // If we have already added a `play.request` span, then don't do it again
@@ -32,13 +33,22 @@ public class PlayAdvice {
     if (activeSpan() == null) {
       final Headers headers = req.headers();
       extractedContext = DECORATE.extract(headers);
-      span = DECORATE.startSpan(headers, extractedContext);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      span = DECORATE.startSpan(headers, extractedSpanContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
+      extractedContext = null;
     }
-    final AgentScope scope = activateSpan(span);
+
+    final AgentScope scope;
+    if(extractedContext == null){
+      scope = activateSpan(span);
+    }else{
+      scope = (AgentScope) extractedContext.with(span).attach();
+    }
     span.setMeasured(true);
     DECORATE.afterStart(span);
 

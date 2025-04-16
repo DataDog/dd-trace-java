@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADER
 import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,12 +40,14 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
-    final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
+    final Context extractedContext = DECORATE.extract(headers);
+    final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpan span = DECORATE.startSpan(headers, extractedSpanContext);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final AgentScope scope = (AgentScope) extractedContext.with(span).attach()) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, channel, request, extractedContext);
+      DECORATE.onRequest(span, channel, request, extractedSpanContext);
 
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);

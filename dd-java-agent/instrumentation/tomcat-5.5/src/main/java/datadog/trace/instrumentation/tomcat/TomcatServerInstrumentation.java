@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -126,16 +125,13 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final Context extractedContext = DECORATE.extract(req, true);
-      AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-      AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      final Context extractedContext = DECORATE.extract(req);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedSpanContext);
 
       final AgentSpan span = DECORATE.startSpan(req, extractedSpanContext);
-
-      final Context finalContext = extractedContext.with(span);
-      final AgentScope scope = (AgentScope) finalContext.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
@@ -143,7 +139,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
-      return scope;
+      return (AgentScope) extractedContext.with(span).attach();
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

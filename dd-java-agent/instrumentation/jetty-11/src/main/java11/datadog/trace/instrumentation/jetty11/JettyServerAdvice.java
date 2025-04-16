@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -26,12 +27,14 @@ public class JettyServerAdvice {
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
-      span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span);
+      final Context extractedContext = DECORATE.extract(req);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      span = DECORATE.startSpan(req, extractedSpanContext);
+      final AgentScope scope = (AgentScope) extractedContext.with(span).attach();
       span.setMeasured(true);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, extractedContext);
+      DECORATE.onRequest(span, req, req, extractedSpanContext);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

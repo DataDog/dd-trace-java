@@ -14,6 +14,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebApp;
 import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
@@ -105,10 +106,12 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
+      final Context extractedContext = DECORATE.extract(request);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
-      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
-      scope = activateSpan(span);
+      final AgentSpan span = DECORATE.startSpan(request, extractedSpanContext);
+      scope = (AgentScope) extractedContext.with(span).attach();
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {
@@ -122,7 +125,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         }
       }
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request, extractedContext);
+      DECORATE.onRequest(span, request, request, extractedSpanContext);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
