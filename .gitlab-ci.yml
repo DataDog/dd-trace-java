@@ -27,6 +27,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   JAVA_BUILD_IMAGE_VERSION: "v25.01"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
+  DEFAULT_TEST_JVMS: /^(8|11|17|21)$/
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -34,17 +35,17 @@ variables:
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
       - "8"
-#      - "semeru11"
-#      - "oracle8"
-      - "21"
-#      - "ubuntu17"
-#      - "zulu8"
-#      - "semeru8"
-#      - "ibm8"
-#      - "zulu11"
-#      - "11"
+      - "11"
       - "17"
-#      - "semeru17"
+      - "21"
+      - "semeru11"
+      - "oracle8"
+      - "ubuntu17"
+      - "zulu8"
+      - "semeru8"
+      - "ibm8"
+      - "zulu11"
+      - "semeru17"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
@@ -63,6 +64,10 @@ variables:
 .test_matrix_12: &test_matrix_12
   - testJvm: *test_jvms
     CI_SPLIT: [ "1/12", "2/12", "3/12", "4/12", "5/12", "6/12", "7/12", "8/12", "9/12", "10/12", "11/12", "12/12" ]
+
+.master_only: &master_only
+  - if: $CI_COMMIT_BRANCH == "master"
+    when: on_success
 
 default:
   tags: [ "arch:amd64" ]
@@ -370,6 +375,11 @@ muzzle-dep-report:
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     JETTY_AVAILABLE_PROCESSORS: 4 # Jetty incorrectly calculates processor count in containers
+  rules:
+    - if: $testJvm =~ $DEFAULT_TEST_JVMS
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: on_success
   script:
     - > 
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
@@ -480,6 +490,7 @@ test_flaky:
     CACHE_TYPE: "base"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
+  rules: *master_only
   parallel:
     matrix:
       - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
@@ -495,6 +506,7 @@ test_flaky_inst:
     CACHE_TYPE: "inst"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
+  rules: *master_only
   parallel:
     matrix:
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -509,11 +521,14 @@ test_profiling:
   parallel:
     matrix: *test_matrix
 
+# specific jvms list for debugger project because J9-based JVM have issues with local vars
+# so need to test at least against one J9-based JVM
 test_debugger:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|semeru8)$/
   parallel:
     matrix: *test_matrix
 
@@ -528,6 +543,7 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
+  rules: *master_only
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
