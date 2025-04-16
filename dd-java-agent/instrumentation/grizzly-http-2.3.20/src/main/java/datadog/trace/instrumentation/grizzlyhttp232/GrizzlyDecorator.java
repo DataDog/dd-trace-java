@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -117,7 +115,8 @@ public class GrizzlyDecorator
     HttpResponsePacket httpResponse = httpRequest.getResponse();
     final Context extractedContext = DECORATE.extract(httpRequest);
     final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpanContext.Extracted extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
     AgentSpan span = DECORATE.startSpan(httpRequest, extractedSpanContext);
     AgentScope scope = (AgentScope) extractedContext.with(span).attach();

@@ -29,7 +29,8 @@ public class JettyServerAdvice {
 
       final Context extractedContext = DECORATE.extract(req);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       span = DECORATE.startSpan(req, extractedSpanContext);
       final AgentScope scope = (AgentScope) extractedContext.with(span).attach();
       span.setMeasured(true);

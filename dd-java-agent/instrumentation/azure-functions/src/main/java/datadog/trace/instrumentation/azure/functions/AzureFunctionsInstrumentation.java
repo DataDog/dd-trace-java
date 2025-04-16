@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.azurefunctions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azurefunctions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -70,7 +69,8 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(1) final ExecutionContext context) {
       final Context extractedContext = DECORATE.extract(request);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
       final AgentSpan span = DECORATE.startSpan(request, extractedSpanContext);
       DECORATE.afterStart(span, context.getFunctionName());

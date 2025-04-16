@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.kafka_streams;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
@@ -31,6 +30,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -233,15 +233,19 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      Context extractedContext = null;
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext =
-            extractContextAndGetSpanContext(record, SR_GETTER);
+        extractedContext =
+            Propagators.defaultPropagator().extract(Context.root(), record, SR_GETTER);
+        final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+        final AgentSpanContext spanContext =
+            extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-          span = startSpan(KAFKA_CONSUME, extractedContext);
+          span = startSpan(KAFKA_CONSUME, spanContext);
         } else {
           queueSpan =
-              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
+              startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -280,7 +284,10 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      AgentScope agentScope =
+          extractedContext == null
+              ? activateSpan(span)
+              : (AgentScope) extractedContext.with(span).attach();
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -309,15 +316,19 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+      Context extractedContext = null;
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext =
-            extractContextAndGetSpanContext(record, PR_GETTER);
+        extractedContext =
+            Propagators.defaultPropagator().extract(Context.root(), record, PR_GETTER);
+        final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+        final AgentSpanContext spanContext =
+            extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-          span = startSpan(KAFKA_CONSUME, extractedContext);
+          span = startSpan(KAFKA_CONSUME, spanContext);
         } else {
           queueSpan =
-              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
+              startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
           BROKER_DECORATE.afterStart(queueSpan);
           BROKER_DECORATE.onTimeInQueue(queueSpan, record);
           span = startSpan(KAFKA_CONSUME, queueSpan.context());
@@ -363,7 +374,10 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      AgentScope agentScope =
+          extractedContext == null
+              ? activateSpan(span)
+              : (AgentScope) extractedContext.with(span).attach();
       if (null != queueSpan) {
         queueSpan.finish();
       }

@@ -20,12 +20,10 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -127,7 +125,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
       final Context extractedContext = DECORATE.extract(req);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
 
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedSpanContext);
 

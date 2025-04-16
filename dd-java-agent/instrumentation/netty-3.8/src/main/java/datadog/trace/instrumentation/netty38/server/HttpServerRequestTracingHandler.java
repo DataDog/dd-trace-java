@@ -47,7 +47,8 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final HttpHeaders headers = request.headers();
     final Context extractedContext = DECORATE.extract(headers);
     final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpanContext.Extracted extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
     final AgentSpan span = DECORATE.startSpan(headers, extractedSpanContext);
 
     channelTraceContext.reset();

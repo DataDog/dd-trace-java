@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -14,7 +13,8 @@ public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
     final Context extractedContext = DECORATE.extract(request);
     final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpanContext.Extracted extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
     final AgentSpan span = DECORATE.startSpan(request, extractedSpanContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedSpanContext);

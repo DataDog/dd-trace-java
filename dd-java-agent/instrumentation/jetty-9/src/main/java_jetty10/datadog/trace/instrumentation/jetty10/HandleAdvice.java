@@ -28,7 +28,8 @@ public class HandleAdvice {
 
     final Context extractedContext = DECORATE.extract(req);
     final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-    final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpanContext.Extracted extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
     span = DECORATE.startSpan(req, extractedSpanContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, extractedSpanContext);
