@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
@@ -93,11 +94,15 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
-      final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-      scope = activateSpan(span);
+      final Context extractedContext = DECORATE.extract(exchange);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+
+      final AgentSpan span = DECORATE.startSpan(exchange, extractedSpanContext).setMeasured(true);
+      scope = (AgentScope) extractedContext.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, exchange, exchange, extractedContext);
+      DECORATE.onRequest(span, exchange, exchange, extractedSpanContext);
 
       exchange.putAttachment(DD_UNDERTOW_CONTINUATION, captureSpan(span));
 

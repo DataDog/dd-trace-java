@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -19,6 +18,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -118,9 +119,13 @@ public final class JMSMessageConsumerInstrumentation
       }
 
       AgentSpan span;
+      Context extractedContext = null;
       AgentSpanContext propagatedContext = null;
       if (!consumerState.isPropagationDisabled()) {
-        propagatedContext = extractContextAndGetSpanContext(message, GETTER);
+        extractedContext = Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+        final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+        propagatedContext =
+            extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       }
       long startMillis = GETTER.extractTimeInQueueStart(message);
       if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
@@ -145,7 +150,13 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
       CONSUMER_DECORATE.onError(span, throwable);
 
-      activateNext(span); // scope is left open until next message or it times out
+      if (extractedContext == null) {
+        activateNext(span);
+      } else {
+        extractedContext
+            .with(span)
+            .attach(); // scope is left open until next message or it times out
+      }
 
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {

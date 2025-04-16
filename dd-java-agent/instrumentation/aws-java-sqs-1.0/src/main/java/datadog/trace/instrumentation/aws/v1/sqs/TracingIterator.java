@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -19,6 +18,8 @@ import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.TIME_IN_QUEU
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.amazonaws.services.sqs.model.Message;
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -62,12 +63,17 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
       closePrevious(true);
       if (message != null) {
         AgentSpan queueSpan = null;
+        Context extractedContext = null;
         if (batchContext == null) {
           // first grab any incoming distributed context
-          AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
-                  : null;
+          AgentSpanContext spanContext = null;
+          if (Config.get().isSqsPropagationEnabled()) {
+            extractedContext =
+                Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+            final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+            spanContext =
+                extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+          }
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
@@ -97,7 +103,11 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
-        activateNext(span);
+        if (extractedContext == null) {
+          activateNext(span);
+        } else {
+          extractedContext.with(span).attach();
+        }
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();

@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -52,11 +52,14 @@ public class Servlet2Advice {
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
     }
 
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = activateSpan(span);
+    final Context extractedContext = DECORATE.extract(httpServletRequest);
+    final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+    final AgentSpanContext.Extracted extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedSpanContext);
+    scope = (AgentScope) extractedContext.with(span).attach();
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedSpanContext);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

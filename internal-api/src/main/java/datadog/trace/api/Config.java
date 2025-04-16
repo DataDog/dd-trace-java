@@ -2369,11 +2369,13 @@ public class Config {
   }
 
   public boolean isBaggageExtract() {
-    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE) && tracePropagationBehaviorExtract != TracePropagationBehaviorExtract.IGNORE;
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE)
+        && tracePropagationBehaviorExtract != TracePropagationBehaviorExtract.IGNORE;
   }
 
   public boolean isBaggageInject() {
-    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE) && tracePropagationBehaviorExtract != TracePropagationBehaviorExtract.IGNORE;
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE)
+        && tracePropagationBehaviorExtract != TracePropagationBehaviorExtract.IGNORE;
   }
 
   public boolean isBaggagePropagationEnabled() {

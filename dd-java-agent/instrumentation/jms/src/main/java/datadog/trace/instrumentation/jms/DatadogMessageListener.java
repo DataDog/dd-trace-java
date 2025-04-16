@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
@@ -11,6 +10,8 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABL
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,9 +39,13 @@ public class DatadogMessageListener implements MessageListener {
   @Override
   public void onMessage(Message message) {
     AgentSpan span;
+    Context extractedContext = null;
     AgentSpanContext propagatedContext = null;
     if (!consumerState.isPropagationDisabled()) {
-      propagatedContext = extractContextAndGetSpanContext(message, GETTER);
+      extractedContext = Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      propagatedContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
     }
     long startMillis = GETTER.extractTimeInQueueStart(message);
     if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
@@ -70,7 +75,10 @@ public class DatadogMessageListener implements MessageListener {
       // span will be finished by Session.commit/rollback/close
       sessionState.finishOnCommit(span);
     }
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope =
+        extractedContext == null
+            ? activateSpan(span)
+            : (AgentScope) extractedContext.with(span).attach()) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
       CONSUMER_DECORATE.onError(span, thrown);

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springmessaging;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -12,6 +11,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -59,17 +60,23 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         @Advice.This InvocableHandlerMethod thiz, @Advice.Argument(0) Message<?> message) {
       AgentSpanContext parentContext;
       AgentSpan parent = activeSpan();
+      Context extractedContext = null;
       if (null != parent) {
         // prefer existing context, assume it was already extracted from this message
         parentContext = parent.context();
       } else {
         // otherwise try to re-extract the message context to avoid disconnected trace
-        parentContext = extractContextAndGetSpanContext(message, GETTER);
+        extractedContext = Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+        final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+        parentContext =
+            extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       }
       AgentSpan span = startSpan(SPRING_INBOUND, parentContext);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
-      return activateSpan(span);
+      return extractedContext == null
+          ? activateSpan(span)
+          : (AgentScope) extractedContext.with(span).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

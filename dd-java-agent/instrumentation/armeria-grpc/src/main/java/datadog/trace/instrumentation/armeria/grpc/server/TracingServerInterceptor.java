@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.armeria.grpc.server;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcExtractAdapter.GETTER;
@@ -11,6 +10,8 @@ import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecora
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -62,13 +63,18 @@ public class TracingServerInterceptor implements ServerInterceptor {
       return next.startCall(call, headers);
     }
 
-    AgentSpanContext spanContext = extractContextAndGetSpanContext(headers, GETTER);
+    Context extractedContext =
+        Propagators.defaultPropagator().extract(Context.root(), headers, GETTER);
+    final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+    AgentSpanContext extractedSpanContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
     AgentTracer.TracerAPI tracer = tracer();
-    spanContext = callIGCallbackRequestStarted(tracer, spanContext);
+    extractedSpanContext = callIGCallbackRequestStarted(tracer, extractedSpanContext);
 
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
     final AgentSpan span =
-        startSpan(DECORATE.instrumentationNames()[0], GRPC_SERVER, spanContext).setMeasured(true);
+        startSpan(DECORATE.instrumentationNames()[0], GRPC_SERVER, extractedSpanContext)
+            .setMeasured(true);
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
@@ -85,7 +91,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.onCall(span, call);
 
     final ServerCall.Listener<ReqT> result;
-    try (AgentScope scope = activateSpan(span)) {
+    try (AgentScope scope = (AgentScope) extractedContext.with(span).attach()) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);

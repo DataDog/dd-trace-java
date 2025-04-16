@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.restlet;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.restlet.RestletDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.sun.net.httpserver.HttpExchange;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -54,11 +54,14 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      AgentSpanContext.Extracted context = DECORATE.extract(exchange);
-      AgentSpan span = DECORATE.startSpan(exchange, context);
-      AgentScope scope = activateSpan(span);
+      final Context extractedContext = DECORATE.extract(req);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      AgentSpan span = DECORATE.startSpan(exchange, extractedSpanContext);
+      AgentScope scope = (AgentScope) extractedContext.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, exchange, exchange, context);
+      DECORATE.onRequest(span, exchange, exchange, extractedSpanContext);
       DECORATE.onPeerConnection(span, exchange.getRemoteAddress());
 
       return scope;

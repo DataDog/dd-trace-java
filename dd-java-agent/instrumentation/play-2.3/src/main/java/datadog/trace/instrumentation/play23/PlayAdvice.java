@@ -27,7 +27,8 @@ public class PlayAdvice {
       Headers headers = req.headers();
       extractedContext = DECORATE.extract(headers);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
-      final AgentSpanContext.Extracted extractedSpanContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       span = DECORATE.startSpan(headers, extractedSpanContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
@@ -38,10 +39,10 @@ public class PlayAdvice {
     }
 
     final AgentScope scope;
-    if(extractedContext == null){
+    if (extractedContext == null) {
       scope = activateSpan(span);
-    }else{
-     scope = (AgentScope) extractedContext.with(span).attach();
+    } else {
+      scope = (AgentScope) extractedContext.with(span).attach();
     }
     DECORATE.afterStart(span);
     return scope;
