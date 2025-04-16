@@ -62,6 +62,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     registerTraceListener(
         decodedTrace -> {
           DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+          // same line range as the spanProbe above
           assertEquals("Main.fullMethod:L93-102", decodedSpan.getResource());
           traceReceived.set(true);
         });
