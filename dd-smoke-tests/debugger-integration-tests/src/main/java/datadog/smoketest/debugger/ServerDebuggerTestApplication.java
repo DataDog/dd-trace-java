@@ -1,4 +1,4 @@
-package ddog.smoketest.debugger;
+package datadog.smoketest.debugger;
 
 import datadog.trace.api.Trace;
 import java.io.IOException;

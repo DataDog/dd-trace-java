@@ -1,8 +1,8 @@
-package ddog.smoketest.debugger;
+package datadog.smoketest.debugger;
 
-import static ddog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
-import static ddog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
-import static ddog.smoketest.debugger.TestApplicationHelper.waitForUpload;
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForInstrumentation;
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForTransformerInstalled;
+import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;

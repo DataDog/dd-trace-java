@@ -1,8 +1,8 @@
 package datadog.smoketest;
 
+import datadog.smoketest.debugger.DebuggerTestApplication;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.TagsHelper;
-import ddog.smoketest.debugger.DebuggerTestApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

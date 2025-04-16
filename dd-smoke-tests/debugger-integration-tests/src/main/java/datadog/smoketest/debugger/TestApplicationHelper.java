@@ -1,4 +1,4 @@
-package ddog.smoketest.debugger;
+package datadog.smoketest.debugger;
 
 import java.io.IOException;
 import java.nio.file.Files;

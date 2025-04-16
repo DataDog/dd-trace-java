@@ -1,4 +1,4 @@
-package ddog.smoketest.debugger.controller;
+package datadog.smoketest.debugger.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
