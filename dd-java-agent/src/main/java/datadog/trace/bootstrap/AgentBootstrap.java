@@ -45,8 +45,8 @@ import java.util.jar.JarFile;
  * </ul>
  */
 public final class AgentBootstrap {
-  static final String LIB_INJECTION_ENABLED_FLAG = "DD_INJECTION_ENABLED";
-  static final String LIB_INJECTION_FORCE_FLAG = "dd.inject.force";
+  static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
+  static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -156,11 +156,11 @@ public final class AgentBootstrap {
 
   static boolean getConfig(String configName) {
     switch (configName) {
-      case LIB_INJECTION_ENABLED_FLAG:
-        return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
-      case LIB_INJECTION_FORCE_FLAG:
+      case LIB_INJECTION_ENABLED_ENV_VAR:
+        return System.getenv(LIB_INJECTION_ENABLED_ENV_VAR) != null;
+      case LIB_INJECTION_FORCE_SYS_PROP:
         {
-          String injectionForceFlag = getPropertyOrEnvVar(LIB_INJECTION_FORCE_FLAG);
+          String injectionForceFlag = getPropertyOrEnvVar(LIB_INJECTION_FORCE_SYS_PROP);
           return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
         }
       default:
@@ -289,8 +289,8 @@ public final class AgentBootstrap {
   static boolean shouldAbortDueToOtherJavaAgents() {
     // Simply considering having multiple agents
 
-    if (getConfig(LIB_INJECTION_ENABLED_FLAG)
-        && !getConfig(LIB_INJECTION_FORCE_FLAG)
+    if (getConfig(LIB_INJECTION_ENABLED_ENV_VAR)
+        && !getConfig(LIB_INJECTION_FORCE_SYS_PROP)
         && getAgentFilesFromVMArguments().size() > 1) {
       // Formatting agent file list, Java 7 style
       StringBuilder agentFiles = new StringBuilder();
