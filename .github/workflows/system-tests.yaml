@@ -65,4 +65,4 @@ jobs:
       library: java
       binaries_artifact: binaries
       skip_empty_scenarios: true
-      desired_execution_time: 300  # 5 minutes
+      desired_execution_time: 900  # 15 minutes
