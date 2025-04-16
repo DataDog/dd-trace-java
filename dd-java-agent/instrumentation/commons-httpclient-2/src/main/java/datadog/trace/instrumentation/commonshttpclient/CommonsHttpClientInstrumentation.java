@@ -70,7 +70,8 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), httpMethod, SETTER);
+        defaultPropagator()
+            .inject(Context.current().with(span).with(dsmContext), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {

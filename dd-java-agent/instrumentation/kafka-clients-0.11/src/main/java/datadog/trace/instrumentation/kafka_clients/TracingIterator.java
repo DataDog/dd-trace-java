@@ -128,7 +128,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // for DSM users
               Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
               DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
-              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+              dsmPropagator.inject(
+                  Context.current().with(span).with(dsmContext), val.headers(), SETTER);
             }
           }
         } else {

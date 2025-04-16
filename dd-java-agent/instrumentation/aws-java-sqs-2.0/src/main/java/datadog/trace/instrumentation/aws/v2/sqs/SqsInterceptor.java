@@ -96,7 +96,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes, String queueUrl) {
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return span.with(dsmContext);
+    return datadog.context.Context.current().with(span).with(dsmContext);
   }
 
   private LinkedHashMap<String, String> getTags(String queueUrl) {

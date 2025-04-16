@@ -38,7 +38,7 @@ public class SnsInterceptor extends RequestHandler2 {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    Context context = span;
+    Context context = Context.current().with(span);
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
       context = context.with(dsmContext);

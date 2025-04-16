@@ -15,6 +15,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
@@ -294,7 +295,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     DataStreamsContext dsmContext = fromTags(sortedTags);
     this.propagator.inject(
-        span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+        Context.current().with(span).with(dsmContext),
+        carrier,
+        DataStreamsContextCarrierAdapter.INSTANCE);
   }
 
   @Override

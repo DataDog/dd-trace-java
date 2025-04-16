@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
@@ -137,7 +138,8 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
         if (null != span) {
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-          defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
+          defaultPropagator()
+              .inject(Context.current().with(span).with(dsmContext), headers, SETTER);
           return activateSpan(span);
         }
       }

@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -86,7 +87,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
 
       // add trace id to client-side request before it gets submitted as an HttpRequest
-      defaultPropagator().inject(span, TargetContext.getRequest(connection), SETTER);
+      defaultPropagator()
+          .inject(Context.current().with(span), TargetContext.getRequest(connection), SETTER);
 
       // capture span to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
