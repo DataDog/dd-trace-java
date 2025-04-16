@@ -99,7 +99,7 @@ class NettyWebsocketClient implements WebsocketClient {
 
   byte[][] split(byte[] src) {
     if (chunkSize <= 0) {
-      new byte[][]{src}
+      return new byte[][]{src}
     }
     def ret = new byte[(int) Math.ceil(src.length / chunkSize)][]
     def offset = 0

@@ -26,7 +26,6 @@ import io.netty.handler.codec.http.HttpRequest
 import io.netty.handler.codec.http.HttpRequestDecoder
 import io.netty.handler.codec.http.HttpResponseEncoder
 import io.netty.handler.codec.http.HttpResponseStatus
-import io.netty.handler.codec.http.HttpServerCodec
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
