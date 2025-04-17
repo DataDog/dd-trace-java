@@ -498,7 +498,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    lastJobFailed = false;
     if (jobEnd.jobResult() instanceof JobFailed) {
       JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
       Exception exception = jobFailed.exception();
@@ -510,9 +509,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpan.setErrorMessage(errorMessage);
       jobSpan.setTag(DDTags.ERROR_STACK, errorStackTrace);
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
-      lastJobFailed = true;
-      lastJobFailedMessage = errorMessage;
-      lastJobFailedStackTrace = errorStackTrace;
+
+      // Only propagate the error to the application if it is not a cancellation
+      if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
+        lastJobFailed = true;
+        lastJobFailedMessage = errorMessage;
+        lastJobFailedStackTrace = errorStackTrace;
+      }
+    } else {
+      lastJobFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
