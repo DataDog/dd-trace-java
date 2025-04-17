@@ -24,6 +24,7 @@ import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CountDownLatch
 
 import static io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory.newHandshaker
 
@@ -32,6 +33,7 @@ class NettyWebsocketClient implements WebsocketClient {
   static class WebsocketHandler extends SimpleChannelInboundHandler<Object> {
     final URI uri
     WebSocketClientHandshaker handshaker
+    def handshaken = new CountDownLatch(1)
 
     WebsocketHandler(uri) {
       this.uri = uri
@@ -53,6 +55,7 @@ class NettyWebsocketClient implements WebsocketClient {
         // web socket client connected
         handshaker.finishHandshake(ch, (FullHttpResponse) msg)
       }
+      handshaken.countDown()
     }
   }
   final eventLoopGroup = new NioEventLoopGroup()
@@ -63,6 +66,7 @@ class NettyWebsocketClient implements WebsocketClient {
   @Override
   void connect(String url) {
     def uri = new URI(url)
+    def wsHandler = new WebsocketHandler(uri)
     Bootstrap b = new Bootstrap()
     b.group(eventLoopGroup)
     .handler(LOGGING_HANDLER)
@@ -71,12 +75,14 @@ class NettyWebsocketClient implements WebsocketClient {
         def pipeline = ch.pipeline()
         pipeline.addLast(new HttpClientCodec())
         pipeline.addLast(new HttpObjectAggregator(1024))
-        pipeline.addLast(new WebsocketHandler(uri))
+        pipeline.addLast(wsHandler)
         // remove our handler since we do not want to trace that client
         pipeline.names().findAll { it.contains("HttpClientTracingHandler") }.each { pipeline.remove(it) }
       }
     }).channel(NioSocketChannel)
     channel = b.connect(uri.host, uri.port).sync().channel()
+    //wait for the handshake to complete properly
+    wsHandler.handshaken.await()
   }
 
   @Override
