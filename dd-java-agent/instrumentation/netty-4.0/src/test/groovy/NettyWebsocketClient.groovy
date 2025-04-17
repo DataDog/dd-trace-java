@@ -1,6 +1,4 @@
-package datadog.trace.agent.test.base
-
-
+import datadog.trace.agent.test.base.WebsocketClient
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
@@ -12,7 +10,6 @@ import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.DefaultHttpHeaders
 import io.netty.handler.codec.http.FullHttpResponse
 import io.netty.handler.codec.http.HttpClientCodec
-import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpObjectAggregator
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame
@@ -43,7 +40,7 @@ class NettyWebsocketClient implements WebsocketClient {
     void channelActive(ChannelHandlerContext ctx) throws Exception {
       handshaker = newHandshaker(
       uri, WebSocketVersion.V13, null, false, new DefaultHttpHeaders()
-      .add(HttpHeaderNames.USER_AGENT, "dd-trace-java"), // keep me
+      .add("User-Agent", "dd-trace-java"), // keep me
       1280000)
       handshaker.handshake(ctx.channel())
     }
