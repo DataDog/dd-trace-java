@@ -5,9 +5,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +21,7 @@ public class ProcessTags {
   private static class Lazy {
     static final Map<String, String> TAGS = loadTags();
     static volatile UTF8BytesString serializedForm;
+    static volatile List<String> listForm;
 
     private static Map<String, String> loadTags() {
       Map<String, String> tags = new LinkedHashMap<>();
@@ -81,15 +85,17 @@ public class ProcessTags {
       }
     }
 
-    static synchronized UTF8BytesString calculateSerializedForm() {
-      if (serializedForm == null && !TAGS.isEmpty()) {
-        serializedForm =
-            UTF8BytesString.create(
-                TAGS.entrySet().stream()
-                    .map(entry -> entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue()))
-                    .collect(Collectors.joining(",")));
+    static void calculate() {
+      if (listForm != null || TAGS.isEmpty()) {
+        return;
       }
-      return serializedForm;
+      synchronized (Lazy.TAGS) {
+        final Stream<String> tagStream =
+            TAGS.entrySet().stream()
+                .map(entry -> entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue()));
+        listForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
+        serializedForm = UTF8BytesString.create(String.join(",", listForm));
+      }
     }
   }
 
@@ -100,7 +106,20 @@ public class ProcessTags {
     if (enabled) {
       Lazy.TAGS.put(key, value);
       Lazy.serializedForm = null;
+      Lazy.listForm = null;
     }
+  }
+
+  public static List<String> getTagsAsList() {
+    if (!enabled) {
+      return null;
+    }
+    final List<String> listForm = Lazy.listForm;
+    if (listForm != null) {
+      return listForm;
+    }
+    Lazy.calculate();
+    return Lazy.listForm;
   }
 
   public static UTF8BytesString getTagsForSerialization() {
@@ -111,13 +130,15 @@ public class ProcessTags {
     if (serializedForm != null) {
       return serializedForm;
     }
-    return Lazy.calculateSerializedForm();
+    Lazy.calculate();
+    return Lazy.serializedForm;
   }
 
   /** Visible for testing. */
   static void empty() {
     Lazy.TAGS.clear();
     Lazy.serializedForm = null;
+    Lazy.listForm = null;
   }
 
   /** Visible for testing. */

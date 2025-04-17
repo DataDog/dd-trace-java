@@ -72,6 +72,7 @@ class ProcessTagsForkedTest extends DDSpecification {
     ProcessTags.addTag("test", "value")
     then:
     assert ProcessTags.tagsForSerialization == null
+    assert ProcessTags.tagsAsList == null
   }
 
   def 'should lazily recalculate when a tag is added'() {
@@ -80,12 +81,18 @@ class ProcessTagsForkedTest extends DDSpecification {
     ProcessTags.reset()
     when:
     def processTags = ProcessTags.tagsForSerialization
+    def tagsAsList = ProcessTags.tagsAsList
     then:
     assert ProcessTags.enabled
     assert processTags != null
+    assert tagsAsList != null
+    assert tagsAsList.size() > 0
     when:
     ProcessTags.addTag("test", "value")
     then:
     assert ProcessTags.tagsForSerialization.toString() == "$processTags,test:value"
+    def size = ProcessTags.tagsAsList.size()
+    assert size == tagsAsList.size() + 1
+    assert ProcessTags.tagsAsList[size - 1] == "test:value"
   }
 }
