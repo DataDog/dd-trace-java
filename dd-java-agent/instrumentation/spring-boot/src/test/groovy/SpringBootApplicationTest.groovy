@@ -7,10 +7,13 @@ import datadog.trace.api.Config
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.SpringApplication
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
+
 class SpringBootApplicationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
   }
 
   static class BeanWhoTraces implements InitializingBean {
