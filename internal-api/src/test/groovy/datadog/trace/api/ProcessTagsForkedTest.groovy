@@ -62,11 +62,16 @@ class ProcessTagsForkedTest extends DDSpecification {
   }
 
   def 'should not calculate process tags by default'() {
-    given:
+    when:
+    ProcessTags.reset()
     def processTags = ProcessTags.tagsForSerialization
-    expect:
-    !ProcessTags.enabled
-    processTags == null
+    then:
+    assert !ProcessTags.enabled
+    assert processTags == null
+    when:
+    ProcessTags.addTag("test", "value")
+    then:
+    assert ProcessTags.tagsForSerialization == null
   }
 
   def 'should lazily recalculate when a tag is added'() {
