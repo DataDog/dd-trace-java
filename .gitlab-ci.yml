@@ -369,10 +369,10 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 32Gi
-    KUBERNETES_MEMORY_LIMIT: 32Gi
-    KUBERNETES_CPU_REQUEST: 12
-    GRADLE_WORKERS: 8
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 10
+    GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
@@ -515,11 +515,7 @@ test_flaky_inst:
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
   rules: *master_only
-  parallel:
-    matrix:
-        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-        # This emulates "parallel" by including it in the matrix
-      - CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+  parallel: 6
 
 test_profiling:
   extends: .test_job
