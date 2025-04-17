@@ -348,7 +348,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
                 assertTrue(Config.get().isExperimentalCollectProcessTagsEnabled())
-                assertEquals(0, i)
+                assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())

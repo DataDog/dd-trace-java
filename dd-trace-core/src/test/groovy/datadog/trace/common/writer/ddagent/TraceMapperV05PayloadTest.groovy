@@ -26,22 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
+import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
-import static org.junit.jupiter.api.Assertions.assertEquals
-import static org.junit.jupiter.api.Assertions.assertNotNull
-import static org.junit.jupiter.api.Assertions.assertTrue
-import static org.msgpack.core.MessageFormat.FLOAT32
-import static org.msgpack.core.MessageFormat.FLOAT64
-import static org.msgpack.core.MessageFormat.INT16
-import static org.msgpack.core.MessageFormat.INT32
-import static org.msgpack.core.MessageFormat.INT64
-import static org.msgpack.core.MessageFormat.INT8
-import static org.msgpack.core.MessageFormat.NEGFIXINT
-import static org.msgpack.core.MessageFormat.POSFIXINT
-import static org.msgpack.core.MessageFormat.UINT16
-import static org.msgpack.core.MessageFormat.UINT32
-import static org.msgpack.core.MessageFormat.UINT64
-import static org.msgpack.core.MessageFormat.UINT8
+import static org.junit.Assert.assertNotNull
+import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
@@ -261,7 +249,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
                 assertTrue(Config.get().isExperimentalCollectProcessTagsEnabled())
-                assertEquals(0, i)
+                assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
