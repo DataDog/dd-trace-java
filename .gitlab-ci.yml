@@ -266,7 +266,7 @@ test_published_artifacts:
       - ./check_reports
       - '.gradle/daemon/*/*.out.log'
   retry:
-    max: 1
+    max: 2
     when:
       - unknown_failure
       - stuck_or_timeout_failure
@@ -412,7 +412,7 @@ muzzle-dep-report:
     reports:
       junit: results/*.xml
   retry:
-    max: 1
+    max: 2
     when:
       - unknown_failure
       - stuck_or_timeout_failure
