@@ -22,7 +22,12 @@ public class YamlParser {
     }
   }
 
-  private static String processTemplate(String content) throws IOException {
+  /**
+   * Processes a YAML template by replacing all template variables with their corresponding values.
+   * Template variables are enclosed in double curly braces, e.g. {{variable}}. Returns the
+   * processed content with all template variables resolved.
+   */
+  static String processTemplate(String content) throws IOException {
     StringBuilder result = new StringBuilder(content.length());
     String rest = content;
 
@@ -58,7 +63,12 @@ public class YamlParser {
     return result.toString();
   }
 
-  private static String processTemplateVar(String templateVar) throws IOException {
+  /**
+   * Processes a template variable by extracting its value from either environment variables or VM
+   * arguments. Template variables should be in the format "{{environment_variables[VAR_NAME]}}" or
+   * "{{process_arguments[-ARG_NAME]}}". Returns "UNDEFINED" if the variable is not found or empty.
+   */
+  static String processTemplateVar(String templateVar) throws IOException {
     if (templateVar.startsWith("environment_variables[") && templateVar.endsWith("]")) {
       String envVar =
           templateVar.substring("environment_variables[".length(), templateVar.length() - 1).trim();

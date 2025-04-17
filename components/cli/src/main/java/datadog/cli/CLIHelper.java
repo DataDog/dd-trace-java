@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/** Helper class for retrieving and parsing JVM arguments. */
 public final class CLIHelper {
   private static final Map<String, String> VM_ARGS = findVmArgs();
 
@@ -89,11 +90,17 @@ public final class CLIHelper {
     return Collections.emptyMap();
   }
 
+  /**
+   * Parses a list of VM arguments into a map of key-value pairs. For system properties (-D
+   * arguments), the key includes the -D prefix and the value is everything after the = sign. For
+   * all other VM arguments, the key is the full argument and the value is an empty string.
+   */
   private static Map<String, String> parseVmArgs(List<String> args) {
     Map<String, String> result = new HashMap<>();
 
     // For now, we only support values on system properties (-D arguments)
     for (String arg : args) {
+      // TODO: Handle other types of VM arguments
       if (arg.startsWith("-D")) {
         // Handle system properties (-D arguments)
         int equalsIndex = arg.indexOf('=');
