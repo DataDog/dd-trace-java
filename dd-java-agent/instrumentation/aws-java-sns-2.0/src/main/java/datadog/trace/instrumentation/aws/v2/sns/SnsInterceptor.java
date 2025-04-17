@@ -38,7 +38,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    datadog.context.Context context = span;
+    datadog.context.Context context = datadog.context.Context.current().with(span);
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
       context = context.with(dsmContext);

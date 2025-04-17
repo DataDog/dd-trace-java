@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -93,7 +94,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
       return span;
     }
 

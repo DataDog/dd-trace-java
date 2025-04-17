@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -53,7 +54,8 @@ public class OTTracer implements Tracer {
     if (carrier instanceof TextMap) {
       final AgentSpanContext context = converter.toContext(spanContext);
       AgentSpan span = fromSpanContext(context);
-      defaultPropagator().inject(span, (TextMap) carrier, OTTextMapSetter.INSTANCE);
+      defaultPropagator()
+          .inject(Context.current().with(span), (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

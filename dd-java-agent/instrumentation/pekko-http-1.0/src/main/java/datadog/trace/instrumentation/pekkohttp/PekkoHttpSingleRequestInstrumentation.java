@@ -12,6 +12,7 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.Pek
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -81,7 +82,7 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
 
       if (request != null) {
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), request, headers);
+        defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, headers);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

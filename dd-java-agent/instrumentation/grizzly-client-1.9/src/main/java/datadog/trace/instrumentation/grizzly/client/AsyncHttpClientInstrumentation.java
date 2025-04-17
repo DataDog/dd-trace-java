@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -70,7 +71,7 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }

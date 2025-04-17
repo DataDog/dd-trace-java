@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.KEEP;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpHeaders;
@@ -20,7 +21,7 @@ public class HeadersAdvice {
     final Map<String, List<String>> headerMap = new HashMap<>(headers.map());
     final AgentSpan span = activeSpan();
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-    defaultPropagator().inject(span.with(dsmContext), headerMap, SETTER);
+    defaultPropagator().inject(Context.current().with(span).with(dsmContext), headerMap, SETTER);
     headers = HttpHeaders.of(headerMap, KEEP);
   }
 }

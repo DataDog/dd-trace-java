@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -68,18 +69,20 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
-
+      final Context extractedContext = DECORATE.extract(request);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       AgentSpan span;
       if (null != extractedContext) {
-        span = DECORATE.startSpan(request, extractedContext);
+        span = DECORATE.startSpan(request, extractedSpanContext);
       } else {
         span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
       }
-      AgentScope scope = activateSpan(span);
+      AgentScope scope = (AgentScope) extractedContext.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, connection, request, extractedContext);
+      DECORATE.onRequest(span, connection, request, extractedSpanContext);
 
       // capture span to be finished by one of the various server response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);

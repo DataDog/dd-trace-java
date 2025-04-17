@@ -45,7 +45,8 @@ public class OtelContextPropagators implements ContextPropagators {
       }
       AgentSpan agentSpan = converter.toAgentSpan(span);
       if (agentSpan != null) {
-        defaultPropagator().inject(agentSpan, carrier, setter::set);
+        defaultPropagator()
+            .inject(datadog.context.Context.current().with(agentSpan), carrier, setter::set);
       }
     }
 

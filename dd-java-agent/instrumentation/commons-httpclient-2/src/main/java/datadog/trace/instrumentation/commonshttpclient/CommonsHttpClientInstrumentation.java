@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -70,7 +71,8 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), httpMethod, SETTER);
+        defaultPropagator()
+            .inject(Context.current().with(span).with(dsmContext), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {

@@ -19,6 +19,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -82,7 +83,7 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
 
       PubsubMessage.Builder builder = msg.toBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
-      defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), builder, SETTER);
       msg = builder.build();
       return activateSpan(span);
     }

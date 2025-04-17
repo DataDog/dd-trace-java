@@ -221,7 +221,6 @@ public class HttpCodec {
       TagContext partialContext = null;
       // Extract and cache all headers in advance
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
-
       for (final Extractor extractor : this.extractors) {
         TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
@@ -260,7 +259,6 @@ public class HttpCodec {
           partialContext = extracted;
         }
       }
-
       if (context != null) {
         log.debug("Extract complete context {}", context);
         return context;

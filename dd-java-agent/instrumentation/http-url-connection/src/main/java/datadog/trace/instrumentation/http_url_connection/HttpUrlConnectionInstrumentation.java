@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -87,7 +88,7 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
           final AgentSpan span = state.start(thiz);
           if (!connected) {
             DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-            defaultPropagator().inject(span.with(dsmContext), thiz, SETTER);
+            defaultPropagator().inject(Context.current().with(span).with(dsmContext), thiz, SETTER);
           }
         }
         return state;
