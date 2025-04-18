@@ -17,6 +17,7 @@ public final class Metadata {
   private final boolean topLevel;
   private final CharSequence origin;
   private final int longRunningVersion;
+  private final UTF8BytesString processTags;
 
   public Metadata(
       long threadId,
@@ -28,7 +29,8 @@ public final class Metadata {
       boolean topLevel,
       UTF8BytesString httpStatusCode,
       CharSequence origin,
-      int longRunningVersion) {
+      int longRunningVersion,
+      UTF8BytesString processTags) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -39,6 +41,7 @@ public final class Metadata {
     this.topLevel = topLevel;
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
+    this.processTags = processTags;
   }
 
   public UTF8BytesString getHttpStatusCode() {
@@ -83,5 +86,9 @@ public final class Metadata {
 
   public int samplingPriority() {
     return samplingPriority;
+  }
+
+  public UTF8BytesString processTags() {
+    return processTags;
   }
 }
