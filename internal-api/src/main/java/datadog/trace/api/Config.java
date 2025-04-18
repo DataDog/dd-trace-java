@@ -194,6 +194,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -990,6 +991,7 @@ public class Config {
       Set<TracePropagationStyle> common =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
+      // may have to modify this by adding in inferred proxy from it's standalone env variable later
       Set<TracePropagationStyle> extract =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);
@@ -1066,6 +1068,8 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceInferredProxyEnabled =
+        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -2359,6 +2363,22 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isInferredProxyToExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.INFERREDPROXY);
+  }
+
+  public boolean isInferredProxyToInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.INFERREDPROXY);
+  }
+
+  public boolean isInferredProxyEnabledByEnv() {
+    return traceInferredProxyEnabled;
+  }
+
+  public boolean isInferredProxyPropagationEnabled() {
+    return isInferredProxyToExtract() || isInferredProxyToInject() || isInferredProxyEnabledByEnv();
   }
 
   public boolean isBaggageExtract() {
@@ -4748,10 +4768,8 @@ public class Config {
         + debuggerThirdPartyIncludes
         + ", thirdPartyExcludes="
         + debuggerThirdPartyExcludes
-        + ", debuggerExceptionEnabled="
-        + debuggerExceptionEnabled
-        + ", debuggerCodeOriginEnabled="
-        + debuggerCodeOriginEnabled
+        + ", thirdPartyShadingIdentifiers="
+        + debuggerShadingIdentifiers
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="
