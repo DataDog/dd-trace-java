@@ -279,7 +279,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" emulator.getHost()
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" { Integer }
         peerServiceFrom(Tags.RPC_SERVICE)

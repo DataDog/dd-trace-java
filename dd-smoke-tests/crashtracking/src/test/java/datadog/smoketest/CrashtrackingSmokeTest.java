@@ -217,6 +217,8 @@ public class CrashtrackingSmokeTest {
             Arrays.asList(
                 javaPath(),
                 "-javaagent:" + agentShadowJar(),
+                "-Xmx96m",
+                "-Xms96m",
                 "-XX:OnOutOfMemoryError=" + onErrorValue,
                 "-XX:ErrorFile=" + errorFile,
                 "-XX:+CrashOnOutOfMemoryError", // Use OOME to trigger crash
@@ -248,6 +250,8 @@ public class CrashtrackingSmokeTest {
             Arrays.asList(
                 javaPath(),
                 "-javaagent:" + agentShadowJar(),
+                "-Xmx96m",
+                "-Xms96m",
                 "-XX:OnOutOfMemoryError=" + onOomeValue,
                 "-XX:OnError=" + onErrorValue,
                 "-XX:ErrorFile=" + errorFile,
