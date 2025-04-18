@@ -31,6 +31,12 @@ variables:
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
+  NON_DEFAULT_JVMS:
+    description: "Enable tests on JVMs that are the default"
+    value: "false"
+  RUN_FLAKY_TESTS:
+    description: "Enable flaky tests"
+    value: "false"
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
@@ -498,7 +504,10 @@ test_flaky:
     CACHE_TYPE: "base"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
-  rules: *master_only
+  rules:
+    - *master_only
+    - if: $RUN_FLAKY_TESTS == "true"
+      when: on_success
   parallel:
     matrix:
       - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
@@ -514,7 +523,10 @@ test_flaky_inst:
     CACHE_TYPE: "inst"
     testJvm: "8"
     CONTINUE_ON_FAILURE: "true"
-  rules: *master_only
+  rules:
+    - *master_only
+    - if: $RUN_FLAKY_TESTS == "true"
+      when: on_success
   parallel: 6
 
 test_profiling:
