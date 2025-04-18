@@ -17,6 +17,7 @@ public final class AgentPropagation {
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
+  public static final Concern INFERRED_PROXY_CONCERN = named("inferred-proxy");
 
   private AgentPropagation() {}
 

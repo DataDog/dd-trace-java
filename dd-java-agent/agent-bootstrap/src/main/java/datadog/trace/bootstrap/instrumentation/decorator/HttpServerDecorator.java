@@ -8,6 +8,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.InferredProxyContext;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -409,16 +412,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
       return serverSpan.getRequestBlockingAction();
     }
-
-    @Override
-    public boolean isRequiresPostProcessing() {
-      return serverSpan.isRequiresPostProcessing();
-    }
-
-    @Override
-    public void setRequiresPostProcessing(boolean requiresPostProcessing) {
-      serverSpan.setRequiresPostProcessing(requiresPostProcessing);
-    }
   }
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
@@ -501,6 +494,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null == carrier || null == getter) {
       return null;
     }
+    Context c = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    c.attach();
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
@@ -514,16 +509,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     AgentSpan apiGtwSpan = null;
     if (Config.get().isInferredProxyPropagationEnabled()) {
-      System.out.println("inferred proxy to be crearted");
+      System.out.println("inferred proxy to be created");
       // create the apigtw span
       apiGtwSpan =
           tracer().startSpan("inferred_proxy", "aws.apigateway", callIGCallbackStart(context));
+      InferredProxyContext inferredProxy = InferredProxyContext.fromContext(Context.current());
+      System.out.println("inferredProxy matt way: " + inferredProxy);
+      System.out.println("inferredProxy matt way map: " + inferredProxy.getInferredProxyContext());
 
       // WILL NEED CONTEXT TRACKING API TO GET TAGS FROM CONTEXT
       // set tags from Context
       //      System.out.println("here");
       //      InferredProxyContext inferredProxyContext =
-      // Context.root().get(InferredProxyContext.CONTEXT_KEY);
+      //      Context.root().get(InferredProxyContext.CONTEXT_KEY);
       //      System.out.println("hello inferred context obj: " + inferredProxyContext);
       //      Map<String, String> contextMap = inferredProxyContext.getInferredProxyContext();
       //      System.out.println("hello inferred map: " + contextMap);
@@ -531,19 +529,43 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       //      if (contextMap != null) {
       //        apiGtwSpan.setAllTags(inferredProxyContext.getInferredProxyContext());
       //      }
-
+      System.out.println("gateway span after context: " + apiGtwSpan);
+      /*
+      inferredProxy matt way map:
+      {x-dd-proxy-request-time-ms=123,
+      x-dd-proxy-path=/api/hello,
+      x-dd-proxy-httpmethod=GET,
+      x-dd-proxy-domain-name=example.com,
+      x-dd-proxy=true,
+       x-dd-proxy-stage=dev}
+       */
+      Map<String, String> inferredProxyTagInfo = inferredProxy.getInferredProxyContext();
       // mocking tags
       apiGtwSpan.setTag(Tags.COMPONENT, "aws.apigateway");
-      apiGtwSpan.setTag(DDTags.RESOURCE_NAME, "GET /api/hello");
-      apiGtwSpan.setTag(DDTags.TRACE_START_TIME, "123");
-      apiGtwSpan.setTag(DDTags.SERVICE_NAME, "example.com");
+      //  "GET /api/hello"
+      apiGtwSpan.setTag(
+          DDTags.RESOURCE_NAME,
+          inferredProxyTagInfo.get("x-dd-proxy-httpmethod")
+              + " "
+              + inferredProxyTagInfo.get("x-dd-proxy-path"));
+      // 123
+      apiGtwSpan.setTag(
+          DDTags.TRACE_START_TIME, inferredProxyTagInfo.get("x-dd-proxy-request-time-ms"));
+      // example.com
+      apiGtwSpan.setTag(DDTags.SERVICE_NAME, inferredProxyTagInfo.get("x-dd-proxy-domain-name"));
       apiGtwSpan.setTag(DDTags.SPAN_TYPE, "web");
-      apiGtwSpan.setTag(Tags.HTTP_METHOD, "GET");
-      apiGtwSpan.setTag(Tags.HTTP_URL, "example.com/api/hello");
-      apiGtwSpan.setHttpStatusCode(200);
+      // GET
+      apiGtwSpan.setTag(Tags.HTTP_METHOD, inferredProxyTagInfo.get("x-dd-proxy-httpmethod"));
+      // "example.com/api/hello"
+      apiGtwSpan.setTag(
+          Tags.HTTP_URL,
+          inferredProxyTagInfo.get("x-dd-proxy-domain-name")
+              + inferredProxyTagInfo.get("x-dd-proxy-path"));
+      // apiGtwSpan.setHttpStatusCode(200);
       apiGtwSpan.setTag("stage", "dev");
       apiGtwSpan.setTag("_dd.inferred_span", "1");
     }
+
     AgentSpan span =
         tracer()
             .startSpan(
@@ -560,6 +582,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
     System.out.println("starting http server span");
+    System.out.println(apiGtwSpan);
+    System.out.println(span);
     return new InferredProxySpanGroup(apiGtwSpan, span);
   }
 
