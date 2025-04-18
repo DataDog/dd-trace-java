@@ -70,13 +70,11 @@ public class InstrumentationTestHelper {
     return jarClassLoader.loadClass(className);
   }
 
-  public static int getLineForLineProbe(String className, ProbeId lineProbeId)
-      throws IOException, URISyntaxException {
+  public static int getLineForLineProbe(String className, ProbeId lineProbeId) {
     return getLineForLineProbe(className, ".java", lineProbeId);
   }
 
-  public static int getLineForLineProbe(String className, String ext, ProbeId lineProbeId)
-      throws IOException, URISyntaxException {
+  public static int getLineForLineProbe(String className, String ext, ProbeId lineProbeId) {
     List<String> lines = getFixtureLines("/" + className.replace('.', '/') + ext);
     for (int i = 0; i < lines.size(); i++) {
       String line = lines.get(i);

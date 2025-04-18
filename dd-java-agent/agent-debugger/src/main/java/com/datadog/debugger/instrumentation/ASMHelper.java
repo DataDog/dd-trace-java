@@ -1,20 +1,25 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
+import static java.lang.String.format;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -28,6 +33,8 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.util.Textifier;
+import org.objectweb.asm.util.TraceClassVisitor;
 
 /** Helper class for bytecode generation */
 public class ASMHelper {
@@ -35,6 +42,22 @@ public class ASMHelper {
   public static final Type OBJECT_TYPE = new Type(Types.OBJECT_TYPE);
   public static final Type STRING_TYPE = new Type(Types.STRING_TYPE);
   public static final Type LONG_TYPE = new Type(org.objectweb.asm.Type.LONG_TYPE);
+
+  @SuppressForbidden
+  static String extractMethod(ClassNode classNode, String method) {
+    StringJoiner joiner = new StringJoiner("\n");
+    joiner.add("Class: " + classNode.name);
+    StringWriter writer = new StringWriter();
+    classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
+    List<String> strings = Arrays.asList(writer.toString().split("\n"));
+    for (int i = 0; i < strings.size(); i++) {
+      if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
+        while (!strings.get(i).equals(""))
+          joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
+      }
+    }
+    return joiner.toString();
+  }
 
   public static void invokeInterface(
       InsnList insnList,

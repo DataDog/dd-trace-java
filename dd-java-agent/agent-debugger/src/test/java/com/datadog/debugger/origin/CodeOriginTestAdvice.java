@@ -1,10 +1,10 @@
-package datadog.trace.instrumentation.codeorigin;
+package com.datadog.debugger.origin;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 
-public class EntrySpanOriginAdvice {
+public class CodeOriginTestAdvice {
 
   @Advice.OnMethodEnter
   @SuppressWarnings("bytebuddy-exception-suppression")
