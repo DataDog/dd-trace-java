@@ -47,6 +47,7 @@ class TypeFactoryForkedTest extends Specification {
     TypeFactory.findType(t2).getDeclaredMethods()
     typeFactory.endTransform()
     typeFactory.beginTransform(t3, systemLocator.locate(t3).resolve())
+    typeFactory.enableFullDescriptions()
     def target = TypeFactory.findType(t3)
 
     then:
