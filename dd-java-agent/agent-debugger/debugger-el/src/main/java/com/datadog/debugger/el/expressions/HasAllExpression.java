@@ -11,6 +11,8 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -65,10 +67,13 @@ public final class HasAllExpression extends MatchingExpression {
       }
       for (Value<?> key : map.getKeys()) {
         Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
+        Map<String, Object> valueRefExtensions = new HashMap<>();
+        valueRefExtensions.put(ValueReferences.KEY_EXTENSION_NAME, key);
+        valueRefExtensions.put(ValueReferences.VALUE_EXTENSION_NAME, val);
+        valueRefExtensions.put(
+            ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, val));
         if (!filterPredicateExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(
-                    ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, val))))) {
+            valueRefResolver.withExtensions(valueRefExtensions))) {
           return Boolean.FALSE;
         }
       }
