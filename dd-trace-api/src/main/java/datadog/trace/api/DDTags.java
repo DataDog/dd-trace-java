@@ -99,4 +99,5 @@ public class DDTags {
   public static final String DECISION_MAKER_SERVICE = "_dd.dm.service";
   public static final String DECISION_MAKER_RESOURCE = "_dd.dm.resource";
   public static final String PROCESS_TAGS = "_dd.tags.process";
+  public static final String INTEGRATION_COMPONENT = "_dd.integration_component";
 }

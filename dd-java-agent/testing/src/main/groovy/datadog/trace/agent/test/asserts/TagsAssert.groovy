@@ -93,6 +93,10 @@ class TagsAssert {
     DDTags.REQUIRED_CODE_ORIGIN_TAGS.each {
       assertedTags.add(it)
     }
+    assertedTags.add(DDTags.INTEGRATION_COMPONENT)
+    if (tags[Tags.COMPONENT] != null) {
+      assert tags[Tags.COMPONENT] == tags[DDTags.INTEGRATION_COMPONENT]
+    }
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
