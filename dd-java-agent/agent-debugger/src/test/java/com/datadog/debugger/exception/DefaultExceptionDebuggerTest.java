@@ -116,7 +116,8 @@ public class DefaultExceptionDebuggerTest {
             .getExceptionProbeManager()
             .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
     assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        state.getExceptionId(),
+        spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
@@ -190,7 +191,8 @@ public class DefaultExceptionDebuggerTest {
             .getExceptionProbeManager()
             .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
     assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        state.getExceptionId(),
+        spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(nestedException);
@@ -255,7 +257,8 @@ public class DefaultExceptionDebuggerTest {
             .getExceptionProbeManager()
             .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
     assertEquals(
-        state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
+        state.getExceptionId(),
+        spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_CAPTURE_ID));
     Map<String, Snapshot> snapshotMap =
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
