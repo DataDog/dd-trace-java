@@ -20,6 +20,7 @@ class TestDecoratorImplTest extends Specification {
     then:
     1 * span.setTag(Tags.TEST_SESSION_NAME, "session-name")
     1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.context().setInstrumentationComponentName("test-component")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
