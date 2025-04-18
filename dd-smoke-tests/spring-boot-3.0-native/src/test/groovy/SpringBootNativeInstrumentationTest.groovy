@@ -39,8 +39,7 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       '-Ddd.profiling.upload.period=1',
       '-Ddd.profiling.start-force-first=true',
       "-Ddd.profiling.debug.dump_path=${testJfrDir}",
-      "-Ddd.integration.spring-boot.enabled=true",
-      "-Ddd.trace.debug=true"
+      "-Ddd.integration.spring-boot.enabled=true"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -111,9 +110,5 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
         }
       })
     return jfrCount.get()
-  }
-
-  def logLevel() {
-    return "debug"
   }
 }
