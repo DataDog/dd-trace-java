@@ -27,6 +27,7 @@ public final class HttpProxy implements Closeable {
   public final int port;
   private final AtomicInteger requestCount = new AtomicInteger();
 
+  @SuppressForbidden
   HttpProxy() throws IOException {
     serverSocket = new ServerSocket(0); // random port
     serverSocket.setSoTimeout(0);
@@ -88,6 +89,7 @@ public final class HttpProxy implements Closeable {
     }
 
     @Override
+    @SuppressForbidden
     public void run() {
       try {
         BufferedReader clientToProxyIn =
@@ -136,6 +138,7 @@ public final class HttpProxy implements Closeable {
     private final Socket input;
     private final Socket output;
 
+    @SuppressForbidden
     private AsyncPipe(Socket input, Socket output) {
       this.input = input;
       this.output = output;
@@ -143,6 +146,7 @@ public final class HttpProxy implements Closeable {
     }
 
     @Override
+    @SuppressForbidden
     public void run() {
       try {
         // Read byte by byte from client and send directly to server

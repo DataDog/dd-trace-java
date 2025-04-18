@@ -24,3 +24,7 @@ net.bytebuddy.matcher.ElementMatchers#hasAnnotation(net.bytebuddy.matcher.Elemen
 net.bytebuddy.matcher.ElementMatchers#isInterface()
 net.bytebuddy.matcher.ElementMatchers#isAbstract()
 
+# avoid System.out/err methods to prevent debug logging in production
+@defaultMessage Avoid using System.out/err to prevent excess logging. To override, add @SuppressMethod.
+java.lang.System#out
+java.lang.System#err

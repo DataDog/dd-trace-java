@@ -4,6 +4,7 @@ import static datadog.apt.AnnoUtils.*;
 import static datadog.apt.LogUtils.*;
 import static datadog.apt.TypeUtils.*;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -30,6 +31,7 @@ public class ByteBuddyAdviceProcessor extends AbstractProcessor {
   }
 
   @Override
+  @SuppressForbidden
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     try {
       processImpl(annotations, roundEnv);

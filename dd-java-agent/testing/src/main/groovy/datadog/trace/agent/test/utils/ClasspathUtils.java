@@ -8,6 +8,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.AgentTestRunner;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -139,6 +140,7 @@ public class ClasspathUtils {
   /**
    * Parse JVM classpath and return ClassLoader containing all classpath entries. Inspired by Guava.
    */
+  @SuppressForbidden
   private static ClassLoader buildJavaClassPathClassLoader() {
     final ImmutableList.Builder<URL> urls = ImmutableList.builder();
     for (final String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
