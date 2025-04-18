@@ -8,7 +8,6 @@ import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
-import datadog.smoketest.debugger.ServerDebuggerTestApplication;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
@@ -29,7 +28,7 @@ import org.junit.jupiter.api.TestInfo;
 
 public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String SERVER_DEBUGGER_TEST_APP_CLASS =
-      ServerDebuggerTestApplication.class.getName();
+      "datadog.smoketest.debugger.ServerDebuggerTestApplication";
   protected static final String CONTROL_URL = "/control";
   protected static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
   protected static final ProbeId PROBE_ID2 = new ProbeId("1233565367", 12);

@@ -370,7 +370,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     assertEquals("oops uncaught!", throwable.getMessage());
     assertTrue(throwable.getStacktrace().size() > 0);
     assertEquals(
-        "ddog.smoketest.debugger.Main.exceptionMethod",
+        "datadog.smoketest.debugger.Main.exceptionMethod",
         throwable.getStacktrace().get(0).getFunction());
   }
 
@@ -403,7 +403,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         snapshot.getCaptures().getCaughtExceptions().get(0);
     assertEquals("oops caught!", throwable.getMessage());
     assertEquals(
-        "ddog.smoketest.debugger.Main.exceptionMethod",
+        "datadog.smoketest.debugger.Main.exceptionMethod",
         throwable.getStacktrace().get(0).getFunction());
   }
 

@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   private static final String DEBUGGER_TEST_APP_CLASS =
-      "ddog.smoketest.debugger.SpringBootTestApplication";
+      "datadog.smoketest.debugger.SpringBootTestApplication";
   private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
 
   @Override
@@ -93,7 +93,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     LogProbe logProbe =
         LogProbe.builder()
             .probeId(PROBE_ID)
-            .where("ddog.smoketest.debugger.controller.WebController", "processWithArg", null)
+            .where("datadog.smoketest.debugger.controller.WebController", "processWithArg", null)
             .captureSnapshot(true)
             .build();
     JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
@@ -152,7 +152,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     // assert in logs app started
     waitForSpecificLogLine(
         logFilePath,
-        "ddog.smoketest.debugger.SpringBootTestApplication - Started SpringBootTestApplication",
+        "datadog.smoketest.debugger.SpringBootTestApplication - Started SpringBootTestApplication",
         Duration.ofMillis(100),
         Duration.ofSeconds(30));
     sendRequest("http://localhost:" + httpPort + "/greeting");
@@ -182,7 +182,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
     commandParams.add(
-        "-Ddd.trace.methods=ddog.smoketest.debugger.controller.WebController[processWithArg]");
+        "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }

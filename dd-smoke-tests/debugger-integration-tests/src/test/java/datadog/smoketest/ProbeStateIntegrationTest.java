@@ -86,7 +86,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
     datadogAgentServer.enqueue(EMPTY_200_RESPONSE); // expect BLOCKED status
     Configuration.FilterList denyList =
-        new Configuration.FilterList(asList("ddog.smoketest.debugger"), Collections.emptyList());
+        new Configuration.FilterList(asList("datadog.smoketest.debugger"), Collections.emptyList());
     setCurrentConfiguration(createConfig(asList(logProbe), null, denyList));
     waitForReTransformation(appUrl);
     waitForAProbeStatus(ProbeStatus.Status.BLOCKED);
@@ -153,7 +153,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
           }
           if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
             assertEquals(
-                "Cannot find method ddog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
+                "Cannot find method datadog/smoketest/debugger/ServerDebuggerTestApplication::unknownMethodName",
                 probeStatus.getDiagnostics().getException().getMessage());
             error.set(true);
           }
