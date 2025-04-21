@@ -69,20 +69,22 @@ public class YamlParser {
    * "{{process_arguments[-ARG_NAME]}}". Returns "UNDEFINED" if the variable is not found or empty.
    */
   static String processTemplateVar(String templateVar) throws IOException {
-    if (templateVar.startsWith("environment_variables[") && templateVar.endsWith("]")) {
+    if (templateVar.startsWith("environment_variables['") && templateVar.endsWith("']")) {
       String envVar =
-          templateVar.substring("environment_variables[".length(), templateVar.length() - 1).trim();
+          templateVar
+              .substring("environment_variables['".length(), templateVar.length() - 2)
+              .trim();
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar);
+      String value = System.getenv(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
         return "UNDEFINED";
       }
       return value;
-    } else if (templateVar.startsWith("process_arguments[") && templateVar.endsWith("]")) {
+    } else if (templateVar.startsWith("process_arguments['") && templateVar.endsWith("']")) {
       String processArg =
-          templateVar.substring("process_arguments[".length(), templateVar.length() - 1).trim();
+          templateVar.substring("process_arguments['".length(), templateVar.length() - 2).trim();
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }

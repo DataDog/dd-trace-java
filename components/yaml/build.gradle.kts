@@ -13,4 +13,5 @@ dependencies {
   implementation("org.yaml", "snakeyaml", "2.4")
   implementation(project(":components:cli"))
   testImplementation(project(":utils:test-utils"))
+  testImplementation(project(":internal-api"))
 }
