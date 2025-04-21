@@ -121,6 +121,12 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
     return new SparkListenerJobEnd(jobId, time, JobSucceeded$.MODULE$)
   }
 
+  protected jobFailedEvent(Integer jobId, Long time, String errorMessage) {
+    def exception = new RuntimeException(errorMessage)
+    def jobFailed = new org.apache.spark.scheduler.JobFailed(exception)
+    return new SparkListenerJobEnd(jobId, time, jobFailed)
+  }
+
   protected stageSubmittedEvent(Integer stageId, Long time) {
     def stageInfo = createStageInfo(stageId)
     stageInfo.submissionTime = Option.apply(time)
@@ -452,6 +458,34 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
           validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 100, 200, 300, relativeAccuracy)
           spanType "spark"
           childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "test lastJobFailed is not set when job is cancelled"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1]))
+    listener.onJobEnd(jobFailedEvent(1, 2200L, "Job was cancelled by user"))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2300L))
+
+    expect:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored false
+          parent()
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(0))
         }
       }
     }
