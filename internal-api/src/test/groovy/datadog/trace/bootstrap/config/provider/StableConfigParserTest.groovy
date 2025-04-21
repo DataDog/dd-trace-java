@@ -1,14 +1,14 @@
 package datadog.trace.bootstrap.config.provider
 
 import datadog.trace.test.util.DDSpecification
-
+import datadog.trace.test.util.FileUtils
 import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
   def "test parse valid"() {
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = FileUtils.tempFile()
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -42,7 +42,7 @@ apm_configuration_rules:
       KEY_FOUR: "ignored"
 """
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      FileUtils.writeFileRaw(filePath, yaml)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -101,7 +101,7 @@ apm_configuration_rules:
   def "test duplicate entries"() {
     // When duplicate keys are encountered, snakeyaml preserves the last value by default
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = FileUtils.tempFile()
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -115,7 +115,7 @@ apm_configuration_rules:
   """
 
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      FileUtils.writeFileRaw(filePath, yaml)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -136,7 +136,7 @@ apm_configuration_rules:
   def "test parse invalid"() {
     // If any piece of the file is invalid, the whole file is rendered invalid and an exception is thrown
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = FileUtils.tempFile()
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -158,7 +158,7 @@ apm_configuration_rules:
   something-else-irrelevant: value-irrelevant
   """
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      FileUtils.writeFileRaw(filePath, yaml)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
