@@ -22,18 +22,20 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import net.bytebuddy.asm.Advice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(AsyncHttpClientInstrumentation.class);
   public AsyncHttpClientInstrumentation() {
     super("grizzly-client", "ning");
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
+     return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
   }
 
   @Override
@@ -70,8 +72,15 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       AgentSpan span = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
+      System.err.println("why can I not see this message?");
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
+      Context current = Context.current();
+//      LOGGER.error("1" + current);
+//      current = current.with(span);
+//      LOGGER.error("2" + current);
+//      current = current.with(dsmContext);
+//      LOGGER.error("3" + current);
+      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }
