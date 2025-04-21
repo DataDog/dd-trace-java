@@ -108,7 +108,8 @@ public class BaggagePropagator implements Propagator {
     if (!this.extractBaggage || context == null || carrier == null || visitor == null) {
       return context;
     }
-    BaggageExtractor baggageExtractor = new BaggageExtractor();
+    BaggageExtractor baggageExtractor =
+        new BaggageExtractor(config.getTraceBaggageMaxItems(), config.getTraceBaggageMaxBytes());
     visitor.forEachKeyValue(carrier, baggageExtractor);
     return baggageExtractor.extracted == null ? context : context.with(baggageExtractor.extracted);
   }
@@ -117,8 +118,15 @@ public class BaggagePropagator implements Propagator {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
     private Baggage extracted;
+    private final int maxItems;
+    private final int maxBytes;
+    private String w3cHeader;
 
-    private BaggageExtractor() {}
+    private BaggageExtractor(int maxItems, int maxBytes) {
+      this.maxItems = maxItems;
+      this.maxBytes = maxBytes;
+      this.w3cHeader = "";
+    }
 
     /** URL decode value */
     private String decode(final String value) {
@@ -134,6 +142,7 @@ public class BaggagePropagator implements Propagator {
     private Map<String, String> parseBaggageHeaders(String input) {
       Map<String, String> baggage = new HashMap<>();
       int start = 0;
+      boolean truncatedCache = false;
       int pairSeparatorInd = input.indexOf(PAIR_SEPARATOR);
       pairSeparatorInd = pairSeparatorInd == -1 ? input.length() : pairSeparatorInd;
       int kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR);
@@ -152,11 +161,21 @@ public class BaggagePropagator implements Propagator {
         }
         baggage.put(key, value);
 
+        if (!truncatedCache && (end > this.maxBytes || baggage.size() > this.maxItems)) {
+          this.w3cHeader = input.substring(0, start - 1); // -1 to ignore the k/v separator
+          truncatedCache = true;
+        }
+
         kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR, pairSeparatorInd + 1);
         pairSeparatorInd = input.indexOf(PAIR_SEPARATOR, pairSeparatorInd + 1);
         pairSeparatorInd = pairSeparatorInd == -1 ? input.length() : pairSeparatorInd;
         start = end + 1;
       }
+
+      if (!truncatedCache) {
+        this.w3cHeader = input;
+      }
+
       return baggage;
     }
 
@@ -166,7 +185,7 @@ public class BaggagePropagator implements Propagator {
       if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          this.extracted = Baggage.create(baggage, value);
+          this.extracted = Baggage.create(baggage, this.w3cHeader);
         }
       }
     }

@@ -61,7 +61,7 @@ class BaggagePropagatorTest extends DDSpecification {
     ["abcdefg": "hijklmnopq♥"]                     | "abcdefg=hijklmnopq%E2%99%A5"
   }
 
-  def "test baggage item limit"() {
+  def "test baggage inject item limit"() {
     setup:
     injectSysConfig("trace.baggage.max.items", '2')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
@@ -79,7 +79,7 @@ class BaggagePropagatorTest extends DDSpecification {
     [key1: "val1", key2: "val2", key3: "val3"] | "key1=val1,key2=val2"
   }
 
-  def "test baggage bytes limit"() {
+  def "test baggage inject bytes limit"() {
     setup:
     injectSysConfig("trace.baggage.max.bytes", '20')
     propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
@@ -139,7 +139,7 @@ class BaggagePropagatorTest extends DDSpecification {
     "="                                                                 | _
   }
 
-  def "testing baggage cache"(){
+  def "test baggage cache"(){
     setup:
     def headers = [
       (BAGGAGE_KEY) : baggageHeader,
@@ -162,5 +162,48 @@ class BaggagePropagatorTest extends DDSpecification {
     baggageHeader                                                      | baggageMap
     "key1=val1,key2=val2,foo=bar"                                      | ["key1": "val1", "key2": "val2", "foo": "bar"]
     "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C" | ['",;\\()/:<=>?@[]{}': '",;\\']
+  }
+
+  def "test baggage cache items limit"(){
+    setup:
+    injectSysConfig("trace.baggage.max.items", "2")
+    propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : baggageHeader,
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then:
+    Baggage baggageContext = Baggage.fromContext(context)
+    baggageContext.getW3cHeader() as String == cachedString
+
+    where:
+    baggageHeader                             | cachedString
+    "key1=val1,key2=val2"                     | "key1=val1,key2=val2"
+    "key1=val1,key2=val2,key3=val3"           | "key1=val1,key2=val2"
+    "key1=val1,key2=val2,key3=val3,key4=val4" | "key1=val1,key2=val2"
+  }
+
+  def "test baggage cache bytes limit"(){
+    setup:
+    injectSysConfig("trace.baggage.max.bytes", "20")
+    propagator = new BaggagePropagator(true, true) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : baggageHeader,
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then:
+    Baggage baggageContext = Baggage.fromContext(context)
+    baggageContext.getW3cHeader() as String == cachedString
+
+    where:
+    baggageHeader                   | cachedString
+    "key1=val1,key2=val2"           | "key1=val1,key2=val2"
+    "key1=val1,key2=val2,key3=val3" | "key1=val1,key2=val2"
   }
 }
