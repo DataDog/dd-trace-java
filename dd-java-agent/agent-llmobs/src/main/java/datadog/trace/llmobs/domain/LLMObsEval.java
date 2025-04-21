@@ -37,11 +37,15 @@ public abstract class LLMObsEval {
     this.ml_app = mlApp;
     this.metric_type = metricType;
     this.label = label;
-    List<String> tagsList = new ArrayList<>(tags.size());
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      tagsList.add(entry.getKey() + ":" + entry.getValue());
+    if (tags != null) {
+      List<String> tagsList = new ArrayList<>(tags.size());
+      for (Map.Entry<String, Object> entry : tags.entrySet()) {
+        tagsList.add(entry.getKey() + ":" + entry.getValue());
+      }
+      this.tags = tagsList;
+    } else {
+      this.tags = null;
     }
-    this.tags = tagsList;
   }
 
   public static final class Adapter extends JsonAdapter<LLMObsEval> {

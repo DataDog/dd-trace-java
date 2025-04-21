@@ -70,6 +70,11 @@ public class LLMObsSystem {
         Map<String, Object> tags) {
       if (llmObsSpan == null) {
         LOGGER.error("null llm obs span provided, eval not recorded");
+        return;
+      }
+
+      if (mlApp == null || mlApp.isEmpty()) {
+        mlApp = defaultMLApp;
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
@@ -101,6 +106,11 @@ public class LLMObsSystem {
         Map<String, Object> tags) {
       if (llmObsSpan == null) {
         LOGGER.error("null llm obs span provided, eval not recorded");
+        return;
+      }
+      
+      if (mlApp == null || mlApp.isEmpty()) {
+        mlApp = defaultMLApp;
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
