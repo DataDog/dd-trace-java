@@ -125,7 +125,7 @@ public class BaggagePropagator implements Propagator {
     private BaggageExtractor(int maxItems, int maxBytes) {
       this.maxItems = maxItems;
       this.maxBytes = maxBytes;
-      this.w3cHeader = "";
+      this.w3cHeader = null;
     }
 
     /** URL decode value */
@@ -161,7 +161,11 @@ public class BaggagePropagator implements Propagator {
         }
         baggage.put(key, value);
 
-        if (!truncatedCache && (end > this.maxBytes || baggage.size() > this.maxItems)) {
+        // need to percent-encode non-ascii headers we pass down
+        if (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value)) {
+          truncatedCache = true;
+          this.w3cHeader = null;
+        } else if (!truncatedCache && (end > this.maxBytes || baggage.size() > this.maxItems)) {
           this.w3cHeader = input.substring(0, start - 1); // -1 to ignore the k/v separator
           truncatedCache = true;
         }

@@ -150,18 +150,12 @@ class BaggagePropagatorTest extends DDSpecification {
 
     then:
     Baggage baggageContext = Baggage.fromContext(context)
-    baggageContext.asMap() == baggageMap
-
-    when:
-    this.propagator.inject(context, carrier, setter)
-
-    then:
-    assert carrier[BAGGAGE_KEY] == baggageHeader
+    baggageContext.w3cHeader == cachedString
 
     where:
-    baggageHeader                                                      | baggageMap
-    "key1=val1,key2=val2,foo=bar"                                      | ["key1": "val1", "key2": "val2", "foo": "bar"]
-    "%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C" | ['",;\\()/:<=>?@[]{}': '",;\\']
+    baggageHeader                 | cachedString
+    "key1=val1,key2=val2,foo=bar" | "key1=val1,key2=val2,foo=bar"
+    '";\\()/:<=>?@[]{}=";\\'      | null
   }
 
   def "test baggage cache items limit"(){
