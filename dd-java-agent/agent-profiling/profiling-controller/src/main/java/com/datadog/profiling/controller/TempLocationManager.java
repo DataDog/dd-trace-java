@@ -16,12 +16,14 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -219,6 +221,7 @@ public final class TempLocationManager {
     }
   }
 
+  private final boolean isPosixFs;
   private final Path baseTempDir;
   private final Path tempDir;
   private final long cutoffSeconds;
@@ -261,6 +264,9 @@ public final class TempLocationManager {
   TempLocationManager(
       ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
     cleanupTestHook = testHook;
+
+    Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
+    isPosixFs = supportedViews.contains("posix");
 
     // In order to avoid racy attempts to clean up files which are currently being processed in a
     // JVM which is being shut down (the JVMs far in the shutdown routine may not be reported by
@@ -317,6 +323,8 @@ public final class TempLocationManager {
             },
             "Temp Location Manager Cleanup");
     Runtime.getRuntime().addShutdownHook(selfCleanup);
+
+    createTempDir(tempDir);
   }
 
   // @VisibleForTesting
@@ -362,21 +370,7 @@ public final class TempLocationManager {
     Path rslt =
         subPath != null && !subPath.toString().isEmpty() ? tempDir.resolve(subPath) : tempDir;
     if (create && !Files.exists(rslt)) {
-      try {
-        Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
-        if (supportedViews.contains("posix")) {
-          Files.createDirectories(
-              rslt,
-              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-        } else {
-          // non-posix, eg. Windows - let's rely on the created folders being world-writable
-          Files.createDirectories(rslt);
-        }
-
-      } catch (Exception e) {
-        log.warn(SEND_TELEMETRY, "Failed to create temp directory: {}", tempDir, e);
-        throw new IllegalStateException("Failed to create temp directory: " + tempDir, e);
-      }
+      createTempDir(rslt);
     }
     return rslt;
   }
@@ -453,5 +447,80 @@ public final class TempLocationManager {
   // accessible for tests
   void createDirStructure() throws IOException {
     Files.createDirectories(baseTempDir);
+  }
+
+  private void createTempDir(Path tempDir) {
+    String msg = "Failed to create temp directory: " + tempDir;
+    try {
+      if (isPosixFs) {
+        Files.createDirectories(
+            tempDir,
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+      } else {
+        Files.createDirectories(tempDir);
+      }
+    } catch (IOException e) {
+      log.error("Failed to create temp directory {}", tempDir, e);
+      // if on a posix fs, let's check the expected permissions
+      // we will find the first offender not having the expected permissions and fail the check
+      if (isPosixFs) {
+        // take the first subfolder below the base temp dir
+        Path root = baseTempDir.resolve(baseTempDir.relativize(tempDir).getRoot());
+        try {
+          AtomicReference<Path> failed = new AtomicReference<>();
+          Files.walkFileTree(
+              root,
+              new FileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                    throws IOException {
+                  Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
+                  if (!perms.contains(PosixFilePermission.OWNER_READ)
+                      || !perms.contains(PosixFilePermission.OWNER_WRITE)
+                      || !perms.contains(PosixFilePermission.OWNER_EXECUTE)) {
+                    failed.set(dir);
+                    return FileVisitResult.TERMINATE;
+                  }
+                  return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                    throws IOException {
+                  return FileVisitResult.SKIP_SIBLINGS;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc)
+                    throws IOException {
+                  return FileVisitResult.TERMINATE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                    throws IOException {
+                  return FileVisitResult.CONTINUE;
+                }
+              });
+          Path failedDir = failed.get();
+
+          if (failedDir != null) {
+            msg +=
+                " (offender: "
+                    + failedDir
+                    + ", permissions: "
+                    + PosixFilePermissions.toString(Files.getPosixFilePermissions(failedDir))
+                    + ")";
+            log.warn(SEND_TELEMETRY, msg, e);
+          }
+        } catch (IOException ignored) {
+          // should not happen, but let's ignore it anyway
+        }
+        throw new IllegalStateException(msg, e);
+      } else {
+        log.warn(SEND_TELEMETRY, msg, e);
+        throw new IllegalStateException(msg, e);
+      }
+    }
   }
 }
