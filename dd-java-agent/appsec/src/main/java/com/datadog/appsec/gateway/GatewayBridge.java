@@ -20,6 +20,7 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -847,7 +848,43 @@ public class GatewayBridge {
       final String prefix,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
-    if (headers != null) {
+    if (headers == null || headers.isEmpty()) {
+      return;
+    }
+    if (Config.get().isAppSecCollectAllHeaders()) {
+      int headersBudget = Config.get().getAppsecMaxCollectedHeaders();
+      Set<String> added = new HashSet<>();
+
+      // Always include allowed headers first (if present)
+      for (String name : allowed) {
+        List<String> value = headers.get(name);
+        if (value != null) {
+          String v = String.join(",", value);
+          if (!v.isEmpty()) {
+            traceSeg.setTagTop(prefix + name, v);
+            added.add(name);
+          }
+        }
+      }
+
+      // Then include remaining headers, until reaching the budget
+      for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+        String name = entry.getKey();
+        if (added.contains(name)) {
+          continue; // already included
+        }
+        if (added.size() >= headersBudget) {
+          break; // budget reached
+        }
+        List<String> value = entry.getValue();
+        String v = String.join(",", value);
+        if (!v.isEmpty()) {
+          traceSeg.setTagTop(prefix + name, v);
+          added.add(name);
+        }
+      }
+    } else {
+      // only collect headers that are in the allow list
       headers.forEach(
           (name, value) -> {
             if (allowed.contains(name)) {
