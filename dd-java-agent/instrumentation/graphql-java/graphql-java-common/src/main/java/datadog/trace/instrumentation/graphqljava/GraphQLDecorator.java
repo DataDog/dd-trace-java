@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -11,8 +12,10 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import graphql.GraphQLError;
 import graphql.execution.ExecutionContext;
 import graphql.language.Argument;
 import graphql.language.Field;
@@ -20,8 +23,10 @@ import graphql.language.Selection;
 import graphql.language.StringValue;
 import graphql.language.Value;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
@@ -32,6 +37,7 @@ public class GraphQLDecorator extends BaseDecorator {
   public static final CharSequence GRAPHQL_VALIDATION =
       UTF8BytesString.create("graphql.validation");
   public static final CharSequence GRAPHQL_JAVA = UTF8BytesString.create("graphql-java");
+  private static final List<String> errorExtensions = Config.get().getTraceGraphqlErrorExtensions();
 
   // Extract this to allow for easier testing
   protected AgentTracer.TracerAPI tracer() {
@@ -105,5 +111,65 @@ public class GraphQLDecorator extends BaseDecorator {
     }
 
     return span;
+  }
+
+  public AgentSpan errorSpanEvent(AgentSpan requestSpan, GraphQLError graphQLError) {
+    SpanNativeAttributes.Builder attributes =
+        SpanNativeAttributes.builder().put("message", graphQLError.getMessage());
+
+    // Add locations if available
+    if (graphQLError.getLocations() != null && !graphQLError.getLocations().isEmpty()) {
+      List<String> locationStrings =
+          graphQLError.getLocations().stream()
+              .map(loc -> loc.getLine() + ":" + loc.getColumn())
+              .collect(Collectors.toList());
+      attributes.putStringArray("locations", locationStrings);
+    }
+
+    // Add path if available
+    if (graphQLError.getPath() != null && !graphQLError.getPath().isEmpty()) {
+      List<String> pathStrings =
+          graphQLError.getPath().stream().map(Object::toString).collect(Collectors.toList());
+      attributes.putStringArray("path", pathStrings);
+    }
+
+    // Add extensions if available
+    Map<String, Object> extensions = graphQLError.getExtensions();
+    if (extensions != null && !extensions.isEmpty()) {
+
+      for (String extensionKey : errorExtensions) {
+        if (extensions.containsKey(extensionKey)) {
+          Object value = extensions.get(extensionKey);
+          if (value != null) {
+            if (value instanceof Number) {
+              if (value instanceof Long) {
+                attributes.put("extensions." + extensionKey, (Long) value);
+              } else if (value instanceof Double) {
+                attributes.put("extensions." + extensionKey, (Double) value);
+              } else {
+                attributes.put("extensions." + extensionKey, value.toString());
+              }
+            } else if (value instanceof Boolean) {
+              attributes.put("extensions." + extensionKey, (Boolean) value);
+            } else if (value instanceof List) {
+              List<?> list = (List<?>) value;
+              if (!list.isEmpty() && list.get(0) instanceof String) {
+                attributes.putStringArray(
+                    "extensions." + extensionKey,
+                    list.stream().map(Object::toString).collect(Collectors.toList()));
+              } else {
+                attributes.put("extensions." + extensionKey, value.toString());
+              }
+            } else {
+              attributes.put("extensions." + extensionKey, value.toString());
+            }
+          }
+        }
+      }
+    }
+
+    requestSpan.addEvent("dd.graphql.query.error", attributes.build());
+
+    return requestSpan;
   }
 }

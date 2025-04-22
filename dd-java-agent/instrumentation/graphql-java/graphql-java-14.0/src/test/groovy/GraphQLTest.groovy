@@ -360,7 +360,30 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "error.message" { it.contains("Field 'title' in type 'Book' is undefined") }
             "error.message" { it.contains("(and 1 more errors)") }
             defaultTags()
+            events {
+              event {
+                eventName "error"
+                attributes {
+                  "error.type" "graphql.validation.ValidationError"
+                  "error.message" "Field 'title' in type 'Book' is undefined"
+                  "error.stack" String
+                  "graphql.error.path" null
+                }
+              }
+              event {
+                eventName "error"
+                attributes {
+                  "error.type" "graphql.validation.ValidationError"
+                  "error.message" "Field 'color' in type 'Book' is undefined"
+                  "error.stack" String
+                  "graphql.error.path" null
+                }
+              }
+            }
+
+
           }
+
         }
         span {
           operationName "graphql.validation"
@@ -416,8 +439,19 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.source" query
             "graphql.operation.name" null
-            "error.message" { it.toLowerCase().startsWith("invalid syntax") }
+            "error.message" "Invalid Syntax : offending token ')' at line 2 column 30"
             defaultTags()
+          }
+          events {
+            event {
+              eventName "error"
+              attributes {
+                "error.type" "graphql.parser.InvalidSyntaxException"
+                "error.message" "Invalid Syntax : offending token ')' at line 2 column 30"
+                "error.stack" String
+                "graphql.error.path" null
+              }
+            }
           }
         }
         span {
@@ -430,7 +464,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "graphql-java"
             "error.type" "graphql.parser.InvalidSyntaxException"
-            "error.message" { it.toLowerCase().startsWith("invalid syntax") }
+            "error.message" "Invalid Syntax : offending token ')' at line 2 column 30"
             "error.stack" String
             defaultTags()
           }
@@ -613,6 +647,152 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           operationName "getBookById"
           resourceName "book"
           childOf(span(2))
+          spanType null
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.validation"
+          resourceName "graphql.validation"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "query fetch error with span events"() {
+    setup:
+    def query = 'query findBookById {\n' +
+    '  bookById(id: "book-1") {\n' +
+    '    id #test\n' +
+    '    cover\n' + // throws an exception when fetched
+    '    year\n' + // also throws an exception
+    '  }\n' +
+    '}'
+    def expectedQuery = 'query findBookById {\n' +
+    '  bookById(id: {String}) {\n' +
+    '    id\n' +
+    '    cover\n' +
+    '    year\n' +
+    '  }\n' +
+    '}\n'
+    ExecutionResult result = graphql.execute(query)
+
+    expect:
+    !result.getErrors().isEmpty()
+
+    assertTraces(1) {
+      trace(7) {
+        span {
+          operationName operation()
+          resourceName "findBookById"
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.source" expectedQuery
+            "graphql.operation.name" "findBookById"
+            "error.message" { it.contains("Exception while fetching data (/bookById/cover) : TEST") }
+            defaultTags()
+          }
+          events {
+            event {
+              eventName "error"
+              attributes {
+                "error.type" "java.lang.IllegalStateException"
+                "error.message" "TEST"
+                "error.stack" String
+                "graphql.error.path" "/bookById/cover"
+              }
+            }
+            event {
+              eventName "error"
+              attributes {
+                "error.type" "java.lang.IllegalStateException"
+                "error.message" "TEST"
+                "error.stack" String
+                "graphql.error.path" "/bookById/year"
+              }
+            }
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Book.cover"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "String"
+            "graphql.coordinates" "Book.cover"
+            "error.type" "java.lang.IllegalStateException"
+            "error.message" "TEST"
+            "error.stack" String
+            defaultTags()
+          }
+        }
+        span {
+          operationName "Book.year"
+          resourceName "Book.year"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Int"
+            "graphql.coordinates" "Book.year"
+            "error.type" "java.lang.IllegalStateException"
+            "error.message" "TEST"
+            "error.stack" String
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Query.bookById"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(3))
           spanType null
           errored false
           measured false
