@@ -10,6 +10,13 @@ dependencies {
   api project(':utils:test-agent-utils:decoder')
 }
 
+// Disable forbiddenApis for all smoke-test modules
+allprojects {
+  tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
+    enabled = false
+  }
+}
+
 Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
@@ -22,10 +29,5 @@ subprojects { Project subProj ->
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
-  }
-
-  // Disable forbiddenApis for all smoke-test submodules
-  subProj.tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
-    enabled = false
   }
 }
