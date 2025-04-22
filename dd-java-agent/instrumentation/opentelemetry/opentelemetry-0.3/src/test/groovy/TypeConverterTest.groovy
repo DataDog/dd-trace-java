@@ -1,18 +1,17 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.propagation.PropagationTags
-import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.instrumentation.opentelemetry.TypeConverter
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
 
 class TypeConverterTest extends AgentTestRunner {
   TypeConverter typeConverter = new TypeConverter()
@@ -44,20 +43,6 @@ class TypeConverterTest extends AgentTestRunner {
     def noopScope = noopScope()
     expect:
     typeConverter.toScope(noopScope) is typeConverter.toScope(noopScope)
-  }
-
-  def "should avoid extra allocation for a scope wrapper"() {
-    def scopeManager = new ContinuableScopeManager(0, false)
-    def context = createTestSpanContext()
-    def span1 = new DDSpan("test", 0, context, null)
-    def span2 = new DDSpan("test", 0, context, null)
-    def scope1 = scopeManager.activateManualSpan(span1)
-    def scope2 = scopeManager.activateManualSpan(span2)
-    expect:
-    // return the same wrapper for the same scope
-    typeConverter.toScope(scope1) is typeConverter.toScope(scope1)
-    // return distinct wrapper for another context
-    !typeConverter.toScope(scope1).is(typeConverter.toScope(scope2))
   }
 
   def createTestSpanContext() {

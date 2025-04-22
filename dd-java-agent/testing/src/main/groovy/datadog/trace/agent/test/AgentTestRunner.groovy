@@ -272,6 +272,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     return false
   }
 
+  protected boolean isDataJobsEnabled() {
+    return false
+  }
+
   protected long dataStreamsBucketDuration() {
     TimeUnit.MILLISECONDS.toNanos(50)
   }
@@ -464,6 +468,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected void configurePreAgent() {
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
+    injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
   }
 
   void setup() {

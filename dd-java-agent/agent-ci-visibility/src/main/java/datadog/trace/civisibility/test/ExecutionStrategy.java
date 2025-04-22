@@ -60,7 +60,7 @@ public class ExecutionStrategy {
         && !executionSettings.isKnown(test.toFQN());
   }
 
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
+  private boolean isFlaky(@Nonnull TestIdentifier test) {
     return executionSettings.isFlaky(test.toFQN());
   }
 
@@ -210,7 +210,7 @@ public class ExecutionStrategy {
           .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
 
     } catch (Exception e) {
-      LOGGER.error("Could not determine if {} was modified, assuming false", testSourceData, e);
+      LOGGER.debug("Could not determine if {} was modified, assuming false", testSourceData, e);
       return false;
     }
   }

@@ -1,87 +1,13 @@
 import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
 
-import com.lambdaworks.redis.ClientOptions
 import com.lambdaworks.redis.RedisClient
 import com.lambdaworks.redis.RedisConnectionException
 import com.lambdaworks.redis.api.StatefulConnection
-import com.lambdaworks.redis.api.sync.RedisCommands
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import redis.embedded.RedisServer
-import spock.lang.Shared
 
-abstract class Lettuce4SyncClientTest extends VersionedNamingTestBase {
-  public static final String HOST = "127.0.0.1"
-  public static final int DB_INDEX = 0
-  // Disable autoreconnect so we do not get stray traces popping up on server shutdown
-  public static final ClientOptions CLIENT_OPTIONS = new ClientOptions.Builder().autoReconnect(false).build()
-
-  @Shared
-  int port
-  @Shared
-  int incorrectPort
-  @Shared
-  String dbAddr
-  @Shared
-  String dbAddrNonExistent
-  @Shared
-  String dbUriNonExistent
-  @Shared
-  String embeddedDbUri
-
-  @Shared
-  RedisServer redisServer
-
-  @Shared
-  Map<String, String> testHashMap = [
-    firstname: "John",
-    lastname : "Doe",
-    age      : "53"
-  ]
-
-  RedisClient redisClient
-  StatefulConnection connection
-  RedisCommands<String, ?> syncCommands
-
-  def setupSpec() {
-    port = PortUtils.randomOpenPort()
-    incorrectPort = PortUtils.randomOpenPort()
-    dbAddr = HOST + ":" + port + "/" + DB_INDEX
-    dbAddrNonExistent = HOST + ":" + incorrectPort + "/" + DB_INDEX
-    dbUriNonExistent = "redis://" + dbAddrNonExistent
-    embeddedDbUri = "redis://" + dbAddr
-
-    redisServer = RedisServer.builder()
-      // bind to localhost to avoid firewall popup
-      .setting("bind " + HOST)
-      // set max memory to avoid problems in CI
-      .setting("maxmemory 128M")
-      .port(port).build()
-  }
-
-  def setup() {
-    redisClient = RedisClient.create(embeddedDbUri)
-
-    redisServer.start()
-    connection = redisClient.connect()
-    syncCommands = connection.sync()
-
-    syncCommands.set("TESTKEY", "TESTVAL")
-    syncCommands.hmset("TESTHM", testHashMap)
-
-    // 2 sets + 1 connect trace
-    TEST_WRITER.waitForTraces(3)
-    TEST_WRITER.clear()
-  }
-
-  def cleanup() {
-    connection.close()
-    redisServer.stop()
-  }
-
+abstract class Lettuce4SyncClientTest extends Lettuce4ClientTestBase {
   def "connect"() {
     setup:
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)

@@ -31,6 +31,7 @@ class MockBackend implements AutoCloseable {
 
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
+  private final Collection<Map<String, Object>> knownTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> testManagement = new CopyOnWriteArrayList<>()
   private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
@@ -39,6 +40,7 @@ class MockBackend implements AutoCloseable {
   private boolean testsSkippingEnabled = true
   private boolean flakyRetriesEnabled = false
   private boolean impactedTestsDetectionEnabled = false
+  private boolean knownTestsEnabled = false
   private boolean testManagementEnabled = false
   private int attemptToFixRetries = 0
 
@@ -51,6 +53,7 @@ class MockBackend implements AutoCloseable {
 
     skippableTests.clear()
     flakyTests.clear()
+    knownTests.clear()
     testManagement.clear()
     changedFiles.clear()
   }
@@ -82,6 +85,14 @@ class MockBackend implements AutoCloseable {
 
   void givenChangedFile(String relativePath) {
     changedFiles.add(relativePath)
+  }
+
+  void givenKnownTests(boolean knownTests) {
+    this.knownTestsEnabled = knownTests
+  }
+
+  void givenKnownTest(String module, String suite, String name) {
+    knownTests.add(["module": module, "suite": suite, "name": name])
   }
 
   void givenTestManagement(boolean testManagementEnabled) {
@@ -164,6 +175,7 @@ class MockBackend implements AutoCloseable {
               "tests_skipping": $testsSkippingEnabled,
               "flaky_test_retries_enabled": $flakyRetriesEnabled,
               "impacted_tests_enabled": $impactedTestsDetectionEnabled,
+              "known_tests_enabled": $knownTestsEnabled,
               "test_management": {
                 "enabled": $testManagementEnabled,
                 "attempt_to_fix_retries": $attemptToFixRetries
@@ -263,6 +275,20 @@ class MockBackend implements AutoCloseable {
         response.status(200)
         .addHeader("Content-Encoding", "gzip")
         .send(MockBackend.compress((""" { "data": $flakyTestsResponse } """).bytes))
+      }
+
+      prefix("/api/v2/ci/libraries/tests") {
+        Map<String, Map> modules = [:]
+        for (Map<String, Object> test :  knownTests) {
+          Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:])
+          List tests = suites.computeIfAbsent("${test.suite}", k -> [])
+          tests.add(test.name)
+        }
+
+        String knownTestsResponse = """{ "tests": ${JSON_MAPPER.writeValueAsString(modules)}}"""
+        response.status(200)
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress((""" { "data": { "attributes": $knownTestsResponse } } """).bytes))
       }
 
       prefix("/api/v2/test/libraries/test-management/tests") {

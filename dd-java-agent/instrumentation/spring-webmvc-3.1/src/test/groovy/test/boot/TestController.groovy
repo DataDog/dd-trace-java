@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.servlet.view.RedirectView
 
 import javax.servlet.http.HttpServletRequest
+import java.util.concurrent.CompletableFuture
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ENDPOINT_DISCOVERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -48,9 +50,11 @@ class TestController {
 
   @RequestMapping("/forwarded")
   @ResponseBody
-  String forwarded(HttpServletRequest request) {
-    HttpServerTest.controller(FORWARDED) {
-      request.getHeader("x-forwarded-for")
+  CompletableFuture<String> forwarded(HttpServletRequest request) {
+    CompletableFuture.supplyAsync {
+      HttpServerTest.controller(FORWARDED) {
+        request.getHeader("x-forwarded-for")
+      }
     }
   }
 
@@ -155,6 +159,16 @@ class TestController {
   ResponseEntity exception() {
     HttpServerTest.controller(EXCEPTION) {
       throw new Exception(EXCEPTION.body)
+    }
+  }
+
+  @RequestMapping(value = "/discovery",
+  method = [RequestMethod.POST, RequestMethod.PATCH, RequestMethod.PUT],
+  consumes = MediaType.APPLICATION_JSON_VALUE,
+  produces = MediaType.TEXT_PLAIN_VALUE)
+  ResponseEntity discovery() {
+    HttpServerTest.controller(ENDPOINT_DISCOVERY) {
+      new ResponseEntity(ENDPOINT_DISCOVERY.body, HttpStatus.valueOf(ENDPOINT_DISCOVERY.status))
     }
   }
 

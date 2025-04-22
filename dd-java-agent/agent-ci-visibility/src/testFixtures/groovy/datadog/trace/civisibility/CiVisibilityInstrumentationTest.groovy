@@ -388,11 +388,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(expectedOrder.size() + 1)
     def traces = TEST_WRITER.toList()
     def events = getEventsAsJson(traces)
-    def identifiers = getTestIdentifiers(events)
-    if (identifiers != expectedOrder) {
-      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
-    }
-    return true
+    return CiVisibilityTestUtils.assertTestsOrder(events, expectedOrder)
   }
 
   def assertCapabilities(Collection<LibraryCapability> capabilities, int expectedTraceCount) {
@@ -409,17 +405,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     })
 
     return true
-  }
-
-  def getTestIdentifiers(List<Map> events) {
-    events.sort(Comparator.comparing { it['content']['start'] as Long })
-    def testIdentifiers = []
-    for (Map event : events) {
-      if (event['content']['meta']['test.name']) {
-        testIdentifiers.add(test(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
-      }
-    }
-    return testIdentifiers
   }
 
   def test(String suite, String name) {

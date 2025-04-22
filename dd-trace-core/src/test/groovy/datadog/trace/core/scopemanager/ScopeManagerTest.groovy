@@ -1,5 +1,7 @@
 package datadog.trace.core.scopemanager
 
+import datadog.context.Context
+import datadog.context.ContextKey
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Stateful
@@ -1031,6 +1033,128 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     cleanup:
     executor.shutdown()
+  }
+
+  def "activating a span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.activateSpan(span)
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "capturing and continuing a span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.captureSpan(span).activate()
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "capturing and continuing the active span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.activateSpan(span).withCloseable {
+      tracer.captureActiveSpan().activate()
+    }
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
   }
 
   boolean spanFinished(AgentSpan span) {

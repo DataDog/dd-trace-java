@@ -18,7 +18,13 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'org.yaml', name: 'snakeyaml', version: '1.33'
-  testImplementation group: 'org.yaml', name: 'snakeyaml', version: '1.33'
+
+  testImplementation('org.yaml:snakeyaml') {
+    version {
+      strictly "[1.4, 2.0)"
+      prefer '1.33'
+    }
+  }
 
   latestDepTestImplementation group: 'org.yaml', name: 'snakeyaml', version: '1.+'
 }

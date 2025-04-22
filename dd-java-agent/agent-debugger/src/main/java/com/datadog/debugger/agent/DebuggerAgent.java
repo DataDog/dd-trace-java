@@ -172,6 +172,7 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+    LOGGER.info("Started Dynamic Instrumentation");
   }
 
   public static void stopDynamicInstrumentation() {
@@ -205,6 +206,7 @@ public class DebuggerAgent {
             Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
             config.getDebuggerMaxExceptionPerSecond());
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
+    LOGGER.info("Started Exception Replay");
   }
 
   public static void stopExceptionReplay() {
@@ -230,6 +232,7 @@ public class DebuggerAgent {
     initClassNameFilter();
     DebuggerContext.initClassNameFilter(classNameFilter);
     DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
+    LOGGER.info("Started Code Origin for spans");
   }
 
   public static void stopCodeOriginForSpans() {

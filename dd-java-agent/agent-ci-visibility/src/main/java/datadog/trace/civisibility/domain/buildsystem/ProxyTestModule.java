@@ -99,11 +99,6 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return executionStrategy.isFlaky(test);
-  }
-
-  @Override
   public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }

@@ -28,8 +28,6 @@ public interface TestFrameworkModule {
    */
   boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(@Nonnull TestIdentifier test);
-
   boolean isModified(@Nonnull TestSourceData testSourceData);
 
   boolean isQuarantined(TestIdentifier test);

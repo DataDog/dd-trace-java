@@ -10,11 +10,6 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-repositories {
-  // Use Maven Central for resolving dependencies.
-  mavenCentral()
-}
-
 def grpcVersion = '1.58.0'
 def protobufVersion = '3.24.0'
 def protocVersion = protobufVersion

@@ -85,11 +85,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return executionStrategy.isFlaky(test);
-  }
-
-  @Override
   public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }

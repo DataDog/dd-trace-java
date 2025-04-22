@@ -143,7 +143,7 @@
       "test.is_retry" : "true",
       "test.module" : "karate",
       "test.name" : "first scenario",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.status" : "pass",
       "test.suite" : "[org/example/test_succeed_slow] test succeed",
       "test.traits" : "{\"category\":[\"bar\",\"foo\"]}",

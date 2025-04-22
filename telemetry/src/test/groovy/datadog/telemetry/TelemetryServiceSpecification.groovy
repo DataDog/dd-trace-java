@@ -12,6 +12,7 @@ import datadog.trace.api.ConfigSetting
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.ProfilingConfig
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
@@ -25,6 +26,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423).count(1)
   def productChange = new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(true)
+  def endpoint = new Endpoint().first(true).type('REST').method("GET").operation('http.request').path("/test")
 
   def 'happy path without data'() {
     setup:
@@ -69,6 +71,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
     telemetryService.addProductChange(productChange)
+    telemetryService.addEndpoint(endpoint)
 
     and: 'send messages'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
@@ -85,7 +88,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(7)
+      .assertBatch(8)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       // no configuration here as it has already been sent with the app-started event
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
@@ -94,6 +97,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
@@ -140,6 +144,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
     telemetryService.addProductChange(productChange)
+    telemetryService.addEndpoint(endpoint)
 
     and: 'send messages'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
@@ -147,7 +152,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(8)
+      .assertBatch(9)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE).hasPayload().configuration([confKeyValue])
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
@@ -156,6 +161,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }
@@ -211,6 +217,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
     telemetryService.addProductChange(productChange)
+    telemetryService.addEndpoint(endpoint)
 
     when: 'attempt with NOT_FOUND error'
     testHttpClient.expectRequest(TelemetryClient.Result.NOT_FOUND)
@@ -233,7 +240,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     then: 'attempt batch with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(7)
+      .assertBatch(8)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       // no configuration here as it has already been sent with the app-started event
       .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE).hasPayload().integrations([integration])
@@ -242,6 +249,7 @@ class TelemetryServiceSpecification extends DDSpecification {
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
 
@@ -318,6 +326,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addDistributionSeries(distribution)
     telemetryService.addLogMessage(logMessage)
     telemetryService.addProductChange(productChange)
+    telemetryService.addEndpoint(endpoint)
 
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
     telemetryService.sendTelemetryEvents()
@@ -339,11 +348,12 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
-      .assertBatch(4)
+      .assertBatch(5)
       .assertFirstMessage(RequestType.APP_HEARTBEAT).hasNoPayload()
       .assertNextMessage(RequestType.DISTRIBUTIONS).hasPayload().namespace("tracers").distributionSeries([distribution])
       .assertNextMessage(RequestType.LOGS).hasPayload().logs([logMessage])
       .assertNextMessage(RequestType.APP_PRODUCT_CHANGE).hasPayload().productChange(productChange)
+      .assertNextMessage(RequestType.APP_ENDPOINTS).hasPayload().endpoint(endpoint)
       .assertNoMoreMessages()
     testHttpClient.assertNoMoreRequests()
   }

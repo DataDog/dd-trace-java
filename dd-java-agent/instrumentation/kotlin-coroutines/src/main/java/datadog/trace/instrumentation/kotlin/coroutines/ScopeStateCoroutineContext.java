@@ -52,11 +52,20 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
   }
 
   /** If there's a context item for the coroutine then try to close it */
-  public void maybeCloseScopeAndCancelContinuation(final Job coroutine) {
+  public void maybeCloseScopeAndCancelContinuation(final Job coroutine, final Job parent) {
     final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
     if (contextItem != null) {
-      final ScopeState currentThreadScopeState = AgentTracer.get().newScopeState();
-      currentThreadScopeState.fetchFromActive();
+      ScopeState currentThreadScopeState = null;
+      if (parent != null) {
+        final ScopeStateCoroutineContextItem parentItem = contextItemPerCoroutine.get(parent);
+        if (parentItem != null) {
+          currentThreadScopeState = parentItem.getScopeState();
+        }
+      }
+      if (currentThreadScopeState == null) {
+        currentThreadScopeState = AgentTracer.get().newScopeState();
+        currentThreadScopeState.fetchFromActive();
+      }
 
       contextItem.maybeCloseScopeAndCancelContinuation();
       contextItemPerCoroutine.remove(coroutine);
@@ -105,6 +114,10 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
     public ScopeStateCoroutineContextItem() {
       coroutineScopeState = AgentTracer.get().newScopeState();
+    }
+
+    public ScopeState getScopeState() {
+      return coroutineScopeState;
     }
 
     public void activate() {

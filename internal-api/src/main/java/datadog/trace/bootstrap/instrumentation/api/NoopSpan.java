@@ -137,9 +137,4 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
   public boolean isOutbound() {
     return false;
   }
-
-  @Override
-  public boolean isRequiresPostProcessing() {
-    return false;
-  }
 }

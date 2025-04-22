@@ -1,7 +1,6 @@
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.kotlin.coroutines.AbstractKotlinCoroutineInstrumentationTest
 import kotlinx.coroutines.CoroutineDispatcher
-import spock.lang.Ignore
 
 class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrumentationTest<KotlinCoroutineTests> {
 
@@ -44,7 +43,6 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
-  @Ignore("Not working: disconnected trace")
   def "kotlin trace consistent after flow"() {
     setup:
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)

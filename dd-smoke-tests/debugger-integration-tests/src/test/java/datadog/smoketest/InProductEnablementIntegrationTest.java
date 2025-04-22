@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static datadog.smoketest.debugger.TestApplicationHelper.waitForSpecificLine;
 
 import com.datadog.debugger.probe.LogProbe;
-import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -53,7 +52,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForSpecificLine(appUrl, "Feature dynamic.instrumentation.enabled is explicitly disabled");
   }
 
-  @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablement")
   void testExceptionReplayEnablement() throws Exception {
@@ -70,7 +68,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   }
 
   private void waitForFeatureStarted(String appUrl, String feature) throws IOException {
-    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Starting " + feature;
+    String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Started " + feature;
     waitForSpecificLine(appUrl, line);
     LOG.info("feature {} started", feature);
   }

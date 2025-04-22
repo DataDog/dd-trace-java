@@ -1,8 +1,8 @@
 package com.datadog.appsec.report
 
-import com.datadog.appsec.powerwaf.PowerWAFResultData.Rule
-import com.datadog.appsec.powerwaf.PowerWAFResultData.RuleMatch
-import com.datadog.appsec.powerwaf.PowerWAFResultData.Parameter
+import com.datadog.appsec.ddwaf.WAFResultData.Rule
+import com.datadog.appsec.ddwaf.WAFResultData.RuleMatch
+import com.datadog.appsec.ddwaf.WAFResultData.Parameter
 import datadog.trace.test.util.DDSpecification
 
 class AppSecEventWrapperTest extends DDSpecification {

@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
@@ -11,6 +12,24 @@ public final class ExceptionProfiling {
   /** Lazy initialization-on-demand. */
   private static final class Holder {
     static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
+  }
+
+  /**
+   * Support for excluding certain exception types because they are used for control flow or leak
+   * detection.
+   */
+  public static final class Exclusion {
+    public static void enter() {
+      CallDepthThreadLocalMap.incrementCallDepth(Exclusion.class);
+    }
+
+    public static void exit() {
+      CallDepthThreadLocalMap.decrementCallDepth(Exclusion.class);
+    }
+
+    public static boolean isEffective() {
+      return CallDepthThreadLocalMap.getCallDepth(Exclusion.class) > 0;
+    }
   }
 
   /**

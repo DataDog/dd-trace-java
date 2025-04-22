@@ -70,10 +70,12 @@ class DefaultProductConfigUpdater implements DebuggerContext.ProductConfigUpdate
       LOGGER.debug("Feature {} is explicitly disabled", booleanKey);
       return;
     }
-    if (currentStatus != null && currentStatus) {
-      start.run();
-    } else {
-      stop.run();
+    if (currentStatus != null) {
+      if (currentStatus) {
+        start.run();
+      } else {
+        stop.run();
+      }
     }
   }
 }

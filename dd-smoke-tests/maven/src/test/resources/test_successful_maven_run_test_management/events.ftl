@@ -275,6 +275,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -339,6 +340,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -405,6 +407,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -471,6 +474,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -537,6 +541,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -604,6 +609,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
@@ -715,6 +721,7 @@
     "meta" : {
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.fail_fast_test_order" : "1",
       "_dd.library_capabilities.impacted_tests" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
       "_dd.library_capabilities.test_management.attempt_to_fix" : "2",

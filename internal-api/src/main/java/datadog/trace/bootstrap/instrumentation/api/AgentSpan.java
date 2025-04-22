@@ -196,6 +196,10 @@ public interface AgentSpan
     return this;
   }
 
+  default void copyPropagationAndBaggage(final AgentSpan source) {
+    // no op default
+  }
+
   @Override
   default Context storeInto(Context context) {
     return context.with(SPAN_KEY, this);
@@ -210,6 +214,6 @@ public interface AgentSpan
 
   @Override
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
-    return Context.root().with(SPAN_KEY, this, key, value);
+    return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
   }
 }

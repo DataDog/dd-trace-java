@@ -2,7 +2,6 @@ package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
@@ -200,7 +199,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       log.debug("Will not subscribe report CAPABILITY_ASM_ACTIVATION (AppSec explicitly enabled)");
     }
     this.configurationPoller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE);
-    this.configurationPoller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
   }
 
   private void distributeSubConfigurations(
@@ -362,7 +360,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
             | CAPABILITY_ASM_RASP_LFI
@@ -408,7 +405,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       AppSecSystem.setActive(newState);
       if (AppSecSystem.isActive()) {
         // On remote activation, we need to re-distribute the last known configuration.
-        // This may trigger initializations, including PowerWAF if it was lazy loaded.
+        // This may trigger initializations, including WAF if it was lazy loaded.
         this.currentAppSecConfig.dirtyStatus.markAllDirty();
       }
     }

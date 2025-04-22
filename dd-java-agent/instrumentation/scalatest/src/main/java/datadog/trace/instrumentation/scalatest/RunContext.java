@@ -31,9 +31,15 @@ public class RunContext {
     return CONTEXTS.computeIfAbsent(runStamp, RunContext::new);
   }
 
+  public static RunContext get(int runStamp) {
+    return CONTEXTS.get(runStamp);
+  }
+
   public static void destroy(int runStamp) {
     RunContext context = CONTEXTS.remove(runStamp);
-    context.destroy();
+    if (context != null) {
+      context.destroy();
+    }
   }
 
   private final int runStamp;

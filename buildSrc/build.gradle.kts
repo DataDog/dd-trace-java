@@ -22,10 +22,8 @@ gradlePlugin {
   }
 }
 
-repositories {
-  mavenLocal()
-  mavenCentral()
-  gradlePluginPortal()
+apply {
+  from("$rootDir/../gradle/repositories.gradle")
 }
 
 dependencies {

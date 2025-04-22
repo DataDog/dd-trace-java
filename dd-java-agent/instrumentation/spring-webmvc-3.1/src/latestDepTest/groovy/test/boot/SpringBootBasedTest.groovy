@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -290,7 +291,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
+    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN || endpoint == FORWARDED
   }
 
   @Override
@@ -338,6 +339,18 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         childOfPrevious()
         tags {
           "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else if (endpoint == FORWARDED) {
+      trace.span {
+        serviceName expectedServiceName()
+        operationName 'servlet.dispatch'
+        resourceName 'servlet.dispatch'
+        tags {
+          "$Tags.COMPONENT" 'java-web-servlet-async-dispatcher'
+          'servlet.context' "/$servletContext"
+          'servlet.path' '/forwarded'
           defaultTags()
         }
       }

@@ -1,6 +1,5 @@
 package datadog.communication.monitor;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
@@ -22,7 +21,8 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     return INSTANCE;
   }
 
-  private static final AtomicInteger defaultStatsDPort = new AtomicInteger(DEFAULT_DOGSTATSD_PORT);
+  private static final AtomicInteger defaultStatsDPort =
+      new AtomicInteger(Config.get().getDogsStatsDPort());
 
   public static void setDefaultStatsDPort(final int newPort) {
     if (newPort > 0 && defaultStatsDPort.getAndSet(newPort) != newPort) {

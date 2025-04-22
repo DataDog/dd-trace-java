@@ -7,15 +7,13 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackTraceEvent;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,9 +74,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
-  public static final int DD_WAF_RUN_INTERNAL_ERROR = -3;
-  public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = -2;
-  public static final int DD_WAF_RUN_INVALID_ARGUMENT_ERROR = -1;
 
   static {
     REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
@@ -92,6 +87,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String scheme;
   private String method;
   private String savedRawURI;
+  private String route;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -117,21 +113,21 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean throttled;
 
   // should be guarded by this
-  private volatile Additive additive;
-  private volatile boolean additiveClosed;
-  // set after additive is set
-  private volatile PowerwafMetrics wafMetrics;
-  private volatile PowerwafMetrics raspMetrics;
+  private volatile WafContext wafContext;
+  private volatile boolean wafContextClosed;
+  // set after wafContext is set
+  private volatile WafMetrics wafMetrics;
+  private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
-  private volatile boolean blocked;
+
+  private volatile boolean wafBlocked;
+  private volatile boolean wafErrors;
+  private volatile boolean wafTruncated;
+  private volatile boolean wafRequestBlockFailure;
+  private volatile boolean wafRateLimited;
+
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
-  private volatile int raspInternalErrors;
-  private volatile int raspInvalidObjectErrors;
-  private volatile int raspInvalidArgumentErrors;
-  private volatile int wafInternalErrors;
-  private volatile int wafInvalidObjectErrors;
-  private volatile int wafInvalidArgumentErrors;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -143,33 +139,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // Used to detect missing request-end event at close.
   private volatile boolean requestEndCalled;
 
+  private volatile boolean keepOpenForApiSecurityPostProcessing;
+  private volatile Long apiSecurityEndpointHash;
+
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INTERNAL_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      RASP_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "raspInvalidArgumentErrors");
-
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_INTERNAL_ERRORS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafInternalErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_OBJECT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidObjectErrors");
-  private static final AtomicIntegerFieldUpdater<AppSecRequestContext>
-      WAF_INVALID_ARGUMENT_ERRORS_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              AppSecRequestContext.class, "wafInvalidArgumentErrors");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -192,11 +168,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public PowerwafMetrics getWafMetrics() {
+  public WafMetrics getWafMetrics() {
     return wafMetrics;
   }
 
-  public PowerwafMetrics getRaspMetrics() {
+  public WafMetrics getRaspMetrics() {
     return raspMetrics;
   }
 
@@ -204,12 +180,44 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspMetricsCounter;
   }
 
-  public void setBlocked() {
-    this.blocked = true;
+  public void setWafBlocked() {
+    this.wafBlocked = true;
   }
 
-  public boolean isBlocked() {
-    return blocked;
+  public boolean isWafBlocked() {
+    return wafBlocked;
+  }
+
+  public void setWafErrors() {
+    this.wafErrors = true;
+  }
+
+  public boolean hasWafErrors() {
+    return wafErrors;
+  }
+
+  public void setWafTruncated() {
+    this.wafTruncated = true;
+  }
+
+  public boolean isWafTruncated() {
+    return wafTruncated;
+  }
+
+  public void setWafRequestBlockFailure() {
+    this.wafRequestBlockFailure = true;
+  }
+
+  public boolean isWafRequestBlockFailure() {
+    return wafRequestBlockFailure;
+  }
+
+  public void setWafRateLimited() {
+    this.wafRateLimited = true;
+  }
+
+  public boolean isWafRateLimited() {
+    return wafRateLimited;
   }
 
   public void increaseWafTimeouts() {
@@ -220,38 +228,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     RASP_TIMEOUTS_UPDATER.incrementAndGet(this);
   }
 
-  public void increaseRaspErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        RASP_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        RASP_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        RASP_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
-  public void increaseWafErrorCode(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        WAF_INTERNAL_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        WAF_INVALID_OBJECT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        WAF_INVALID_ARGUMENT_ERRORS_UPDATER.incrementAndGet(this);
-        break;
-      default:
-        break;
-    }
-  }
-
   public int getWafTimeouts() {
     return wafTimeouts;
   }
@@ -260,33 +236,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspTimeouts;
   }
 
-  public int getRaspError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return raspInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return raspInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return raspInvalidArgumentErrors;
-      default:
-        return 0;
-    }
-  }
-
-  public int getWafError(int code) {
-    switch (code) {
-      case DD_WAF_RUN_INTERNAL_ERROR:
-        return wafInternalErrors;
-      case DD_WAF_RUN_INVALID_OBJECT_ERROR:
-        return wafInvalidObjectErrors;
-      case DD_WAF_RUN_INVALID_ARGUMENT_ERROR:
-        return wafInvalidArgumentErrors;
-      default:
-        return 0;
-    }
-  }
-
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
       if (wafMetrics == null) {
@@ -297,27 +247,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    Additive curAdditive;
+    WafContext curWafContext;
     synchronized (this) {
-      curAdditive = this.additive;
-      if (curAdditive != null) {
-        return curAdditive;
+      curWafContext = this.wafContext;
+      if (curWafContext != null) {
+        return curWafContext;
       }
-      curAdditive = ctx.openAdditive();
-      this.additive = curAdditive;
+      curWafContext = ctx.openContext();
+      this.wafContext = curWafContext;
     }
-    return curAdditive;
+    return curWafContext;
   }
 
-  public void closeAdditive() {
-    if (additive != null) {
+  public void closeWafContext() {
+    if (wafContext != null) {
       synchronized (this) {
-        if (additive != null) {
+        if (wafContext != null) {
           try {
-            additiveClosed = true;
-            additive.close();
+            wafContextClosed = true;
+            wafContext.close();
           } finally {
-            additive = null;
+            wafContext = null;
           }
         }
       }
@@ -362,7 +312,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.scheme = scheme;
   }
 
-  String getMethod() {
+  public String getMethod() {
     return method;
   }
 
@@ -380,6 +330,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
+  }
+
+  public String getRoute() {
+    return route;
+  }
+
+  public void setRoute(String route) {
+    this.route = route;
+  }
+
+  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
+    this.keepOpenForApiSecurityPostProcessing = flag;
+  }
+
+  public boolean isKeepOpenForApiSecurityPostProcessing() {
+    return this.keepOpenForApiSecurityPostProcessing;
+  }
+
+  public void setApiSecurityEndpointHash(long hash) {
+    this.apiSecurityEndpointHash = hash;
+  }
+
+  public Long getApiSecurityEndpointHash() {
+    return this.apiSecurityEndpointHash;
   }
 
   void addRequestHeader(String name, String value) {
@@ -567,37 +541,34 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return sessionId;
   }
 
+  /**
+   * Close the context and release all resources. This method is idempotent and can be called
+   * multiple times. For each root span, this method is always called from
+   * CoreTracer#onRootSpanPublished.
+   */
   @Override
   public void close() {
-    final AgentSpan span = AgentTracer.activeSpan();
-    close(span != null && span.isRequiresPostProcessing());
-  }
-
-  /* end interface for GatewayBridge */
-
-  /* Should be accessible from the modules */
-
-  public void close(boolean requiresPostProcessing) {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-    if (additive != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
+    // For API Security, we sometimes keep contexts open for late processing. In that case, this
+    // flag needs to be
+    // later reset by the API Security post-processor and close must be called again.
+    if (!keepOpenForApiSecurityPostProcessing) {
+      if (wafContext != null) {
+        log.debug(
+            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+        closeWafContext();
+      }
+      collectedCookies = null;
+      requestHeaders.clear();
+      responseHeaders.clear();
+      persistentData.clear();
+      if (derivatives != null) {
+        derivatives.clear();
+        derivatives = null;
+      }
     }
-    derivatives = null;
-
-    // check if we might need to further post process data related to the span in order to not free
-    // related data
-    if (requiresPostProcessing) {
-      return;
-    }
-
-    collectedCookies = null;
-    requestHeaders.clear();
-    responseHeaders.clear();
-    persistentData.clear();
   }
 
   /** @return the portion of the body read so far, if any */
@@ -663,6 +634,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void reportDerivatives(Map<String, String> data) {
+    log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
     if (derivatives == null) {
@@ -672,11 +644,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  boolean commitDerivatives(TraceSegment traceSegment) {
+  public boolean commitDerivatives(TraceSegment traceSegment) {
+    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null || derivatives == null) {
       return false;
     }
     derivatives.forEach(traceSegment::setTagTop);
+    log.debug("Committed derivatives: {} for {}", derivatives, traceSegment);
     derivatives = null;
     return true;
   }
@@ -693,8 +667,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return throttled;
   }
 
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
+  public boolean isWafContextClosed() {
+    return wafContextClosed;
   }
 
   /** Must be called during request end event processing. */

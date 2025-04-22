@@ -14,6 +14,7 @@ abstract class AbstractSpark24SqlTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.integration.spark.enabled", "true")
+    injectSysConfig("dd.integration.openlineage-spark.enabled", "true")
   }
 
   static Dataset<Row> generateSampleDataframe(SparkSession spark) {

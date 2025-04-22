@@ -26,8 +26,14 @@ dependencies {
 }
 
 repositories {
+  mavenLocal()
+  if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+    maven {
+      url project.rootProject.property("mavenRepositoryProxy")
+      allowInsecureProtocol true
+    }
+  }
   mavenCentral()
-  gradlePluginPortal()
   maven {
     name "lightbend-maven-releases"
     url "https://repo.lightbend.com/lightbend/maven-release"
