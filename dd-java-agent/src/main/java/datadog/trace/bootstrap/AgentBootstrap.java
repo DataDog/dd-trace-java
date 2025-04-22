@@ -59,6 +59,7 @@ public final class AgentBootstrap {
     agentmain(agentArgs, inst);
   }
 
+  @SuppressForbidden
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     BootstrapInitializationTelemetry initTelemetry;
 
@@ -181,6 +182,7 @@ public final class AgentBootstrap {
     return false;
   }
 
+  @SuppressForbidden
   private static boolean alreadyInitialized() {
     if (initialized) {
       System.err.println(
@@ -191,6 +193,7 @@ public final class AgentBootstrap {
     return false;
   }
 
+  @SuppressForbidden
   private static boolean lessThanJava8() {
     try {
       return lessThanJava8(System.getProperty("java.version"), System.err);
@@ -286,6 +289,7 @@ public final class AgentBootstrap {
     return major;
   }
 
+  @SuppressForbidden
   static boolean shouldAbortDueToOtherJavaAgents() {
     // Simply considering having multiple agents
 
@@ -322,6 +326,7 @@ public final class AgentBootstrap {
     AgentJar.main(args);
   }
 
+  @SuppressForbidden
   private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     // First try Code Source
@@ -364,6 +369,7 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
+  @SuppressForbidden
   private static File getAgentFileFromJavaagentArg(List<File> agentFiles) {
     if (agentFiles.isEmpty()) {
       System.err.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
@@ -377,6 +383,7 @@ public final class AgentBootstrap {
     }
   }
 
+  @SuppressForbidden
   private static List<File> getAgentFilesFromVMArguments() {
     if (agentFiles == null) {
       agentFiles = new ArrayList<>();
