@@ -29,14 +29,8 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-        
-      # - name: Initialize CodeQL
-      #   uses: github/codeql-action/init@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
-      #   with:
-      #     languages: 'java'
-      #     build-mode: 'manual'
       
-      - name: Build dd-trace-java for creating the CodeQL database
+      - name: Build dd-trace-java
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
