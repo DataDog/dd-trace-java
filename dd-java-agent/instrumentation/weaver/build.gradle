@@ -31,11 +31,3 @@ compileLatestDepTestGroovy {
   dependsOn compileLatestDepTestScala
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
-
-forbiddenApisMain {
-  enabled = false
-}
-
-forbiddenApisTest {
-  enabled = false
-}
