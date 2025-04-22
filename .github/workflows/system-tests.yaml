@@ -62,8 +62,9 @@ jobs:
       contents: read
       packages: write
     with:
-      scenarios_groups: tracer-release
       library: java
       binaries_artifact: binaries
-      skip_empty_scenarios: true
       desired_execution_time: 900  # 15 minutes
+      scenarios_groups: tracer-release
+      excluded_scenarios: CROSSED_TRACING_LIBRARIES,INTEGRATIONS_AWS  # require AWS credentials
+      skip_empty_scenarios: true
