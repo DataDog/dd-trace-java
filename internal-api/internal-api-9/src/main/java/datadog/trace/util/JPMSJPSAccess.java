@@ -31,8 +31,10 @@ public class JPMSJPSAccess {
     } else {
       log.debug(
           SEND_TELEMETRY,
-          "Failed to find the jdk.internal.jvmstat module, skipping patching of module access "
-              + Platform.getRuntimeVersion());
+          "Failed to find the jdk.internal.jvmstat module, skipping patching of module access on"
+              + Platform.getRuntimeVersion()
+              + " "
+              + Platform.getRuntimeVendor());
     }
   }
 }
