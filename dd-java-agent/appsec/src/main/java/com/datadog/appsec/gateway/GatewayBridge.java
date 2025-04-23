@@ -833,25 +833,27 @@ public class GatewayBridge {
       final TraceSegment traceSeg,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.request.headers.", allowed, headers);
+    writeHeaders(traceSeg, "http.request.headers.", "_dd.appsec.request.", allowed, headers);
   }
 
   private static void writeResponseHeaders(
       final TraceSegment traceSeg,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.response.headers.", allowed, headers);
+    writeHeaders(traceSeg, "http.response.headers.", "_dd.appsec.response.", allowed, headers);
   }
 
   private static void writeHeaders(
       final TraceSegment traceSeg,
       final String prefix,
+      final String discardedPrefix,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
     if (headers == null || headers.isEmpty()) {
       return;
     }
     if (Config.get().isAppSecCollectAllHeaders()) {
+      int excludedTags = 0;
       int headersBudget = Config.get().getAppsecMaxCollectedHeaders();
       Set<String> added = new HashSet<>();
 
@@ -874,14 +876,19 @@ public class GatewayBridge {
           continue; // already included
         }
         if (added.size() >= headersBudget) {
-          break; // budget reached
+          // reached the budget, increase the excluded tags count
+          excludedTags++;
+        } else {
+          List<String> value = entry.getValue();
+          String v = String.join(",", value);
+          if (!v.isEmpty()) {
+            traceSeg.setTagTop(prefix + name, v);
+            added.add(name);
+          }
         }
-        List<String> value = entry.getValue();
-        String v = String.join(",", value);
-        if (!v.isEmpty()) {
-          traceSeg.setTagTop(prefix + name, v);
-          added.add(name);
-        }
+      }
+      if (excludedTags > 0) {
+        traceSeg.setTagTop(discardedPrefix + "header_collection.discarded", excludedTags);
       }
     } else {
       // only collect headers that are in the allow list

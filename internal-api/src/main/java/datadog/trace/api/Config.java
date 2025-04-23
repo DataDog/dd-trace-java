@@ -1388,8 +1388,7 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
-    appSecCollectAllHeaders =
-        configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
+    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
     appSecMaxCollectedHeaders =
         configProvider.getInteger(
             APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
