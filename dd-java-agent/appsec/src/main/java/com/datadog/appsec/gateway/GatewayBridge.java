@@ -849,58 +849,51 @@ public class GatewayBridge {
       final String discardedPrefix,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
+
     if (headers == null || headers.isEmpty()) {
       return;
     }
-    if (Config.get().isAppSecCollectAllHeaders()) {
-      int excludedTags = 0;
-      int headersBudget = Config.get().getAppsecMaxCollectedHeaders();
-      Set<String> added = new HashSet<>();
 
-      // Always include allowed headers first (if present)
-      for (String name : allowed) {
-        List<String> value = headers.get(name);
-        if (value != null) {
-          String v = String.join(",", value);
-          if (!v.isEmpty()) {
-            traceSeg.setTagTop(prefix + name, v);
-            added.add(name);
-          }
+    final boolean collectAll = Config.get().isAppSecCollectAllHeaders();
+    final int headerLimit = Config.get().getAppsecMaxCollectedHeaders();
+    final Set<String> added = new HashSet<>();
+    int excluded = 0;
+
+    // Try to add allowed headers (prioritized)
+    for (String name : allowed) {
+      if (added.size() >= headerLimit) break;
+      List<String> values = headers.get(name);
+      if (values != null) {
+        String joined = String.join(",", values);
+        if (!joined.isEmpty()) {
+          traceSeg.setTagTop(prefix + name, joined);
+          added.add(name);
         }
       }
+    }
 
-      // Then include remaining headers, until reaching the budget
+    if (collectAll) {
+      // Add other headers (non-allowed) until total reaches the limit
       for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
         String name = entry.getKey();
-        if (added.contains(name)) {
-          continue; // already included
+        if (added.contains(name)) continue;
+
+        if (added.size() >= headerLimit) {
+          excluded++;
+          continue;
         }
-        if (added.size() >= headersBudget) {
-          // reached the budget, increase the excluded tags count
-          excludedTags++;
-        } else {
-          List<String> value = entry.getValue();
-          String v = String.join(",", value);
-          if (!v.isEmpty()) {
-            traceSeg.setTagTop(prefix + name, v);
-            added.add(name);
-          }
+
+        List<String> values = entry.getValue();
+        String joined = String.join(",", values);
+        if (!joined.isEmpty()) {
+          traceSeg.setTagTop(prefix + name, joined);
+          added.add(name);
         }
       }
-      if (excludedTags > 0) {
-        traceSeg.setTagTop(discardedPrefix + "header_collection.discarded", excludedTags);
+
+      if (excluded > 0) {
+        traceSeg.setTagTop(discardedPrefix + "header_collection.discarded", excluded);
       }
-    } else {
-      // only collect headers that are in the allow list
-      headers.forEach(
-          (name, value) -> {
-            if (allowed.contains(name)) {
-              String v = String.join(",", value);
-              if (!v.isEmpty()) {
-                traceSeg.setTagTop(prefix + name, v);
-              }
-            }
-          });
     }
   }
 
