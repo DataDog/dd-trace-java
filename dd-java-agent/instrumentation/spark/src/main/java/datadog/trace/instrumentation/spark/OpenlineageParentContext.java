@@ -24,7 +24,6 @@ public class OpenlineageParentContext implements AgentSpanContext {
 
   private final DDTraceId traceId;
   private final long spanId;
-  private final long childRootSpanId;
 
   private final String parentJobNamespace;
   private final String parentJobName;
@@ -50,22 +49,28 @@ public class OpenlineageParentContext implements AgentSpanContext {
       return Optional.empty();
     }
 
-    String parentJobNamespace = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAMESPACE);
-    String parentJobName = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAME);
-    String parentRunId = sparkConf.get(OPENLINEAGE_PARENT_RUN_ID);
-
-    if (!UUID.matcher(parentRunId).matches()) {
-      return Optional.empty();
-    }
-
     if (!sparkConf.contains(OPENLINEAGE_ROOT_PARENT_RUN_ID)) {
       log.error("Have parent info, but not root parent info. Can't construct valid trace id.");
       return Optional.empty();
     }
 
-    String rootParentJobNamespace = sparkConf.get(OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE, "");
-    String rootParentJobName = sparkConf.get(OPENLINEAGE_ROOT_PARENT_JOB_NAME, "");
-    String rootParentRunId = sparkConf.get(OPENLINEAGE_ROOT_PARENT_RUN_ID, "");
+    String parentJobNamespace = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAMESPACE);
+    String parentJobName = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAME);
+    String parentRunId = sparkConf.get(OPENLINEAGE_PARENT_RUN_ID);
+
+    if (!UUID.matcher(parentRunId).matches()) {
+      log.error("OpenLineage parent run id is not a valid UUID: {}", parentRunId);
+      return Optional.empty();
+    }
+
+    String rootParentJobNamespace = sparkConf.get(OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE);
+    String rootParentJobName = sparkConf.get(OPENLINEAGE_ROOT_PARENT_JOB_NAME);
+    String rootParentRunId = sparkConf.get(OPENLINEAGE_ROOT_PARENT_RUN_ID);
+
+    if (!UUID.matcher(rootParentRunId).matches()) {
+      log.error("OpenLineage root parent run id is not a valid UUID: {}", parentRunId);
+      return Optional.empty();
+    }
 
     return Optional.of(
         new OpenlineageParentContext(
@@ -101,19 +106,15 @@ public class OpenlineageParentContext implements AgentSpanContext {
     this.rootParentJobName = rootParentJobName;
     this.rootParentRunId = rootParentRunId;
 
-    if (this.parentRunId != null) {
+    if (this.rootParentRunId != null) {
+      traceId = computeTraceId(this.rootParentRunId);
+      spanId = computeSpanId(this.parentRunId);
+    } else if (this.parentRunId != null) {
       traceId = computeTraceId(this.parentRunId);
-      spanId = DDSpanId.ZERO;
-
-      if (this.rootParentRunId != null) {
-        childRootSpanId = computeSpanId(this.rootParentRunId);
-      } else {
-        childRootSpanId = DDSpanId.ZERO;
-      }
+      spanId = computeSpanId(this.parentRunId);
     } else {
       traceId = DDTraceId.ZERO;
       spanId = DDSpanId.ZERO;
-      childRootSpanId = DDSpanId.ZERO;
     }
 
     log.debug("Created OpenlineageParentContext with traceId: {}, spanId: {}", traceId, spanId);
@@ -124,6 +125,7 @@ public class OpenlineageParentContext implements AgentSpanContext {
   }
 
   private DDTraceId computeTraceId(String runId) {
+    log.debug("Generating traceID from runId: {}", runId);
     return DDTraceId.from(FNV64Hash.generateHash(runId, FNV64Hash.Version.v1A));
   }
 
@@ -135,10 +137,6 @@ public class OpenlineageParentContext implements AgentSpanContext {
   @Override
   public long getSpanId() {
     return spanId;
-  }
-
-  public long getChildRootSpanId() {
-    return childRootSpanId;
   }
 
   @Override
