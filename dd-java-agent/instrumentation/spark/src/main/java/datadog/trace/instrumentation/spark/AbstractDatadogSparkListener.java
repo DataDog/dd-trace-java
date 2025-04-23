@@ -168,7 +168,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
-    log.error("Setting up OpenLineage configuration with trace id {}", traceId);
+    log.debug("Setting up OpenLineage configuration with trace id {}", traceId);
     if (openLineageSparkListener != null) {
       openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");

@@ -50,7 +50,7 @@ public class OpenlineageParentContext implements AgentSpanContext {
     }
 
     if (!sparkConf.contains(OPENLINEAGE_ROOT_PARENT_RUN_ID)) {
-      log.error("Have parent info, but not root parent info. Can't construct valid trace id.");
+      log.debug("Found parent info, but not root parent info. Can't construct valid trace id.");
       return Optional.empty();
     }
 
@@ -59,7 +59,7 @@ public class OpenlineageParentContext implements AgentSpanContext {
     String parentRunId = sparkConf.get(OPENLINEAGE_PARENT_RUN_ID);
 
     if (!UUID.matcher(parentRunId).matches()) {
-      log.error("OpenLineage parent run id is not a valid UUID: {}", parentRunId);
+      log.debug("OpenLineage parent run id is not a valid UUID: {}", parentRunId);
       return Optional.empty();
     }
 
@@ -68,7 +68,7 @@ public class OpenlineageParentContext implements AgentSpanContext {
     String rootParentRunId = sparkConf.get(OPENLINEAGE_ROOT_PARENT_RUN_ID);
 
     if (!UUID.matcher(rootParentRunId).matches()) {
-      log.error("OpenLineage root parent run id is not a valid UUID: {}", parentRunId);
+      log.debug("OpenLineage root parent run id is not a valid UUID: {}", parentRunId);
       return Optional.empty();
     }
 
