@@ -70,7 +70,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   public static final TagMap EMPTY = createEmpty();
 
   private static final TagMap createEmpty() {
-    return new TagMap().freeze();
+    // Using special constructor that creates a frozen view of an existing array
+    // Bucket calculation requires that array length is a power of 2
+    // e.g. size 0 will not work, it results in ArrayIndexOutOfBoundsException, but size 1 does
+    return new TagMap(new Object[1]);
   }
 
   /** Creates a new TagMap.Builder */

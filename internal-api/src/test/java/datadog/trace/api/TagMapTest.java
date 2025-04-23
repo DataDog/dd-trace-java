@@ -105,6 +105,17 @@ public class TagMapTest {
   }
 
   @Test
+  public void putAll_empty() {
+	// TagMap.EMPTY breaks the rules and uses a different size bucket array
+	// This test is just to verify that the commonly use putAll still works with EMPTY
+	TagMap newMap = new TagMap();
+	newMap.putAll(TagMap.EMPTY);
+	
+	assertSize(0, newMap);
+	assertEmpty(newMap);
+  }
+
+  @Test
   public void clear() {
     int size = randomSize();
 
