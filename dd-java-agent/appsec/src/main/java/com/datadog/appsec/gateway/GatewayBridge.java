@@ -861,7 +861,9 @@ public class GatewayBridge {
 
     // Try to add allowed headers (prioritized)
     for (String name : allowed) {
-      if (added.size() >= headerLimit) break;
+      if (added.size() >= headerLimit) {
+        break;
+      }
       List<String> values = headers.get(name);
       if (values != null) {
         String joined = String.join(",", values);
@@ -876,7 +878,9 @@ public class GatewayBridge {
       // Add other headers (non-allowed) until total reaches the limit
       for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
         String name = entry.getKey();
-        if (added.contains(name)) continue;
+        if (added.contains(name)) {
+          continue;
+        }
 
         if (added.size() >= headerLimit) {
           excluded++;
