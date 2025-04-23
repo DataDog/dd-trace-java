@@ -1546,7 +1546,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       String parentServiceName = null;
       // Propagate internal trace.
-      // Note: if we are not in the context of distributed tracing and we are starting the first
+      // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
       if (parentContext instanceof DDSpanContext) {
         final DDSpanContext ddsc = (DDSpanContext) parentContext;
@@ -1727,9 +1727,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
-      if (contextualTags != null) {
-        context.setAllTags(contextualTags);
-      }
+      context.setAllTags(contextualTags);
       return context;
     }
   }
