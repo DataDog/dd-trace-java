@@ -15,7 +15,7 @@ OUT_FILENAME = "config.continue.yml"
 GENERATED_CONFIG_PATH = os.path.join(SCRIPT_DIR, OUT_FILENAME)
 
 # JDKs that will run on every pipeline.
-ALWAYS_ON_JDKS = {"8", "17", "21"}
+ALWAYS_ON_JDKS = {"8", "17", "21", "24"}
 # And these will run only in master and release/ branches.
 MASTER_ONLY_JDKS = {
     "11",
