@@ -991,7 +991,6 @@ public class Config {
       Set<TracePropagationStyle> common =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE, TracePropagationStyle::valueOfDisplayName, false);
-      // may have to modify this by adding in inferred proxy from it's standalone env variable later
       Set<TracePropagationStyle> extract =
           getSettingsSetFromEnvironment(
               TRACE_PROPAGATION_STYLE_EXTRACT, TracePropagationStyle::valueOfDisplayName, false);

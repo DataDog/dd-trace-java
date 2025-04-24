@@ -17,8 +17,6 @@ public class InferredProxyPropagator implements Propagator {
    */
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    // TODO: find out does any inferred proxy info need to be injected to downstream services??
-    // afaik this shouldnt be used
     if (carrier == null) {
       return;
     }
@@ -49,7 +47,6 @@ public class InferredProxyPropagator implements Propagator {
     return extractedContext.storeInto(context);
   }
 
-  // TODO implement HTTP header parser rules
   public static class InferredProxyContextExtractor implements BiConsumer<String, String> {
     private InferredProxyContext extractedContext;
 

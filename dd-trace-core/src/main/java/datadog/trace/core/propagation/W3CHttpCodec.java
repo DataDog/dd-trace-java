@@ -195,7 +195,6 @@ class W3CHttpCodec {
           if (null != value) {
             switch (classification) {
               case TRACE_PARENT:
-                // look here store trace parent
                 return storeTraceParent(value);
               case TRACE_STATE:
                 return storeTraceState(value);

@@ -42,6 +42,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -151,12 +152,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public AgentSpan setError(boolean error) {
-      return serverSpan.setError(error);
+      serverSpan.setError(error);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.setError(error);
+      }
+      return this;
     }
 
     @Override
     public AgentSpan setError(boolean error, byte priority) {
-      return serverSpan.setError(error, priority);
+      serverSpan.setError(error, priority);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.setError(error, priority);
+      }
+      return this;
     }
 
     @Override
@@ -171,12 +180,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public AgentSpan addThrowable(Throwable throwable) {
-      return serverSpan.addThrowable(throwable);
+      serverSpan.addThrowable(throwable);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.addThrowable(throwable);
+      }
+      return this;
     }
 
     @Override
     public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
-      return serverSpan.addThrowable(throwable, errorPriority);
+      serverSpan.addThrowable(throwable, errorPriority);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.addThrowable(throwable, errorPriority);
+      }
+      return this;
     }
 
     @Override
@@ -206,7 +223,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     @Override
     public AgentSpan setHttpStatusCode(int statusCode) {
-      return serverSpan.setHttpStatusCode(statusCode);
+      serverSpan.setHttpStatusCode(statusCode);
+      if (inferredProxySpan != null) {
+        inferredProxySpan.setHttpStatusCode(statusCode);
+      }
+      return this;
     }
 
     @Override
@@ -417,6 +438,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
   private static final int UNSET_PORT = 0;
 
+  public static final String PROXY_SYSTEM = "x-dd-proxy";
+  public static final String PROXY_START_TIME_MS = "x-dd-proxy-request-time-ms";
+  public static final String PROXY_PATH = "x-dd-proxy-path";
+  public static final String PROXY_HTTP_METHOD = "x-dd-proxy-httpmethod";
+  public static final String PROXY_DOMAIN_NAME = "x-dd-proxy-domain-name";
+  public static final String STAGE = "x-dd-proxy-stage";
+
+  public static final Map<String, String> SUPPORTED_PROXIES;
+
+  static {
+    SUPPORTED_PROXIES = new HashMap<>();
+    SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
+  }
+
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
@@ -529,19 +564,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
 
-    // errors
-    System.out.println(span);
-    System.out.println("gtw status code before is: " + apiGtwSpan.getHttpStatusCode());
-    apiGtwSpan.setHttpStatusCode(span.getHttpStatusCode());
-
-    System.out.println("gtw status code after is: " + apiGtwSpan.getHttpStatusCode());
-
-    System.out.println("span status code is: " + span.getHttpStatusCode());
-
-    System.out.println("starting http server span");
-    System.out.println(apiGtwSpan);
-    System.out.println(span);
-    if (addInferredProxy) {
+    if (addInferredProxy && apiGtwSpan != null) {
       return new InferredProxySpanGroup(apiGtwSpan, span);
     } else {
       return span;
@@ -550,37 +573,49 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private AgentSpan startSpanWithInferredProxy(
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
-    // create the apigtw span
 
-    AgentSpan apiGtwSpan =
-        tracer().startSpan("inferred_proxy", "aws.apigateway", callIGCallbackStart(context));
     InferredProxyContext inferredProxy = InferredProxyContext.fromContext(Context.current());
 
-    Map<String, String> inferredProxyTagInfo = inferredProxy.getInferredProxyContext();
-    // mocking tags
-    apiGtwSpan.setTag(Tags.COMPONENT, "aws.apigateway");
-    //  "GET /api/hello"
+    if (inferredProxy == null) {
+      return null;
+    }
+
+    Map<String, String> headers = inferredProxy.getInferredProxyContext();
+
+    // Check if timestamp and proxy system are present
+    String startTimeStr = headers.get(PROXY_START_TIME_MS);
+    String proxySystem = headers.get(PROXY_SYSTEM);
+
+    if (startTimeStr == null
+        || proxySystem == null
+        || !SUPPORTED_PROXIES.containsKey(proxySystem)) {
+      return null;
+    }
+
+    long startTime;
+    try {
+      startTime = Long.parseLong(startTimeStr) * 1000; // Convert to microseconds
+    } catch (NumberFormatException e) {
+      return null; // Invalid timestamp
+    }
+
+    AgentSpan apiGtwSpan =
+        tracer()
+            .startSpan(
+                "inferred_proxy",
+                SUPPORTED_PROXIES.get(proxySystem),
+                callIGCallbackStart(context),
+                startTime);
+
+    apiGtwSpan.setTag(Tags.COMPONENT, proxySystem);
     apiGtwSpan.setTag(
-        DDTags.RESOURCE_NAME,
-        inferredProxyTagInfo.get("x-dd-proxy-httpmethod")
-            + " "
-            + inferredProxyTagInfo.get("x-dd-proxy-path"));
-    // 123
-    apiGtwSpan.setTag(
-        DDTags.TRACE_START_TIME, inferredProxyTagInfo.get("x-dd-proxy-request-time-ms"));
-    // example.com
-    apiGtwSpan.setTag(DDTags.SERVICE_NAME, inferredProxyTagInfo.get("x-dd-proxy-domain-name"));
+        DDTags.RESOURCE_NAME, headers.get(PROXY_HTTP_METHOD) + " " + headers.get(PROXY_PATH));
+    apiGtwSpan.setTag(DDTags.SERVICE_NAME, headers.get(PROXY_DOMAIN_NAME));
     apiGtwSpan.setTag(DDTags.SPAN_TYPE, "web");
-    // GET
-    apiGtwSpan.setTag(Tags.HTTP_METHOD, inferredProxyTagInfo.get("x-dd-proxy-httpmethod"));
-    // "example.com/api/hello"
-    apiGtwSpan.setTag(
-        Tags.HTTP_URL,
-        inferredProxyTagInfo.get("x-dd-proxy-domain-name")
-            + inferredProxyTagInfo.get("x-dd-proxy-path"));
-    // apiGtwSpan.setHttpStatusCode(200);
-    apiGtwSpan.setTag("stage", "dev");
-    apiGtwSpan.setTag("_dd.inferred_span", "1");
+    apiGtwSpan.setTag(Tags.HTTP_METHOD, headers.get(PROXY_HTTP_METHOD));
+    apiGtwSpan.setTag(Tags.HTTP_URL, headers.get(PROXY_DOMAIN_NAME) + headers.get(PROXY_PATH));
+    apiGtwSpan.setTag("stage", headers.get(STAGE));
+    apiGtwSpan.setTag("_dd.inferred_span", 1);
     return apiGtwSpan;
   }
 
@@ -747,6 +782,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
+
       // explicitly set here because some other decorators might already set an error without
       // looking at the status code
       // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
