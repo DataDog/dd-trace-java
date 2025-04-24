@@ -40,6 +40,28 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   }
 
   @Test
+  @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
+  void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    setConfigOverrides(createConfigOverrides(true, false));
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(LINE_PROBE_ID1)
+            .where("ServerDebuggerTestApplication.java", 301)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    execute(appUrl, "topLevelMethod", "");
+    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel");
+    // disable DI
+    setConfigOverrides(createConfigOverrides(false, false));
+    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+    waitForReTransformation(
+        appUrl,
+        "datadog.smoketest.debugger.TopLevel"); // wait for retransformation of removed probe
+  }
+
+  @Test
   @DisplayName("testDynamicInstrumentationEnablementStaticallyDisabled")
   void testDynamicInstrumentationEnablementStaticallyDisabled() throws Exception {
     // explicitly disable dynamic instrumentation, preventing enablement
