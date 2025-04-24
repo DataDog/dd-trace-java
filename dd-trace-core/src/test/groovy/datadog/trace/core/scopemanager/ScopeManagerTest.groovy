@@ -1157,6 +1157,63 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.activeSpan() == null
   }
 
+  def "rollback stops at most recent checkpoint"() {
+    when:
+    def span1 = tracer.buildSpan("test1", "test1").start()
+    def span2 = tracer.buildSpan("test2", "test2").start()
+    def span3 = tracer.buildSpan("test3", "test3").start()
+    then:
+    scopeManager.activeSpan() == null
+
+    when:
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.activateSpan(span2)
+    tracer.activateSpan(span3)
+    then:
+    scopeManager.activeSpan() == span3
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == null
+  }
+
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }

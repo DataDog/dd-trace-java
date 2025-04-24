@@ -42,6 +42,7 @@ ext.generalShadowJarConfig = {
   exclude '**/module-info.class'
   exclude '**/liblz4-java.so'
   exclude '**/liblz4-java.dylib'
+  exclude '**/inst/META-INF/versions/**'
 
   // Replaced by 'instrumenter.index', no need to include original service file
   exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'

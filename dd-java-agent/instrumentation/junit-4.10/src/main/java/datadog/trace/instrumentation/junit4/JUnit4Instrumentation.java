@@ -57,7 +57,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
         .and(not(extendsClass(named("com.intuit.karate.junit4.Karate"))))
         // do not instrument MUnit-JUnit 4 interface runner
         // since MUnit has a dedicated instrumentation
-        .and(not(extendsClass(nameStartsWith("munit.internal.junitinterface."))))
+        .and(not(extendsClass(nameStartsWith("munit"))))
         // PowerMock runner is being instrumented,
         // so do not instrument its internal delegates
         .and(

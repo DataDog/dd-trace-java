@@ -384,6 +384,7 @@ public class Config {
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
+  private final boolean ciVisibilityScalatestForkMonitorEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -527,6 +528,7 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -1087,6 +1089,8 @@ public class Config {
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
+
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
@@ -1611,6 +1615,8 @@ public class Config {
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityScalatestForkMonitorEnabled =
+        configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2017,7 +2023,7 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
-    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, false);
 
     log.debug("New instance: {}", this);
   }
@@ -3134,6 +3140,10 @@ public class Config {
         || ciVisibilityTestManagementEnabled;
   }
 
+  public boolean isCiVisibilityScalatestForkMonitorEnabled() {
+    return ciVisibilityScalatestForkMonitorEnabled;
+  }
+
   public int getCiVisibilityFlakyRetryCount() {
     return ciVisibilityFlakyRetryCount;
   }
@@ -3539,6 +3549,10 @@ public class Config {
 
   public List<String> getDogStatsDArgs() {
     return dogStatsDArgs;
+  }
+
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
   }
 
   public String getConfigFileStatus() {

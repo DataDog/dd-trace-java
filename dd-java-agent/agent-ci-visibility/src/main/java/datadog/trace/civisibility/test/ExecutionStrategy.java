@@ -60,7 +60,7 @@ public class ExecutionStrategy {
         && !executionSettings.isKnown(test.toFQN());
   }
 
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
+  private boolean isFlaky(@Nonnull TestIdentifier test) {
     return executionSettings.isFlaky(test.toFQN());
   }
 
