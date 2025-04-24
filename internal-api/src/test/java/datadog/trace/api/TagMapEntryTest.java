@@ -60,13 +60,18 @@ public class TagMapEntryTest {
 
   @Test
   public void booleanEntry() {
+    testBoolean(false);
+    testBoolean(true);
+  }
+
+  final void testBoolean(boolean value) {
     test(
-        () -> TagMap.Entry.newBooleanEntry("foo", true),
+        () -> TagMap.Entry.newBooleanEntry("foo", value),
         TagMap.Entry.BOOLEAN,
         (entry) ->
             multiCheck(
                 checkKey("foo", entry),
-                checkValue(true, entry),
+                checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
                 checkType(TagMap.Entry.BOOLEAN, entry)));
   }
