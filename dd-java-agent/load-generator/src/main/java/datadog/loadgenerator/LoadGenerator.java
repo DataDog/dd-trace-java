@@ -1,6 +1,7 @@
 package datadog.loadgenerator;
 
 import com.google.common.util.concurrent.RateLimiter;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -53,6 +54,7 @@ public class LoadGenerator implements Callable<Integer> {
   private final AtomicLong tracesSent = new AtomicLong();
 
   @Override
+  @SuppressForbidden
   public Integer call() throws Exception {
     rateLimiter = RateLimiter.create(rate, warmupPeriod, TimeUnit.SECONDS);
 
