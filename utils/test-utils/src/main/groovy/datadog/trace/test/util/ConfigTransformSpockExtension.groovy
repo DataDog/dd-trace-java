@@ -18,11 +18,6 @@ import static net.bytebuddy.matcher.ElementMatchers.none
  * Transforms the Config class to make its INSTANCE field non-final and volatile.
  */
 class ConfigTransformSpockExtension implements IGlobalExtension {
-  static {
-    // same setting as AgentInstaller to avoid spurious agent-tooling test failures
-    System.setProperty("net.bytebuddy.raw", "true")
-  }
-
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig"
   static final String CONFIG = "datadog.trace.api.Config"
 
