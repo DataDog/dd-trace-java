@@ -1,15 +1,7 @@
 package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.ThreadUtils
-import okhttp3.FormBody
-import okhttp3.MediaType
 import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import spock.lang.Shared
-
-import java.nio.charset.StandardCharsets
 
 class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
 
