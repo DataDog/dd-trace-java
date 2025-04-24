@@ -61,34 +61,35 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans={false, true})
+  @ValueSource(booleans = {false, true})
   public void booleanEntry(boolean value) {
     test(
-      () -> TagMap.Entry.newBooleanEntry("foo", value),
-      TagMap.Entry.BOOLEAN,
-      (entry) ->
-         multiCheck(
-           checkKey("foo", entry),
-           checkValue(value, entry),
-           checkFalse(entry::isNumericPrimitive),
-           checkType(TagMap.Entry.BOOLEAN, entry)));
+        () -> TagMap.Entry.newBooleanEntry("foo", value),
+        TagMap.Entry.BOOLEAN,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkFalse(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
-  @ValueSource(booleans= {false, true})
+  @ValueSource(booleans = {false, true})
   public void booleanEntry_boxed(boolean value) {
     test(
-      () -> TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(value)),
-      TagMap.Entry.BOOLEAN,
-      (entry) -> multiCheck(
-         checkKey("foo", entry),
-         checkValue(value, entry),
-         checkFalse(entry::isNumericPrimitive),
-         checkType(TagMap.Entry.BOOLEAN, entry)));
+        () -> TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(value)),
+        TagMap.Entry.BOOLEAN,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkFalse(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
-  @ValueSource(booleans= {false, true})
+  @ValueSource(booleans = {false, true})
   public void anyEntry_boolean(boolean value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Boolean.valueOf(value)),
@@ -103,7 +104,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints= {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
+  @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
   public void intEntry(int value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", value),
@@ -117,7 +118,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints= {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
+  @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
   public void intEntry_boxed(int value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Integer.valueOf(value)),
@@ -131,7 +132,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints= {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
+  @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
   public void anyEntry_int(int value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Integer.valueOf(value)),
@@ -146,7 +147,22 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(longs= {Long.MIN_VALUE, Integer.MIN_VALUE, -1_048_576L, -256L, -128L, -1L, 0L, 1L, 128L, 256L, 1_048_576L, Integer.MAX_VALUE, Long.MAX_VALUE})
+  @ValueSource(
+      longs = {
+        Long.MIN_VALUE,
+        Integer.MIN_VALUE,
+        -1_048_576L,
+        -256L,
+        -128L,
+        -1L,
+        0L,
+        1L,
+        128L,
+        256L,
+        1_048_576L,
+        Integer.MAX_VALUE,
+        Long.MAX_VALUE
+      })
   public void longEntry(long value) {
     test(
         () -> TagMap.Entry.newLongEntry("foo", value),
@@ -160,7 +176,22 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(longs= {Long.MIN_VALUE, Integer.MIN_VALUE, -1_048_576L, -256L, -128L, -1L, 0L, 1L, 128L, 256L, 1_048_576L, Integer.MAX_VALUE, Long.MAX_VALUE})
+  @ValueSource(
+      longs = {
+        Long.MIN_VALUE,
+        Integer.MIN_VALUE,
+        -1_048_576L,
+        -256L,
+        -128L,
+        -1L,
+        0L,
+        1L,
+        128L,
+        256L,
+        1_048_576L,
+        Integer.MAX_VALUE,
+        Long.MAX_VALUE
+      })
   public void longEntry_boxed(long value) {
     test(
         () -> TagMap.Entry.newLongEntry("foo", Long.valueOf(value)),
@@ -174,7 +205,22 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(longs= {Long.MIN_VALUE, Integer.MIN_VALUE, -1_048_576L, -256L, -128L, -1L, 0L, 1L, 128L, 256L, 1_048_576L, Integer.MAX_VALUE, Long.MAX_VALUE})
+  @ValueSource(
+      longs = {
+        Long.MIN_VALUE,
+        Integer.MIN_VALUE,
+        -1_048_576L,
+        -256L,
+        -128L,
+        -1L,
+        0L,
+        1L,
+        128L,
+        256L,
+        1_048_576L,
+        Integer.MAX_VALUE,
+        Long.MAX_VALUE
+      })
   public void anyEntry_long(long value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Long.valueOf(value)),
@@ -189,7 +235,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(floats= {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
   public void floatEntry(float value) {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", value),
@@ -203,7 +249,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(floats= {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
   public void floatEntry_boxed(float value) {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", Float.valueOf(value)),
@@ -217,7 +263,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(floats= {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
   public void anyEntry_float(float value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Float.valueOf(value)),
@@ -231,7 +277,8 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(doubles= {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void doubleEntry(double value) {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", value),
@@ -245,7 +292,8 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(doubles= {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void doubleEntry_boxed(double value) {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", Double.valueOf(value)),
@@ -259,7 +307,8 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @ValueSource(doubles= {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void anyEntry_double(double value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Double.valueOf(value)),
