@@ -168,7 +168,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
-    log.debug("Setting up OpenLineage configuration with trace id {}", traceId);
+    log.debug("Setting up OpenLineage configuration");
     if (openLineageSparkListener != null) {
       openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
@@ -273,14 +273,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
     builder.asChildOf(context);
 
-    log.debug("Captured Openlineage context: {}, with trace_id: {}", context, context.getTraceId());
+    builder.withSpanId(context.getChildRootSpanId());
+
+    log.debug(
+        "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
+        context,
+        context.getTraceId(),
+        context.getChildRootSpanId());
 
     builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
     builder.withTag("openlineage_parent_job_name", context.getParentJobName());
     builder.withTag("openlineage_parent_run_id", context.getParentRunId());
-    builder.withTag("openlineage_root_parent_job_namespace", context.getRootParentJobNamespace());
-    builder.withTag("openlineage_root_parent_job_name", context.getRootParentJobName());
-    builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
   }
 
   @Override
