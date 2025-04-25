@@ -47,6 +47,7 @@ public final class AppSecConfig {
   public static final String APPSEC_MAX_COLLECTED_HEADERS = "appsec.max.collected.headers";
   public static final String APPSEC_HEADER_COLLECTION_REDACTION_ENABLED =
       "appsec.header.collection.redaction.enabled";
+  public static final String APPSEC_RASP_COLLECT_REQUEST_BODY = "appsec.rasp.collect.request.body";
 
   private AppSecConfig() {}
 }

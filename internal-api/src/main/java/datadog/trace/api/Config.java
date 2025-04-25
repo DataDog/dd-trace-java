@@ -295,6 +295,7 @@ public class Config {
   private final boolean appSecCollectAllHeaders;
   private final boolean appSecHeaderCollectionRedactionEnabled;
   private final int appSecMaxCollectedHeaders;
+  private final boolean appSecRaspCollectRequestBody;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
@@ -1395,6 +1396,8 @@ public class Config {
     appSecMaxCollectedHeaders =
         configProvider.getInteger(
             APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
+    appSecRaspCollectRequestBody =
+        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -4212,6 +4215,10 @@ public class Config {
 
   public int getAppsecMaxCollectedHeaders() {
     return appSecMaxCollectedHeaders;
+  }
+
+  public boolean isAppSecRaspCollectRequestBody() {
+    return appSecRaspCollectRequestBody;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
