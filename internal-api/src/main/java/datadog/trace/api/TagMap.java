@@ -46,7 +46,7 @@ import java.util.stream.StreamSupport;
  * <p>
  * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
  * <p>
- * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot contain
+ * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
  * directly form a link list to handle collisions.
  * <p>
  * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
