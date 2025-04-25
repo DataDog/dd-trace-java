@@ -1,11 +1,11 @@
 package com.datadog.crashtracking;
 
-import static com.datadog.crashtracking.ScriptInitializer.LOG;
-import static com.datadog.crashtracking.ScriptInitializer.RWXRWXRWX;
-import static com.datadog.crashtracking.ScriptInitializer.R_XR_XR_X;
-import static com.datadog.crashtracking.ScriptInitializer.findAgentJar;
-import static com.datadog.crashtracking.ScriptInitializer.getCrashUploaderTemplate;
-import static com.datadog.crashtracking.ScriptInitializer.writeConfig;
+import static com.datadog.crashtracking.Initializer.LOG;
+import static com.datadog.crashtracking.Initializer.RWXRWXRWX;
+import static com.datadog.crashtracking.Initializer.R_XR_XR_X;
+import static com.datadog.crashtracking.Initializer.findAgentJar;
+import static com.datadog.crashtracking.Initializer.getCrashUploaderTemplate;
+import static com.datadog.crashtracking.Initializer.writeConfig;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 import static java.util.Locale.ROOT;

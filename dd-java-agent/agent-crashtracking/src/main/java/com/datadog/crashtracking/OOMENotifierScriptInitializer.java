@@ -1,12 +1,12 @@
 package com.datadog.crashtracking;
 
-import static com.datadog.crashtracking.ScriptInitializer.LOG;
-import static com.datadog.crashtracking.ScriptInitializer.PID_PREFIX;
-import static com.datadog.crashtracking.ScriptInitializer.RWXRWXRWX;
-import static com.datadog.crashtracking.ScriptInitializer.R_XR_XR_X;
-import static com.datadog.crashtracking.ScriptInitializer.findAgentJar;
-import static com.datadog.crashtracking.ScriptInitializer.getOomeNotifierTemplate;
-import static com.datadog.crashtracking.ScriptInitializer.writeConfig;
+import static com.datadog.crashtracking.Initializer.LOG;
+import static com.datadog.crashtracking.Initializer.PID_PREFIX;
+import static com.datadog.crashtracking.Initializer.RWXRWXRWX;
+import static com.datadog.crashtracking.Initializer.R_XR_XR_X;
+import static com.datadog.crashtracking.Initializer.findAgentJar;
+import static com.datadog.crashtracking.Initializer.getOomeNotifierTemplate;
+import static com.datadog.crashtracking.Initializer.writeConfig;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
