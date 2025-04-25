@@ -129,6 +129,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
 
+  private volatile Object processedRequestBody;
+  private volatile boolean raspMatched;
+
   // keep a reference to the last published usr.id
   private volatile String userId;
   // keep a reference to the last published usr.login
@@ -145,7 +148,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -674,5 +677,21 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /** Must be called during request end event processing. */
   void setRequestEndCalled() {
     requestEndCalled = true;
+  }
+
+  public void setProcessedRequestBody(Object processedRequestBody) {
+    this.processedRequestBody = processedRequestBody;
+  }
+
+  public Object getProcessedRequestBody() {
+    return processedRequestBody;
+  }
+
+  public boolean isRaspMatched() {
+    return raspMatched;
+  }
+
+  public void setRaspMatched(boolean raspMatched) {
+    this.raspMatched = raspMatched;
   }
 }
