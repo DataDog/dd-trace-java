@@ -103,32 +103,29 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   private final Object[] buckets;
+  private int size;
   private boolean frozen;
 
   public TagMap() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
-    this.buckets = new Object[1 << 5];
+    this.buckets = new Object[1 << 4];
+    this.size = 0;
     this.frozen = false;
   }
 
   /** Used for inexpensive immutable */
   private TagMap(Object[] buckets) {
     this.buckets = buckets;
+    this.size = 0;
     this.frozen = true;
   }
 
-  @Deprecated
   @Override
   public final int size() {
-    return this.computeSize();
+    return this.size;
   }
 
-  /**
-   * Computes the size of the TagMap
-   *
-   * <p>computeSize is fast but is an O(n) operation.
-   */
-  public final int computeSize() {
+  final int computeSize() {
     Object[] thisBuckets = this.buckets;
 
     int size = 0;
@@ -145,18 +142,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return size;
   }
 
-  @Deprecated
   @Override
-  public boolean isEmpty() {
-    return this.checkIfEmpty();
+  public final boolean isEmpty() {
+    return (this.size == 0);
   }
-
-  /**
-   * Checks if TagMap is empty
-   *
-   * <p>checkIfEmpty is fast but is an O(n) operation.
-   */
-  public final boolean checkIfEmpty() {
+  
+  final boolean checkIfEmpty() {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -337,17 +328,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     if (bucket == null) {
       thisBuckets[bucketIndex] = newEntry;
 
+      this.size += 1;
       return null;
     } else if (bucket instanceof Entry) {
       Entry existingEntry = (Entry) bucket;
       if (existingEntry.matches(newEntry.tag)) {
         thisBuckets[bucketIndex] = newEntry;
 
+        // replaced existing entry - no size change
         return existingEntry;
       } else {
         thisBuckets[bucketIndex] =
             new BucketGroup(existingEntry.hash(), existingEntry, newHash, newEntry);
 
+        this.size += 1;
         return null;
       }
     } else if (bucket instanceof BucketGroup) {
@@ -355,14 +349,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
       BucketGroup containingGroup = lastGroup.findContainingGroupInChain(newHash, newEntry.tag);
       if (containingGroup != null) {
+        // replaced existing entry - no size change
         return containingGroup._replace(newHash, newEntry);
       }
 
       if (!lastGroup.insertInChain(newHash, newEntry)) {
         thisBuckets[bucketIndex] = new BucketGroup(newHash, newEntry, lastGroup);
       }
+      this.size += 1;
       return null;
     }
+
+    // unreachable
     return null;
   }
 
@@ -390,6 +388,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         this.remove(tagEntry.tag);
       } else {
         this.putEntry(tagEntry);
+      }
+    }
+  }
+
+  public final void putAll(Map<? extends String, ? extends Object> map) {
+    this.checkWriteAccess();
+
+    if (map instanceof TagMap) {
+      this.putAll((TagMap) map);
+    } else {
+      for (Map.Entry<? extends String, ?> entry : map.entrySet()) {
+        this.put(entry.getKey(), entry.getValue());
       }
     }
   }
@@ -422,10 +432,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         if (thatBucket instanceof Entry) {
           thisBuckets[i] = thatBucket;
+          this.size += 1;
         } else if (thatBucket instanceof BucketGroup) {
           BucketGroup thatGroup = (BucketGroup) thatBucket;
 
-          thisBuckets[i] = thatGroup.cloneChain();
+          BucketGroup thisNewGroup = thatGroup.cloneChain();
+          thisBuckets[i] = thisNewGroup;
+          this.size += thisNewGroup.sizeInChain();
         }
       } else if (thisBucket instanceof Entry) {
         // This bucket is a single entry, medium complexity case
@@ -442,28 +455,39 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
           if (thisHash == thatHash && thisEntry.matches(thatEntry.tag())) {
             thisBuckets[i] = thatEntry;
+            // replacing entry, no size change
           } else {
             thisBuckets[i] =
                 new BucketGroup(
                     thisHash, thisEntry,
                     thatHash, thatEntry);
+            this.size += 1;
           }
         } else if (thatBucket instanceof BucketGroup) {
           BucketGroup thatGroup = (BucketGroup) thatBucket;
 
           // Clone the other group, then place this entry into that group
           BucketGroup thisNewGroup = thatGroup.cloneChain();
+          int thisNewGroupSize = thisNewGroup.sizeInChain();
 
           Entry incomingEntry = thisNewGroup.findInChain(thisHash, thisEntry.tag());
           if (incomingEntry != null) {
-            // there's already an entry w/ the same tag from the incoming TagMap - done
+            // there's already an entry w/ the same tag from the incoming TagMap
+            // incoming entry clobbers the existing try, so we're done
             thisBuckets[i] = thisNewGroup;
+            this.size +=
+                thisNewGroupSize
+                    - 1; // overlapping group - subtract one for clobbered existing entry
           } else if (thisNewGroup.insertInChain(thisHash, thisEntry)) {
             // able to add thisEntry into the existing groups
             thisBuckets[i] = thisNewGroup;
+            this.size +=
+                thisNewGroupSize; // non overlapping group - existing entry already accounted for
           } else {
             // unable to add into the existing groups
             thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thisNewGroup);
+            this.size +=
+                thisNewGroupSize; // non overlapping group - existing entry already accounted for
           }
         }
       } else if (thisBucket instanceof BucketGroup) {
@@ -475,27 +499,27 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           Entry thatEntry = (Entry) thatBucket;
           int thatHash = thatEntry.hash();
 
-          if (!thisGroup.replaceOrInsertInChain(thatHash, thatEntry)) {
+          if (thisGroup.replaceInChain(thatHash, thatEntry) != null) {
+            // replaced existing entry no size change
+          } else if (thisGroup.insertInChain(thatHash, thatEntry)) {
+            this.size += 1;
+          } else {
             thisBuckets[i] = new BucketGroup(thatHash, thatEntry, thisGroup);
+            this.size += 1;
           }
         } else if (thatBucket instanceof BucketGroup) {
           // Most complicated case - need to walk that bucket group chain and update this chain
           BucketGroup thatGroup = (BucketGroup) thatBucket;
 
-          thisBuckets[i] = thisGroup.replaceOrInsertAllInChain(thatGroup);
+          // Taking the easy / expensive way out for updating size
+          int thisPrevGroupSize = thisGroup.sizeInChain();
+
+          BucketGroup thisNewGroup = thisGroup.replaceOrInsertAllInChain(thatGroup);
+          int thisNewGroupSize = thisNewGroup.sizeInChain();
+
+          thisBuckets[i] = thisNewGroup;
+          this.size += (thisNewGroupSize - thisPrevGroupSize);
         }
-      }
-    }
-  }
-
-  public final void putAll(Map<? extends String, ? extends Object> map) {
-    this.checkWriteAccess();
-
-    if (map instanceof TagMap) {
-      this.putAll((TagMap) map);
-    } else {
-      for (Map.Entry<? extends String, ?> entry : map.entrySet()) {
-        this.put(entry.getKey(), entry.getValue());
       }
     }
   }
@@ -563,6 +587,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       Entry existingEntry = (Entry) bucket;
       if (existingEntry.matches(tag)) {
         thisBuckets[bucketIndex] = null;
+
+        this.size -= 1;
         return existingEntry;
       } else {
         return null;
@@ -580,6 +606,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         this.buckets[bucketIndex] = lastGroup.removeGroupInChain(containingGroup);
       }
 
+      this.size -= 1;
       return existingEntry;
     }
     return null;
@@ -697,6 +724,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     this.checkWriteAccess();
 
     Arrays.fill(this.buckets, null);
+    this.size = 0;
   }
 
   /** Freeze the TagMap preventing further modification - returns <code>this</code> TagMap */
@@ -716,39 +744,50 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     if (this.frozen) throw new IllegalStateException("TagMap frozen");
   }
 
-  //  final void check() {
-  //    Object[] thisBuckets = this.buckets;
-  //
-  //    for ( int i = 0; i < thisBuckets.length; ++i ) {
-  //      Object thisBucket = thisBuckets[i];
-  //
-  //      if ( thisBucket instanceof Entry ) {
-  //        Entry thisEntry = (Entry)thisBucket;
-  //        int thisHash = thisEntry.hash();
-  //
-  //        int expectedBucket = thisHash & (thisBuckets.length - 1);
-  //        assert expectedBucket == i;
-  //      } else if ( thisBucket instanceof BucketGroup ) {
-  //        BucketGroup thisGroup = (BucketGroup)thisBucket;
-  //
-  //        for ( BucketGroup curGroup = thisGroup;
-  //          curGroup != null;
-  //          curGroup = curGroup.prev )
-  //        {
-  //          for ( int j = 0; j < BucketGroup.LEN; ++j ) {
-  //            Entry thisEntry = curGroup._entryAt(i);
-  //            if ( thisEntry == null ) continue;
-  //
-  //            int thisHash = thisEntry.hash();
-  //            assert curGroup._hashAt(i) == thisHash;
-  //
-  //            int expectedBucket = thisHash & (thisBuckets.length - 1);
-  //            assert expectedBucket == i;
-  //          }
-  //        }
-  //      }
-  //    }
-  //  }
+  final void checkIntegrity() {
+    Object[] thisBuckets = this.buckets;
+  
+    for ( int i = 0; i < thisBuckets.length; ++i ) {
+      Object thisBucket = thisBuckets[i];
+  
+      if ( thisBucket instanceof Entry ) {
+        Entry thisEntry = (Entry)thisBucket;
+        int thisHash = thisEntry.hash();
+  
+        int expectedBucket = thisHash & (thisBuckets.length - 1);
+        if ( expectedBucket != i ) {
+          throw new IllegalStateException("incorrect bucket");
+        }
+      } else if ( thisBucket instanceof BucketGroup ) {
+        BucketGroup thisGroup = (BucketGroup)thisBucket;
+  
+        for ( BucketGroup curGroup = thisGroup;
+          curGroup != null;
+          curGroup = curGroup.prev )
+        {
+          for ( int j = 0; j < BucketGroup.LEN; ++j ) {
+            Entry thisEntry = curGroup._entryAt(i);
+            if ( thisEntry == null ) continue;
+  
+            int thisHash = thisEntry.hash();
+            assert curGroup._hashAt(i) == thisHash;
+  
+            int expectedBucket = thisHash & (thisBuckets.length - 1);
+            if ( expectedBucket != i ) {
+              throw new IllegalStateException("incorrect bucket");
+            }
+          }
+        }
+      }
+    }
+    
+    if ( this.size != this.computeSize() ) {
+      throw new IllegalStateException("incorrect size");
+    }
+    if ( this.isEmpty() != this.checkIfEmpty() ) {
+      throw new IllegalStateException("incorrect empty status");
+    }
+  }
 
   @Override
   public final String toString() {
@@ -1882,10 +1921,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return thisNewestHeadGroup;
     }
 
-    boolean replaceOrInsertInChain(int hash, Entry entry) {
-      return (this.replaceInChain(hash, entry) != null) || this.insertInChain(hash, entry);
-    }
-
     Entry replaceInChain(int hash, Entry entry) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         Entry prevEntry = curGroup._replace(hash, entry);
@@ -2097,7 +2132,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       StringBuilder builder = new StringBuilder(32);
       builder.append('[');
       for (int i = 0; i < BucketGroup.LEN; ++i) {
-        if (builder.length() != 0) builder.append(", ");
+        if (i != 0) builder.append(", ");
 
         builder.append(this._entryAt(i));
       }

@@ -139,6 +139,7 @@ public class TagMapTest {
     assertNotEmpty(map);
 
     Object prev2 = map.put("foo", "baz");
+    assertSize(1, map);
     assertEquals("bar", prev2);
 
     assertEntry("foo", "baz", map);
@@ -203,9 +204,10 @@ public class TagMapTest {
   }
 
   @Test
-  public void cloneMany() {
+  public void copyMany() {
     int size = randomSize();
     TagMap orig = createTagMap(size);
+    assertSize(size, orig);
 
     TagMap copy = orig.copy();
     orig.clear(); // doing this to make sure that copied isn't modified
@@ -213,6 +215,7 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), copy);
     }
+    assertSize(size, copy);
   }
 
   @Test
@@ -240,9 +243,10 @@ public class TagMapTest {
   }
 
   @Test
-  public void putAll() {
-    int size = 67;
+  public void putAll_clobberAll() {
+    int size = randomSize();
     TagMap orig = createTagMap(size);
+    assertSize(size, orig);
 
     TagMap dest = new TagMap();
     for (int i = size - 1; i >= 0; --i) {
@@ -252,10 +256,31 @@ public class TagMapTest {
     // This should clobber all the values in dest
     dest.putAll(orig);
 
-    // assertSize(size,  dest);
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), dest);
     }
+    assertSize(size, dest);
+  }
+
+  @Test
+  public void putAll_clobberAndExtras() {
+    int size = randomSize();
+    TagMap orig = createTagMap(size);
+    assertSize(size, orig);
+
+    TagMap dest = new TagMap();
+    for (int i = size / 2 - 1; i >= 0; --i) {
+      dest.set(key(i), altValue(i));
+    }
+
+    // This should clobber all the values in dest
+    dest.putAll(orig);
+
+    for (int i = 0; i < size; ++i) {
+      assertEntry(key(i), value(i), dest);
+    }
+
+    assertSize(size, dest);
   }
 
   @Test

@@ -72,7 +72,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    int spanMaxTags = maxTags + unsafeTags.computeSize();
+    int spanMaxTags = maxTags + unsafeTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
       String tagPrefix = tagPrefixRedactionRules.getKey();
@@ -260,7 +260,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
     }
 
     public boolean keepCollectingTags() {
-      if (collectedTags.computeSize() < maxTags) {
+      if (collectedTags.size() < maxTags) {
         return true;
       }
       collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
