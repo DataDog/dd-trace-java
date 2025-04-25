@@ -475,9 +475,20 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
     conf.set("spark.openlineage.rootParentJobName", "dag-push-to-s3-spark")
     def listener = getTestDatadogSparkListener(conf)
 
-    expect:
+    when:
     listener.onApplicationStart(applicationStartEvent(1000L))
-    assert listener.openLineageSparkConf.get("spark.openlineage.run.tags").contains("13959090542865903119")
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.context.traceId.toString() == "13959090542865903119"
+        }
+      }
+    }
   }
 
   def "test lastJobFailed is not set when job is cancelled"() {
