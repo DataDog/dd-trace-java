@@ -30,16 +30,10 @@ import java.util.stream.StreamSupport;
  * primitive. By using immutable entries, the entry objects can be shared between builders & maps
  * freely.
  *
- * <p>This map lacks some features of a regular java.util.Map...
+ * <p>This map lacks the ability to mutate an entry via @link {@link Entry#setValue(Object)}.
+ * Entries must be replaced by re-setting / re-putting the key which will create a new Entry object.
  *
- * <ul>
- *   <li>Entry object mutation
- *   <li>size tracking - falls back to computeSize
- *   <li>manipulating Map through the entrySet() or values()
- * </ul>
- *
- * <p>Also lacks features designed for handling large maps...
- *
+ * <p>This map also lacks features designed for handling large long lived mutable maps...
  * <ul>
  *   <li>bucket array expansion
  *   <li>adaptive collision
@@ -52,7 +46,7 @@ import java.util.stream.StreamSupport;
  * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
  * <p>
  * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot contain
- * form a link list to handle collisions.
+ * directly form a link list to handle collisions.
  * <p>
  * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
  * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
@@ -61,7 +55,7 @@ import java.util.stream.StreamSupport;
  * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
  * <p>
  * This does introduce some inefficiencies when Entry-s are removed.
- * In the current system, given that removals are rare, BucketGroups are never consolidated.
+ * The assumption is that removals are rare, so BucketGroups are never consolidated.
  * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
  * removed from the collision chain.
  */
@@ -125,43 +119,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return this.size;
   }
 
-  final int computeSize() {
-    Object[] thisBuckets = this.buckets;
-
-    int size = 0;
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        size += 1;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        size += curGroup.sizeInChain();
-      }
-    }
-    return size;
-  }
-
   @Override
   public final boolean isEmpty() {
     return (this.size == 0);
-  }
-  
-  final boolean checkIfEmpty() {
-    Object[] thisBuckets = this.buckets;
-
-    for (int i = 0; i < thisBuckets.length; ++i) {
-      Object curBucket = thisBuckets[i];
-
-      if (curBucket instanceof Entry) {
-        return false;
-      } else if (curBucket instanceof BucketGroup) {
-        BucketGroup curGroup = (BucketGroup) curBucket;
-        if (!curGroup.isEmptyChain()) return false;
-      }
-    }
-
-    return true;
   }
 
   @Override
@@ -399,7 +359,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       this.putAll((TagMap) map);
     } else {
       for (Map.Entry<? extends String, ?> entry : map.entrySet()) {
-        this.put(entry.getKey(), entry.getValue());
+    	// use set which returns a prior Entry rather put which may box a prior primitive value
+        this.set(entry.getKey(), entry.getValue());
       }
     }
   }
@@ -412,21 +373,29 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
    * source TagMap
    */
   public final void putAll(TagMap that) {
-    this.checkWriteAccess();
-
+	this.checkWriteAccess();
+	  
+	if ( this.size == 0 ) {
+	  this.putAllIntoEmptyMap(that);
+	} else {
+	  this.putAllMerge(that);
+	}
+  }
+  
+  private final void putAllMerge(TagMap that) {
     Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
     // Since TagMap-s don't support expansion, buckets are perfectly aligned
+    // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check elimination
     for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
-      Object thatBucket = thatBuckets[i];
-
-      // nothing in the other hash, just skip this bucket
-      if (thatBucket == null) continue;
+   	  Object thatBucket = thatBuckets[i];
+   	  
+   	  // if nothing incoming, nothing to do
+   	  if ( thatBucket == null ) continue;
 
       Object thisBucket = thisBuckets[i];
-
-      if (thisBucket == null) {
+   	  if (thisBucket == null) {
         // This bucket is null, easy case
         // Either copy over the sole entry or clone the BucketGroup chain
 
@@ -475,19 +444,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
             // there's already an entry w/ the same tag from the incoming TagMap
             // incoming entry clobbers the existing try, so we're done
             thisBuckets[i] = thisNewGroup;
-            this.size +=
-                thisNewGroupSize
-                    - 1; // overlapping group - subtract one for clobbered existing entry
+            
+            // overlapping group - subtract one for clobbered existing entry
+            this.size += thisNewGroupSize - 1; 
           } else if (thisNewGroup.insertInChain(thisHash, thisEntry)) {
             // able to add thisEntry into the existing groups
             thisBuckets[i] = thisNewGroup;
-            this.size +=
-                thisNewGroupSize; // non overlapping group - existing entry already accounted for
+         
+            // non overlapping group - existing entry already accounted for in this.size
+            this.size += thisNewGroupSize; 
           } else {
             // unable to add into the existing groups
             thisBuckets[i] = new BucketGroup(thisHash, thisEntry, thisNewGroup);
-            this.size +=
-                thisNewGroupSize; // non overlapping group - existing entry already accounted for
+            
+            // non overlapping group - existing entry already accounted for in this.size
+            this.size += thisNewGroupSize;
           }
         }
       } else if (thisBucket instanceof BucketGroup) {
@@ -522,6 +493,32 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
         }
       }
     }
+  }
+  
+  /*
+   * Optimized special case method for the common case of putAll into an empty TagMap used by copy, etc
+   */
+  private final void putAllIntoEmptyMap(TagMap that) {
+    Object[] thisBuckets = this.buckets;
+    Object[] thatBuckets = that.buckets;
+
+    // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check elimination
+    for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
+      Object thatBucket = thatBuckets[i];
+
+      // faster to explicitly null check first, then do instanceof
+      if ( thatBucket == null ) {
+    	// do nothing
+      } else if ( thatBucket instanceof BucketGroup ) {
+    	// if it is a BucketGroup, then need to clone
+    	BucketGroup thatGroup = (BucketGroup)thatBucket;
+    	
+    	thisBuckets[i] = thatGroup.cloneChain();
+      } else { // if ( thatBucket instanceof Entry ) 
+    	thisBuckets[i] = thatBucket;
+      }
+    }
+    this.size = that.size;
   }
 
   public final void fillMap(Map<? super String, Object> map) {
@@ -615,7 +612,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   /** Returns a mutable copy of this TagMap */
   public final TagMap copy() {
     TagMap copy = new TagMap();
-    copy.putAll(this);
+    copy.putAllIntoEmptyMap(this);
     return copy;
   }
 
@@ -745,6 +742,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   final void checkIntegrity() {
+	// Decided to use if ( cond ) throw new IllegalStateException rather than assert
+	// That was done to avoid the extra static initialization needed for an assertion
+	// While that's probably an unnecessary optimization, this method is only called in tests
+	  
     Object[] thisBuckets = this.buckets;
   
     for ( int i = 0; i < thisBuckets.length; ++i ) {
@@ -787,6 +788,40 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     if ( this.isEmpty() != this.checkIfEmpty() ) {
       throw new IllegalStateException("incorrect empty status");
     }
+  }
+
+  final int computeSize() {
+    Object[] thisBuckets = this.buckets;
+
+    int size = 0;
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object curBucket = thisBuckets[i];
+
+      if (curBucket instanceof Entry) {
+        size += 1;
+      } else if (curBucket instanceof BucketGroup) {
+        BucketGroup curGroup = (BucketGroup) curBucket;
+        size += curGroup.sizeInChain();
+      }
+    }
+    return size;
+  }
+  
+  final boolean checkIfEmpty() {
+    Object[] thisBuckets = this.buckets;
+
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object curBucket = thisBuckets[i];
+
+      if (curBucket instanceof Entry) {
+        return false;
+      } else if (curBucket instanceof BucketGroup) {
+        BucketGroup curGroup = (BucketGroup) curBucket;
+        if (!curGroup.isEmptyChain()) return false;
+      }
+    }
+
+    return true;
   }
 
   @Override
