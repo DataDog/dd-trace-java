@@ -704,8 +704,11 @@ public class GatewayBridge {
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
-        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-        writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+        boolean collectAll = Config.get().isAppSecCollectAllHeaders();
+        writeRequestHeaders(
+            traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), collectAll);
+        writeResponseHeaders(
+            traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), collectAll);
 
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
@@ -715,10 +718,11 @@ public class GatewayBridge {
 
       } else if (hasUserInfo(traceSeg)) {
         // Report all collected request headers on user tracking event
-        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       } else {
         // Report minimum set of collected request headers
-        writeRequestHeaders(traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+        writeRequestHeaders(
+            traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
@@ -832,15 +836,19 @@ public class GatewayBridge {
   private static void writeRequestHeaders(
       final TraceSegment traceSeg,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.request.headers.", "_dd.appsec.request.", allowed, headers);
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
+    writeHeaders(
+        traceSeg, "http.request.headers.", "_dd.appsec.request.", allowed, headers, collectAll);
   }
 
   private static void writeResponseHeaders(
       final TraceSegment traceSeg,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.response.headers.", "_dd.appsec.response.", allowed, headers);
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
+    writeHeaders(
+        traceSeg, "http.response.headers.", "_dd.appsec.response.", allowed, headers, collectAll);
   }
 
   private static void writeHeaders(
@@ -848,13 +856,13 @@ public class GatewayBridge {
       final String prefix,
       final String discardedPrefix,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
 
     if (headers == null || headers.isEmpty()) {
       return;
     }
 
-    final boolean collectAll = Config.get().isAppSecCollectAllHeaders();
     final int headerLimit = Config.get().getAppsecMaxCollectedHeaders();
     final Set<String> added = new HashSet<>();
     int excluded = 0;

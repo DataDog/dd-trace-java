@@ -1175,7 +1175,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers)
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, false)
 
     then:
     1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
@@ -1195,7 +1195,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers)
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, false)
 
     then:
     1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
@@ -1205,7 +1205,6 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'test  writeRequestHeaders collecting all headers '(){
     setup:
-    injectEnvConfig('DD_APPSEC_COLLECT_ALL_HEADERS' , 'true')
     injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
 
     def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
@@ -1218,7 +1217,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers)
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, true)
 
     then:
     1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
@@ -1244,7 +1243,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ]
 
     when:
-    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers)
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, true)
 
     then:
     1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
