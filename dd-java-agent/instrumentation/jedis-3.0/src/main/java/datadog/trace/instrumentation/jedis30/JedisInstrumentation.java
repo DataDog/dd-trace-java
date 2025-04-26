@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.OPERATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -56,7 +57,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
-      final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("jedis", OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
 

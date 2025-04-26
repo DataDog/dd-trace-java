@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static redis.clients.jedis.JedisClientDecorator.DECORATE;
+import static redis.clients.jedis.JedisClientDecorator.OPERATION_NAME;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.CommandObject;
 import redis.clients.jedis.Connection;
-import redis.clients.jedis.JedisClientDecorator;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
 
@@ -56,7 +56,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandObject<?> commandObject,
         @Advice.This final Connection thiz) {
-      final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("jedis", OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
 
