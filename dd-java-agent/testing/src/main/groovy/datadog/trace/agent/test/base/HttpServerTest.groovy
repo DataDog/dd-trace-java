@@ -2535,9 +2535,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test inferred proxy span creation and header propagation"() {
     setup:
     injectSysConfig("dd.trace_inferred_proxy_services_enabled", "true")
-    //    def request = new Request.Builder()
-    //      .url(HttpUrl.get(SUCCESS.resolve(SUCCESS.relativePath())))//"$server.address")
-    //      .get()
     def request = request(SUCCESS, "GET", null)
     .header("x-dd-proxy", "true")
     .header("x-dd-proxy-request-time-ms", "123")
@@ -2593,21 +2590,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         edgeTags.size() == DSM_EDGE_TAGS.size()
       }
     }
-    //    cleanup:
-    //    // make sure we've gotten everything
-    //    TEST_WRITER.waitForTraces(1)
-    //
-    //    println "\n=== Dumping all collected spans ==="
-    //    // getTraces() returns a List<List<DDSpan>>
-    //    TEST_WRITER.getTraces().eachWithIndex { trace, tIdx ->
-    //      println "Trace #${tIdx}:"
-    //      trace.eachWithIndex { span, sIdx ->
-    //        // print out whatever fields you care about
-    //        println "  [${sIdx}] ${span.operationName} " +
-    //          "(trace=${span.context().traceId}, span=${span.context().spanId})"
-    //        println "       tags=${span.tags}"
-    //      }
-    //    }
   }
 
   def "test inferred proxy span not created when proxy disabled"() {
