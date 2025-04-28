@@ -387,7 +387,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
         }
         span(2) {
           operationName "3-after-timeout"
-          childOf span(1)
+          childOf span(5)
         }
         span(3) {
           operationName "4-after-timeout-2"
