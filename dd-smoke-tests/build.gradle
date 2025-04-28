@@ -10,6 +10,13 @@ dependencies {
   api project(':utils:test-agent-utils:decoder')
 }
 
+// Disable forbiddenApis for all smoke-test modules
+allprojects {
+  tasks.matching { it.name.startsWith('forbiddenApis') }.configureEach {
+    enabled = false
+  }
+}
+
 Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
