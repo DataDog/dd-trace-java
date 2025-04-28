@@ -222,6 +222,16 @@ public class WebController {
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
+  @GetMapping("/exceedResponseHeaders")
+  public ResponseEntity<String> exceedResponseHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    for (int i = 1; i <= 50; i++) {
+      headers.add("X-Test-Header-" + i, "value" + i);
+    }
+    headers.add("content-language", "en-US");
+    return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
