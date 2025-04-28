@@ -5,7 +5,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Paths
 
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
 class ProcessTagsForkedTest extends DDSpecification {
 
@@ -22,7 +22,7 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load default tags for jar #jar and main class #cls'() {
     given:
-    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     CapturedEnvironment.useFixedProcessInfo(new CapturedEnvironment.ProcessInfo(cls, jar))
     ProcessTags.reset()
     def tags = ProcessTags.getTagsForSerialization()
@@ -38,7 +38,7 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load default tags jboss (mode #mode)'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     if (jbossHome != null) {
       System.setProperty("jboss.home.dir", jbossHome)
     }
@@ -76,7 +76,7 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should lazily recalculate when a tag is added'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
     when:
     def processTags = ProcessTags.tagsForSerialization

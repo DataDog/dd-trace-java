@@ -23,7 +23,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
@@ -135,7 +135,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   void 'test process tags serialization'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
     assertNotNull(ProcessTags.tagsForSerialization)
     def spans = (1..2).collect {

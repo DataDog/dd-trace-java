@@ -11,7 +11,7 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLongArray
 
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -20,7 +20,7 @@ class SerializingMetricWriterTest extends DDSpecification {
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
     if (withProcessTags) {
-      injectSysConfig(EXPERIMENTAL_COLLECT_PROCESS_TAGS_ENABLED, "true")
+      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     }
     ProcessTags.reset()
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
