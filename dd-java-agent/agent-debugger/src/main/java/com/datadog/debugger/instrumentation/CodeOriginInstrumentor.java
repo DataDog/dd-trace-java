@@ -20,10 +20,13 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CodeOriginInstrumentor extends Instrumentor {
   private static final String CAPTURE;
   private static final String MARKER;
+  private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginInstrumentor.class);
 
   static {
     String className = DebuggerContext.class.getName().replace('.', '/');
@@ -83,6 +86,7 @@ public class CodeOriginInstrumentor extends Instrumentor {
       methodNode.instructions = list;
       return insertionPoint;
     } catch (Exception e) {
+      LOGGER.debug("Error in captureCodeOrigin: ", e);
       return null;
     }
   }
