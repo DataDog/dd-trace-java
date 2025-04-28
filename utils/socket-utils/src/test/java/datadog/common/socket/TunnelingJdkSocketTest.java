@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.StandardProtocolFamily;
@@ -15,6 +16,8 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
@@ -117,6 +120,59 @@ public class TunnelingJdkSocketTest {
     assertThrows(SocketException.class, () -> clientSocket.getStreamBufferSize());
 
     isServerRunning.set(false);
+  }
+
+  @Test
+  public void testFileDescriptorLeak() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+    long initialCount = getFileDescriptorCount();
+    System.out.println("Initial file descriptor count: " + initialCount);
+
+    Path socketPath = getSocketPath();
+    UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
+    startServer(socketAddress);
+    TunnelingJdkSocket clientSocket = createClient(socketPath);
+
+    List<InputStream> streams = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      InputStream inputStream = clientSocket.getInputStream();
+      streams.add(inputStream);
+      long currentCount = getFileDescriptorCount();
+      System.out.println("Iteration " + i + ", File descriptor count: " + currentCount);
+      assertTrue(currentCount <= initialCount + 7); // why +7?
+    }
+
+    clientSocket.close();
+    streams.clear();
+    isServerRunning.set(false);
+
+    long finalCount = getFileDescriptorCount();
+    System.out.println("Final file descriptor count: " + finalCount);
+    assertTrue(finalCount <= initialCount + 3); // why +3?
+  }
+
+  private long getFileDescriptorCount() {
+    try {
+      Process process = Runtime.getRuntime().exec("lsof -p " + getPid());
+      int count = 0;
+      try (java.io.BufferedReader reader =
+          new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+        while (reader.readLine() != null) {
+          count++;
+        }
+      }
+      return count;
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to get file descriptor count", e);
+    }
+  }
+
+  private String getPid() {
+    return ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
   }
 
   private Path getSocketPath() throws IOException {
