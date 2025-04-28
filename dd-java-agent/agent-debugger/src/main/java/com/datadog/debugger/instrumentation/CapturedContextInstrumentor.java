@@ -910,7 +910,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
 
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
-      if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
+      if (Config.get().getDynamicInstrumentationInstrumentTheWorld() == null) {
         reportWarning("Missing local variable debug info");
       }
       // no local variables info - bail out
@@ -1136,7 +1136,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
+    if (Config.get().getDynamicInstrumentationInstrumentTheWorld() == null) {
       // Collects inherited static fields only if the ITW mode is not enabled
       // because it can lead to LinkageError: attempted duplicate class definition
       // for example, when a probe is located in method overridden in enum element
