@@ -1,4 +1,4 @@
-# Generates 'IgnoredClassNameTrie.java'
+# Generates 'ProxyIgnoredClassNameTrie.java'
 
 # This file lists classes that are considered as proxy hence ignored.
 # The trie will be matched starting from the first '$' char included.
