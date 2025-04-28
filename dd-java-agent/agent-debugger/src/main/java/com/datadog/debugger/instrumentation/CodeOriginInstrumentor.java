@@ -18,6 +18,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 public class CodeOriginInstrumentor extends Instrumentor {
@@ -66,7 +67,11 @@ public class CodeOriginInstrumentor extends Instrumentor {
         AbstractInsnNode next = iterator.next();
         if (buildDescription(next).equals(MARKER)) {
           insertionPoint = next.getPrevious();
-          while (iterator.hasNext() && !buildDescription(next = iterator.next()).equals(CAPTURE)) {}
+          while (iterator.hasNext() && !buildDescription(next = iterator.next()).equals(CAPTURE)) {
+            if (next instanceof LineNumberNode || next instanceof LabelNode) {
+              list.add(next);
+            }
+          }
 
           if (!iterator.hasNext()) {
             return null;
