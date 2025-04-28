@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty41.client.HttpClientRequestTracingHandler;
@@ -161,21 +162,23 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               HttpServerResponseTracingHandler.INSTANCE,
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof WebSocketServerProtocolHandler) {
-          if (pipeline.get(HttpServerTracingHandler.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline, "HttpServerTracingHandler#0", new WebSocketServerTracingHandler());
-          }
-          if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline,
-                "HttpServerRequestTracingHandler#0",
-                WebSocketServerRequestTracingHandler.INSTANCE);
-          }
-          if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline,
-                "HttpServerResponseTracingHandler#0",
-                WebSocketServerResponseTracingHandler.INSTANCE);
+          if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
+            if (pipeline.get(HttpServerTracingHandler.class) != null) {
+              NettyPipelineHelper.addHandlerAfter(
+                  pipeline, "HttpServerTracingHandler#0", new WebSocketServerTracingHandler());
+            }
+            if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
+              NettyPipelineHelper.addHandlerAfter(
+                  pipeline,
+                  "HttpServerRequestTracingHandler#0",
+                  WebSocketServerRequestTracingHandler.INSTANCE);
+            }
+            if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
+              NettyPipelineHelper.addHandlerAfter(
+                  pipeline,
+                  "HttpServerResponseTracingHandler#0",
+                  WebSocketServerResponseTracingHandler.INSTANCE);
+            }
           }
         }
         // Client pipeline handlers
