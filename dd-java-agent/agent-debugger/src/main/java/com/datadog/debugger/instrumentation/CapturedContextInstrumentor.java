@@ -909,7 +909,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
 
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
-      if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
+      if (Config.get().getDynamicInstrumentationInstrumentTheWorld() == null) {
         reportWarning("Missing local variable debug info");
       }
       // no local variables info - bail out
