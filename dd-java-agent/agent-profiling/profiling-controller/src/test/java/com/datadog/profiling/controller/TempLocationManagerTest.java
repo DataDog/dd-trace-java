@@ -110,7 +110,7 @@ public class TempLocationManagerTest {
     Path tmpFile = Files.createFile(fakeTempDir.resolve("test.txt"));
     tmpFile.toFile().deleteOnExit(); // make sure this is deleted at exit
     fakeTempDir.toFile().deleteOnExit(); // also this one
-    boolean rslt = tempLocationManager.cleanup(false);
+    boolean rslt = tempLocationManager.cleanup();
     // fake temp location should be deleted
     // real temp location should be kept
     assertFalse(rslt && Files.exists(fakeTempDir));
@@ -239,8 +239,7 @@ public class TempLocationManagerTest {
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));
     boolean rslt =
-        instance.cleanup(
-            selfCleanup, (long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
+        instance.cleanup((long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
   }
 

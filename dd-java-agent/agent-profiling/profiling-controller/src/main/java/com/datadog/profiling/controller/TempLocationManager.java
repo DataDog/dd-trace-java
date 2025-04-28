@@ -1,7 +1,6 @@
 package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -20,7 +19,9 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -69,7 +70,7 @@ public final class TempLocationManager {
       return null;
     }
 
-    default void onCleanupStart(boolean selfCleanup, long timeout, TimeUnit unit) {}
+    default void onCleanupStart(long timeout, TimeUnit unit) {}
   }
 
   private final class CleanupVisitor implements FileVisitor<Path> {
@@ -77,14 +78,12 @@ public final class TempLocationManager {
 
     private Set<String> pidSet;
 
-    private final boolean cleanSelf;
     private final Instant cutoff;
     private final Instant timeoutTarget;
 
     private boolean terminated = false;
 
-    CleanupVisitor(boolean cleanSelf, long timeout, TimeUnit unit) {
-      this.cleanSelf = cleanSelf;
+    CleanupVisitor(long timeout, TimeUnit unit) {
       this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
       this.timeoutTarget =
           timeout > -1
@@ -108,10 +107,6 @@ public final class TempLocationManager {
         terminated = true;
         return FileVisitResult.TERMINATE;
       }
-      if (cleanSelf && JFR_DIR_PATTERN.matcher(dir.getFileName().toString()).matches()) {
-        // do not delete JFR repository on 'self-cleanup' - it conflicts with the JFR's own cleanup
-        return FileVisitResult.SKIP_SUBTREE;
-      }
 
       cleanupTestHook.preVisitDirectory(dir, attrs);
 
@@ -122,9 +117,7 @@ public final class TempLocationManager {
       // the JFR repository directories are under <basedir>/pid_<pid>
       String pid = fileName.startsWith(TEMPDIR_PREFIX) ? fileName.substring(4) : null;
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
-      if (cleanSelf) {
-        shouldClean |= isSelfPid;
-      } else if (!isSelfPid) {
+      if (!isSelfPid) {
         if (pidSet == null) {
           pidSet = PidHelper.getJavaPids(); // only fork jps when required
         }
@@ -202,7 +195,7 @@ public final class TempLocationManager {
     @Override
     public void run() {
       try {
-        cleanup(false);
+        cleanup();
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t) {
@@ -228,6 +221,8 @@ public final class TempLocationManager {
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
+
+  private final Map<Path, Path> ignoredPaths = new ConcurrentHashMap<>();
 
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
@@ -310,20 +305,6 @@ public final class TempLocationManager {
       AgentTaskScheduler.INSTANCE.execute(cleanupTask);
     }
 
-    Thread selfCleanup =
-        new Thread(
-            AGENT_THREAD_GROUP,
-            () -> {
-              if (!waitForCleanup(1, TimeUnit.SECONDS)) {
-                log.info(
-                    "Cleanup task timed out. {} temp directory might not have been cleaned up properly",
-                    tempDir);
-              }
-              cleanup(true);
-            },
-            "Temp Location Manager Cleanup");
-    Runtime.getRuntime().addShutdownHook(selfCleanup);
-
     createTempDir(tempDir);
   }
 
@@ -375,30 +356,38 @@ public final class TempLocationManager {
     return rslt;
   }
 
+  public void ignore(Path path) {
+    if (path.startsWith(baseTempDir)) {
+      // ignore the path if it is a child of the base temp directory
+      ignoredPaths.put(path, path);
+    } else {
+      log.debug(
+          "Path {} which is not a child of the base temp directory {} can not be ignored",
+          path,
+          baseTempDir);
+    }
+  }
+
   /**
    * Walk the base temp directory recursively and remove all inactive per-process entries. No
    * timeout is applied.
    *
-   * @param cleanSelf {@literal true} will call only this process' temp directory, {@literal false}
-   *     only the other processes will be cleaned up
    * @return {@literal true} if cleanup fully succeeded or {@literal false} otherwise (eg.
    *     interruption etc.)
    */
-  boolean cleanup(boolean cleanSelf) {
-    return cleanup(cleanSelf, -1, TimeUnit.SECONDS);
+  boolean cleanup() {
+    return cleanup(-1, TimeUnit.SECONDS);
   }
 
   /**
    * Walk the base temp directory recursively and remove all inactive per-process entries
    *
-   * @param cleanSelf {@literal true} will call only this process' temp directory, {@literal false}
-   *     only the other processes will be cleaned up
    * @param timeout the task timeout; may be {@literal -1} to signal no timeout
    * @param unit the task timeout unit
    * @return {@literal true} if cleanup fully succeeded or {@literal false} otherwise (timeout,
    *     interruption etc.)
    */
-  boolean cleanup(boolean cleanSelf, long timeout, TimeUnit unit) {
+  boolean cleanup(long timeout, TimeUnit unit) {
     try {
       if (!Files.exists(baseTempDir)) {
         // not even the main temp location exists; nothing to clean up
@@ -413,8 +402,8 @@ public final class TempLocationManager {
           return true;
         }
       }
-      cleanupTestHook.onCleanupStart(cleanSelf, timeout, unit);
-      CleanupVisitor visitor = new CleanupVisitor(cleanSelf, timeout, unit);
+      cleanupTestHook.onCleanupStart(timeout, unit);
+      CleanupVisitor visitor = new CleanupVisitor(timeout, unit);
       Files.walkFileTree(baseTempDir, visitor);
       return !visitor.isTerminated();
     } catch (IOException e) {
