@@ -219,6 +219,20 @@ public class TagMapTest {
   }
 
   @Test
+  public void immutableCopy() {
+    int size = randomSize();
+    TagMap orig = createTagMap(size);
+
+    TagMap immutableCopy = orig.immutableCopy();
+    orig.clear(); // doing this to make sure that copied isn't modified
+
+    for (int i = 0; i < size; ++i) {
+      assertEntry(key(i), value(i), immutableCopy);
+    }
+    assertSize(size, immutableCopy);
+  }
+
+  @Test
   public void replaceALot() {
     int size = randomSize();
     TagMap map = createTagMap(size);

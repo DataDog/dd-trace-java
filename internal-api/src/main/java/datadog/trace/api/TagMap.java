@@ -47,7 +47,7 @@ import java.util.stream.StreamSupport;
  * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
  * <p>
  * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
- * directly form a link list to handle collisions.
+ * directly form a linked list to handle collisions.
  * <p>
  * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
  * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
@@ -88,7 +88,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return tagMap;
   }
 
-  /** Creates a new immutable TagMap that contains the contents <code>map</code> */
+  /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
   public static final TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
@@ -338,17 +338,17 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   public final void putAll(TagMap.Builder builder) {
-    putAll(builder.entries, builder.nextPos);
+    putAll(builder.entryChanges, builder.nextPos);
   }
 
-  private final void putAll(Entry[] tagEntries, int size) {
-    for (int i = 0; i < size && i < tagEntries.length; ++i) {
-      Entry tagEntry = tagEntries[i];
+  private final void putAll(EntryChange[] entryChanges, int size) {
+    for (int i = 0; i < size && i < entryChanges.length; ++i) {
+      EntryChange change = entryChanges[i];
 
-      if (tagEntry.isRemoval()) {
-        this.remove(tagEntry.tag);
+      if (change.isRemoval()) {
+        this.remove(change.tag());
       } else {
-        this.putEntry(tagEntry);
+        this.putEntry((Entry) change);
       }
     }
   }
@@ -367,9 +367,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /**
-   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from TagMap to another
+   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
    *
-   * <p>This method takes advantage of the consistent Map layout to optimize the handling of each
+   * <p>This method takes advantage of the consistent TagMap layout to optimize the handling of each
    * bucket. And similar to {@link TagMap#putEntry(Entry)} this method shares Entry objects from the
    * source TagMap
    */
@@ -498,7 +498,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   }
 
   /*
-   * Optimized special case method for the common case of putAll into an empty TagMap used by copy, etc
+   * Specially optimized version of putAll for the common case of destination map being empty
    */
   private final void putAllIntoEmptyMap(TagMap that) {
     Object[] thisBuckets = this.buckets;
@@ -878,13 +878,40 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return hash == 0 ? 0xDD06 : hash ^ (hash >>> 16);
   }
 
-  public static final class Entry implements Map.Entry<String, Object> {
-    /*
-     * Special value used to record removals in the builder
-     * Removal entries are never stored in the TagMap itself
-     */
-    private static final byte REMOVED = -1;
+  public abstract static class EntryChange {
+    public static final EntryRemoval newRemoval(String tag) {
+      return new EntryRemoval(tag);
+    }
 
+    final String tag;
+
+    EntryChange(String tag) {
+      this.tag = tag;
+    }
+
+    public final String tag() {
+      return this.tag;
+    }
+
+    public final boolean matches(String tag) {
+      return this.tag.equals(tag);
+    }
+
+    public abstract boolean isRemoval();
+  }
+
+  public static final class EntryRemoval extends EntryChange {
+    EntryRemoval(String tag) {
+      super(tag);
+    }
+
+    @Override
+    public final boolean isRemoval() {
+      return true;
+    }
+  }
+
+  public static final class Entry extends EntryChange implements Map.Entry<String, Object> {
     /*
      * Special value used for Objects that haven't been type checked yet.
      * These objects might be primitive box objects.
@@ -963,17 +990,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return new Entry(tag, DOUBLE, double2Prim(box.doubleValue()), box);
     }
 
-    static final Entry newRemovalEntry(String tag) {
-      return new Entry(tag, REMOVED, 0, null);
-    }
-
-    final String tag;
-
     /*
      * hash is stored in line for fast handling of Entry-s coming another Tag
      * However, hash is lazily computed using the same trick as {@link java.lang.String}.
      */
-    int lazyHash;
+    int lazyTagHash;
 
     // To optimize construction of Entry around boxed primitives and Object entries,
     // no type checks are done during construction.
@@ -996,26 +1017,22 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     volatile String strCache = null;
 
     private Entry(String tag, byte type, long prim, Object obj) {
-      this.tag = tag;
-      this.lazyHash = 0; // lazily computed
+      super(tag);
+      this.lazyTagHash = 0; // lazily computed
 
       this.rawType = type;
       this.rawPrim = prim;
       this.rawObj = obj;
     }
 
-    public final String tag() {
-      return this.tag;
-    }
-
     int hash() {
       // If value of hash read in this thread is zero, then hash is computed.
       // hash is not held as a volatile, since this computation can safely be repeated as any time
-      int hash = this.lazyHash;
+      int hash = this.lazyTagHash;
       if (hash != 0) return hash;
 
       hash = _hash(this.tag);
-      this.lazyHash = hash;
+      this.lazyTagHash = hash;
       return hash;
     }
 
@@ -1105,11 +1122,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final boolean isRemoval() {
-      return this.is(REMOVED);
-    }
-
-    public final boolean matches(String tag) {
-      return this.tag.equals(tag);
+      return false;
     }
 
     public final Object objectValue() {
@@ -1146,10 +1159,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           break;
       }
 
-      if (this.is(REMOVED)) {
-        return null;
-      }
-
       return this.rawObj;
     }
 
@@ -1183,9 +1192,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case OBJECT:
           return (this.rawObj != null);
-
-        case REMOVED:
-          return false;
       }
 
       return false;
@@ -1220,9 +1226,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           return (int) prim2Double(prim);
 
         case OBJECT:
-          return 0;
-
-        case REMOVED:
           return 0;
       }
 
@@ -1259,9 +1262,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case OBJECT:
           return 0;
-
-        case REMOVED:
-          return 0;
       }
 
       return 0;
@@ -1296,9 +1296,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
           return (float) prim2Double(prim);
 
         case OBJECT:
-          return 0F;
-
-        case REMOVED:
           return 0F;
       }
 
@@ -1335,9 +1332,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case OBJECT:
           return 0D;
-
-        case REMOVED:
-          return 0D;
       }
 
       return 0D;
@@ -1372,9 +1366,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
         case DOUBLE:
           return Double.toString(prim2Double(this.rawPrim));
-
-        case REMOVED:
-          return null;
 
         case OBJECT:
         case ANY:
@@ -1448,8 +1439,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  public static final class Builder implements Iterable<Entry> {
-    private Entry[] entries;
+  public static final class Builder implements Iterable<EntryChange> {
+    private EntryChange[] entryChanges;
     private int nextPos = 0;
     private boolean containsRemovals = false;
 
@@ -1458,7 +1449,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     private Builder(int size) {
-      this.entries = new Entry[size];
+      this.entryChanges = new EntryChange[size];
     }
 
     public final boolean isDefinitelyEmpty() {
@@ -1518,7 +1509,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     public final Builder remove(String tag) {
-      return this.recordRemoval(Entry.newRemovalEntry(tag));
+      return this.recordRemoval(EntryChange.newRemoval(tag));
     }
 
     private final Builder recordEntry(Entry entry) {
@@ -1526,19 +1517,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return this;
     }
 
-    private final Builder recordRemoval(Entry entry) {
+    private final Builder recordRemoval(EntryRemoval entry) {
       this.recordChange(entry);
       this.containsRemovals = true;
 
       return this;
     }
 
-    private final void recordChange(Entry entry) {
-      if (this.nextPos >= this.entries.length) {
-        this.entries = Arrays.copyOf(this.entries, this.entries.length << 1);
+    private final void recordChange(EntryChange entryChange) {
+      if (this.nextPos >= this.entryChanges.length) {
+        this.entryChanges = Arrays.copyOf(this.entryChanges, this.entryChanges.length << 1);
       }
 
-      this.entries[this.nextPos++] = entry;
+      this.entryChanges[this.nextPos++] = entryChange;
     }
 
     public final Builder smartRemove(String tag) {
@@ -1549,11 +1540,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     private final boolean contains(String tag) {
-      Entry[] thisEntries = this.entries;
+      EntryChange[] thisChanges = this.entryChanges;
 
-      // min is to clamp, so ArrayBoundsCheckElimination optimization works
-      for (int i = 0; i < Math.min(this.nextPos, thisEntries.length); ++i) {
-        if (thisEntries[i].matches(tag)) return true;
+      // min is to clamp, so bounds check elimination optimization works
+      int lenClamp = Math.min(this.nextPos, thisChanges.length);
+      for (int i = 0; i < lenClamp; ++i) {
+        if (thisChanges[i].matches(tag)) return true;
       }
       return false;
     }
@@ -1562,28 +1554,30 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
      * Just for testing
      */
     final Entry findLastEntry(String tag) {
-      Entry[] thisEntries = this.entries;
+      EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
-      for (int i = Math.min(this.nextPos, thisEntries.length) - 1; i >= 0; --i) {
-        if (thisEntries[i].matches(tag)) return thisEntries[i];
+      int clampLen = Math.min(this.nextPos, thisChanges.length) - 1;
+      for (int i = clampLen; i >= 0; --i) {
+        EntryChange thisChange = thisChanges[i];
+        if (!thisChange.isRemoval() && thisChange.matches(tag)) return (Entry) thisChange;
       }
       return null;
     }
 
     public final void reset() {
-      Arrays.fill(this.entries, null);
+      Arrays.fill(this.entryChanges, null);
       this.nextPos = 0;
     }
 
     @Override
-    public final Iterator<Entry> iterator() {
-      return new BuilderIterator(this.entries, this.nextPos);
+    public final Iterator<EntryChange> iterator() {
+      return new BuilderIterator(this.entryChanges, this.nextPos);
     }
 
     public TagMap build() {
       TagMap map = new TagMap();
-      if (this.nextPos != 0) map.putAll(this.entries, this.nextPos);
+      if (this.nextPos != 0) map.putAll(this.entryChanges, this.nextPos);
       return map;
     }
 
@@ -1596,14 +1590,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  private static final class BuilderIterator implements Iterator<Entry> {
-    private final Entry[] entries;
+  private static final class BuilderIterator implements Iterator<EntryChange> {
+    private final EntryChange[] entryChanges;
     private final int size;
 
     private int pos;
 
-    BuilderIterator(Entry[] entries, int size) {
-      this.entries = entries;
+    BuilderIterator(EntryChange[] entryChanges, int size) {
+      this.entryChanges = entryChanges;
       this.size = size;
 
       this.pos = -1;
@@ -1615,10 +1609,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     @Override
-    public Entry next() {
+    public EntryChange next() {
       if (!this.hasNext()) throw new NoSuchElementException("no next");
 
-      return this.entries[++this.pos];
+      return this.entryChanges[++this.pos];
     }
   }
 

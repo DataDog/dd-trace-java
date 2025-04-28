@@ -786,15 +786,17 @@ public class DDSpanContext
 
     TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
-      for (final TagMap.Entry tagEntry : builder) {
-        if (tagEntry.isRemoval()) {
-          unsafeTags.removeEntry(tagEntry.tag());
+      for (final TagMap.EntryChange entryChange : builder) {
+        if (entryChange.isRemoval()) {
+          unsafeTags.removeEntry(entryChange.tag());
         } else {
-          String tag = tagEntry.tag();
-          Object value = tagEntry.objectValue();
+          TagMap.Entry entry = (TagMap.Entry) entryChange;
+
+          String tag = entry.tag();
+          Object value = entry.objectValue();
 
           if (!tagInterceptor.interceptTag(this, tag, value)) {
-            unsafeTags.putEntry(tagEntry);
+            unsafeTags.putEntry(entry);
           }
         }
       }

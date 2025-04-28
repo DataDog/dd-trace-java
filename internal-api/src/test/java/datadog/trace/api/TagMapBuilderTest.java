@@ -23,7 +23,9 @@ public class TagMapBuilderTest {
     assertEquals(SIZE, builder.estimateSize());
 
     int i = 0;
-    for (TagMap.Entry entry : builder) {
+    for (TagMap.EntryChange entryChange : builder) {
+      TagMap.Entry entry = (TagMap.Entry) entryChange;
+
       assertEquals(key(i), entry.tag());
       assertEquals(value(i), entry.stringValue());
 
