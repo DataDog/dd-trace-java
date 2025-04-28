@@ -2531,4 +2531,228 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       null
     }
   }
+
+  def "test inferred proxy span creation and header propagation"() {
+    setup:
+    injectSysConfig("dd.trace_inferred_proxy_services_enabled", "true")
+    //    def request = new Request.Builder()
+    //      .url(HttpUrl.get(SUCCESS.resolve(SUCCESS.relativePath())))//"$server.address")
+    //      .get()
+    def request = request(SUCCESS, "GET", null)
+    .header("x-dd-proxy", "true")
+    .header("x-dd-proxy-request-time-ms", "123")
+    .header("x-dd-proxy-domain-name", "localhost")
+    .header("x-dd-proxy-httpmethod", "GET")
+    .header("x-dd-proxy-path", SUCCESS.path)
+    .header("x-dd-proxy-stage", "dev")
+    .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) { // +1 for inferredProxySpan
+        sortSpansByStart()
+        def inferredProxySpan = span(0)
+        inferredProxySpan.operationName == "aws.apigatewaysergserg"
+        inferredProxySpan.tags["component"] == "aws.apigateway"
+        inferredProxySpan.tags["resource.name"] == "GET /api/hello"
+        inferredProxySpan.tags["service.name"] == "example.com"
+        inferredProxySpan.tags["span.type"] == "web"
+        inferredProxySpan.tags["http.method"] == "GET"
+        inferredProxySpan.tags["http.url"] == "http://example.com/api/hello"
+        inferredProxySpan.tags["stage"] == "dev"
+        inferredProxySpan.tags["_dd.inferred_span"] == 1
+
+        serverSpan(it, null, null, "GET", SUCCESS)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      def statsGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert statsGroups.size() >= 1
+      def first = statsGroups[0]
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+    //    cleanup:
+    //    // make sure we've gotten everything
+    //    TEST_WRITER.waitForTraces(1)
+    //
+    //    println "\n=== Dumping all collected spans ==="
+    //    // getTraces() returns a List<List<DDSpan>>
+    //    TEST_WRITER.getTraces().eachWithIndex { trace, tIdx ->
+    //      println "Trace #${tIdx}:"
+    //      trace.eachWithIndex { span, sIdx ->
+    //        // print out whatever fields you care about
+    //        println "  [${sIdx}] ${span.operationName} " +
+    //          "(trace=${span.context().traceId}, span=${span.context().spanId})"
+    //        println "       tags=${span.tags}"
+    //      }
+    //    }
+  }
+
+  def "test inferred proxy span not created when proxy disabled"() {
+    setup:
+    injectSysConfig("dd.trace_inferred_proxy_services_enabled", "false")
+    def request = request(SUCCESS, "GET", null)
+    .header("x-dd-proxy", "true")
+    .header("x-dd-proxy-request-time-ms", "123")
+    .header("x-dd-proxy-domain-name", "example.com")
+    .header("x-dd-proxy-httpmethod", "GET")
+    .header("x-dd-proxy-path", "/api/hello")
+    .header("x-dd-proxy-stage", "dev")
+    .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, "GET", SUCCESS)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      def statsGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert statsGroups.size() >= 1
+      def first = statsGroups[0]
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
+  def "test inferred proxy span not created with unsupported proxy system"() {
+    setup:
+    injectSysConfig("dd.trace_inferred_proxy_services_enabled", "true")
+    def request = request(SUCCESS, "GET", null)
+    .header("x-dd-proxy", "unsupported")
+    .header("x-dd-proxy-request-time-ms", "123")
+    .header("x-dd-proxy-domain-name", "example.com")
+    .header("x-dd-proxy-httpmethod", "GET")
+    .header("x-dd-proxy-path", "/api/hello")
+    .header("x-dd-proxy-stage", "dev")
+    .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, "GET", SUCCESS)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      def statsGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert statsGroups.size() >= 1
+      def first = statsGroups[0]
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
+  def "test inferred proxy span not created with missing required headers"() {
+    setup:
+    injectSysConfig("dd.trace_inferred_proxy_services_enabled", "true")
+    def request = request(SUCCESS, "GET", null)
+    .header("x-dd-proxy", "true")
+    .header("x-dd-proxy-domain-name", "example.com")
+    .header("x-dd-proxy-httpmethod", "GET")
+    .header("x-dd-proxy-path", "/api/hello")
+    .header("x-dd-proxy-stage", "dev")
+    .build()
+
+    when:
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, "GET", SUCCESS)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+
+    and:
+    if (isDataStreamsEnabled()) {
+      def statsGroups = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert statsGroups.size() >= 1
+      def first = statsGroups[0]
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
 }
