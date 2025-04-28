@@ -63,7 +63,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
         AgentTracer.get().updatePreferredServiceName(applicationName);
         ProcessTags.addTag("springboot.application", applicationName);
       }
-      if (Config.get().isExperimentalCollectProcessTagsEnabled()) {
+      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
         final String[] profiles = environment.getActiveProfiles();
         if (profiles != null && profiles.length > 0) {
           ProcessTags.addTag("springboot.profile", profiles[0]);
@@ -92,7 +92,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
         AgentTracer.get().updatePreferredServiceName(applicationName);
         ProcessTags.addTag("springboot.application", applicationName);
       }
-      if (Config.get().isExperimentalCollectProcessTagsEnabled()) {
+      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
         final String[] profiles = environment.getActiveProfiles();
         if (profiles != null && profiles.length > 0) {
           ProcessTags.addTag("springboot.profile", profiles[0]);

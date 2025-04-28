@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessTags {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessTags.class);
-  private static boolean enabled = Config.get().isExperimentalCollectProcessTagsEnabled();
+  private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
 
   private static class Lazy {
     static final Map<String, String> TAGS = loadTags();
@@ -123,7 +123,7 @@ public class ProcessTags {
   /** Visible for testing. */
   static void reset() {
     empty();
-    enabled = Config.get().isExperimentalCollectProcessTagsEnabled();
+    enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
     Lazy.TAGS.putAll(Lazy.loadTags());
   }
 }

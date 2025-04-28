@@ -78,7 +78,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      assert mapSize == (6 + (Config.get().isExperimentalCollectProcessTagsEnabled() ? 1 : 0))
+      assert mapSize == (6 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0))
       assert unpacker.unpackString() == "RuntimeId"
       assert unpacker.unpackString() == wellKnownTags.getRuntimeId() as String
       assert unpacker.unpackString() == "Seq"
@@ -89,7 +89,7 @@ class SerializingMetricWriterTest extends DDSpecification {
       assert unpacker.unpackString() == wellKnownTags.getEnv() as String
       assert unpacker.unpackString() == "Version"
       assert unpacker.unpackString() == wellKnownTags.getVersion() as String
-      if (Config.get().isExperimentalCollectProcessTagsEnabled()) {
+      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
         assert unpacker.unpackString() == "ProcessTags"
         assert unpacker.unpackString() == ProcessTags.tagsForSerialization as String
       }
