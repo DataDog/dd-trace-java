@@ -12,6 +12,8 @@ class ProtoFilterTest {
     assertFalse(protoFilter.filterOut(null));
     Scope scope = Scope.builder(ScopeType.CLASS, "", 0, 0).build();
     assertFalse(protoFilter.filterOut(scope));
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("com.google.protobuf.MyClass").build();
+    assertFalse(protoFilter.filterOut(scope));
     scope =
         Scope.builder(ScopeType.CLASS, "", 0, 0)
             .languageSpecifics(

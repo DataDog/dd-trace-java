@@ -12,6 +12,8 @@ class AvroFilterTest {
     assertFalse(avroFilter.filterOut(null));
     Scope scope = Scope.builder(ScopeType.CLASS, "", 0, 0).build();
     assertFalse(avroFilter.filterOut(scope));
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("org.apache.avro.MyClass").build();
+    assertFalse(avroFilter.filterOut(scope));
     scope =
         Scope.builder(ScopeType.CLASS, "", 0, 0)
             .languageSpecifics(

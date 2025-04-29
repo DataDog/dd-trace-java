@@ -12,6 +12,8 @@ class WireFilterTest {
     assertFalse(wireFilter.filterOut(null));
     Scope scope = Scope.builder(ScopeType.CLASS, "", 0, 0).build();
     assertFalse(wireFilter.filterOut(scope));
+    scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("com.squareup.wire.MyClass").build();
+    assertFalse(wireFilter.filterOut(scope));
     scope =
         Scope.builder(ScopeType.CLASS, "", 0, 0)
             .languageSpecifics(
