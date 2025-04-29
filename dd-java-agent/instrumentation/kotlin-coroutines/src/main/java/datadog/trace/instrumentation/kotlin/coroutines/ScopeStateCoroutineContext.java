@@ -39,8 +39,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   @Override
   public ScopeState updateThreadContext(@NotNull final CoroutineContext coroutineContext) {
-    final ScopeState oldScopeState = AgentTracer.get().newScopeState();
-    oldScopeState.fetchFromActive();
+    final ScopeState oldScopeState = AgentTracer.get().oldScopeState();
 
     final Job coroutine = CoroutineContextHelper.getJob(coroutineContext);
     final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
@@ -53,22 +52,21 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   /** If there's a context item for the coroutine then try to close it */
   public void maybeCloseScopeAndCancelContinuation(final Job coroutine, final Job parent) {
-    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
+    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.remove(coroutine);
     if (contextItem != null) {
       ScopeState currentThreadScopeState = null;
       if (parent != null) {
         final ScopeStateCoroutineContextItem parentItem = contextItemPerCoroutine.get(parent);
         if (parentItem != null) {
-          currentThreadScopeState = parentItem.getScopeState();
+          // take defensive copy of parent scope stack
+          currentThreadScopeState = parentItem.copyScopeState();
         }
       }
       if (currentThreadScopeState == null) {
-        currentThreadScopeState = AgentTracer.get().newScopeState();
-        currentThreadScopeState.fetchFromActive();
+        currentThreadScopeState = AgentTracer.get().oldScopeState();
       }
 
       contextItem.maybeCloseScopeAndCancelContinuation();
-      contextItemPerCoroutine.remove(coroutine);
 
       currentThreadScopeState.activate();
     }
@@ -116,8 +114,8 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
       coroutineScopeState = AgentTracer.get().newScopeState();
     }
 
-    public ScopeState getScopeState() {
-      return coroutineScopeState;
+    public ScopeState copyScopeState() {
+      return coroutineScopeState.copy();
     }
 
     public void activate() {
