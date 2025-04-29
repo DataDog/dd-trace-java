@@ -12,27 +12,27 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       String modelName,
       String modelProvider,
       @Nullable String mlApp,
-      @Nullable String sessionID) {
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startAgentSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startToolSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startTaskSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startWorkflowSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 }
