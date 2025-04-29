@@ -465,7 +465,9 @@ public final class TempLocationManager {
       // we will find the first offender not having the expected permissions and fail the check
       if (isPosixFs) {
         // take the first subfolder below the base temp dir
-        Path root = baseTempDir.resolve(baseTempDir.relativize(tempDir).getRoot());
+        // we can wave the checks for tempDir being a subdir of baseTempDir because that's how it is
+        // created
+        Path root = baseTempDir.resolve(baseTempDir.relativize(tempDir).getName(0));
         try {
           AtomicReference<Path> failed = new AtomicReference<>();
           Files.walkFileTree(
