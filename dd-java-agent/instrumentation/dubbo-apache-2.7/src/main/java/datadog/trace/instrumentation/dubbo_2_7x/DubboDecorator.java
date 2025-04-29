@@ -188,6 +188,14 @@ public class DubboDecorator extends BaseDecorator {
     }
     return scope;
   }
+
+  public AgentSpan onError(Result result,AgentSpan span, Throwable throwable) {
+    if (result.hasException()) {
+      throwable = result.getException();
+    }
+    return super.onError(span,throwable);
+  }
+
   private String getVersion(URL url){
     return url.getParameter(VERSION);
   }

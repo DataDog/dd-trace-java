@@ -24,7 +24,7 @@ public class DubboConsumerAdvice {
       return;
     }
     DECORATE.buildResult(scope, result);
-    DECORATE.onError(scope.span(), throwable);
+    DECORATE.onError(result,scope.span(), throwable);
     DECORATE.beforeFinish(scope.span());
 
     scope.close();
