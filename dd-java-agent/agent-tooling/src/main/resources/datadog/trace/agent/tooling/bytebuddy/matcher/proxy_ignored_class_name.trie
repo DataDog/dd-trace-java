@@ -27,3 +27,11 @@
 1 $$_Weld*
 1 $$_jvst*
 1 $$SpringCGLIB$$*
+# Jackson afterburner
+1 $Access4JacksonDeserializer*
+1 $Access4JacksonSerializer*
+1 $Creator4JacksonDeserializer*
+# Hibernate
+1 $HibernateInstantiator$*
+1 $HibernateProxy$*
+1 $HibernateAccessOptimizer$*
