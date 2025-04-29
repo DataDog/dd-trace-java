@@ -79,7 +79,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forLastSpanInChunk(i == 0)
+              .forFirstSpanInChunk(i == 0)
               .forLastSpanInChunk(i == trace.size() - 1));
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());

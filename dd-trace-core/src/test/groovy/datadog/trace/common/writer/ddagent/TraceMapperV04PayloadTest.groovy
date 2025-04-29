@@ -239,6 +239,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       if (expectedTraces.isEmpty() && messageCount == 0) {
         return
       }
+      boolean hasProcessTags = false
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -350,6 +351,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
                 assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
+                hasProcessTags = true
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {
@@ -377,6 +379,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assertions.fail(e.getMessage())
       } finally {
+        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())

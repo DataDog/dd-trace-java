@@ -29,6 +29,7 @@ import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertFalse
 import static org.junit.Assert.assertNotNull
+import static org.junit.Assert.assertTrue
 import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV05PayloadTest extends DDSpecification {
@@ -197,6 +198,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
+      def hasProcessTags = false
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -248,6 +250,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
+                hasProcessTags = true
                 assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
                 assertEquals(0, k)
                 assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
@@ -317,6 +320,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assert.fail(e.getMessage())
       } finally {
+        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())
