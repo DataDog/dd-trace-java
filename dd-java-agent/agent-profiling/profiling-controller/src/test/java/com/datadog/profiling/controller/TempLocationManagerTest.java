@@ -19,7 +19,6 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -80,8 +79,7 @@ public class TempLocationManagerTest {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-    TempLocationManager tempLocationManager = new TempLocationManager(configProvider);
-    assertThrows(IllegalStateException.class, tempLocationManager::getTempDir);
+    assertThrows(IllegalStateException.class, () -> new TempLocationManager(configProvider));
   }
 
   @ParameterizedTest
@@ -244,29 +242,6 @@ public class TempLocationManagerTest {
         instance.cleanup(
             selfCleanup, (long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
-  }
-
-  @Test
-  void testShortCircuit() throws Exception {
-    Path baseDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-    AtomicBoolean executed = new AtomicBoolean();
-    TempLocationManager.CleanupHook hook =
-        new TempLocationManager.CleanupHook() {
-          @Override
-          public void onCleanupStart(boolean selfCleanup, long timeout, TimeUnit unit) {
-            executed.set(true);
-          }
-        };
-    TempLocationManager instance = instance(baseDir, false, hook);
-
-    instance.createDirStructure();
-
-    boolean ret = instance.cleanup(false);
-    assertTrue(ret);
-    assertFalse(executed.get());
   }
 
   private static Stream<Arguments> timeoutTestArguments() {
