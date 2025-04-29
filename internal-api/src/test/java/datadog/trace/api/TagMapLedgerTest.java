@@ -10,20 +10,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-public class TagMapBuilderTest {
+public class TagMapLedgerTest {
   static final int SIZE = 32;
 
   @Test
   public void inOrder() {
-    TagMap.Builder builder = TagMap.builder();
+    TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < SIZE; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
-    assertEquals(SIZE, builder.estimateSize());
+    assertEquals(SIZE, ledger.estimateSize());
 
     int i = 0;
-    for (TagMap.EntryChange entryChange : builder) {
+    for (TagMap.EntryChange entryChange : ledger) {
       TagMap.Entry entry = (TagMap.Entry) entryChange;
 
       assertEquals(key(i), entry.tag());
@@ -35,34 +35,34 @@ public class TagMapBuilderTest {
 
   @Test
   public void testTypes() {
-    TagMap.Builder builder = TagMap.builder();
-    builder.put("bool", true);
-    builder.put("int", 1);
-    builder.put("long", 1L);
-    builder.put("float", 1F);
-    builder.put("double", 1D);
-    builder.put("object", (Object) "string");
-    builder.put("string", "string");
+    TagMap.Ledger ledger = TagMap.ledger();
+    ledger.set("bool", true);
+    ledger.set("int", 1);
+    ledger.set("long", 1L);
+    ledger.set("float", 1F);
+    ledger.set("double", 1D);
+    ledger.set("object", (Object) "string");
+    ledger.set("string", "string");
 
-    assertEntryRawType(TagMap.Entry.BOOLEAN, builder, "bool");
-    assertEntryRawType(TagMap.Entry.INT, builder, "int");
-    assertEntryRawType(TagMap.Entry.LONG, builder, "long");
-    assertEntryRawType(TagMap.Entry.FLOAT, builder, "float");
-    assertEntryRawType(TagMap.Entry.DOUBLE, builder, "double");
-    assertEntryRawType(TagMap.Entry.ANY, builder, "object");
-    assertEntryRawType(TagMap.Entry.OBJECT, builder, "string");
+    assertEntryRawType(TagMap.Entry.BOOLEAN, ledger, "bool");
+    assertEntryRawType(TagMap.Entry.INT, ledger, "int");
+    assertEntryRawType(TagMap.Entry.LONG, ledger, "long");
+    assertEntryRawType(TagMap.Entry.FLOAT, ledger, "float");
+    assertEntryRawType(TagMap.Entry.DOUBLE, ledger, "double");
+    assertEntryRawType(TagMap.Entry.ANY, ledger, "object");
+    assertEntryRawType(TagMap.Entry.OBJECT, ledger, "string");
   }
 
   @Test
   public void buildMutable() {
-    TagMap.Builder builder = TagMap.builder();
+    TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < SIZE; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
-    assertEquals(SIZE, builder.estimateSize());
+    assertEquals(SIZE, ledger.estimateSize());
 
-    TagMap map = builder.build();
+    TagMap map = ledger.build();
     for (int i = 0; i < SIZE; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
@@ -74,14 +74,14 @@ public class TagMapBuilderTest {
 
   @Test
   public void buildImmutable() {
-    TagMap.Builder builder = TagMap.builder();
+    TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < SIZE; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
-    assertEquals(SIZE, builder.estimateSize());
+    assertEquals(SIZE, ledger.estimateSize());
 
-    TagMap map = builder.buildImmutable();
+    TagMap map = ledger.buildImmutable();
     for (int i = 0; i < SIZE; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
@@ -92,37 +92,37 @@ public class TagMapBuilderTest {
 
   @Test
   public void build_empty() {
-    TagMap.Builder builder = TagMap.builder();
-    assertTrue(builder.isDefinitelyEmpty());
-    assertNotSame(TagMap.EMPTY, builder.build());
+    TagMap.Ledger ledger = TagMap.ledger();
+    assertTrue(ledger.isDefinitelyEmpty());
+    assertNotSame(TagMap.EMPTY, ledger.build());
   }
 
   @Test
   public void buildImmutable_empty() {
-    TagMap.Builder builder = TagMap.builder();
-    assertTrue(builder.isDefinitelyEmpty());
-    assertSame(TagMap.EMPTY, builder.buildImmutable());
+    TagMap.Ledger ledger = TagMap.ledger();
+    assertTrue(ledger.isDefinitelyEmpty());
+    assertSame(TagMap.EMPTY, ledger.buildImmutable());
   }
 
   @Test
   public void isDefinitelyEmpty_emptyMap() {
-    TagMap.Builder builder = TagMap.builder();
-    builder.put("foo", "bar");
-    builder.remove("foo");
+    TagMap.Ledger ledger = TagMap.ledger();
+    ledger.set("foo", "bar");
+    ledger.remove("foo");
 
-    assertFalse(builder.isDefinitelyEmpty());
-    TagMap map = builder.build();
+    assertFalse(ledger.isDefinitelyEmpty());
+    TagMap map = ledger.build();
     assertTrue(map.checkIfEmpty());
   }
 
   @Test
   public void builderExpansion() {
-    TagMap.Builder builder = TagMap.builder();
+    TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < 100; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
-    TagMap map = builder.build();
+    TagMap map = ledger.build();
     for (int i = 0; i < 100; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
@@ -130,12 +130,12 @@ public class TagMapBuilderTest {
 
   @Test
   public void builderPresized() {
-    TagMap.Builder builder = TagMap.builder(100);
+    TagMap.Ledger ledger = TagMap.ledger(100);
     for (int i = 0; i < 100; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
-    TagMap map = builder.build();
+    TagMap map = ledger.build();
     for (int i = 0; i < 100; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
@@ -143,16 +143,16 @@ public class TagMapBuilderTest {
 
   @Test
   public void buildWithRemoves() {
-    TagMap.Builder builder = TagMap.builder();
+    TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < SIZE; ++i) {
-      builder.put(key(i), value(i));
+      ledger.set(key(i), value(i));
     }
 
     for (int i = 0; i < SIZE; i += 2) {
-      builder.remove(key(i));
+      ledger.remove(key(i));
     }
 
-    TagMap map = builder.build();
+    TagMap map = ledger.build();
     for (int i = 0; i < SIZE; ++i) {
       if ((i % 2) == 0) {
         assertNull(map.getString(key(i)));
@@ -164,32 +164,32 @@ public class TagMapBuilderTest {
 
   @Test
   public void smartRemoval_existingCase() {
-    TagMap.Builder builder = TagMap.builder();
-    builder.put("foo", "bar");
-    builder.smartRemove("foo");
+    TagMap.Ledger ledger = TagMap.ledger();
+    ledger.set("foo", "bar");
+    ledger.smartRemove("foo");
 
-    assertTrue(builder.containsRemovals());
+    assertTrue(ledger.containsRemovals());
   }
 
   @Test
   public void smartRemoval_missingCase() {
-    TagMap.Builder builder = TagMap.builder();
-    builder.smartRemove("foo");
+    TagMap.Ledger ledger = TagMap.ledger();
+    ledger.smartRemove("foo");
 
-    assertFalse(builder.containsRemovals());
+    assertFalse(ledger.containsRemovals());
   }
 
   @Test
   public void reset() {
-    TagMap.Builder builder = TagMap.builder(2);
+    TagMap.Ledger ledger = TagMap.ledger(2);
 
-    builder.put(key(0), value(0));
-    TagMap map0 = builder.build();
+    ledger.set(key(0), value(0));
+    TagMap map0 = ledger.build();
 
-    builder.reset();
+    ledger.reset();
 
-    builder.put(key(1), value(1));
-    TagMap map1 = builder.build();
+    ledger.set(key(1), value(1));
+    TagMap map1 = ledger.build();
 
     assertEquals(value(0), map0.getString(key(0)));
     assertNull(map1.getString(key(0)));
@@ -206,15 +206,15 @@ public class TagMapBuilderTest {
     return "value-" + i;
   }
 
-  static final void assertEntryRawType(byte expectedType, TagMap.Builder builder, String tag) {
-    TagMap.Entry entry = builder.findLastEntry(tag);
+  static final void assertEntryRawType(byte expectedType, TagMap.Ledger ledger, String tag) {
+    TagMap.Entry entry = ledger.findLastEntry(tag);
     assertEquals(expectedType, entry.rawType);
   }
 
   static final void assertFrozen(TagMap map) {
     IllegalStateException ex = null;
     try {
-      map.put("foo", "bar");
+      map.set("foo", "bar");
     } catch (IllegalStateException e) {
       ex = e;
     }

@@ -1380,7 +1380,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private final CoreTracer tracer;
 
     // Builder attributes
-    private TagMap.Builder tagBuilder;
+    private TagMap.Ledger tagLedger;
     private long timestampMicro;
     private AgentSpanContext parent;
     private String serviceName;
@@ -1513,11 +1513,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (tag == null) {
         return this;
       }
-      TagMap.Builder tagBuilder = this.tagBuilder;
-      if (tagBuilder == null) {
+      TagMap.Ledger tagLedger = this.tagLedger;
+      if (tagLedger == null) {
         // Insertion order is important, so using TagBuilder which builds up a set
         // of Entry modifications in order
-        this.tagBuilder = tagBuilder = TagMap.builder();
+        this.tagLedger = tagLedger = TagMap.ledger();
       }
       if (value == null) {
         // DQH - Use of smartRemove is important to avoid clobbering entries added by another map
@@ -1525,9 +1525,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         // builder
         // smartRemove is O(n) but since removes are rare, this is preferable to a more complicated
         // implementation in setAll
-        tagBuilder.smartRemove(tag);
+        tagLedger.smartRemove(tag);
       } else {
-        tagBuilder.put(tag, value);
+        tagLedger.set(tag, value);
       }
       return this;
     }
@@ -1815,7 +1815,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      context.setAllTags(tagBuilder);
+      context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);

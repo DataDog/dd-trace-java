@@ -185,7 +185,7 @@ class B3HttpCodec {
 
     protected void setSpanId(final String sId) {
       spanId = DDSpanId.fromHex(sId);
-      tagBuilder().put(B3_SPAN_ID, sId);
+      tagLedger().set(B3_SPAN_ID, sId);
     }
 
     protected boolean setTraceId(final String tId) {
@@ -198,7 +198,7 @@ class B3HttpCodec {
         B3TraceId b3TraceId = B3TraceId.fromHex(tId);
         traceId = b3TraceId.toLong() == 0 ? DDTraceId.ZERO : b3TraceId;
       }
-      tagBuilder().put(B3_TRACE_ID, tId);
+      tagLedger().set(B3_TRACE_ID, tId);
       return true;
     }
   }

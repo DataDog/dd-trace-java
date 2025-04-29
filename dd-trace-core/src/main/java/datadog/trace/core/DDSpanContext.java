@@ -779,14 +779,14 @@ public class DDSpanContext
     }
   }
 
-  void setAllTags(final TagMap.Builder builder) {
-    if (builder == null) {
+  void setAllTags(final TagMap.Ledger ledger) {
+    if (ledger == null) {
       return;
     }
 
     TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
-      for (final TagMap.EntryChange entryChange : builder) {
+      for (final TagMap.EntryChange entryChange : ledger) {
         if (entryChange.isRemoval()) {
           unsafeTags.removeEntry(entryChange.tag());
         } else {

@@ -45,7 +45,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected DDTraceId traceId;
   protected long spanId;
   protected int samplingPriority;
-  protected TagMap.Builder tagBuilder;
+  protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
 
   protected CharSequence lastParentId;
@@ -78,11 +78,11 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
   }
 
-  final TagMap.Builder tagBuilder() {
-    if (tagBuilder == null) {
-      tagBuilder = TagMap.builder();
+  final TagMap.Ledger tagLedger() {
+    if (tagLedger == null) {
+      tagLedger = TagMap.ledger();
     }
-    return tagBuilder;
+    return tagLedger;
   }
 
   /**
@@ -197,8 +197,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     final String lowerCaseKey = toLowerCase(key);
     final String mappedKey = headerTags.get(lowerCaseKey);
     if (null != mappedKey) {
-      tagBuilder()
-          .put(
+      tagLedger()
+          .set(
               mappedKey,
               HttpCodec.decode(
                   requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)));
@@ -230,7 +230,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     samplingPriority = PrioritySampling.UNSET;
     origin = null;
     endToEndStartTime = 0;
-    if (tagBuilder != null) tagBuilder.reset();
+    if (tagLedger != null) tagLedger.reset();
     baggage = Collections.emptyMap();
     valid = true;
     fullContext = true;
@@ -258,19 +258,19 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             origin,
             endToEndStartTime,
             baggage,
-            tagBuilder == null ? null : tagBuilder.build(),
+            tagLedger == null ? null : tagLedger.build(),
             httpHeaders,
             propagationTags,
             traceConfig,
             style());
       } else if (origin != null
-          || (tagBuilder != null && !tagBuilder.isDefinitelyEmpty())
+          || (tagLedger != null && !tagLedger.isDefinitelyEmpty())
           || httpHeaders != null
           || !baggage.isEmpty()
           || samplingPriority != PrioritySampling.UNSET) {
         return new TagContext(
             origin,
-            tagBuilder == null ? null : tagBuilder.build(),
+            tagLedger == null ? null : tagLedger.build(),
             httpHeaders,
             baggage,
             samplingPriorityOrDefault(traceId, samplingPriority),

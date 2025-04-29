@@ -20,7 +20,7 @@ import java.util.stream.StreamSupport;
  *
  * <ul>
  *   <li>fast copy from one map to another
- *   <li>compatibility with Builder idioms
+ *   <li>compatibility with builder idioms
  *   <li>building small maps as fast as possible
  *   <li>storing primitives without boxing
  *   <li>minimal memory footprint
@@ -71,14 +71,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     return new TagMap(new Object[1], 0);
   }
 
-  /** Creates a new TagMap.Builder */
-  public static final Builder builder() {
-    return new Builder();
+  /** Creates a new TagMap.Ledger */
+  public static final Ledger ledger() {
+    return new Ledger();
   }
 
-  /** Creates a new TagMap.Builder which handles <code>size</code> modifications before expansion */
-  public static final Builder builder(int size) {
-    return new Builder(size);
+  /** Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion */
+  public static final Ledger ledger(int size) {
+    return new Ledger(size);
   }
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
@@ -337,8 +337,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  public final void putAll(TagMap.Builder builder) {
-    putAll(builder.entryChanges, builder.nextPos);
+  public final void putAll(TagMap.Ledger ledger) {
+    putAll(ledger.entryChanges, ledger.nextPos);
   }
 
   private final void putAll(EntryChange[] entryChanges, int size) {
@@ -830,19 +830,19 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   final String toPrettyString() {
     boolean first = true;
 
-    StringBuilder builder = new StringBuilder(128);
-    builder.append('{');
+    StringBuilder ledger = new StringBuilder(128);
+    ledger.append('{');
     for (Entry entry : this) {
       if (first) {
         first = false;
       } else {
-        builder.append(", ");
+        ledger.append(", ");
       }
 
-      builder.append(entry.tag).append('=').append(entry.stringValue());
+      ledger.append(entry.tag).append('=').append(entry.stringValue());
     }
-    builder.append('}');
-    return builder.toString();
+    ledger.append('}');
+    return ledger.toString();
   }
 
   /**
@@ -852,25 +852,25 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
   final String toInternalString() {
     Object[] thisBuckets = this.buckets;
 
-    StringBuilder builder = new StringBuilder(128);
+    StringBuilder ledger = new StringBuilder(128);
     for (int i = 0; i < thisBuckets.length; ++i) {
-      builder.append('[').append(i).append("] = ");
+      ledger.append('[').append(i).append("] = ");
 
       Object thisBucket = thisBuckets[i];
       if (thisBucket == null) {
-        builder.append("null");
+        ledger.append("null");
       } else if (thisBucket instanceof Entry) {
-        builder.append('{').append(thisBucket).append('}');
+        ledger.append('{').append(thisBucket).append('}');
       } else if (thisBucket instanceof BucketGroup) {
         for (BucketGroup curGroup = (BucketGroup) thisBucket;
             curGroup != null;
             curGroup = curGroup.prev) {
-          builder.append(curGroup).append(" -> ");
+          ledger.append(curGroup).append(" -> ");
         }
       }
-      builder.append('\n');
+      ledger.append('\n');
     }
-    return builder.toString();
+    return ledger.toString();
   }
 
   static final int _hash(String tag) {
@@ -1439,16 +1439,20 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
   }
 
-  public static final class Builder implements Iterable<EntryChange> {
+  /*
+   * An in-order ledger of changes to be made to a TagMap.
+   * Ledger can also serves as a builder for TagMap-s via build & buildImmutable.
+   */
+  public static final class Ledger implements Iterable<EntryChange> {
     private EntryChange[] entryChanges;
     private int nextPos = 0;
     private boolean containsRemovals = false;
 
-    private Builder() {
+    private Ledger() {
       this(8);
     }
 
-    private Builder(int size) {
+    private Ledger(int size) {
       this.entryChanges = new EntryChange[size];
     }
 
@@ -1457,7 +1461,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
     }
 
     /**
-     * Provides the estimated size of the map created by the builder Doesn't account for overwritten
+     * Provides the estimated size of the map created by the ledger Doesn't account for overwritten
      * entries or entry removal
      *
      * @return
@@ -1470,54 +1474,48 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       return this.containsRemovals;
     }
 
-    public final Builder put(String tag, Object value) {
+    public final Ledger set(String tag, Object value) {
       return this.recordEntry(Entry.newAnyEntry(tag, value));
     }
 
-    public final Builder put(String tag, CharSequence value) {
+    public final Ledger set(String tag, CharSequence value) {
       return this.recordEntry(Entry.newObjectEntry(tag, value));
     }
 
-    public final Builder put(String tag, boolean value) {
+    public final Ledger set(String tag, boolean value) {
       return this.recordEntry(Entry.newBooleanEntry(tag, value));
     }
 
-    public final Builder put(String tag, int value) {
+    public final Ledger set(String tag, int value) {
       return this.recordEntry(Entry.newIntEntry(tag, value));
     }
 
-    public final Builder put(String tag, long value) {
+    public final Ledger set(String tag, long value) {
       return this.recordEntry(Entry.newLongEntry(tag, value));
     }
 
-    public final Builder put(String tag, float value) {
+    public final Ledger set(String tag, float value) {
       return this.recordEntry(Entry.newFloatEntry(tag, value));
     }
 
-    public final Builder put(String tag, double value) {
+    public final Ledger set(String tag, double value) {
       return this.recordEntry(Entry.newDoubleEntry(tag, value));
     }
 
-    public final Builder uncheckedPut(Entry entry) {
+    public final Ledger set(Entry entry) {
       return this.recordEntry(entry);
     }
 
-    public final Builder put(Entry entry) {
-      this.recordChange(entry);
-      this.containsRemovals |= entry.isRemoval();
-      return this;
-    }
-
-    public final Builder remove(String tag) {
+    public final Ledger remove(String tag) {
       return this.recordRemoval(EntryChange.newRemoval(tag));
     }
 
-    private final Builder recordEntry(Entry entry) {
+    private final Ledger recordEntry(Entry entry) {
       this.recordChange(entry);
       return this;
     }
 
-    private final Builder recordRemoval(EntryRemoval entry) {
+    private final Ledger recordRemoval(EntryRemoval entry) {
       this.recordChange(entry);
       this.containsRemovals = true;
 
@@ -1532,7 +1530,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
       this.entryChanges[this.nextPos++] = entryChange;
     }
 
-    public final Builder smartRemove(String tag) {
+    public final Ledger smartRemove(String tag) {
       if (this.contains(tag)) {
         this.remove(tag);
       }
@@ -2153,15 +2151,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.Entry>
 
     @Override
     public String toString() {
-      StringBuilder builder = new StringBuilder(32);
-      builder.append('[');
+      StringBuilder ledger = new StringBuilder(32);
+      ledger.append('[');
       for (int i = 0; i < BucketGroup.LEN; ++i) {
-        if (i != 0) builder.append(", ");
+        if (i != 0) ledger.append(", ");
 
-        builder.append(this._entryAt(i));
+        ledger.append(this._entryAt(i));
       }
-      builder.append(']');
-      return builder.toString();
+      ledger.append(']');
+      return ledger.toString();
     }
   }
 
