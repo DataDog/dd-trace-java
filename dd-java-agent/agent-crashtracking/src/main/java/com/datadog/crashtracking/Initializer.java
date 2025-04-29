@@ -4,13 +4,14 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
-import com.sun.management.HotSpotDiagnosticMXBean;
+import com.datadoghq.profiler.JVMAccess;
 import datadog.trace.api.Platform;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,19 +21,29 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ScriptInitializer {
-  static final Logger LOG = LoggerFactory.getLogger(ScriptInitializer.class);
+public final class Initializer {
+  static final Logger LOG = LoggerFactory.getLogger(Initializer.class);
   static final String PID_PREFIX = "_pid";
   static final String RWXRWXRWX = "rwxrwxrwx";
   static final String R_XR_XR_X = "r-xr-xr-x";
 
   public static void initialize() {
-    // this is HotSpot specific implementation (eg. will not work for IBM J9)
-    HotSpotDiagnosticMXBean diagBean =
-        ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+    ConfigProvider cfgProvider = ConfigProvider.getInstance();
+    String scratchDir = cfgProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH);
 
-    initializeCrashUploader(diagBean);
-    initializeOOMENotifier(diagBean);
+    JVMAccess jvmAccess =
+        new JVMAccess(
+            null,
+            scratchDir,
+            throwable -> {
+              logInitializationError(
+                  "Unexpected exception while initializing JVMAccess", throwable);
+            });
+
+    JVMAccess.Flags flags = jvmAccess.flags();
+
+    initializeCrashUploader(flags);
+    initializeOOMENotifier(flags);
   }
 
   static InputStream getCrashUploaderTemplate() {
@@ -130,11 +141,30 @@ public final class ScriptInitializer {
    * `dd_crash_uploader.bat` and the script does not exist it will be created and prefilled with
    * code ensuring the error log upload will be triggered on JVM crash.
    */
-  private static void initializeCrashUploader(HotSpotDiagnosticMXBean diagBean) {
+  private static void initializeCrashUploader(JVMAccess.Flags flags) {
     try {
-      String onErrorVal = diagBean.getVMOption("OnError").getValue();
-      String onErrorFile = diagBean.getVMOption("ErrorFile").getValue();
-      CrashUploaderScriptInitializer.initialize(onErrorVal, onErrorFile);
+      String onErrorVal = flags.getStringFlag("OnError");
+      String onErrorFile = flags.getStringFlag("ErrorFile");
+
+      String uploadScript = getScript("dd_crash_uploader");
+      if (onErrorVal == null || onErrorVal.isEmpty()) {
+        onErrorVal = uploadScript;
+      } else if (!onErrorVal.contains("dd_crash_uploader")) {
+        // we can chain scripts so let's preserve the original value in addition to our crash
+        // uploader
+        onErrorVal = uploadScript + "; " + onErrorVal;
+      }
+
+      // set the JVM flag
+      flags.setStringFlag("OnError", onErrorVal);
+      if (LOG.isDebugEnabled()) {
+        String currentVal = flags.getStringFlag("OnError");
+        if (!currentVal.equals(uploadScript)) {
+          LOG.debug("Unable to set OnError flag to {}. Crash-tracking may not work.", currentVal);
+        }
+      }
+
+      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
     } catch (Throwable t) {
       logInitializationError(
           "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
@@ -142,14 +172,42 @@ public final class ScriptInitializer {
     }
   }
 
-  private static void initializeOOMENotifier(HotSpotDiagnosticMXBean diagBean) {
+  private static void initializeOOMENotifier(JVMAccess.Flags flags) {
     try {
-      String onOutOfMemoryVal = diagBean.getVMOption("OnOutOfMemoryError").getValue();
-      OOMENotifierScriptInitializer.initialize(onOutOfMemoryVal);
+      String onOutOfMemoryVal = flags.getStringFlag("OnOutOfMemoryError");
+      String notifierScript = getScript("dd_oome_notifier");
+
+      if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
+        onOutOfMemoryVal = notifierScript;
+      } else if (!onOutOfMemoryVal.contains("dd_oome_notifier")) {
+        // we can chain scripts so let's preserve the original value in addition to our oome tracker
+        onOutOfMemoryVal = notifierScript + "; " + onOutOfMemoryVal;
+      }
+
+      // set the JVM flag
+      flags.setStringFlag("OnOutOfMemoryError", onOutOfMemoryVal);
+      if (LOG.isDebugEnabled()) {
+        String currentVal = flags.getStringFlag("OnOutOfMemoryError");
+        if (!currentVal.equals(onOutOfMemoryVal)) {
+          LOG.debug(
+              "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+              currentVal);
+        }
+      }
+
+      OOMENotifierScriptInitializer.initialize(notifierScript);
     } catch (Throwable t) {
       logInitializationError(
           "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.", t);
     }
+  }
+
+  private static String getScript(String scriptName) {
+    return System.getProperty("java.io.tmpdir") + "/" + getScriptFileName(scriptName) + " %p";
+  }
+
+  private static String getScriptFileName(String scriptName) {
+    return scriptName + "." + (Platform.isWindows() ? "bat" : "sh");
   }
 
   private static void logInitializationError(String msg, Throwable t) {

@@ -17,6 +17,8 @@ dependencies {
   implementation project(':utils:container-utils')
   implementation project(':utils:version-utils')
 
+  implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+
   implementation libs.okhttp
   implementation libs.moshi
 

@@ -198,6 +198,11 @@ public class Agent {
       injectAgentArgsConfig(agentArgs);
     }
 
+    // We want to have this enabled as soon as possible
+    // It entails loading a native library so let's see if it works without regression in startup
+    // time
+    initializeErrorTracking();
+
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
         || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
@@ -759,8 +764,6 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // error tracking initialization relies on JMX being available
-    initializeErrorTracking();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -1025,7 +1028,7 @@ public class Agent {
       return;
     }
     try {
-      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.ScriptInitializer");
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.Initializer");
       clz.getMethod("initialize").invoke(null);
     } catch (Throwable t) {
       log.debug("Unable to initialize crash uploader", t);
