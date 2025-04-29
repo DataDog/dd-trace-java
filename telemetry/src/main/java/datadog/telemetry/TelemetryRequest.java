@@ -16,6 +16,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
 import okhttp3.MediaType;
@@ -144,11 +145,17 @@ public class TelemetryRequest {
     }
     try {
       requestBody.beginDependencies();
-      while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
-        Dependency event = eventSource.nextDependencyEvent();
+      // while (eventSource.hasDependencyEvent() && isWithinSizeLimits()) {
+      //  Dependency event = eventSource.nextDependencyEvent();
+      //  requestBody.writeDependency(event);
+      //   eventSink.addDependencyEvent(event);
+      // }
+      ArrayList<Dependency> dependencies = eventSource.allDependencyEvent();
+      for (Dependency event : dependencies) {
         requestBody.writeDependency(event);
         eventSink.addDependencyEvent(event);
       }
+      // eventSource.nextDependencyEvent()
       requestBody.endDependencies();
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("dependencies-message", e);

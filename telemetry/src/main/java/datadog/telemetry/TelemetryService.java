@@ -9,6 +9,7 @@ import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.telemetry.ProductChange;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -19,12 +20,12 @@ public class TelemetryService {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
 
-  private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
+  private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(15 * 1024 * 1024 * 0.75);
 
   private final TelemetryRouter telemetryRouter;
   private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
-  private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
+  private final ArrayList<Dependency> dependencies = new ArrayList<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
 
@@ -91,7 +92,7 @@ public class TelemetryService {
 
   public boolean addDependency(Dependency dependency) {
     extendedHeartbeatData.pushDependency(dependency);
-    return this.dependencies.offer(dependency);
+    return this.dependencies.add(dependency);
   }
 
   public boolean addIntegration(Integration integration) {
