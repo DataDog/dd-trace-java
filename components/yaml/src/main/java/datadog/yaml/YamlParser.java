@@ -4,12 +4,10 @@ import datadog.cli.CLIHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
 public class YamlParser {
-  private static final Map<String, String> VM_ARGS = CLIHelper.getVmArgs();
-
+  // Supports clazz == null for default yaml parsing
   public static <T> T parse(String filePath, Class<T> clazz) throws IOException {
     Yaml yaml = new Yaml();
     String content = new String(Files.readAllBytes(Paths.get(filePath)));
@@ -88,7 +86,7 @@ public class YamlParser {
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }
-      String value = VM_ARGS.get(processArg);
+      String value = CLIHelper.getArgValue(processArg);
       if (value == null || value.isEmpty()) {
         return "UNDEFINED";
       }

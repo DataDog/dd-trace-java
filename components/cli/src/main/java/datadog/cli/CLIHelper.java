@@ -16,14 +16,101 @@ import java.util.Map;
 
 /** Helper class for retrieving and parsing JVM arguments. */
 public final class CLIHelper {
-  private static final Map<String, String> VM_ARGS = findVmArgs();
+  private static final List<String> VM_ARGS = findVmArgs();
+  private static Map<String, String> VM_ARGS_MAP = Collections.emptyMap();
+  private static int currentIndex = 0; // Tracks the last processed index in VM_ARGS
 
-  public static Map<String, String> getVmArgs() {
+  public static List<String> getVmArgs() {
     return VM_ARGS;
   }
 
+  public static String getArgValue(String key) {
+    int numArgs = VM_ARGS.size();
+    // Lazy population of cache
+    synchronized (VM_ARGS_MAP) {
+      // Double check after acquiring lock
+      if (VM_ARGS_MAP.containsKey(key)) {
+        return VM_ARGS_MAP.get(key);
+      }
+      if (currentIndex >= numArgs) {
+        return null;
+      }
+
+      // Initialize cache if empty
+      if (VM_ARGS_MAP.isEmpty()) {
+        VM_ARGS_MAP = new HashMap<>();
+      }
+
+      // Process remaining args
+      while (currentIndex < numArgs) {
+        String arg = VM_ARGS.get(currentIndex);
+        if (arg.startsWith("-D")) {
+          int equalsIndex = arg.indexOf('=');
+          if (equalsIndex >= 0) {
+            String argKey = arg.substring(0, equalsIndex);
+            String argValue = arg.substring(equalsIndex + 1);
+            VM_ARGS_MAP.put(argKey, argValue);
+          } else {
+            VM_ARGS_MAP.put(arg, "");
+          }
+        } else {
+          VM_ARGS_MAP.put(arg, "");
+        }
+        currentIndex++;
+
+        // Check if we found our key
+        if (VM_ARGS_MAP.containsKey(key)) {
+          return VM_ARGS_MAP.get(key);
+        }
+      }
+
+      return null;
+    }
+  }
+
+  public static boolean argExists(String key) {
+    int numArgs = VM_ARGS.size();
+    // Lazy population of cache
+    synchronized (VM_ARGS_MAP) {
+      // Double check after acquiring lock
+      if (currentIndex >= numArgs) {
+        return VM_ARGS_MAP.containsKey(key);
+      }
+
+      // Initialize cache if empty
+      if (VM_ARGS_MAP.isEmpty()) {
+        VM_ARGS_MAP = new HashMap<>();
+      }
+
+      // Process remaining args
+      while (currentIndex < numArgs) {
+        String arg = VM_ARGS.get(currentIndex);
+        if (arg.startsWith("-D")) {
+          int equalsIndex = arg.indexOf('=');
+          if (equalsIndex >= 0) {
+            String argKey = arg.substring(0, equalsIndex);
+            String argValue = arg.substring(equalsIndex + 1);
+            VM_ARGS_MAP.put(argKey, argValue);
+          } else {
+            VM_ARGS_MAP.put(arg, "");
+          }
+        } else {
+          VM_ARGS_MAP.put(arg, "");
+        }
+        currentIndex++;
+
+        // Check if we found our key
+        if (key.equals(arg)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+  }
+
   @SuppressForbidden
-  private static Map<String, String> findVmArgs() {
+  private static List<String> findVmArgs() {
     List<String> rawArgs;
 
     // Try ProcFS on Linux
@@ -32,7 +119,7 @@ public final class CLIHelper {
         Path cmdlinePath = Paths.get("/proc/self/cmdline");
         if (Files.exists(cmdlinePath)) {
           try (BufferedReader in = Files.newBufferedReader(cmdlinePath)) {
-            return parseVmArgs(Arrays.asList(in.readLine().split("\0")));
+            return Arrays.asList(in.readLine().split("\0"));
           }
         }
       }
@@ -63,7 +150,7 @@ public final class CLIHelper {
 
       //noinspection unchecked
       rawArgs = (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
-      return parseVmArgs(rawArgs);
+      return rawArgs;
     } catch (final ReflectiveOperationException | UnsatisfiedLinkError ignored) {
       // Ignored exception
     }
@@ -73,7 +160,7 @@ public final class CLIHelper {
       final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
       final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
       rawArgs = Arrays.asList(argArray);
-      return parseVmArgs(rawArgs);
+      return rawArgs;
     } catch (final ReflectiveOperationException ignored) {
       // Ignored exception
     }
@@ -81,46 +168,13 @@ public final class CLIHelper {
     // Fallback to default
     try {
       rawArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
-      return parseVmArgs(rawArgs);
+      return rawArgs;
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
       // with non-opened java.management module
       System.err.println("WARNING: Unable to get VM args using managed beans");
     }
-    return Collections.emptyMap();
-  }
-
-  /**
-   * Parses a list of VM arguments into a map of key-value pairs. For system properties (-D
-   * arguments), the key includes the -D prefix and the value is everything after the = sign. For
-   * all other VM arguments, the key is the full argument and the value is an empty string.
-   */
-  private static Map<String, String> parseVmArgs(List<String> args) {
-    Map<String, String> result = new HashMap<>();
-
-    // For now, we only support values on system properties (-D arguments)
-    for (String arg : args) {
-      // TODO: Handle other types of VM arguments
-      if (arg.startsWith("-D")) {
-        // Handle system properties (-D arguments)
-        int equalsIndex = arg.indexOf('=');
-
-        if (equalsIndex >= 0) {
-          // Key-value pair
-          String key = arg.substring(0, equalsIndex);
-          String value = arg.substring(equalsIndex + 1);
-          result.put(key, value);
-        } else {
-          // Just a key with no value
-          result.put(arg, "");
-        }
-      } else {
-        // Any other type of VM argument
-        result.put(arg, "");
-      }
-    }
-
-    return result;
+    return Collections.emptyList();
   }
 
   private static boolean isLinux() {

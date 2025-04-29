@@ -10,15 +10,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StableConfigParser {
   private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
-
-  private static final Map<String, String> VM_ARGS = CLIHelper.getVmArgs();
 
   /**
    * Parses a configuration file and returns a stable configuration object.
@@ -169,7 +166,7 @@ public class StableConfigParser {
       case "process_arguments":
         // For now, always return true if `key` exists in the JVM Args
         // TODO: flesh out the meaning of each operator for process_arguments
-        return VM_ARGS.containsKey(key);
+        return CLIHelper.argExists(key);
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
