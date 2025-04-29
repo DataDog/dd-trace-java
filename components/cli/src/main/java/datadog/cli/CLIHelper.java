@@ -43,19 +43,7 @@ public final class CLIHelper {
 
       // Process remaining args
       while (currentIndex < numArgs) {
-        String arg = VM_ARGS.get(currentIndex);
-        if (arg.startsWith("-D")) {
-          int equalsIndex = arg.indexOf('=');
-          if (equalsIndex >= 0) {
-            String argKey = arg.substring(0, equalsIndex);
-            String argValue = arg.substring(equalsIndex + 1);
-            VM_ARGS_MAP.put(argKey, argValue);
-          } else {
-            VM_ARGS_MAP.put(arg, "");
-          }
-        } else {
-          VM_ARGS_MAP.put(arg, "");
-        }
+        populateCache(VM_ARGS.get(currentIndex));
         currentIndex++;
 
         // Check if we found our key
@@ -65,6 +53,21 @@ public final class CLIHelper {
       }
 
       return null;
+    }
+  }
+
+  private static void populateCache(String arg) {
+    if (arg.startsWith("-D")) {
+      int equalsIndex = arg.indexOf('=');
+      if (equalsIndex >= 0) {
+        String argKey = arg.substring(0, equalsIndex);
+        String argValue = arg.substring(equalsIndex + 1);
+        VM_ARGS_MAP.put(argKey, argValue);
+      } else {
+        VM_ARGS_MAP.put(arg, "");
+      }
+    } else {
+      VM_ARGS_MAP.put(arg, "");
     }
   }
 
@@ -85,18 +88,7 @@ public final class CLIHelper {
       // Process remaining args
       while (currentIndex < numArgs) {
         String arg = VM_ARGS.get(currentIndex);
-        if (arg.startsWith("-D")) {
-          int equalsIndex = arg.indexOf('=');
-          if (equalsIndex >= 0) {
-            String argKey = arg.substring(0, equalsIndex);
-            String argValue = arg.substring(equalsIndex + 1);
-            VM_ARGS_MAP.put(argKey, argValue);
-          } else {
-            VM_ARGS_MAP.put(arg, "");
-          }
-        } else {
-          VM_ARGS_MAP.put(arg, "");
-        }
+        populateCache(arg);
         currentIndex++;
 
         // Check if we found our key
