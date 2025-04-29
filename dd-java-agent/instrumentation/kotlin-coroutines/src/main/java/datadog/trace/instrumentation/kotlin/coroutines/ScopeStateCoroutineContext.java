@@ -58,8 +58,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
       if (parent != null) {
         final ScopeStateCoroutineContextItem parentItem = contextItemPerCoroutine.get(parent);
         if (parentItem != null) {
-          // take defensive copy of parent scope stack
-          currentThreadScopeState = parentItem.copyScopeState();
+          currentThreadScopeState = parentItem.maybeCopyScopeState();
         }
       }
       if (currentThreadScopeState == null) {
@@ -109,16 +108,23 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     @Nullable private AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
     private boolean isInitialized = false;
+    private volatile Thread activatedOn;
 
     public ScopeStateCoroutineContextItem() {
       coroutineScopeState = AgentTracer.get().newScopeState();
     }
 
-    public ScopeState copyScopeState() {
-      return coroutineScopeState.copy();
+    public ScopeState maybeCopyScopeState() {
+      // take defensive copy of scope stack if on different thread
+      if (activatedOn != null && activatedOn != Thread.currentThread()) {
+        return coroutineScopeState.copy();
+      } else {
+        return coroutineScopeState;
+      }
     }
 
     public void activate() {
+      activatedOn = Thread.currentThread();
       coroutineScopeState.activate();
 
       if (continuation != null && continuationScope == null) {
@@ -142,6 +148,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
      * scope and cancels the continuation.
      */
     public void maybeCloseScopeAndCancelContinuation() {
+      // only temporary activation, will be replaced by another activate in caller
       coroutineScopeState.activate();
 
       if (continuationScope != null) {
