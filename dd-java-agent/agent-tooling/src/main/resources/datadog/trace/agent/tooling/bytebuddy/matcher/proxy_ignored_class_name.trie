@@ -31,4 +31,7 @@
 1 $Access4JacksonDeserializer*
 1 $Access4JacksonSerializer*
 1 $Creator4JacksonDeserializer*
-1 $Creator4JacksonSerializer*
+# Hibernate
+1 $HibernateInstantiator$*
+1 $HibernateProxy$*
+1 $HibernateAccessOptimizer$*
