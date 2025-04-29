@@ -45,7 +45,7 @@ public class BaggagePropagator implements Propagator {
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     int maxItems = this.config.getTraceBaggageMaxItems();
     int maxBytes = this.config.getTraceBaggageMaxBytes();
-//    noinspection ConstantValue
+    //    noinspection ConstantValue
     if (!this.injectBaggage
         || maxItems == 0
         || maxBytes == 0
@@ -166,9 +166,9 @@ public class BaggagePropagator implements Propagator {
           truncatedCache = true;
           this.w3cHeader = null;
         } else if (!truncatedCache && (end > this.maxBytes || baggage.size() > this.maxItems)) {
-          if(start == 0) { // if we go out of range after first k/v pair, there is no cache
+          if (start == 0) { // if we go out of range after first k/v pair, there is no cache
             this.w3cHeader = null;
-          } else{
+          } else {
             this.w3cHeader = input.substring(0, start - 1); // -1 to ignore the k/v separator
           }
           truncatedCache = true;

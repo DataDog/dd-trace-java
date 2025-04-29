@@ -115,33 +115,30 @@ public final class PercentEscaper {
     return escape(s, unsafeValOctets);
   }
 
-  public boolean needsEncoding(char c, boolean[] unsafeOctets) {
+  private boolean needsEncoding(char c, boolean[] unsafeOctets) {
     if (c > '~' || c <= ' ' || c < unsafeOctets.length && unsafeOctets[c]) {
       return true;
     }
     return false;
   }
 
-  public boolean keyNeedsEncoding(String key) {
+  private boolean needsEncoding(String key, boolean[] unsafeOctets) {
     int slen = key.length();
     for (int index = 0; index < slen; index++) {
       char c = key.charAt(index);
-      if (needsEncoding(c, unsafeKeyOctets)) {
+      if (needsEncoding(c, unsafeOctets)) {
         return true;
       }
     }
     return false;
   }
 
+  public boolean keyNeedsEncoding(String key) {
+    return needsEncoding(key, unsafeKeyOctets);
+  }
+
   public boolean valNeedsEncoding(String val) {
-    int slen = val.length();
-    for (int index = 0; index < slen; index++) {
-      char c = val.charAt(index);
-      if (needsEncoding(c, unsafeValOctets)) {
-        return true;
-      }
-    }
-    return false;
+    return needsEncoding(val, unsafeValOctets);
   }
 
   /** Escape the provided String, using percent-style URL Encoding. */
