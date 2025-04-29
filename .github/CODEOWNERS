@@ -74,3 +74,9 @@ dd-trace-core/src/main/java/datadog/trace/core/datastreams                  @Dat
 dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                @DataDog/data-streams-monitoring
 internal-api/src/main/java/datadog/trace/api/datastreams                    @DataDog/data-streams-monitoring
 internal-api/src/test/groovy/datadog/trace/api/datastreams                  @DataDog/data-streams-monitoring
+
+# @DataDog/ml-observability
+dd-trace-api/src/main/java/datadog/trace/api/llmobs/ @DataDog/ml-observability
+dd-java-agent/agent-llmobs/                          @DataDog/ml-observability
+dd-trace-core/src/main/java/datadog/trace/llmobs/    @DataDog/ml-observability
+dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
