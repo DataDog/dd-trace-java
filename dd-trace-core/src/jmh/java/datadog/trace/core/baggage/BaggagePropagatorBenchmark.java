@@ -6,12 +6,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
-
-import datadog.trace.bootstrap.instrumentation.api.Baggage;
-import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
+import java.util.logging.Logger;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -25,8 +24,6 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-
-import java.util.logging.Logger;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 4, time = 30, timeUnit = SECONDS)
@@ -74,13 +71,13 @@ public class BaggagePropagatorBenchmark {
       sb.append('a');
     }
     final String aKey = "key1=" + sb.toString();
-//    final String aKey = "key1=Amélie";
+    //    final String aKey = "key1=Amélie";
 
     baggageHeaderValue = aKey;
     carrier = new HashMap<>();
     carrier.put(BaggagePropagator.BAGGAGE_KEY, baggageHeaderValue);
     visitor = ContextVisitors.stringValuesMap();
-    setter =  new MapCarrierAccessor();
+    setter = new MapCarrierAccessor();
     test = false;
   }
 
@@ -88,24 +85,24 @@ public class BaggagePropagatorBenchmark {
   public void propagate(Blackhole blackhole) {
     Context extractedContext = propagator.extract(context, carrier, visitor);
     carrier = new HashMap<>();
-//    blackhole.consume(baggage.getW3cHeader());
-//    blackhole.consume(extractedContext);
+    //    blackhole.consume(baggage.getW3cHeader());
+    //    blackhole.consume(extractedContext);
     propagator.inject(extractedContext, carrier, setter);
-//    if (!test){
-//      Baggage baggage = Baggage.fromContext(extractedContext);
-//      System.out.println("w3c header: " + baggage.getW3cHeader());
-//      Map<String, String> baggageMap =  baggage.asMap();
-//      for(String key : baggageMap.keySet()){
-//        System.out.println(key + ":" + baggageMap.get(key));
-//      }
-//      System.out.println("Carrier.size: " + carrier.size());
-//      for (String key : carrier.keySet()){
-//        System.out.println("Carrier.keyset: " + key);
-//        System.out.println("Carrier: " + carrier.get(key));
-//      }
-//      test = true;
-//    }
+    //    if (!test){
+    //      Baggage baggage = Baggage.fromContext(extractedContext);
+    //      System.out.println("w3c header: " + baggage.getW3cHeader());
+    //      Map<String, String> baggageMap =  baggage.asMap();
+    //      for(String key : baggageMap.keySet()){
+    //        System.out.println(key + ":" + baggageMap.get(key));
+    //      }
+    //      System.out.println("Carrier.size: " + carrier.size());
+    //      for (String key : carrier.keySet()){
+    //        System.out.println("Carrier.keyset: " + key);
+    //        System.out.println("Carrier: " + carrier.get(key));
+    //      }
+    //      test = true;
+    //    }
 
-//    blackhole.consume(baggage);
+    //    blackhole.consume(baggage);
   }
-} 
+}
