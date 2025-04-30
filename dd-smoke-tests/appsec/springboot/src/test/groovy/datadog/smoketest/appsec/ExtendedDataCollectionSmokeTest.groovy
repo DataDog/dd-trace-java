@@ -15,6 +15,7 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.add('-Ddd.appsec.collect.all.headers=true')
+    command.add('-Ddd.appsec.header.collection.redaction.enabled=false')
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)

@@ -704,7 +704,11 @@ public class GatewayBridge {
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
-        boolean collectAll = Config.get().isAppSecCollectAllHeaders();
+        boolean collectAll =
+            Config.get().isAppSecCollectAllHeaders()
+                // Until redaction is defined we don't want to collect all headers due to risk of
+                // leaking sensitive data
+                && !Config.get().isAppSecHeaderCollectionRedactionEnabled();
         writeRequestHeaders(
             traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), collectAll);
         writeResponseHeaders(

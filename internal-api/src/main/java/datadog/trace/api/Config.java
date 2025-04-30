@@ -293,6 +293,7 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final boolean appSecCollectAllHeaders;
+  private final boolean appSecHeaderCollectionRedactionEnabled;
   private final int appSecMaxCollectedHeaders;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
@@ -1389,6 +1390,8 @@ public class Config {
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
     appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
+    appSecHeaderCollectionRedactionEnabled =
+        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
     appSecMaxCollectedHeaders =
         configProvider.getInteger(
             APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
@@ -4203,6 +4206,10 @@ public class Config {
 
   public boolean isAppSecCollectAllHeaders() {
     return appSecCollectAllHeaders;
+  }
+
+  public boolean isAppSecHeaderCollectionRedactionEnabled() {
+    return appSecHeaderCollectionRedactionEnabled;
   }
 
   public int getAppsecMaxCollectedHeaders() {
