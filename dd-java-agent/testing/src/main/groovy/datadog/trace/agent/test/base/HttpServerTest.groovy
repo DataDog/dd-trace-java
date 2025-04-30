@@ -413,6 +413,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  /**
+   * To be set if the integration name (_dd.integration) differs from the component.
+   * This happen when the controller integration modify the parent component name (i.e. jaxrs)
+   * @return
+   */
+  String expectedIntegrationName() {
+    null
+  }
+
   @Override
   int version() {
     return 0
@@ -2189,6 +2198,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
+    def expectedIntegrationName = expectedIntegrationName()
     trace.span {
       serviceName expectedServiceName()
       operationName operation()
@@ -2236,11 +2246,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        if (expectedIntegrationName != null) {
+          withCustomIntegrationName(expectedIntegrationName)
+        }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
         //        }
-        defaultTags(true)
+        defaultTags(true, true)
         addTags(expectedExtraServerTags)
         if (extraTags) {
           it.addTags(extraTags)
