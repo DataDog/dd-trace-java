@@ -38,5 +38,3 @@ unset DATADOG_API_KEY
 
 # Upload test results to production environment like all other CI jobs
 junit_upload "$DATADOG_API_KEY_PROD"
-# And also upload to staging environment to benefit from the new features not yet released
-junit_upload "$DATADOG_API_KEY_DDSTAGING"
