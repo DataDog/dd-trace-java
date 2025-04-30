@@ -29,7 +29,8 @@ excludedClassesCoverage += [
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
-  implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+  implementation project(':dd-java-agent:agent-bootstrap')
+  api project(':dd-java-agent:ddprof-dependency')
 
   annotationProcessor libs.autoservice.processor
   compileOnly libs.autoservice.annotation
