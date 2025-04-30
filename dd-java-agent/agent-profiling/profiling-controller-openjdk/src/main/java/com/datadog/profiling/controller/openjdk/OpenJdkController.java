@@ -263,7 +263,8 @@ public final class OpenJdkController implements Controller {
           ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
           ProfilingConfig.PROFILING_TEMP_DIR);
     }
-    Path repositoryPath = TempLocationManager.getInstance().getTempDir().resolve("jfr");
+    TempLocationManager tempLocationManager = TempLocationManager.getInstance();
+    Path repositoryPath = tempLocationManager.getTempDir().resolve("jfr");
     if (!Files.exists(repositoryPath)) {
       try {
         Files.createDirectories(repositoryPath);
