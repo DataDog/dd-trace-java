@@ -78,24 +78,6 @@ jobs:
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
         uses: github/codeql-action/analyze@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
 
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog CI Static Analysis
-      #   run: |
-      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
-      #     chmod +x datadog-ci
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_APP_KEY_PROD }}
-      #     DD_SITE: datadoghq.com
-
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog Staging CI Static Analysis
-      #   run: |
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-      #     DD_SITE: datad0g.com
-
   trivy:
     name: Analyze changes with Trivy
     runs-on: ubuntu-latest
@@ -170,10 +152,3 @@ jobs:
         env:
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
           DD_SITE: datadoghq.com
-
-      - name: Upload results to Datadog Staging CI Static Analysis
-        run: |
-          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
-        env:
-          DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-          DD_SITE: datad0g.com
