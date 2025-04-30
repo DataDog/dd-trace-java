@@ -3,7 +3,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
 import io.servicetalk.context.api.ContextMap
-
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 

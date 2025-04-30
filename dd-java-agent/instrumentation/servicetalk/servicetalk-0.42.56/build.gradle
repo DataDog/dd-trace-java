@@ -1,0 +1,37 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+muzzle {
+  fail {
+    group = 'io.servicetalk'
+    module = 'servicetalk-concurrent-api'
+    versions = '[,0.42.56)'
+  }
+  pass {
+    group = 'io.servicetalk'
+    module = 'servicetalk-concurrent-api'
+    // 0.42.56 is the earliest version where CapturedContext is public
+    versions = '[0.42.56,]'
+  }
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.56'
+  compileOnly group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.56'
+
+  testImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.56'
+  testImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.56'
+
+  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '+'
+  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '+'
+}
+

@@ -59,6 +59,7 @@ class MuzzlePlugin implements Plugin<Project> {
     RemoteRepository restlet = new RemoteRepository.Builder("restlet", "default", "https://maven.restlet.talend.com/").build()
     // Only needed  for play-2.3
     RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/maven-releases/").build()
+    //TODO add local repo or use docker to muzzle check and test version when deprecated `saved` will be dropped
     MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
   }
 

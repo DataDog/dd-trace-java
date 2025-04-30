@@ -9,11 +9,12 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import io.servicetalk.concurrent.api.CapturedContext;
 import io.servicetalk.context.api.ContextMap;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class ContextPreservingInstrumentation extends AbstractAsyncContextInstrumentation
+public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   @Override
@@ -53,7 +54,9 @@ public class ContextPreservingInstrumentation extends AbstractAsyncContextInstru
 
   public static final class Wrapper {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.FieldValue("saved") final ContextMap contextMap) {
+    public static AgentScope enter(
+        @Advice.FieldValue("capturedContext") final CapturedContext capturedContext) {
+      ContextMap contextMap = capturedContext.captured();
       AgentSpan parent =
           InstrumentationContext.get(ContextMap.class, AgentSpan.class).get(contextMap);
       if (parent != null) {

@@ -5,9 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
 
-public abstract class AbstractAsyncContextInstrumentation extends InstrumenterModule.Tracing {
+public abstract class ServiceTalkInstrumentation extends InstrumenterModule.Tracing {
 
-  public AbstractAsyncContextInstrumentation() {
+  public ServiceTalkInstrumentation() {
     super("servicetalk", "servicetalk-concurrent");
   }
 
