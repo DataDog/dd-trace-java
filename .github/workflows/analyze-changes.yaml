@@ -13,25 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  datadog-static-analyzer:
-    name: Analyze changes with DataDog Static Analyzer
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
-        with:
-          submodules: 'recursive'
-      # Run the static analysis on the staging environment to benefit from the new features not yet released
-      - name: Check code meets quality standards (staging)
-        id: datadog-static-analysis-staging
-        uses: DataDog/datadog-static-analyzer-github-action@2707598b1182dce1d1792186477b5b4132338e1c # v1
-        with:
-          dd_app_key: ${{ secrets.DATADOG_APP_KEY_STAGING }}
-          dd_api_key: ${{ secrets.DATADOG_API_KEY_STAGING }}
-          dd_site: "datad0g.com"
-          cpu_count: 2
-          enable_performance_statistics: false
-
   codeql:
     name: Analyze changes with GitHub CodeQL
     # Don’t run on PR, only when pushing to master
@@ -77,24 +58,6 @@ jobs:
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
         uses: github/codeql-action/analyze@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
-
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog CI Static Analysis
-      #   run: |
-      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
-      #     chmod +x datadog-ci
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_APP_KEY_PROD }}
-      #     DD_SITE: datadoghq.com
-
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog Staging CI Static Analysis
-      #   run: |
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-      #     DD_SITE: datad0g.com
 
   trivy:
     name: Analyze changes with Trivy
@@ -170,10 +133,3 @@ jobs:
         env:
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
           DD_SITE: datadoghq.com
-
-      - name: Upload results to Datadog Staging CI Static Analysis
-        run: |
-          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
-        env:
-          DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-          DD_SITE: datad0g.com
