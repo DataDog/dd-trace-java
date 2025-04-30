@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.git;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.tag.ExpectedGitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.MismatchGitProvider;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
 import datadog.trace.civisibility.ci.CIProviderInfo;
@@ -31,5 +33,15 @@ public class CIProviderGitInfoBuilder implements GitInfoBuilder {
   @Override
   public int order() {
     return 1;
+  }
+
+  @Override
+  public ExpectedGitProvider getExpectedProviderType() {
+    return ExpectedGitProvider.CI_PROVIDER;
+  }
+
+  @Override
+  public MismatchGitProvider getMismatchProviderType() {
+    return MismatchGitProvider.CI_PROVIDER;
   }
 }

@@ -2,15 +2,24 @@ package datadog.trace.api.git;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.tag.ExpectedGitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.MismatchGitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.ShaMatch;
+import datadog.trace.api.civisibility.telemetry.tag.ShaMismatchType;
 import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
@@ -51,35 +60,87 @@ public class GitInfoProvider {
 
   private GitInfo buildGitInfo(String repositoryPath) {
     Evaluator evaluator = new Evaluator(repositoryPath, builders);
-    return new GitInfo(
-        evaluator.get(
-            gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
-            GitInfoProvider::validateGitRemoteUrl),
-        evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
-        evaluator.get(GitInfo::getTag, Strings::isNotBlank),
-        new CommitInfo(
-            evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
-            new PersonInfo(
+    GitInfo gitInfo =
+        new GitInfo(
+            evaluator.get(
+                gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+                GitInfoProvider::validateGitRemoteUrl),
+            evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
+            evaluator.get(GitInfo::getTag, Strings::isNotBlank),
+            new CommitInfo(
+                evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
+                new PersonInfo(
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
+                new PersonInfo(
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
+                    evaluator.getIfCommitShaMatches(
+                        gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
                 evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
-                evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
-                evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
-            new PersonInfo(
-                evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
-                evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
-                evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
-            evaluator.getIfCommitShaMatches(
-                gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
+                    gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
+
+    InstrumentationBridge.getMetricCollector()
+        .add(
+            CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH,
+            1,
+            evaluator.shaMismatches.isEmpty() ? ShaMatch.TRUE : ShaMatch.FALSE);
+    for (ShaMismatch mismatch : evaluator.shaMismatches) {
+      mismatch.addTelemetry();
+    }
+
+    return gitInfo;
   }
 
   private static boolean validateGitRemoteUrl(String s) {
     // we cannot work with URL that uses "file://" protocol
     return Strings.isNotBlank(s) && !s.startsWith("file:");
+  }
+
+  private static final class ShaMismatch {
+    private final ExpectedGitProvider expectedGitProvider;
+    private final MismatchGitProvider mismatchGitProvider;
+    private final ShaMismatchType shaMismatchType;
+
+    private ShaMismatch(
+        ExpectedGitProvider expectedGitProvider,
+        MismatchGitProvider mismatchGitProvider,
+        ShaMismatchType shaMismatchType) {
+      this.expectedGitProvider = expectedGitProvider;
+      this.mismatchGitProvider = mismatchGitProvider;
+      this.shaMismatchType = shaMismatchType;
+    }
+
+    private void addTelemetry() {
+      InstrumentationBridge.getMetricCollector()
+          .add(
+              CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH_ERROR,
+              1,
+              expectedGitProvider,
+              mismatchGitProvider,
+              shaMismatchType);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) return true;
+      if (obj == null || getClass() != obj.getClass()) return false;
+      ShaMismatch that = (ShaMismatch) obj;
+      return expectedGitProvider.equals(that.expectedGitProvider)
+          && mismatchGitProvider.equals(that.mismatchGitProvider)
+          && shaMismatchType.equals(that.shaMismatchType);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(expectedGitProvider, mismatchGitProvider, shaMismatchType);
+    }
   }
 
   /**
@@ -95,10 +156,12 @@ public class GitInfoProvider {
   private static final class Evaluator {
     private final String repositoryPath;
     private final Map<GitInfoBuilder, GitInfo> infos;
+    private final Set<ShaMismatch> shaMismatches;
 
     private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
       this.repositoryPath = repositoryPath;
       this.infos = new LinkedHashMap<>();
+      this.shaMismatches = new HashSet<>();
       for (GitInfoBuilder builder : builders) {
         infos.put(builder, null);
       }
@@ -122,6 +185,9 @@ public class GitInfoProvider {
         Predicate<String> validator,
         boolean checkShaIntegrity) {
       String commitSha = null;
+      String repositoryURL = null;
+      ExpectedGitProvider commitShaProvider = null;
+
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
         GitInfo info = e.getValue();
         if (info == null) {
@@ -136,9 +202,18 @@ public class GitInfoProvider {
           if (Strings.isNotBlank(currentCommitSha)) {
             if (commitSha == null) {
               commitSha = currentCommitSha;
+              repositoryURL = info.getRepositoryURL();
+              commitShaProvider = e.getKey().getExpectedProviderType();
             } else if (!commitSha.equals(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
+              shaMismatches.add(
+                  new ShaMismatch(
+                      commitShaProvider,
+                      e.getKey().getMismatchProviderType(),
+                      repositoryURL.equals(info.getRepositoryURL())
+                          ? ShaMismatchType.COMMIT_MISMATCH
+                          : ShaMismatchType.REPOSITORY_MISMATCH));
               continue;
             }
           }

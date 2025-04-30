@@ -1,5 +1,7 @@
 package datadog.trace.api.git;
 
+import datadog.trace.api.civisibility.telemetry.tag.ExpectedGitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.MismatchGitProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -88,5 +90,15 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
   @Override
   public int order() {
     return Integer.MAX_VALUE;
+  }
+
+  @Override
+  public ExpectedGitProvider getExpectedProviderType() {
+    return ExpectedGitProvider.EMBEDDED;
+  }
+
+  @Override
+  public MismatchGitProvider getMismatchProviderType() {
+    return MismatchGitProvider.EMBEDDED;
   }
 }
