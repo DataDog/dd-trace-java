@@ -1,6 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
-import static datadog.trace.api.DDTags.INTEGRATION_COMPONENT;
+import static datadog.trace.api.DDTags.DD_INTEGRATION;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpanContext;
@@ -14,9 +14,9 @@ public class InstrumentationComponentAdder implements TagsPostProcessor {
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
     final CharSequence internalComponentName = spanContext.getInstrumentationComponentName();
     if (internalComponentName != null) {
-      unsafeTags.put(INTEGRATION_COMPONENT, internalComponentName);
+      unsafeTags.put(DD_INTEGRATION, internalComponentName);
     } else {
-      unsafeTags.remove(INTEGRATION_COMPONENT);
+      unsafeTags.remove(DD_INTEGRATION);
     }
     return unsafeTags;
   }

@@ -535,7 +535,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
               "empty-array" ""
             }
           }
-          assert span.context().instrumentationComponentName == "opentelemetry"
+          assert span.context().instrumentationComponentName == "otel"
         }
       }
     }

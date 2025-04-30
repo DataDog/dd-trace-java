@@ -43,7 +43,7 @@ public class OtelSpan implements Span, WithAgentSpan {
     }
     this.statusCode = UNSET;
     this.recording = true;
-    delegate.context().setInstrumentationComponentName("opentelemetry");
+    delegate.context().setInstrumentationComponentName("otel");
   }
 
   public static Span invalid() {

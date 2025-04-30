@@ -64,7 +64,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
-            "$DDTags.INTEGRATION_COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }
@@ -102,7 +102,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation"
           tags {
             "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "opentracing"
-            "$DDTags.INTEGRATION_COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
             defaultTags()
@@ -144,7 +144,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOtherOperation"
           tags {
             "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "opentracing"
-            "$DDTags.INTEGRATION_COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
             defaultTags()
@@ -208,7 +208,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
-            "$DDTags.INTEGRATION_COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }
@@ -218,7 +218,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation2"
           childOf(span(0))
           tags {
-            "$DDTags.INTEGRATION_COMPONENT" null
+            "$DDTags.DD_INTEGRATION" null
             defaultTags()
           }
         }
@@ -263,7 +263,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
-            "$DDTags.INTEGRATION_COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }

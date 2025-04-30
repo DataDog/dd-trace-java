@@ -163,7 +163,7 @@ public class OtelTracer implements Tracer {
     @Override
     public Span startSpan() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setInstrumentationComponentName("opentelemetry");
+      agentSpan.context().setInstrumentationComponentName("otel");
       return converter.toSpan(agentSpan);
     }
   }
