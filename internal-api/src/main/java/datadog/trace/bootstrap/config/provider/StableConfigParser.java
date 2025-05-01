@@ -186,11 +186,16 @@ public class StableConfigParser {
   }
 
   static String processTemplate(String content) throws IOException {
+    int openIndex = content.indexOf("{{");
+    if (openIndex == -1) {
+      return content;
+    }
+
     StringBuilder result = new StringBuilder(content.length());
     String rest = content;
 
     while (true) {
-      int openIndex = rest.indexOf("{{");
+      openIndex = rest.indexOf("{{");
       if (openIndex == -1) {
         result.append(rest);
         break;
