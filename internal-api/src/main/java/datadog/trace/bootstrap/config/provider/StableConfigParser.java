@@ -7,6 +7,9 @@ import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +36,9 @@ public class StableConfigParser {
    */
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
-      StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
+      String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+      String processedContent = processTemplate(content);
+      StableConfigYaml data = YamlParser.parse(processedContent, StableConfigYaml.class);
 
       String configId = data.getConfig_id();
       ConfigurationMap configMap = data.getApm_configuration_default();
@@ -173,5 +178,70 @@ public class StableConfigParser {
       default:
         return false;
     }
+  }
+
+  static String processTemplate(String content) throws IOException {
+    StringBuilder result = new StringBuilder(content.length());
+    String rest = content;
+
+    while (true) {
+      int openIndex = rest.indexOf("{{");
+      if (openIndex == -1) {
+        result.append(rest);
+        break;
+      }
+
+      // Add everything before the template
+      result.append(rest.substring(0, openIndex));
+
+      // Find the closing braces
+      int closeIndex = rest.indexOf("}}", openIndex);
+      if (closeIndex == -1) {
+        throw new IOException("Unterminated template in config");
+      }
+
+      // Extract the template variable
+      String templateVar = rest.substring(openIndex + 2, closeIndex).trim();
+
+      // Process the template variable and get its value
+      String value = processTemplateVar(templateVar);
+
+      // Add the processed value
+      result.append(value);
+
+      // Continue with the rest of the string
+      rest = rest.substring(closeIndex + 2);
+    }
+
+    return result.toString();
+  }
+
+  private static String processTemplateVar(String templateVar) throws IOException {
+    if (templateVar.startsWith("environment_variables['") && templateVar.endsWith("']")) {
+      String envVar =
+          templateVar
+              .substring("environment_variables['".length(), templateVar.length() - 2)
+              .trim();
+      if (envVar.isEmpty()) {
+        throw new IOException("Empty environment variable name in template");
+      }
+      String value = System.getenv(envVar.toUpperCase());
+      if (value == null || value.isEmpty()) {
+        return "UNDEFINED";
+      }
+      return value;
+    } else if (templateVar.startsWith("process_arguments['") && templateVar.endsWith("']")) {
+      String processArg =
+          templateVar.substring("process_arguments['".length(), templateVar.length() - 2).trim();
+      if (processArg.isEmpty()) {
+        throw new IOException("Empty process argument in template");
+      }
+      String value = CLIHelper.getArgValue(processArg);
+      if (value == null || value.isEmpty()) {
+        return "UNDEFINED";
+      }
+      return value;
+    }
+    return "UNDEFINED";
   }
 }

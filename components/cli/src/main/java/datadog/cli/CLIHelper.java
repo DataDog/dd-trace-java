@@ -70,7 +70,6 @@ public final class CLIHelper {
 
   @SuppressForbidden
   private static List<String> findVmArgs() {
-
     // Try ProcFS on Linux
     try {
       if (isLinux()) {

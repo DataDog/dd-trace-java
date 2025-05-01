@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider
 
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.test.util.FileUtils
+
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -175,5 +176,38 @@ apm_configuration_rules:
     exception != null
     cfg == null
     Files.delete(filePath)
+  }
+
+  def "test processTemplate valid cases"() {
+    when:
+    if (envKey != null) {
+      injectEnvConfig(envKey, envVal)
+    }
+
+    then:
+    StableConfigParser.processTemplate(templateVar) == expect
+
+    where:
+    templateVar | envKey | envVal | expect
+    "{{environment_variables['DD_KEY']}}" | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY']}}" | null | null | "UNDEFINED"
+    "{{}}" | null | null | "UNDEFINED"
+    "{}" | null | null | "{}"
+    "{{environment_variables['dd_key']}}" | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY}}" | "DD_KEY" | "value" | "UNDEFINED"
+  }
+
+  def "test processTemplate error cases"() {
+    when:
+    StableConfigParser.processTemplate(templateVar)
+
+    then:
+    def e = thrown(IOException)
+    e.message == expect
+
+    where:
+    templateVar | expect
+    "{{environment_variables['']}}" | "Empty environment variable name in template"
+    "{{environment_variables['DD_KEY']}" | "Unterminated template in config"
   }
 }
