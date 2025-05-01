@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.cli.CLIHelper;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
@@ -169,9 +168,15 @@ public class StableConfigParser {
             return false;
         }
       case "process_arguments":
-        // For now, always return true if `key` exists in the JVM Args
         // TODO: flesh out the meaning of each operator for process_arguments
-        return CLIHelper.argExists(key);
+        if (!key.startsWith("-D")) {
+          log.warn(
+              "Ignoring unsupported process_arguments entry in selector match, '{}'. Only system properties specified with the '-D' prefix are supported.",
+              key);
+          return false;
+        }
+        // Cut the -D prefix
+        return System.getProperty(key.substring(2)) != null;
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
@@ -236,7 +241,13 @@ public class StableConfigParser {
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }
-      String value = CLIHelper.getArgValue(processArg);
+      if (!processArg.startsWith("-D")) {
+        log.warn(
+            "Ignoring unsupported process_arguments entry in template variable, '{}'. Only system properties specified with the '-D' prefix are supported.",
+            processArg);
+        return "UNDEFINED";
+      }
+      String value = System.getProperty(processArg.substring(2));
       if (value == null || value.isEmpty()) {
         return "UNDEFINED";
       }

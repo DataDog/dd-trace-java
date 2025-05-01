@@ -9,63 +9,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
-/** Helper class for retrieving and parsing JVM arguments. */
 public final class CLIHelper {
   private static final List<String> VM_ARGS = findVmArgs();
-  private static final Map<String, String> VM_ARGS_MAP = new HashMap<>();
-  private static int currentIndex = 0; // Tracks the last processed index in VM_ARGS
 
   public static List<String> getVmArgs() {
     return VM_ARGS;
-  }
-
-  public static String getArgValue(String key) {
-    // Lazy population of cache
-    synchronized (VM_ARGS_MAP) {
-      String value = VM_ARGS_MAP.get(key);
-      if (value != null) {
-        return value;
-      }
-
-      // Process remaining args
-      int numArgs = VM_ARGS.size();
-      while (currentIndex < numArgs) {
-        populateCache(VM_ARGS.get(currentIndex));
-        currentIndex++;
-
-        // Check if we found our key
-        value = VM_ARGS_MAP.get(key);
-        if (value != null) {
-          return value;
-        }
-      }
-
-      return null;
-    }
-  }
-
-  private static void populateCache(String arg) {
-    if (arg.startsWith("-D")) {
-      int equalsIndex = arg.indexOf('=');
-      if (equalsIndex >= 0) {
-        String argKey = arg.substring(0, equalsIndex);
-        String argValue = arg.substring(equalsIndex + 1);
-        VM_ARGS_MAP.put(argKey, argValue);
-      } else {
-        VM_ARGS_MAP.put(arg, "");
-      }
-    } else {
-      VM_ARGS_MAP.put(arg, "");
-    }
-  }
-
-  public static boolean argExists(String key) {
-    return getArgValue(key) != null;
   }
 
   @SuppressForbidden

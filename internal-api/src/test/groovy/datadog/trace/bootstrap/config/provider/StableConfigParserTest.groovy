@@ -1,8 +1,6 @@
 package datadog.trace.bootstrap.config.provider
-
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.test.util.FileUtils
-
 import java.nio.file.Files
 import java.nio.file.Path
 
