@@ -295,6 +295,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public ScopeState oldScopeState() {
+    return scopeManager.oldScopeState();
+  }
+
+  @Override
   public ScopeState newScopeState() {
     return scopeManager.newScopeState();
   }

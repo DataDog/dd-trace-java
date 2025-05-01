@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.profiler;
 
 import datadog.trace.api.Platform;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -16,6 +17,7 @@ import java.util.Set;
 import java.util.jar.JarFile;
 
 public final class EnvironmentChecker {
+  @SuppressForbidden
   public static boolean checkEnvironment(String temp) {
     if (!Platform.isJavaVersionAtLeast(8)) {
       System.out.println("Profiler requires Java 8 or newer");
@@ -52,6 +54,7 @@ public final class EnvironmentChecker {
     return true;
   }
 
+  @SuppressForbidden
   private static boolean checkJFR() {
     if (Platform.isOracleJDK8()) {
       System.out.println(
@@ -66,6 +69,7 @@ public final class EnvironmentChecker {
     }
   }
 
+  @SuppressForbidden
   private static boolean checkDdprof() {
     if (!Platform.isLinux()) {
       System.out.println("Datadog profiler is only supported on Linux.");
@@ -76,6 +80,7 @@ public final class EnvironmentChecker {
     }
   }
 
+  @SuppressForbidden
   private static boolean checkTempLocation(String temp) {
     // Check if the temp directory is writable
     if (temp == null || temp.isEmpty()) {
@@ -161,6 +166,7 @@ public final class EnvironmentChecker {
     return rslt;
   }
 
+  @SuppressForbidden
   private static boolean checkCreateTempFile(Path target) {
     // create a file to check if the directory is writable
     try {
@@ -176,6 +182,7 @@ public final class EnvironmentChecker {
     return false;
   }
 
+  @SuppressForbidden
   private static boolean checkLoadLibrary(Path target) {
     if (!Platform.isLinux()) {
       // we are loading the native library only on linux
@@ -199,6 +206,7 @@ public final class EnvironmentChecker {
     }
   }
 
+  @SuppressForbidden
   private static boolean extractSoFromJar(Path target) throws Exception {
     URL jarUrl = EnvironmentChecker.class.getProtectionDomain().getCodeSource().getLocation();
     try (JarFile jarFile = new JarFile(new File(jarUrl.toURI()))) {
