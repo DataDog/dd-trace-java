@@ -25,7 +25,7 @@ public class TunnelingJdkSocketTest {
   private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
 
   @Test
-  public void testSocketConnect() throws Exception {
+  public void testSocketConnectAndClose() throws Exception {
     if (!Config.get().isJdkSocketEnabled()) {
       System.out.println(
           "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
@@ -39,45 +39,25 @@ public class TunnelingJdkSocketTest {
 
     assertFalse(clientSocket.isConnected());
     assertFalse(clientSocket.isClosed());
+
     clientSocket.connect(new InetSocketAddress("localhost", 0));
+    InputStream inputStream = clientSocket.getInputStream();
+    OutputStream outputStream = clientSocket.getOutputStream();
+
     assertTrue(clientSocket.isConnected());
     assertFalse(clientSocket.isClosed());
     assertFalse(clientSocket.isInputShutdown());
     assertFalse(clientSocket.isOutputShutdown());
     assertThrows(
         SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
-    clientSocket.close();
-    assertFalse(clientSocket.isConnected());
-    assertTrue(clientSocket.isClosed());
-    assertTrue(clientSocket.isInputShutdown());
-    assertTrue(clientSocket.isOutputShutdown());
+
     clientSocket.close();
 
-    isServerRunning.set(false);
-  }
-
-  @Test
-  public void testSocketClose() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
-    TunnelingJdkSocket clientSocket = createClient();
-    InputStream inputStream = clientSocket.getInputStream();
-    OutputStream outputStream = clientSocket.getOutputStream();
-
-    assertFalse(clientSocket.isClosed());
-    assertFalse(clientSocket.isInputShutdown());
-    assertFalse(clientSocket.isOutputShutdown());
     assertTrue(clientSocket.isConnected());
-    clientSocket.close();
     assertTrue(clientSocket.isClosed());
     assertTrue(clientSocket.isInputShutdown());
     assertTrue(clientSocket.isOutputShutdown());
-    assertFalse(clientSocket.isConnected());
-    assertThrows(IOException.class, () -> inputStream.read());
+    assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
     assertThrows(SocketException.class, () -> clientSocket.getInputStream());
     assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
@@ -101,11 +81,13 @@ public class TunnelingJdkSocketTest {
     assertFalse(clientSocket.isClosed());
     assertFalse(clientSocket.isInputShutdown());
     assertFalse(clientSocket.isOutputShutdown());
+
     inputStream.close();
+
     assertTrue(clientSocket.isClosed());
     assertTrue(clientSocket.isInputShutdown());
     assertTrue(clientSocket.isOutputShutdown());
-    assertThrows(IOException.class, () -> inputStream.read());
+    assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
     assertThrows(SocketException.class, () -> clientSocket.getInputStream());
     assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
@@ -128,11 +110,13 @@ public class TunnelingJdkSocketTest {
     assertFalse(clientSocket.isClosed());
     assertFalse(clientSocket.isInputShutdown());
     assertFalse(clientSocket.isOutputShutdown());
+
     outputStream.close();
+
     assertTrue(clientSocket.isClosed());
     assertTrue(clientSocket.isInputShutdown());
     assertTrue(clientSocket.isOutputShutdown());
-    assertThrows(IOException.class, () -> inputStream.read());
+    assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
     assertThrows(SocketException.class, () -> clientSocket.getInputStream());
     assertThrows(SocketException.class, () -> clientSocket.getOutputStream());

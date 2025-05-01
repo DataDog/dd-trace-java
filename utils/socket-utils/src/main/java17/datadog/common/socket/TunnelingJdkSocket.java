@@ -91,6 +91,9 @@ final class TunnelingJdkSocket extends Socket {
 
   @Override
   public void connect(final SocketAddress endpoint) throws IOException {
+    if (endpoint == null) {
+      throw new IllegalArgumentException("Endpoint cannot be null");
+    }
     if (isClosed()) {
       throw new SocketException("Socket is closed");
     }
@@ -106,6 +109,12 @@ final class TunnelingJdkSocket extends Socket {
   // https://github.com/jnr/jnr-unixsocket/blob/master/src/main/java/jnr/unixsocket/UnixSocket.java#L89-L97
   @Override
   public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
+    if (endpoint == null) {
+      throw new IllegalArgumentException("Endpoint cannot be null");
+    }
+    if (timeout < 0) {
+      throw new IllegalArgumentException("Timeout cannot be negative");
+    }
     if (isClosed()) {
       throw new SocketException("Socket is closed");
     }
@@ -123,17 +132,17 @@ final class TunnelingJdkSocket extends Socket {
 
   @Override
   public void setSendBufferSize(int size) throws SocketException {
+    if (size <= 0) {
+      throw new IllegalArgumentException("Invalid send buffer size");
+    }
     if (isClosed()) {
       throw new SocketException("Socket is closed");
     }
-    if (size < 0) {
-      throw new IllegalArgumentException("Invalid send buffer size");
-    }
+    sendBufferSize = size;
     try {
       unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_SNDBUF, size);
-      sendBufferSize = size;
     } catch (IOException e) {
-      throw new SocketException("Failed to set send buffer size");
+      throw new SocketException("Failed to set send buffer size socket option");
     }
   }
 
@@ -150,17 +159,17 @@ final class TunnelingJdkSocket extends Socket {
 
   @Override
   public void setReceiveBufferSize(int size) throws SocketException {
+    if (size <= 0) {
+      throw new IllegalArgumentException("Invalid receive buffer size");
+    }
     if (isClosed()) {
       throw new SocketException("Socket is closed");
     }
-    if (size < 0) {
-      throw new IllegalArgumentException("Invalid receive buffer size");
-    }
+    receiveBufferSize = size;
     try {
       unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_RCVBUF, size);
-      receiveBufferSize = size;
     } catch (IOException e) {
-      throw new SocketException("Failed to set receive buffer size");
+      throw new SocketException("Failed to set receive buffer size socket option");
     }
   }
 
@@ -215,7 +224,7 @@ final class TunnelingJdkSocket extends Socket {
       @Override
       public int read(byte[] b, int off, int len) throws IOException {
         if (isInputShutdown()) {
-          throw new IOException("Stream closed");
+          return -1;
         }
         buffer.clear();
 
@@ -319,6 +328,9 @@ final class TunnelingJdkSocket extends Socket {
 
   @Override
   public InetAddress getInetAddress() {
+    if (!isConnected()) {
+      return null;
+    }
     return inetSocketAddress.getAddress();
   }
 
@@ -339,7 +351,6 @@ final class TunnelingJdkSocket extends Socket {
     }
     if (unixSocketChannel != null) {
       unixSocketChannel.close();
-      unixSocketChannel = null;
     }
     closed = true;
   }
