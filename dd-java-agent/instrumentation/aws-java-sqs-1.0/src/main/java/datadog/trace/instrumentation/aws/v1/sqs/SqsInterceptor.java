@@ -23,6 +23,7 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -84,7 +85,7 @@ public class SqsInterceptor extends RequestHandler2 {
   private Context newContext(AmazonWebServiceRequest request, String queueUrl) {
     AgentSpan span = newSpan(request);
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return Context.current().with(span).with(dsmContext);
+    return Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext);
   }
 
   private AgentSpan newSpan(AmazonWebServiceRequest request) {

@@ -20,6 +20,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
@@ -74,15 +75,9 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       AgentSpan span = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      System.err.println("why can I not see this message?");
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      Context current = Context.current();
-      //      LOGGER.error("1" + current);
-      //      current = current.with(span);
-      //      LOGGER.error("2" + current);
-      //      current = current.with(dsmContext);
-      //      LOGGER.error("3" + current);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      Context current = Java8BytecodeBridge.getCurrentContext();
+      defaultPropagator().inject(current.with(span).with(dsmContext), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }

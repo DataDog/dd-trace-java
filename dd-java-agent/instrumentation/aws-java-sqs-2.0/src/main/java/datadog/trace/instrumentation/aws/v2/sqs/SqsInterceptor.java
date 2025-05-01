@@ -14,6 +14,7 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -96,7 +97,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes, String queueUrl) {
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return datadog.context.Context.current().with(span).with(dsmContext);
+    return Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext);
   }
 
   private LinkedHashMap<String, String> getTags(String queueUrl) {

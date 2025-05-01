@@ -29,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -129,7 +130,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
               DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
               dsmPropagator.inject(
-                  Context.current().with(span).with(dsmContext), val.headers(), SETTER);
+                  Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext),
+                  val.headers(),
+                  SETTER);
             }
           }
         } else {

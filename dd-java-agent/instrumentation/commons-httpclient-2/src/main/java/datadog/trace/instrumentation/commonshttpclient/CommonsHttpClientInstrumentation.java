@@ -14,13 +14,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
@@ -72,7 +72,10 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onRequest(span, httpMethod);
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
         defaultPropagator()
-            .inject(Context.current().with(span).with(dsmContext), httpMethod, SETTER);
+            .inject(
+                Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext),
+                httpMethod,
+                SETTER);
 
         return scope;
       } catch (BlockingException e) {

@@ -25,7 +25,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -38,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -154,7 +154,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       sortedTags.put(TOPIC_TAG, record.topic());
       sortedTags.put(TYPE_TAG, "kafka");
       try {
-        defaultPropagator().inject(Context.current().with(span), record.headers(), setter);
+        defaultPropagator()
+            .inject(Java8BytecodeBridge.getCurrentContext().with(span), record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           // inject the context in the headers, but delay sending the stats until we know the
@@ -163,7 +164,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
           dsmPropagator.inject(
-              Context.current().with(span).with(dsmContext), record.headers(), setter);
+              Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext),
+              record.headers(),
+              setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
@@ -177,13 +180,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.value(),
                 record.headers());
 
-        defaultPropagator().inject(Context.current().with(span), record.headers(), setter);
+        defaultPropagator()
+            .inject(Java8BytecodeBridge.getCurrentContext().with(span), record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
           dsmPropagator.inject(
-              Context.current().with(span).with(dsmContext), record.headers(), setter);
+              Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext),
+              record.headers(),
+              setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
