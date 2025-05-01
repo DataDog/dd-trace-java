@@ -17,7 +17,7 @@ import java.util.Map;
 /** Helper class for retrieving and parsing JVM arguments. */
 public final class CLIHelper {
   private static final List<String> VM_ARGS = findVmArgs();
-  private static Map<String, String> VM_ARGS_MAP = Collections.emptyMap();
+  private static final Map<String, String> VM_ARGS_MAP = new HashMap<>();
   private static int currentIndex = 0; // Tracks the last processed index in VM_ARGS
 
   public static List<String> getVmArgs() {
@@ -25,30 +25,23 @@ public final class CLIHelper {
   }
 
   public static String getArgValue(String key) {
-    int numArgs = VM_ARGS.size();
     // Lazy population of cache
     synchronized (VM_ARGS_MAP) {
-      // Double check after acquiring lock
-      if (VM_ARGS_MAP.containsKey(key)) {
-        return VM_ARGS_MAP.get(key);
-      }
-      if (currentIndex >= numArgs) {
-        return null;
-      }
-
-      // Initialize cache if empty
-      if (VM_ARGS_MAP.isEmpty()) {
-        VM_ARGS_MAP = new HashMap<>();
+      String value = VM_ARGS_MAP.get(key);
+      if (value != null) {
+        return value;
       }
 
       // Process remaining args
+      int numArgs = VM_ARGS.size();
       while (currentIndex < numArgs) {
         populateCache(VM_ARGS.get(currentIndex));
         currentIndex++;
 
         // Check if we found our key
-        if (VM_ARGS_MAP.containsKey(key)) {
-          return VM_ARGS_MAP.get(key);
+        value = VM_ARGS_MAP.get(key);
+        if (value != null) {
+          return value;
         }
       }
 
@@ -72,38 +65,11 @@ public final class CLIHelper {
   }
 
   public static boolean argExists(String key) {
-    int numArgs = VM_ARGS.size();
-    // Lazy population of cache
-    synchronized (VM_ARGS_MAP) {
-      // Double check after acquiring lock
-      if (currentIndex >= numArgs) {
-        return VM_ARGS_MAP.containsKey(key);
-      }
-
-      // Initialize cache if empty
-      if (VM_ARGS_MAP.isEmpty()) {
-        VM_ARGS_MAP = new HashMap<>();
-      }
-
-      // Process remaining args
-      while (currentIndex < numArgs) {
-        String arg = VM_ARGS.get(currentIndex);
-        populateCache(arg);
-        currentIndex++;
-
-        // Check if we found our key
-        if (key.equals(arg)) {
-          return true;
-        }
-      }
-
-      return false;
-    }
+    return getArgValue(key) != null;
   }
 
   @SuppressForbidden
   private static List<String> findVmArgs() {
-    List<String> rawArgs;
 
     // Try ProcFS on Linux
     try {
@@ -141,8 +107,7 @@ public final class CLIHelper {
       }
 
       //noinspection unchecked
-      rawArgs = (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
-      return rawArgs;
+      return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
     } catch (final ReflectiveOperationException | UnsatisfiedLinkError ignored) {
       // Ignored exception
     }
@@ -151,16 +116,14 @@ public final class CLIHelper {
     try {
       final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
       final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
-      rawArgs = Arrays.asList(argArray);
-      return rawArgs;
+      return Arrays.asList(argArray);
     } catch (final ReflectiveOperationException ignored) {
       // Ignored exception
     }
 
     // Fallback to default
     try {
-      rawArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
-      return rawArgs;
+      return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
       // with non-opened java.management module

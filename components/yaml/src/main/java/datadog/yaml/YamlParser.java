@@ -2,6 +2,7 @@ package datadog.yaml;
 
 import datadog.cli.CLIHelper;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.yaml.snakeyaml.Yaml;
@@ -10,7 +11,7 @@ public class YamlParser {
   // Supports clazz == null for default yaml parsing
   public static <T> T parse(String filePath, Class<T> clazz) throws IOException {
     Yaml yaml = new Yaml();
-    String content = new String(Files.readAllBytes(Paths.get(filePath)));
+    String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
     String processedContent = processTemplate(content);
 
     if (clazz == null) {
