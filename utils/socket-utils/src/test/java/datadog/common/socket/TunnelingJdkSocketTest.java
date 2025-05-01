@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -16,8 +17,6 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +25,7 @@ public class TunnelingJdkSocketTest {
   private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
 
   @Test
-  public void testTimeout() throws Exception {
+  public void testSocketConnect() throws Exception {
     if (!Config.get().isJdkSocketEnabled()) {
       System.out.println(
           "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
@@ -36,7 +35,120 @@ public class TunnelingJdkSocketTest {
     Path socketPath = getSocketPath();
     UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
     startServer(socketAddress);
-    TunnelingJdkSocket clientSocket = createClient(socketPath);
+    TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
+
+    assertFalse(clientSocket.isConnected());
+    assertFalse(clientSocket.isClosed());
+    clientSocket.connect(new InetSocketAddress("localhost", 0));
+    assertTrue(clientSocket.isConnected());
+    assertFalse(clientSocket.isClosed());
+    assertFalse(clientSocket.isInputShutdown());
+    assertFalse(clientSocket.isOutputShutdown());
+    assertThrows(
+        SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+    clientSocket.close();
+    assertFalse(clientSocket.isConnected());
+    assertTrue(clientSocket.isClosed());
+    assertTrue(clientSocket.isInputShutdown());
+    assertTrue(clientSocket.isOutputShutdown());
+    clientSocket.close();
+
+    isServerRunning.set(false);
+  }
+
+  @Test
+  public void testSocketClose() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+
+    TunnelingJdkSocket clientSocket = createClient();
+    InputStream inputStream = clientSocket.getInputStream();
+    OutputStream outputStream = clientSocket.getOutputStream();
+
+    assertFalse(clientSocket.isClosed());
+    assertFalse(clientSocket.isInputShutdown());
+    assertFalse(clientSocket.isOutputShutdown());
+    assertTrue(clientSocket.isConnected());
+    clientSocket.close();
+    assertTrue(clientSocket.isClosed());
+    assertTrue(clientSocket.isInputShutdown());
+    assertTrue(clientSocket.isOutputShutdown());
+    assertFalse(clientSocket.isConnected());
+    assertThrows(IOException.class, () -> inputStream.read());
+    assertThrows(IOException.class, () -> outputStream.write(1));
+    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
+    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+    clientSocket.close();
+
+    isServerRunning.set(false);
+  }
+
+  @Test
+  public void testInputStreamClose() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+
+    TunnelingJdkSocket clientSocket = createClient();
+    InputStream inputStream = clientSocket.getInputStream();
+    OutputStream outputStream = clientSocket.getOutputStream();
+
+    assertFalse(clientSocket.isClosed());
+    assertFalse(clientSocket.isInputShutdown());
+    assertFalse(clientSocket.isOutputShutdown());
+    inputStream.close();
+    assertTrue(clientSocket.isClosed());
+    assertTrue(clientSocket.isInputShutdown());
+    assertTrue(clientSocket.isOutputShutdown());
+    assertThrows(IOException.class, () -> inputStream.read());
+    assertThrows(IOException.class, () -> outputStream.write(1));
+    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
+    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+
+    isServerRunning.set(false);
+  }
+
+  @Test
+  public void testOutputStreamClose() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+
+    TunnelingJdkSocket clientSocket = createClient();
+    InputStream inputStream = clientSocket.getInputStream();
+    OutputStream outputStream = clientSocket.getOutputStream();
+
+    assertFalse(clientSocket.isClosed());
+    assertFalse(clientSocket.isInputShutdown());
+    assertFalse(clientSocket.isOutputShutdown());
+    outputStream.close();
+    assertTrue(clientSocket.isClosed());
+    assertTrue(clientSocket.isInputShutdown());
+    assertTrue(clientSocket.isOutputShutdown());
+    assertThrows(IOException.class, () -> inputStream.read());
+    assertThrows(IOException.class, () -> outputStream.write(1));
+    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
+    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+
+    isServerRunning.set(false);
+  }
+
+  @Test
+  public void testTimeout() throws Exception {
+    if (!Config.get().isJdkSocketEnabled()) {
+      System.out.println(
+          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
+      return;
+    }
+
+    TunnelingJdkSocket clientSocket = createClient();
     InputStream inputStream = clientSocket.getInputStream();
 
     int testTimeout = 1000;
@@ -86,10 +198,7 @@ public class TunnelingJdkSocketTest {
       return;
     }
 
-    Path socketPath = getSocketPath();
-    UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
-    startServer(socketAddress);
-    TunnelingJdkSocket clientSocket = createClient(socketPath);
+    TunnelingJdkSocket clientSocket = createClient();
 
     assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getSendBufferSize());
     assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getReceiveBufferSize());
@@ -130,28 +239,19 @@ public class TunnelingJdkSocketTest {
       return;
     }
     long initialCount = getFileDescriptorCount();
-    System.out.println("Initial file descriptor count: " + initialCount);
 
-    Path socketPath = getSocketPath();
-    UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
-    startServer(socketAddress);
-    TunnelingJdkSocket clientSocket = createClient(socketPath);
+    TunnelingJdkSocket clientSocket = createClient();
 
-    List<InputStream> streams = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       InputStream inputStream = clientSocket.getInputStream();
-      streams.add(inputStream);
       long currentCount = getFileDescriptorCount();
-      System.out.println("Iteration " + i + ", File descriptor count: " + currentCount);
       assertTrue(currentCount <= initialCount + 7); // why +7?
     }
 
     clientSocket.close();
-    streams.clear();
     isServerRunning.set(false);
 
     long finalCount = getFileDescriptorCount();
-    System.out.println("Final file descriptor count: " + finalCount);
     assertTrue(finalCount <= initialCount + 3); // why +3?
   }
 
@@ -173,13 +273,6 @@ public class TunnelingJdkSocketTest {
 
   private String getPid() {
     return ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
-  }
-
-  private Path getSocketPath() throws IOException {
-    Path socketPath = Files.createTempFile("testSocket", null);
-    Files.delete(socketPath);
-    socketPath.toFile().deleteOnExit();
-    return socketPath;
   }
 
   private static void startServer(UnixDomainSocketAddress socketAddress) {
@@ -215,7 +308,17 @@ public class TunnelingJdkSocketTest {
     }
   }
 
-  private TunnelingJdkSocket createClient(Path socketPath) throws IOException {
+  private Path getSocketPath() throws IOException {
+    Path socketPath = Files.createTempFile("testSocket", null);
+    Files.delete(socketPath);
+    socketPath.toFile().deleteOnExit();
+    return socketPath;
+  }
+
+  private TunnelingJdkSocket createClient() throws IOException {
+    Path socketPath = getSocketPath();
+    UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
+    startServer(socketAddress);
     TunnelingJdkSocket clientSocket = new TunnelingJdkSocket(socketPath);
     clientSocket.connect(new InetSocketAddress("localhost", 0));
     return clientSocket;
