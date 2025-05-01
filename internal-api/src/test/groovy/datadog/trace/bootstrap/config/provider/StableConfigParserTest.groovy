@@ -81,6 +81,8 @@ apm_configuration_rules:
     "language" | ["java", "golang"] | "equals" | "" | true
     "language" | ["java"] | "starts_with" | "" | true
     "language" | ["golang"] | "equals" | "" | false
+    "language" | ["java"] | "exists" | "" | false
+    "language" | ["java"] | "something unexpected" | "" | false
     "environment_variables" | [] | "exists" | "DD_TAGS" | true
     "environment_variables" | ["team:apm"] | "contains" | "DD_TAGS" | true
     "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"] | "CoNtAiNs" | "Dd_TaGs" | true // check case insensitivity
@@ -130,6 +132,34 @@ apm_configuration_rules:
     cfg != null
     cfg.getConfigId() == "67890"
     cfg.get("DD_KEY") == "value_2"
+  }
+
+  def "test config_id only"() {
+    when:
+    Path filePath = FileUtils.tempFile()
+    if (filePath == null) {
+      throw new AssertionError("Failed to create test file")
+    }
+    String yaml = """
+  config_id: 12345
+  """
+    try {
+      FileUtils.writeFileRaw(filePath, yaml)
+    } catch (IOException e) {
+      throw new AssertionError("Failed to write to file: ${e.message}")
+    }
+
+    StableConfigSource.StableConfig cfg
+    try {
+      cfg = StableConfigParser.parse(filePath.toString())
+    } catch (Exception e) {
+      throw new AssertionError("Failed to parse the file: ${e.message}")
+    }
+
+    then:
+    cfg != null
+    cfg.getConfigId() == "12345"
+    cfg.getKeys().size() == 0
   }
 
   def "test parse invalid"() {
