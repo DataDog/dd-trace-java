@@ -30,7 +30,6 @@ final class TunnelingJdkSocket extends Socket {
 
   private SocketChannel unixSocketChannel;
   private Selector selector;
-  private boolean wasBlocking;
 
   private int timeout;
   private boolean shutIn;
@@ -200,14 +199,12 @@ final class TunnelingJdkSocket extends Socket {
 
     if (selector == null) {
       selector = Selector.open();
-      wasBlocking = unixSocketChannel.isBlocking();
       unixSocketChannel.configureBlocking(false);
       unixSocketChannel.register(selector, SelectionKey.OP_READ);
     }
 
     return new InputStream() {
       private final ByteBuffer buffer = ByteBuffer.allocate(getStreamBufferSize());
-      private boolean isClosed = false;
 
       @Override
       public int read() throws IOException {
@@ -217,8 +214,8 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public int read(byte[] b, int off, int len) throws IOException {
-        if (isClosed) {
-          throw new IOException("Stream is closed.");
+        if (isInputShutdown()) {
+          throw new IOException("Stream closed");
         }
         buffer.clear();
 
@@ -248,15 +245,7 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public void close() throws IOException {
-        if (isClosed) {
-          return;
-        }
-        isClosed = true;
-        selector.close();
-        selector = null;
-        if (unixSocketChannel != null) {
-          unixSocketChannel.configureBlocking(wasBlocking);
-        }
+        TunnelingJdkSocket.this.close();
       }
     };
   }
@@ -274,8 +263,6 @@ final class TunnelingJdkSocket extends Socket {
     }
 
     return new OutputStream() {
-      private boolean isClosed = false;
-
       @Override
       public void write(int b) throws IOException {
         byte[] array = ByteBuffer.allocate(4).putInt(b).array();
@@ -284,13 +271,18 @@ final class TunnelingJdkSocket extends Socket {
 
       @Override
       public void write(byte[] b, int off, int len) throws IOException {
-        if (isClosed) {
-          throw new IOException("Stream is closed");
+        if (isOutputShutdown()) {
+          throw new IOException("Stream closed");
         }
         ByteBuffer buffer = ByteBuffer.wrap(b, off, len);
         while (buffer.hasRemaining()) {
           unixSocketChannel.write(buffer);
         }
+      }
+
+      @Override
+      public void close() throws IOException {
+        TunnelingJdkSocket.this.close();
       }
     };
   }
@@ -335,15 +327,19 @@ final class TunnelingJdkSocket extends Socket {
     if (isClosed()) {
       return;
     }
+    if (!isInputShutdown()) {
+      shutdownInput();
+    }
+    if (!isOutputShutdown()) {
+      shutdownOutput();
+    }
     if (selector != null) {
       selector.close();
       selector = null;
-      if (unixSocketChannel != null) {
-        unixSocketChannel.configureBlocking(wasBlocking);
-      }
     }
     if (unixSocketChannel != null) {
       unixSocketChannel.close();
+      unixSocketChannel = null;
     }
     closed = true;
   }
