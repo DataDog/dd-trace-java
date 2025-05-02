@@ -24,42 +24,41 @@ public class BaggagePropagator implements Propagator {
   private static final Logger LOG = LoggerFactory.getLogger(BaggagePropagator.class);
   private static final PercentEscaper UTF_ESCAPER = PercentEscaper.create();
   static final String BAGGAGE_KEY = "baggage";
-  private final Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
+  private final int maxItems;
+  private final int maxBytes;
 
   public BaggagePropagator(Config config) {
-    this.injectBaggage = config.isBaggageInject();
-    this.extractBaggage = config.isBaggageExtract();
-    this.config = config;
+    this(
+        config.isBaggageInject(),
+        config.isBaggageInject(),
+        config.getTraceBaggageMaxItems(),
+        config.getTraceBaggageMaxBytes());
   }
 
   // use primarily for testing purposes
-  public BaggagePropagator(boolean injectBaggage, boolean extractBaggage) {
+  BaggagePropagator(boolean injectBaggage, boolean extractBaggage, int maxItems, int maxBytes) {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
-    this.config = Config.get();
+    this.maxItems = maxItems;
+    this.maxBytes = maxBytes;
   }
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    int maxItems = this.config.getTraceBaggageMaxItems();
-    int maxBytes = this.config.getTraceBaggageMaxBytes();
-    //    noinspection ConstantValue
+    Baggage baggage;
     if (!this.injectBaggage
-        || maxItems == 0
-        || maxBytes == 0
+        || this.maxItems == 0
+        || this.maxBytes == 0
         || context == null
         || carrier == null
-        || setter == null) {
+        || setter == null
+        || (baggage = Baggage.fromContext(context)) == null) {
       return;
     }
 
-    Baggage baggage = Baggage.fromContext(context);
-    if (baggage == null) {
-      return;
-    }
-
+    // Inject cached header if any as optimized path
     String headerValue = baggage.getW3cHeader();
     if (headerValue != null) {
       setter.set(carrier, BAGGAGE_KEY, headerValue);
@@ -86,11 +85,11 @@ public class BaggagePropagator implements Propagator {
 
       processedItems++;
       // reached the max number of baggage items allowed
-      if (processedItems == maxItems) {
+      if (processedItems == this.maxItems) {
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
-      if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > maxBytes) {
+      if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
         break;
       }
@@ -98,35 +97,26 @@ public class BaggagePropagator implements Propagator {
     }
 
     headerValue = baggageText.toString();
+    // Save header as cache to re-inject it later if baggage did not change
     baggage.setW3cHeader(headerValue);
     setter.set(carrier, BAGGAGE_KEY, headerValue);
   }
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    //noinspection ConstantValue
     if (!this.extractBaggage || context == null || carrier == null || visitor == null) {
       return context;
     }
-    BaggageExtractor baggageExtractor =
-        new BaggageExtractor(config.getTraceBaggageMaxItems(), config.getTraceBaggageMaxBytes());
+    BaggageExtractor baggageExtractor = new BaggageExtractor();
     visitor.forEachKeyValue(carrier, baggageExtractor);
     return baggageExtractor.extracted == null ? context : context.with(baggageExtractor.extracted);
   }
 
-  private static class BaggageExtractor implements BiConsumer<String, String> {
+  private class BaggageExtractor implements BiConsumer<String, String> {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
     private Baggage extracted;
-    private final int maxItems;
-    private final int maxBytes;
     private String w3cHeader;
-
-    private BaggageExtractor(int maxItems, int maxBytes) {
-      this.maxItems = maxItems;
-      this.maxBytes = maxBytes;
-      this.w3cHeader = null;
-    }
 
     /** URL decode value */
     private String decode(final String value) {
@@ -165,7 +155,7 @@ public class BaggagePropagator implements Propagator {
         if (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value)) {
           truncatedCache = true;
           this.w3cHeader = null;
-        } else if (!truncatedCache && (end > this.maxBytes || baggage.size() > this.maxItems)) {
+        } else if (!truncatedCache && (end > maxBytes || baggage.size() > maxItems)) {
           if (start == 0) { // if we go out of range after first k/v pair, there is no cache
             this.w3cHeader = null;
           } else {
