@@ -19,6 +19,10 @@ import org.slf4j.LoggerFactory;
 public class StableConfigParser {
   private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
 
+  private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
+  private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
+  private static final String UNDEFINED_VALUE = "UNDEFINED";
+
   /**
    * Parses a configuration file and returns a stable configuration object.
    *
@@ -230,22 +234,22 @@ public class StableConfigParser {
   }
 
   private static String processTemplateVar(String templateVar) throws IOException {
-    if (templateVar.startsWith("environment_variables['") && templateVar.endsWith("']")) {
+    if (templateVar.startsWith(ENVIRONMENT_VARIABLES_PREFIX) && templateVar.endsWith("']")) {
       String envVar =
           templateVar
-              .substring("environment_variables['".length(), templateVar.length() - 2)
+              .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
               .trim();
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
       String value = System.getenv(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
-        return "UNDEFINED";
+        return UNDEFINED_VALUE;
       }
       return value;
-    } else if (templateVar.startsWith("process_arguments['") && templateVar.endsWith("']")) {
+    } else if (templateVar.startsWith(PROCESS_ARGUMENTS_PREFIX) && templateVar.endsWith("']")) {
       String processArg =
-          templateVar.substring("process_arguments['".length(), templateVar.length() - 2).trim();
+          templateVar.substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2).trim();
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }
@@ -253,14 +257,15 @@ public class StableConfigParser {
         log.warn(
             "Ignoring unsupported process_arguments entry in template variable, '{}'. Only system properties specified with the '-D' prefix are supported.",
             processArg);
-        return "UNDEFINED";
+        return UNDEFINED_VALUE;
       }
       String value = System.getProperty(processArg.substring(2));
       if (value == null || value.isEmpty()) {
-        return "UNDEFINED";
+        return UNDEFINED_VALUE;
       }
       return value;
+    } else {
+      return UNDEFINED_VALUE;
     }
-    return "UNDEFINED";
   }
 }
