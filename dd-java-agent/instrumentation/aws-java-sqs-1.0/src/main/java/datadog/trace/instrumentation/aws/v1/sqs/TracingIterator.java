@@ -103,11 +103,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
-        if (extractedContext == null) {
-          activateNext(span);
-        } else {
-          extractedContext.with(span).attach();
-        }
+        activateNext(span);
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();

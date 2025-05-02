@@ -149,15 +149,7 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
       CONSUMER_DECORATE.onError(span, throwable);
-
-      if (extractedContext == null) {
-        activateNext(span);
-      } else {
-        extractedContext
-            .with(span)
-            .attach(); // scope is left open until next message or it times out
-      }
-
+      activateNext(span);
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
         // consumed spans will be finished by a call to Message.acknowledge

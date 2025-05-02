@@ -143,11 +143,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group, bootstrapServers);
-        if (extractedContext == null) {
-          activateNext(span);
-        } else {
-          extractedContext.with(span).attach();
-        }
+        activateNext(span);
         if (null != queueSpan) {
           queueSpan.finish();
         }
