@@ -58,13 +58,14 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
     } else if (collectionValue instanceof MapValue) {
       MapValue materialized = (MapValue) collectionValue;
       Map<Object, Object> filtered = new HashMap<>();
-
       for (Value<?> key : materialized.getKeys()) {
         Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
-        if (filterExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(
-                    ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value))))) {
+        Map<String, Object> valueRefExtensions = new HashMap<>();
+        valueRefExtensions.put(ValueReferences.KEY_EXTENSION_NAME, key);
+        valueRefExtensions.put(ValueReferences.VALUE_EXTENSION_NAME, value);
+        valueRefExtensions.put(
+            ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value));
+        if (filterExpression.evaluate(valueRefResolver.withExtensions(valueRefExtensions))) {
           filtered.put(key.getValue(), value.getValue());
         }
       }

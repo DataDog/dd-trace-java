@@ -52,8 +52,7 @@ public class FiberContext {
   }
 
   public void onResume() {
-    this.oldState = AgentTracer.get().newScopeState();
-    this.oldState.fetchFromActive();
+    this.oldState = AgentTracer.get().oldScopeState();
 
     this.state.activate();
 

@@ -89,27 +89,27 @@ public class PrettyPrintVisitor implements Visitor<String> {
   public String visit(FilterCollectionExpression filterCollectionExpression) {
     return "filter("
         + nullSafeAccept(filterCollectionExpression.getSource())
-        + ", "
+        + ", {"
         + nullSafeAccept(filterCollectionExpression.getFilterExpression())
-        + ")";
+        + "})";
   }
 
   @Override
   public String visit(HasAllExpression hasAllExpression) {
     return "all("
         + nullSafeAccept(hasAllExpression.getValueExpression())
-        + ", "
+        + ", {"
         + nullSafeAccept(hasAllExpression.getFilterPredicateExpression())
-        + ")";
+        + "})";
   }
 
   @Override
   public String visit(HasAnyExpression hasAnyExpression) {
     return "any("
         + nullSafeAccept(hasAnyExpression.getValueExpression())
-        + ", "
+        + ", {"
         + nullSafeAccept(hasAnyExpression.getFilterPredicateExpression())
-        + ")";
+        + "})";
   }
 
   @Override

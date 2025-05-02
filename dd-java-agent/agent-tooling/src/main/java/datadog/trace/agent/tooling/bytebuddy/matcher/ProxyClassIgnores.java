@@ -5,16 +5,17 @@ public class ProxyClassIgnores {
   private ProxyClassIgnores() {}
 
   public static boolean isIgnored(String name) {
-    if (name.indexOf('$') > -1) {
-      if (name.contains("$JaxbAccessor")
-          || name.contains("CGLIB$$")
-          || name.contains("$__sisu")
-          || name.contains("$$EnhancerByGuice$$")
-          || name.contains("$$EnhancerByProxool$$")
-          || name.contains("$$$view")
-          || name.contains("$$$endpoint") // jboss mdb proxies
-          || name.contains("$$_Weld")
-          || name.contains("_$$_jvst")) {
+    for (int last = -1, idx; (idx = name.indexOf('$', last + 1)) >= 0; last = idx) {
+      if (last < 0 && name.contains("CGLIB$$")) {
+        // check this once
+        return true;
+      }
+      if (idx == last + 1) {
+        // skip the trie if consecutive $$ since, to be efficient, we can match prefixes from the
+        // first dollar
+        continue;
+      }
+      if (ProxyIgnoredClassNameTrie.apply(name, idx) == 1) {
         return true;
       }
     }

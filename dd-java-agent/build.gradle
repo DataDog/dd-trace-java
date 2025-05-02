@@ -42,6 +42,7 @@ ext.generalShadowJarConfig = {
   exclude '**/module-info.class'
   exclude '**/liblz4-java.so'
   exclude '**/liblz4-java.dylib'
+  exclude '**/inst/META-INF/versions/**'
 
   // Replaced by 'instrumenter.index', no need to include original service file
   exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
@@ -98,6 +99,16 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
+      if (jarname == 'inst') {
+        // byte-buddy now ships classes optimized for Java8+ under META-INF/versions/9
+        // since we target Java8+ we can promote these classes over the pre-Java8 ones
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        eachFile {
+          if (it.path.contains('META-INF/versions/9/net/bytebuddy')) {
+            it.path = it.path.replace('META-INF/versions/9/', '')
+          }
+        }
+      }
     }
   }
 
