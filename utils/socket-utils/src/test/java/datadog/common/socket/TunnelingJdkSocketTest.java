@@ -229,14 +229,14 @@ public class TunnelingJdkSocketTest {
     for (int i = 0; i < 100; i++) {
       InputStream inputStream = clientSocket.getInputStream();
       long currentCount = getFileDescriptorCount();
-      assertTrue(currentCount <= initialCount + 7); // why +7?
+      assertTrue(currentCount <= initialCount + 7);
     }
 
     clientSocket.close();
     isServerRunning.set(false);
 
     long finalCount = getFileDescriptorCount();
-    assertTrue(finalCount <= initialCount + 3); // why +3?
+    assertTrue(finalCount <= initialCount + 3);
   }
 
   private long getFileDescriptorCount() {
