@@ -223,6 +223,8 @@ apm_configuration_rules:
     "{}" | null | null | "{}"
     "{{environment_variables['dd_key']}}" | "DD_KEY" | "value" | "value"
     "{{environment_variables['DD_KEY}}" | "DD_KEY" | "value" | "UNDEFINED"
+    "header-{{environment_variables['DD_KEY']}}-footer" | "DD_KEY" | "value" | "header-value-footer"
+    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "UNDEFINEDvalueUNDEFINED"
   }
 
   def "test processTemplate error cases"() {

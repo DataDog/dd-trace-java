@@ -186,32 +186,27 @@ public class StableConfigParser {
   }
 
   static String processTemplate(String content) throws IOException {
+    // Do nothing if there are no variables to process
     int openIndex = content.indexOf("{{");
     if (openIndex == -1) {
       return content;
     }
 
     StringBuilder result = new StringBuilder(content.length());
-    String rest = content;
+
+    // Add everything before the opening braces
+    result.append(content, 0, openIndex);
 
     while (true) {
-      openIndex = rest.indexOf("{{");
-      if (openIndex == -1) {
-        result.append(rest);
-        break;
-      }
-
-      // Add everything before the template
-      result.append(rest.substring(0, openIndex));
 
       // Find the closing braces
-      int closeIndex = rest.indexOf("}}", openIndex);
+      int closeIndex = content.indexOf("}}", openIndex);
       if (closeIndex == -1) {
         throw new IOException("Unterminated template in config");
       }
 
       // Extract the template variable
-      String templateVar = rest.substring(openIndex + 2, closeIndex).trim();
+      String templateVar = content.substring(openIndex + 2, closeIndex).trim();
 
       // Process the template variable and get its value
       String value = processTemplateVar(templateVar);
@@ -219,8 +214,16 @@ public class StableConfigParser {
       // Add the processed value
       result.append(value);
 
-      // Continue with the rest of the string
-      rest = rest.substring(closeIndex + 2);
+      // Continue with the next template variable
+      openIndex = content.indexOf("{{", closeIndex);
+      if (openIndex == -1) {
+        // Stop and add everything left after the final closing braces
+        result.append(content, closeIndex + 2, content.length());
+        break;
+      } else {
+        // Add everything between the last braces and the next
+        result.append(content, closeIndex + 2, openIndex);
+      }
     }
 
     return result.toString();
