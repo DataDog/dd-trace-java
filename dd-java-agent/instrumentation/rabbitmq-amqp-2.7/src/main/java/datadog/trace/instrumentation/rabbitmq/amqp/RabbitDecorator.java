@@ -211,7 +211,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
     if (null != headers) {
       extractedContext =
           Propagators.defaultPropagator()
-              .extract(Context.root(), headers, ContextVisitors.objectValuesMap());
+              .extract(
+                  Java8BytecodeBridge.getCurrentContext(),
+                  headers,
+                  ContextVisitors.objectValuesMap());
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
       parentContext =
           extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

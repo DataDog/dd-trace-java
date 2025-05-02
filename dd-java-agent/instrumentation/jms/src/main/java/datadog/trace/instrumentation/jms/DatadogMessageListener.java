@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
@@ -42,7 +43,9 @@ public class DatadogMessageListener implements MessageListener {
     Context extractedContext = null;
     AgentSpanContext propagatedContext = null;
     if (!consumerState.isPropagationDisabled()) {
-      extractedContext = Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+      extractedContext =
+          Propagators.defaultPropagator()
+              .extract(Java8BytecodeBridge.getCurrentContext(), message, GETTER);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
       propagatedContext =
           extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

@@ -18,6 +18,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -66,7 +67,9 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         parentContext = parent.context();
       } else {
         // otherwise try to re-extract the message context to avoid disconnected trace
-        extractedContext = Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+        extractedContext =
+            Propagators.defaultPropagator()
+                .extract(Java8BytecodeBridge.getCurrentContext(), message, GETTER);
         final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
         parentContext =
             extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

@@ -42,6 +42,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -236,7 +237,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       Context extractedContext = null;
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         extractedContext =
-            Propagators.defaultPropagator().extract(Context.root(), record, SR_GETTER);
+            Propagators.defaultPropagator()
+                .extract(Java8BytecodeBridge.getCurrentContext(), record, SR_GETTER);
         final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
         final AgentSpanContext spanContext =
             extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
@@ -319,7 +321,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       Context extractedContext = null;
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         extractedContext =
-            Propagators.defaultPropagator().extract(Context.root(), record, PR_GETTER);
+            Propagators.defaultPropagator()
+                .extract(Java8BytecodeBridge.getCurrentContext(), record, PR_GETTER);
         final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
         final AgentSpanContext spanContext =
             extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

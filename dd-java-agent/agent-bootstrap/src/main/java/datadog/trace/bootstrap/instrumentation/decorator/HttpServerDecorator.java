@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -131,7 +132,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return null;
     }
 
-    return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    return Propagators.defaultPropagator()
+        .extract(Java8BytecodeBridge.getRootContext(), carrier, getter);
   }
 
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */

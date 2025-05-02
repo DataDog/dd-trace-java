@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -68,7 +69,8 @@ public final class MDBMessageConsumerInstrumentation
         return null;
       }
       final Context extractedContext =
-          Propagators.defaultPropagator().extract(Context.root(), message, GETTER);
+          Propagators.defaultPropagator()
+              .extract(Java8BytecodeBridge.getCurrentContext(), message, GETTER);
       final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
       final AgentSpanContext propagatedContext =
           extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

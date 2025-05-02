@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.Iterator;
@@ -83,7 +84,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         Context extractedContext = null;
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           extractedContext =
-              Propagators.defaultPropagator().extract(Context.root(), val.headers(), GETTER);
+              Propagators.defaultPropagator()
+                  .extract(Java8BytecodeBridge.getCurrentContext(), val.headers(), GETTER);
           final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
           final AgentSpanContext spanContext =
               extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

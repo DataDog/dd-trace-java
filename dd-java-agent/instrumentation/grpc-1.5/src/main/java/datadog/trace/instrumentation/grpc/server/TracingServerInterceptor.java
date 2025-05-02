@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
@@ -64,7 +65,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
 
     final Context extractedContext =
-        Propagators.defaultPropagator().extract(Context.root(), headers, GETTER);
+        Propagators.defaultPropagator()
+            .extract(Java8BytecodeBridge.getCurrentContext(), headers, GETTER);
     final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
     AgentSpanContext spanContext =
         extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();

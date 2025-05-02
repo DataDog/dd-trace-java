@@ -87,7 +87,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         Context extractedContext = null;
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           extractedContext =
-              Propagators.defaultPropagator().extract(Context.root(), val.headers(), GETTER);
+              Propagators.defaultPropagator()
+                  .extract(Java8BytecodeBridge.getCurrentContext(), val.headers(), GETTER);
           final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
           final AgentSpanContext spanContext =
               extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
