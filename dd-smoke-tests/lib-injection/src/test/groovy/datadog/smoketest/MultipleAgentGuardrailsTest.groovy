@@ -1,9 +1,9 @@
 package datadog.smoketest
 
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.nio.file.Paths
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
   static final String LIB_INJECTION_ENABLED_FLAG = 'DD_INJECTION_ENABLED'
@@ -11,17 +11,11 @@ abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
-
-    def jarPath = System.getProperty("datadog.smoketest.shadowJar.path")
-    if (extraAgentFilename() != null) {
-      def renamedJar = Paths.get(jarPath).getParent().resolve(extraAgentFilename())
-      Files.copy(Paths.get(jarPath), renamedJar, StandardCopyOption.REPLACE_EXISTING)
-      jarPath = renamedJar.toString()
-    }
+    def jarPath = System.getProperty('datadog.smoketest.shadowJar.path')
     def command = []
     command+= javaPath()
     command.addAll(defaultJavaProperties)
-    command+= "-javaagent:${jarPath}" as String // Happen the fake agent too
+    command+= "-javaagent:${getFakeAgentPath(jarPath)}" as String // Happen the fake agent too
     command+= '-Ddd.trace.otel.enabled=true'
     command+= '-jar'
     command+= jarPath
@@ -36,13 +30,22 @@ abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  String getFakeAgentPath(String jarPath) {
+    if (overriddenFakeAgentFilename() != null) {
+      def buildFakeAgentPath = Paths.get(jarPath)
+      def overriddenFakeAgentPath = buildFakeAgentPath.getParent().resolve(overriddenFakeAgentFilename())
+      Files.copy(buildFakeAgentPath, overriddenFakeAgentPath, REPLACE_EXISTING)
+      jarPath = overriddenFakeAgentPath.toString()
+    }
+    return jarPath
+  }
+
   abstract boolean isLibInjectionEnabled()
   abstract boolean isLibInjectionForced()
 
-  String extraAgentFilename() {
+  String overriddenFakeAgentFilename() {
     return null
   }
-
 
   boolean isExpectingTrace() {
     return !isLibInjectionEnabled() || isLibInjectionForced()
@@ -96,7 +99,7 @@ class LibInjectionForcedTest extends MultipleAgentGuardrailsTest {
 }
 
 // Test that injection still works if we have to agent if one of them is the aws emr log4j patcher
-class LibsInjectionWorksEmr extends MultipleAgentGuardrailsTest {
+class LibsInjectionLog4jExclusionTest extends MultipleAgentGuardrailsTest {
   @Override
   boolean isLibInjectionEnabled() {
     return true
@@ -108,8 +111,8 @@ class LibsInjectionWorksEmr extends MultipleAgentGuardrailsTest {
   }
 
   @Override
-  String extraAgentFilename() {
-    return "Log4jHotPatchFat.jar"
+  String overriddenFakeAgentFilename() {
+    return 'Log4jHotPatchFat.jar'
   }
 
   @Override
