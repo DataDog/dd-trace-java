@@ -32,6 +32,7 @@ jobs:
       
       - name: Build dd-trace-java
         run: |
+          GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
@@ -39,9 +40,6 @@ jobs:
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew clean :dd-java-agent:shadowJar \
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
-        env:
-          # Give Gradle more memory (4 GB heap)
-          GRADLE_OPTS: "-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC"
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -62,5 +60,5 @@ jobs:
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
-      excluded_scenarios: CROSSED_TRACING_LIBRARIES,INTEGRATIONS_AWS  # require AWS credentials
+      excluded_scenarios: CROSSED_TRACING_LIBRARIES,INTEGRATIONS_AWS,APM_TRACING_E2E_OTEL,PROFILING  # require AWS and datadog credentials 
       skip_empty_scenarios: true
