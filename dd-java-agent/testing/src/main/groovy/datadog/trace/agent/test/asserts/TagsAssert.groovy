@@ -99,7 +99,7 @@ class TagsAssert {
       assertedTags.add(it)
     }
     if (assertedTags.add(DDTags.DD_INTEGRATION) && tags[Tags.COMPONENT] != null) {
-      assert tags[Tags.COMPONENT] == tags[DDTags.DD_INTEGRATION]
+      assert tags[Tags.COMPONENT].toString() == tags[DDTags.DD_INTEGRATION].toString()
     }
 
     assert tags["thread.name"] != null
