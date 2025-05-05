@@ -4,7 +4,8 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
-import datadog.trace.api.civisibility.telemetry.tag.GitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.util.Strings;
@@ -103,13 +104,13 @@ public class GitInfoProvider {
   }
 
   private static final class ShaDiscrepancy {
-    private final GitProvider expectedGitProvider;
-    private final GitProvider discrepantGitProvider;
+    private final GitProviderExpected expectedGitProvider;
+    private final GitProviderDiscrepant discrepantGitProvider;
     private final GitShaDiscrepancyType discrepancyType;
 
     private ShaDiscrepancy(
-        GitProvider expectedGitProvider,
-        GitProvider discrepantGitProvider,
+        GitProviderExpected expectedGitProvider,
+        GitProviderDiscrepant discrepantGitProvider,
         GitShaDiscrepancyType discrepancyType) {
       this.expectedGitProvider = expectedGitProvider;
       this.discrepantGitProvider = discrepantGitProvider;
@@ -183,9 +184,9 @@ public class GitInfoProvider {
         Function<GitInfo, String> function,
         Predicate<String> validator,
         boolean checkShaIntegrity) {
-      String commitSha = null;
-      String repositoryURL = null;
-      GitProvider commitShaProvider = null;
+      String expectedCommitSha = null;
+      String expectedRepoUrl = null;
+      GitProviderExpected expectedGitProvider = null;
 
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
         GitInfo info = e.getValue();
@@ -199,20 +200,22 @@ public class GitInfoProvider {
           CommitInfo currentCommit = info.getCommit();
           String currentCommitSha = currentCommit != null ? currentCommit.getSha() : null;
           if (Strings.isNotBlank(currentCommitSha)) {
-            if (commitSha == null) {
-              commitSha = currentCommitSha;
-              repositoryURL = info.getRepositoryURL();
-              commitShaProvider = e.getKey().getProvider(GitProvider.Type.EXPECTED);
-            } else if (!commitSha.equals(currentCommitSha)) {
+            if (expectedCommitSha == null) {
+              expectedCommitSha = currentCommitSha;
+              expectedRepoUrl = info.getRepositoryURL();
+              expectedGitProvider = e.getKey().providerAsExpected();
+            } else if (!expectedCommitSha.equals(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
+              GitShaDiscrepancyType discrepancyType = GitShaDiscrepancyType.COMMIT_DISCREPANCY;
+              String repoUrl = info.getRepositoryURL();
+              if (expectedRepoUrl != null && repoUrl != null && !repoUrl.equals(expectedRepoUrl)) {
+                discrepancyType = GitShaDiscrepancyType.REPOSITORY_DISCREPANCY;
+              }
+
               shaDiscrepancies.add(
                   new ShaDiscrepancy(
-                      commitShaProvider,
-                      e.getKey().getProvider(GitProvider.Type.DISCREPANT),
-                      repositoryURL.equals(info.getRepositoryURL())
-                          ? GitShaDiscrepancyType.COMMIT_DISCREPANCY
-                          : GitShaDiscrepancyType.REPOSITORY_DISCREPANCY));
+                      expectedGitProvider, e.getKey().providerAsDiscrepant(), discrepancyType));
               continue;
             }
           }

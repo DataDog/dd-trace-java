@@ -6,14 +6,10 @@ public enum GitShaMatch implements TagValue {
   TRUE,
   FALSE;
 
-  private final String s;
-
-  GitShaMatch() {
-    s = "matched:" + name().toLowerCase();
-  }
+  GitShaMatch() {}
 
   @Override
   public String asString() {
-    return s;
+    return "matched:" + name().toLowerCase();
   }
 }

@@ -6,14 +6,10 @@ public enum GitShaDiscrepancyType implements TagValue {
   REPOSITORY_DISCREPANCY,
   COMMIT_DISCREPANCY;
 
-  private final String s;
-
-  GitShaDiscrepancyType() {
-    s = "type:" + name().toLowerCase();
-  }
+  GitShaDiscrepancyType() {}
 
   @Override
   public String asString() {
-    return s;
+    return "type:" + name().toLowerCase();
   }
 }

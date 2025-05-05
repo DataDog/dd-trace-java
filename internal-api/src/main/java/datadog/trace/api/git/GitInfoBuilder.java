@@ -1,6 +1,7 @@
 package datadog.trace.api.git;
 
-import datadog.trace.api.civisibility.telemetry.tag.GitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import javax.annotation.Nullable;
 
 public interface GitInfoBuilder {
@@ -8,5 +9,7 @@ public interface GitInfoBuilder {
 
   int order();
 
-  GitProvider getProvider(GitProvider.Type type);
+  GitProviderExpected providerAsExpected();
+
+  GitProviderDiscrepant providerAsDiscrepant();
 }
