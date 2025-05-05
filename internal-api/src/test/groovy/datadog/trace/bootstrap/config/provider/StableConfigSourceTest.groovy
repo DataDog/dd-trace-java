@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.FileUtils
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.introspector.Property
@@ -34,7 +33,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test empty file"() {
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -48,7 +47,7 @@ class StableConfigSourceTest extends DDSpecification {
   def "test file invalid format"() {
     // StableConfigSource must handle the exception thrown by StableConfigParser.parse(filePath) gracefully
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -74,7 +73,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test file valid format"() {
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }

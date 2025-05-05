@@ -1,13 +1,12 @@
 package datadog.trace.bootstrap.config.provider
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.test.util.FileUtils
 import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
   def "test parse valid"() {
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -41,7 +40,7 @@ apm_configuration_rules:
       KEY_FOUR: "ignored"
 """
     try {
-      FileUtils.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -102,7 +101,7 @@ apm_configuration_rules:
   def "test duplicate entries"() {
     // When duplicate keys are encountered, snakeyaml preserves the last value by default
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -116,7 +115,7 @@ apm_configuration_rules:
   """
 
     try {
-      FileUtils.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -136,7 +135,7 @@ apm_configuration_rules:
 
   def "test config_id only"() {
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -144,7 +143,7 @@ apm_configuration_rules:
   config_id: 12345
   """
     try {
-      FileUtils.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -165,7 +164,7 @@ apm_configuration_rules:
   def "test parse invalid"() {
     // If any piece of the file is invalid, the whole file is rendered invalid and an exception is thrown
     when:
-    Path filePath = FileUtils.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -187,7 +186,7 @@ apm_configuration_rules:
   something-else-irrelevant: value-irrelevant
   """
     try {
-      FileUtils.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
