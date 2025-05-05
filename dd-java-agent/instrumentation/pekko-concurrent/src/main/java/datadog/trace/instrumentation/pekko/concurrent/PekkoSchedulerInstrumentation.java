@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 
 /** Active span capturing and continuation for Pekko's async scheduled tasks. */
 @AutoService(InstrumenterModule.class)
-public class PekkoSchedulerInstrumentation extends InstrumenterModule.CiVisibility
+public class PekkoSchedulerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoSchedulerInstrumentation() {
@@ -26,13 +26,8 @@ public class PekkoSchedulerInstrumentation extends InstrumenterModule.CiVisibili
   }
 
   @Override
-  public boolean isEnabled() {
-    /*
-    For now this instrumentation is only active when the CI Visibility per-test code coverage is enabled.
-    Per-test code coverage relies on spans propagation to capture coverage information from different threads,
-    so without this instrumentation coverage data for test cases using Pekko's async scheduled tasks will be incomplete.
-    */
-    return super.isEnabled() && Config.get().isCiVisibilityCodeCoverageEnabled();
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isPekkoSchedulerEnabled();
   }
 
   @Override
