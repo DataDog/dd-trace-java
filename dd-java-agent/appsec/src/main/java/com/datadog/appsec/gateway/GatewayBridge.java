@@ -670,7 +670,7 @@ public class GatewayBridge {
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
     } else {
-      ctx.closeAdditive();
+      ctx.closeWafContext();
     }
 
     // AppSec report metric and events for web span only
@@ -724,13 +724,16 @@ public class GatewayBridge {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
       }
 
-      if (ctx.isBlocked()) {
-        WafMetricCollector.get().wafRequestBlocked();
-      } else if (!collectedEvents.isEmpty()) {
-        WafMetricCollector.get().wafRequestTriggered();
-      } else {
-        WafMetricCollector.get().wafRequest();
-      }
+      WafMetricCollector.get()
+          .wafRequest(
+              !collectedEvents.isEmpty(), // ruleTriggered
+              ctx.isWafBlocked(), // requestBlocked
+              ctx.hasWafErrors(), // wafError
+              ctx.getWafTimeouts() > 0, // wafTimeout,
+              ctx.isWafRequestBlockFailure(), // blockFailure,
+              ctx.isWafRateLimited(), // rateLimited,
+              ctx.isWafTruncated() // inputTruncated
+              );
     }
 
     ctx.close();

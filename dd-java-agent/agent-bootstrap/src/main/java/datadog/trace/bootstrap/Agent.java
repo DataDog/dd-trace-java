@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -44,6 +45,7 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -250,6 +252,11 @@ public class Agent {
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
+      if (Config.get().isDataJobsOpenLineageEnabled()) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
+
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
       if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
@@ -285,6 +292,8 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+
+    patchJPSAccess(inst);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -412,6 +421,23 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  @SuppressForbidden
+  public static void patchJPSAccess(Instrumentation inst) {
+    if (Platform.isJavaVersionAtLeast(9)) {
+      // Unclear if supported for J9, may need to revisit
+      try {
+        Class.forName("datadog.trace.util.JPMSJPSAccess")
+            .getMethod("patchModuleAccess", Instrumentation.class)
+            .invoke(null, inst);
+      } catch (Exception e) {
+        log.debug(
+            SEND_TELEMETRY,
+            "Failed to patch module access for jvmstat and Java version "
+                + Platform.getRuntimeVersion());
+      }
     }
   }
 

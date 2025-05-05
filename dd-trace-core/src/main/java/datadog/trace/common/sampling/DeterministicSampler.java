@@ -49,7 +49,7 @@ public abstract class DeterministicSampler implements RateSampler {
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
     // unsigned 64 bit comparison with cutoff/threshold
-    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE < threshold;
+    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE <= threshold;
   }
 
   protected abstract <T extends CoreSpan<T>> long getSamplingId(T span);

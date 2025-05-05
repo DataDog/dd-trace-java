@@ -189,12 +189,6 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
-  /** @deprecated To be removed, do not use. */
-  @Deprecated
-  public static AgentScope activeScope() {
-    return get().activeScope();
-  }
-
   /**
    * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
    * asynchronous boundaries.
@@ -368,8 +362,6 @@ public class AgentTracer {
 
     AgentSpan activeSpan();
 
-    AgentScope activeScope();
-
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
       return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
@@ -420,6 +412,8 @@ public class AgentTracer {
      * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
+
+    void addShutdownListener(Runnable listener);
   }
 
   public interface SpanBuilder {
@@ -540,11 +534,6 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activeScope() {
-      return null;
-    }
-
-    @Override
     public AgentSpan blackholeSpan() {
       return NoopSpan.INSTANCE; // no-op tracer stays no-op
     }
@@ -613,6 +602,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void addShutdownListener(Runnable listener) {}
+
+    @Override
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
@@ -647,6 +639,11 @@ public class AgentTracer {
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
 
     @Override
+    public ScopeState oldScopeState() {
+      return null;
+    }
+
+    @Override
     public ScopeState newScopeState() {
       return null;
     }
@@ -679,7 +676,7 @@ public class AgentTracer {
     public void registerContinuation(final AgentScope.Continuation continuation) {}
 
     @Override
-    public void cancelContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final AgentScope.Continuation continuation) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

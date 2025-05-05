@@ -305,16 +305,6 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     return testModule.executionPriority(test, testSource);
   }
 
-  @Override
-  public boolean isNew(@Nonnull TestIdentifier test) {
-    return testModule.isNew(test);
-  }
-
-  @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return testModule.isFlaky(test);
-  }
-
   @Nullable
   @Override
   public SkipReason skipReason(TestIdentifier test) {

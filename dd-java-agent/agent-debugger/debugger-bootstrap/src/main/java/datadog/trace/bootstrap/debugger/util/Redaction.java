@@ -117,7 +117,10 @@ public class Redaction {
      * based on sentry list: https://github.com/getsentry/sentry-python/blob/fefb454287b771ac31db4e30fa459d9be2f977b8/sentry_sdk/scrubber.py#L17-L58
      */
     KEYWORDS.addAll(PREDEFINED_KEYWORDS);
-    KEYWORDS.removeAll(Config.get().getDynamicInstrumentationRedactionExcludedIdentifiers());
+    // Exclude user defined keywords
+    for (String keyword : Config.get().getDynamicInstrumentationRedactionExcludedIdentifiers()) {
+      KEYWORDS.remove(normalize(keyword));
+    }
   }
 
   public static void addUserDefinedKeywords(Config config) {

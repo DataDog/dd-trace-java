@@ -1938,7 +1938,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"].toSet()
   }
 
   def "detect if agent is configured using default values"() {
@@ -2677,20 +2677,6 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
-  }
-
-  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
-    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-    config.tracePropagationStylesToExtract.toList() == []
   }
 
   def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {

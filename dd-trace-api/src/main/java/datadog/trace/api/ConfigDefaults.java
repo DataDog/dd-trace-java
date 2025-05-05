@@ -224,6 +224,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
@@ -240,7 +241,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
-      new HashSet<>(asList("DD_TAGS", "DD_LOGS_INJECTION"));
+      new HashSet<>(
+          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;

@@ -109,7 +109,7 @@ public class ProfilingAgent {
         return;
       }
       if (!config.isProfilingEnabled()) {
-        log.debug("Profiling: disabled");
+        log.debug(SEND_TELEMETRY, "Profiling: disabled");
         return;
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
@@ -167,7 +167,8 @@ public class ProfilingAgent {
         }
       } catch (final UnsupportedEnvironmentException e) {
         log.warn(e.getMessage());
-        log.debug(SEND_TELEMETRY, "Unsupported environment for Datadog profiler", e);
+        // no need to send telemetry for this aggregate message
+        //   a detailed telemetry message has been sent from the attempts to enable the controllers
       } catch (final ConfigurationException e) {
         log.warn("Failed to initialize profiling agent! {}", e.getMessage());
         log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);

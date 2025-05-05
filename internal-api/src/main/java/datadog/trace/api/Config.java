@@ -150,6 +150,7 @@ public class Config {
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -383,6 +384,7 @@ public class Config {
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
+  private final boolean ciVisibilityScalatestForkMonitorEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -501,6 +503,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final String dataJobsCommandPattern;
+  private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -525,6 +528,7 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -843,6 +847,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1042,14 +1048,8 @@ public class Config {
       }
       // Now we can check if we should pick the default injection/extraction
 
-      if (extract.isEmpty()) {
-        extract = DEFAULT_TRACE_PROPAGATION_STYLE;
-      }
-
       tracePropagationStylesToExtract =
-          tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-              ? new HashSet<>()
-              : extract;
+          extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
 
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
@@ -1087,6 +1087,8 @@ public class Config {
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
 
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
@@ -1612,6 +1614,8 @@ public class Config {
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityScalatestForkMonitorEnabled =
+        configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1839,6 +1843,9 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsOpenLineageEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
@@ -2015,7 +2022,7 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
-    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, false);
 
     log.debug("New instance: {}", this);
   }
@@ -2085,6 +2092,10 @@ public class Config {
 
   public Set<String> getExperimentalFeaturesEnabled() {
     return experimentalFeaturesEnabled;
+  }
+
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -3116,6 +3127,10 @@ public class Config {
         || ciVisibilityTestManagementEnabled;
   }
 
+  public boolean isCiVisibilityScalatestForkMonitorEnabled() {
+    return ciVisibilityScalatestForkMonitorEnabled;
+  }
+
   public int getCiVisibilityFlakyRetryCount() {
     return ciVisibilityFlakyRetryCount;
   }
@@ -3523,6 +3538,10 @@ public class Config {
     return dogStatsDArgs;
   }
 
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
+  }
+
   public String getConfigFileStatus() {
     return configFileStatus;
   }
@@ -3609,6 +3628,10 @@ public class Config {
 
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
+  }
+
+  public boolean isDataJobsOpenLineageEnabled() {
+    return dataJobsOpenLineageEnabled;
   }
 
   public String getDataJobsCommandPattern() {
@@ -4886,6 +4909,8 @@ public class Config {
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }
