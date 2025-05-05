@@ -945,6 +945,7 @@ public enum JDBCConnectionUrlParser {
         }
       }
       if (props.containsKey("servicename")) {
+        // this property is used to specify the db to use for Sybase connection strings
         builder.instance((String) props.get("servicename"));
       }
 
