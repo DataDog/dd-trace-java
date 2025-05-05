@@ -45,6 +45,8 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     "com.informix.jdbc.IfmxConnection",
     // Intersystems IRIS
     "com.intersystems.jdbc.IRISConnection",
+    // Sybase
+    "com.sybase.jdbc4.jdbc.SybConnection",
     // for testing purposes
     "test.TestConnection"
   };
