@@ -25,7 +25,7 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
@@ -36,8 +36,11 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterM
   }
 
   @Override
-  public String instrumentedType() {
-    return "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
+      "com.dd.logs.concurrent.akka.AkkaForkJoinTask", // logs-backend fork
+    };
   }
 
   @Override

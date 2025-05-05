@@ -19,15 +19,18 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
 
   @Override
-  public String instrumentedType() {
-    return "akka.dispatch.forkjoin.ForkJoinPool";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "akka.dispatch.forkjoin.ForkJoinPool",
+      "com.dd.logs.concurrent.akka.forkjoin.ForkJoinPool" // logs-backend fork
+    };
   }
 
   @Override
@@ -43,6 +46,7 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tr
   }
 
   public static final class ExternalPush {
+
     @Advice.OnMethodEnter
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {

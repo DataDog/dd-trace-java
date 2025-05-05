@@ -52,14 +52,17 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public String hierarchyMarkerType() {
-    return "akka.dispatch.forkjoin.ForkJoinTask";
+    return "org.apache.pekko.dispatch.ExecutorServiceConfigurator";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named(hierarchyMarkerType())));
+        .and(
+            extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"))
+                // logs-backend fork
+                .or(extendsClass(named("com.dd.logs.concurrent.akka.forkjoin.ForkJoinTask"))));
   }
 
   @Override
