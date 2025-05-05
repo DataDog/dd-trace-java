@@ -4,14 +4,17 @@ import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.InstanceStore
 import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.scheduler.JobSucceeded$
+import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.SparkListenerApplicationStart
 import org.apache.spark.scheduler.SparkListenerExecutorAdded
 import org.apache.spark.scheduler.SparkListenerExecutorRemoved
+import org.apache.spark.scheduler.SparkListenerInterface
 import org.apache.spark.scheduler.SparkListenerJobEnd
 import org.apache.spark.scheduler.SparkListenerJobStart
 import org.apache.spark.scheduler.SparkListenerStageCompleted
@@ -474,12 +477,17 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
     conf.set("spark.openlineage.rootParentJobNamespace", "default")
     conf.set("spark.openlineage.rootParentJobName", "dag-push-to-s3-spark")
     def listener = getTestDatadogSparkListener(conf)
+    InstanceStore.of(SparkListenerInterface).put("openLineageListener", new SparkListener(){})
+
+    def olSparkConf = new SparkConf()
+    InstanceStore.of(SparkConf).put("openLineageSparkConf", olSparkConf)
 
     when:
     listener.onApplicationStart(applicationStartEvent(1000L))
     listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
 
     then:
+    assert listener.openLineageSparkConf.get("spark.openlineage.run.tags").contains("13959090542865903119")
     assertTraces(1) {
       trace(1) {
         span {
