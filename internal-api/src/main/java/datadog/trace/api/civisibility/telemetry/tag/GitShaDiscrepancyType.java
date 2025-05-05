@@ -2,17 +2,14 @@ package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
 
-public enum ExpectedGitProvider implements TagValue {
-  USER_SUPPLIED,
-  CI_PROVIDER,
-  LOCAL_GIT,
-  GIT_CLIENT,
-  EMBEDDED;
+public enum GitShaDiscrepancyType implements TagValue {
+  REPOSITORY_DISCREPANCY,
+  COMMIT_DISCREPANCY;
 
   private final String s;
 
-  ExpectedGitProvider() {
-    s = "expected_provider:" + name().toLowerCase();
+  GitShaDiscrepancyType() {
+    s = "type:" + name().toLowerCase();
   }
 
   @Override

@@ -2,14 +2,14 @@ package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
 
-public enum ShaMismatchType implements TagValue {
-  REPOSITORY_MISMATCH,
-  COMMIT_MISMATCH;
+public enum GitShaMatch implements TagValue {
+  TRUE,
+  FALSE;
 
   private final String s;
 
-  ShaMismatchType() {
-    s = "type:" + name().toLowerCase();
+  GitShaMatch() {
+    s = "matched:" + name().toLowerCase();
   }
 
   @Override

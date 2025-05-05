@@ -4,10 +4,9 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
-import datadog.trace.api.civisibility.telemetry.tag.ExpectedGitProvider;
-import datadog.trace.api.civisibility.telemetry.tag.MismatchGitProvider;
-import datadog.trace.api.civisibility.telemetry.tag.ShaMatch;
-import datadog.trace.api.civisibility.telemetry.tag.ShaMismatchType;
+import datadog.trace.api.civisibility.telemetry.tag.GitProvider;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -90,8 +89,8 @@ public class GitInfoProvider {
         .add(
             CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH,
             1,
-            evaluator.shaMismatches.isEmpty() ? ShaMatch.TRUE : ShaMatch.FALSE);
-    for (ShaMismatch mismatch : evaluator.shaMismatches) {
+            evaluator.shaDiscrepancies.isEmpty() ? GitShaMatch.TRUE : GitShaMatch.FALSE);
+    for (ShaDiscrepancy mismatch : evaluator.shaDiscrepancies) {
       mismatch.addTelemetry();
     }
 
@@ -103,43 +102,43 @@ public class GitInfoProvider {
     return Strings.isNotBlank(s) && !s.startsWith("file:");
   }
 
-  private static final class ShaMismatch {
-    private final ExpectedGitProvider expectedGitProvider;
-    private final MismatchGitProvider mismatchGitProvider;
-    private final ShaMismatchType shaMismatchType;
+  private static final class ShaDiscrepancy {
+    private final GitProvider expectedGitProvider;
+    private final GitProvider discrepantGitProvider;
+    private final GitShaDiscrepancyType discrepancyType;
 
-    private ShaMismatch(
-        ExpectedGitProvider expectedGitProvider,
-        MismatchGitProvider mismatchGitProvider,
-        ShaMismatchType shaMismatchType) {
+    private ShaDiscrepancy(
+        GitProvider expectedGitProvider,
+        GitProvider discrepantGitProvider,
+        GitShaDiscrepancyType discrepancyType) {
       this.expectedGitProvider = expectedGitProvider;
-      this.mismatchGitProvider = mismatchGitProvider;
-      this.shaMismatchType = shaMismatchType;
+      this.discrepantGitProvider = discrepantGitProvider;
+      this.discrepancyType = discrepancyType;
     }
 
     private void addTelemetry() {
       InstrumentationBridge.getMetricCollector()
           .add(
-              CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH_ERROR,
+              CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY,
               1,
               expectedGitProvider,
-              mismatchGitProvider,
-              shaMismatchType);
+              discrepantGitProvider,
+              discrepancyType);
     }
 
     @Override
     public boolean equals(Object obj) {
       if (this == obj) return true;
       if (obj == null || getClass() != obj.getClass()) return false;
-      ShaMismatch that = (ShaMismatch) obj;
+      ShaDiscrepancy that = (ShaDiscrepancy) obj;
       return expectedGitProvider.equals(that.expectedGitProvider)
-          && mismatchGitProvider.equals(that.mismatchGitProvider)
-          && shaMismatchType.equals(that.shaMismatchType);
+          && discrepantGitProvider.equals(that.discrepantGitProvider)
+          && discrepancyType.equals(that.discrepancyType);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(expectedGitProvider, mismatchGitProvider, shaMismatchType);
+      return Objects.hash(expectedGitProvider, discrepantGitProvider, discrepancyType);
     }
   }
 
@@ -156,12 +155,12 @@ public class GitInfoProvider {
   private static final class Evaluator {
     private final String repositoryPath;
     private final Map<GitInfoBuilder, GitInfo> infos;
-    private final Set<ShaMismatch> shaMismatches;
+    private final Set<ShaDiscrepancy> shaDiscrepancies;
 
     private Evaluator(String repositoryPath, Collection<GitInfoBuilder> builders) {
       this.repositoryPath = repositoryPath;
       this.infos = new LinkedHashMap<>();
-      this.shaMismatches = new HashSet<>();
+      this.shaDiscrepancies = new HashSet<>();
       for (GitInfoBuilder builder : builders) {
         infos.put(builder, null);
       }
@@ -186,7 +185,7 @@ public class GitInfoProvider {
         boolean checkShaIntegrity) {
       String commitSha = null;
       String repositoryURL = null;
-      ExpectedGitProvider commitShaProvider = null;
+      GitProvider commitShaProvider = null;
 
       for (Map.Entry<GitInfoBuilder, GitInfo> e : infos.entrySet()) {
         GitInfo info = e.getValue();
@@ -203,17 +202,17 @@ public class GitInfoProvider {
             if (commitSha == null) {
               commitSha = currentCommitSha;
               repositoryURL = info.getRepositoryURL();
-              commitShaProvider = e.getKey().getExpectedProviderType();
+              commitShaProvider = e.getKey().getProvider(GitProvider.Type.EXPECTED);
             } else if (!commitSha.equals(currentCommitSha)) {
               // We already have a commit SHA from source that has higher priority.
               // Commit SHA from current source is different, so we have to skip it
-              shaMismatches.add(
-                  new ShaMismatch(
+              shaDiscrepancies.add(
+                  new ShaDiscrepancy(
                       commitShaProvider,
-                      e.getKey().getMismatchProviderType(),
+                      e.getKey().getProvider(GitProvider.Type.DISCREPANT),
                       repositoryURL.equals(info.getRepositoryURL())
-                          ? ShaMismatchType.COMMIT_MISMATCH
-                          : ShaMismatchType.REPOSITORY_MISMATCH));
+                          ? GitShaDiscrepancyType.COMMIT_DISCREPANCY
+                          : GitShaDiscrepancyType.REPOSITORY_DISCREPANCY));
               continue;
             }
           }
