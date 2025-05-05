@@ -1,6 +1,9 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.TracePropagationStyle.*;
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.TracePropagationStyle.INFERREDPROXY;
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static java.util.Arrays.asList;
 
 import java.util.Arrays;

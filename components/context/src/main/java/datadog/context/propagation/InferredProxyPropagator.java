@@ -9,19 +9,15 @@ import java.util.function.BiConsumer;
 public class InferredProxyPropagator implements Propagator {
   public static final String INFERRED_PROXY_KEY = "x-dd-proxy";
   /**
-   * Injects a context into a downstream service using the given carrier.
+   * METHOD STUB: InferredProxy is currently not meant to be injected to downstream services Injects
+   * a context into a downstream service using the given carrier.
    *
    * @param context the context containing the values to be injected.
    * @param carrier the instance that will receive the key/value pairs to propagate.
    * @param setter the callback to set key/value pairs into the carrier.
    */
   @Override
-  public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    if (carrier == null) {
-      return;
-    }
-    setter.set(carrier, INFERRED_PROXY_KEY, context.toString());
-  }
+  public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {}
 
   /**
    * Extracts a context from un upstream service.

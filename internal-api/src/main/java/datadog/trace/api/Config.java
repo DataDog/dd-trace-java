@@ -2368,16 +2368,12 @@ public class Config {
     return tracePropagationStylesToExtract.contains(TracePropagationStyle.INFERREDPROXY);
   }
 
-  public boolean isInferredProxyToInject() {
-    return tracePropagationStylesToInject.contains(TracePropagationStyle.INFERREDPROXY);
-  }
-
   public boolean isInferredProxyEnabledByEnv() {
     return traceInferredProxyEnabled;
   }
 
   public boolean isInferredProxyPropagationEnabled() {
-    return isInferredProxyToExtract() || isInferredProxyToInject() || isInferredProxyEnabledByEnv();
+    return isInferredProxyToExtract() || isInferredProxyEnabledByEnv();
   }
 
   public boolean isBaggageExtract() {
@@ -4767,8 +4763,10 @@ public class Config {
         + debuggerThirdPartyIncludes
         + ", thirdPartyExcludes="
         + debuggerThirdPartyExcludes
-        + ", thirdPartyShadingIdentifiers="
-        + debuggerShadingIdentifiers
+        + ", debuggerExceptionEnabled="
+        + debuggerExceptionEnabled
+        + ", debuggerCodeOriginEnabled="
+        + debuggerCodeOriginEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
         + ", sqsPropagationEnabled="

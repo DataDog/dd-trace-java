@@ -129,10 +129,4 @@ class NoopSpanContext implements AgentSpanContext.Extracted {
   public String getCustomIpHeader() {
     return null;
   }
-
-  /** @return */
-  @Override
-  public boolean isApiGatewaySupported() {
-    return false;
-  }
 }

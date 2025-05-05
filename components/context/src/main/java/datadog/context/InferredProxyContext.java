@@ -6,7 +6,7 @@ import java.util.Map;
 public class InferredProxyContext implements ImplicitContextKeyed {
   public static final ContextKey<InferredProxyContext> CONTEXT_KEY =
       ContextKey.named("inferred-proxy-key");
-  private Map<String, String> inferredProxy;
+  private final Map<String, String> inferredProxy;
 
   public static InferredProxyContext fromContext(Context context) {
     return context.get(CONTEXT_KEY);

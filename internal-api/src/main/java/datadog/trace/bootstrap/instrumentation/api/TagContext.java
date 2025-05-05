@@ -164,11 +164,6 @@ public class TagContext implements AgentSpanContext.Extracted {
     return httpHeaders.customIpHeader;
   }
 
-  @Override
-  public boolean isApiGatewaySupported() {
-    return true;
-  }
-
   public final Map<String, String> getTags() {
     return tags;
   }
