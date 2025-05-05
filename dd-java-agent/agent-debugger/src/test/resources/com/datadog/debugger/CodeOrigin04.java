@@ -35,7 +35,7 @@ public class CodeOrigin04 {
   }
 
   private static void exit() {
-    int x = 47 / 3;
+    int x = 47 / 3; // code origin 2
   }
 
 }

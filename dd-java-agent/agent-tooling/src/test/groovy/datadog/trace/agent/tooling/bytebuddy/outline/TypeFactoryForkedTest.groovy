@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy.outline
 
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
+import net.bytebuddy.description.type.TypeDescription
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -28,6 +29,9 @@ class TypeFactoryForkedTest extends Specification {
   def hasContextField = declaresContextField('java.lang.Runnable', 'java.lang.String')
 
   def "can mix full types with outlines"() {
+    expect:
+    TypeDescription.AbstractBase.RAW_TYPES // this test relies on raw-types
+
     when:
     def systemLoader = ClassLoader.systemClassLoader
     def systemLocator = ClassFileLocators.classFileLocator(systemLoader)
