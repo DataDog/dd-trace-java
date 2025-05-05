@@ -57,7 +57,7 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
   }
 
   @Override
-  public GitProvider getProvider(GitProvider.Type type){
+  public GitProvider getProvider(GitProvider.Type type) {
     if (type == GitProvider.Type.EXPECTED) {
       return GitProvider.LOCAL_GIT_EXPECTED;
     } else {

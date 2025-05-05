@@ -32,7 +32,11 @@ public enum GitProvider implements TagValue {
   }
 
   private enum Source {
-    USER_SUPPLIED, CI_PROVIDER, LOCAL_GIT, GIT_CLIENT, EMBEDDED;
+    USER_SUPPLIED,
+    CI_PROVIDER,
+    LOCAL_GIT,
+    GIT_CLIENT,
+    EMBEDDED;
   }
 
   public enum Type {

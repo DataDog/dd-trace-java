@@ -109,7 +109,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
   }
 
   @Override
-  public GitProvider getProvider(GitProvider.Type type){
+  public GitProvider getProvider(GitProvider.Type type) {
     if (type == GitProvider.Type.EXPECTED) {
       return GitProvider.USER_SUPPLIED_EXPECTED;
     } else {

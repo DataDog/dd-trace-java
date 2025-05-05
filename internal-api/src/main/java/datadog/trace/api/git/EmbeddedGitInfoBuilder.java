@@ -92,7 +92,7 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
   }
 
   @Override
-  public GitProvider getProvider(GitProvider.Type type){
+  public GitProvider getProvider(GitProvider.Type type) {
     if (type == GitProvider.Type.EXPECTED) {
       return GitProvider.EMBEDDED_EXPECTED;
     } else {
