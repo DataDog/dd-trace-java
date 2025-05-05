@@ -2,7 +2,6 @@ package datadog.telemetry.metric
 
 import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.Metric
-import datadog.trace.api.telemetry.WafTruncatedType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
@@ -44,16 +43,16 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
   void 'push waf request metrics and push into the telemetry'() {
     when:
     WafMetricCollector.get().wafInit('0.0.0', 'rules_ver_1', true)
-    WafMetricCollector.get().wafRequest()
-    WafMetricCollector.get().wafRequestTriggered()
-    WafMetricCollector.get().wafRequest()
-    WafMetricCollector.get().wafRequestBlocked()
-    WafMetricCollector.get().wafRequest()
-    WafMetricCollector.get().wafRequestTimeout()
-    WafMetricCollector.get().wafRequestError()
-    WafMetricCollector.get().wafRequestRateLimited()
-    WafMetricCollector.get().wafRequestBlockFailure()
-    WafMetricCollector.get().wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, 5)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(true, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, true, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, true, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, true, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, true, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, true, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, true)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -73,9 +72,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -89,9 +88,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -101,13 +100,13 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
         metric.tags == [
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_1',
-          'rule_triggered:true',
+          'rule_triggered:false',
           'request_blocked:true',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -121,9 +120,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:true',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -137,8 +136,56 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:true',
           'waf_timeout:false',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_1',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
           'block_failure:true',
+          'rate_limited:false',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_1',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
+          'block_failure:false',
           'rate_limited:true',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_1',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
+          'block_failure:false',
+          'rate_limited:false',
           'input_truncated:true',
         ]
     } )
@@ -146,14 +193,14 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
 
     when: 'waf.updates happens'
     WafMetricCollector.get().wafUpdates('rules_ver_2', true)
-    WafMetricCollector.get().wafRequest()
-    WafMetricCollector.get().wafRequestTriggered()
-    WafMetricCollector.get().wafRequestBlocked()
-    WafMetricCollector.get().wafRequestTimeout()
-    WafMetricCollector.get().wafRequestError()
-    WafMetricCollector.get().wafRequestRateLimited()
-    WafMetricCollector.get().wafRequestBlockFailure()
-    WafMetricCollector.get().wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, 5)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(true, false, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, true, false, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, true, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, true, false, false, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, true, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, true, false, false)
+    WafMetricCollector.get().wafRequest(false, false, false, false, false, false, true)
     WafMetricCollector.get().prepareMetrics()
     periodicAction.doIteration(telemetryService)
 
@@ -173,9 +220,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -189,9 +236,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -201,13 +248,13 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
         metric.tags == [
           'waf_version:0.0.0',
           'event_rules_version:rules_ver_2',
-          'rule_triggered:true',
+          'rule_triggered:false',
           'request_blocked:true',
           'waf_error:false',
           'waf_timeout:false',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -221,9 +268,9 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:false',
           'waf_timeout:true',
-          'block_failure:true',
-          'rate_limited:true',
-          'input_truncated:true',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
         ]
     } )
     1 * telemetryService.addMetric( { Metric metric ->
@@ -237,8 +284,56 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
           'request_blocked:false',
           'waf_error:true',
           'waf_timeout:false',
+          'block_failure:false',
+          'rate_limited:false',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_2',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
           'block_failure:true',
+          'rate_limited:false',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_2',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
+          'block_failure:false',
           'rate_limited:true',
+          'input_truncated:false',
+        ]
+    } )
+    1 * telemetryService.addMetric( { Metric metric ->
+      metric.namespace == 'appsec' &&
+        metric.metric == 'waf.requests' &&
+        metric.points[0][1] == 1 &&
+        metric.tags == [
+          'waf_version:0.0.0',
+          'event_rules_version:rules_ver_2',
+          'rule_triggered:false',
+          'request_blocked:false',
+          'waf_error:false',
+          'waf_timeout:false',
+          'block_failure:false',
+          'rate_limited:false',
           'input_truncated:true',
         ]
     } )

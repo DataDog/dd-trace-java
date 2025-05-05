@@ -121,6 +121,7 @@ class DeterministicTraceSamplerTest extends DDSpecification {
     true     | "9828766684487745566"
     true     | "9908585559158765387"
     true     | "9956202364908137547"
+    true     | "9223372036854775808"
   }
 
   def "test sampling none: #traceId"() {

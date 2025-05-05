@@ -7,7 +7,6 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.ConcurrentEnumMap;
 import java.util.Map;
 import org.junit.platform.engine.TestDescriptor;
@@ -22,15 +21,6 @@ public abstract class TestEventsHandlerHolder {
 
   private static volatile ContextStore<TestDescriptor, TestExecutionHistory>
       EXECUTION_HISTORY_STORE;
-
-  static {
-    Runtime.getRuntime()
-        .addShutdownHook(
-            AgentThreadFactory.newAgentThread(
-                AgentThreadFactory.AgentThread.CI_TEST_EVENTS_SHUTDOWN_HOOK,
-                TestEventsHandlerHolder::stop,
-                false));
-  }
 
   public static synchronized void setExecutionHistoryStore(
       ContextStore<TestDescriptor, TestExecutionHistory> executionHistoryStore) {
@@ -71,6 +61,7 @@ public abstract class TestEventsHandlerHolder {
     }
   }
 
+  /** Used by instrumentation tests */
   public static synchronized void stop() {
     for (TestEventsHandler<TestDescriptor, TestDescriptor> handler : HANDLERS.values()) {
       handler.close();

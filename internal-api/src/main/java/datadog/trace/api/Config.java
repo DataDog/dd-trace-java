@@ -146,9 +146,11 @@ public class Config {
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
+  private final boolean peerHostNameEnabled;
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -189,6 +191,7 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
@@ -290,7 +293,9 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final boolean apiSecurityEnabled;
-  private final float apiSecurityRequestSampleRate;
+  private final float apiSecuritySampleDelay;
+  private final boolean apiSecurityEndpointCollectionEnabled;
+  private final int apiSecurityEndpointCollectionMessageLimit;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -379,6 +384,7 @@ public class Config {
   private final String ciVisibilityTestOrder;
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
+  private final boolean ciVisibilityScalatestForkMonitorEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -428,6 +434,7 @@ public class Config {
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
+  private final Set<String> debuggerShadingIdentifiers;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -483,6 +490,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean logs128bitTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -495,6 +503,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final String dataJobsCommandPattern;
+  private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -519,6 +528,7 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -562,6 +572,8 @@ public class Config {
 
   private final boolean apmTracingEnabled;
   private final Set<String> experimentalFeaturesEnabled;
+
+  private final boolean jdkSocketEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -628,8 +640,9 @@ public class Config {
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
     experimentalFeaturesEnabled =
-        configProvider.getSet(
-            TRACE_EXPERIMENTAL_FEATURES_ENABLED, DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED);
+        configProvider.getString(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "").equals("all")
+            ? DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED
+            : configProvider.getSet(TRACE_EXPERIMENTAL_FEATURES_ENABLED, new HashSet<>());
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
@@ -662,6 +675,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+
+    logs128bitTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
@@ -818,6 +836,8 @@ public class Config {
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
+    peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
+
     // following two only used in v0.
     // in v1+ defaults are always calculated regardless this feature flag
     peerServiceDefaultsEnabled =
@@ -827,6 +847,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -938,6 +960,22 @@ public class Config {
 
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+
+    TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
+    try {
+      tmpTracePropagationBehaviorExtract =
+          TracePropagationBehaviorExtract.valueOf(
+              configProvider
+                  .getString(
+                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                  .toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
+      log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
+    }
+    tracePropagationBehaviorExtract = tmpTracePropagationBehaviorExtract;
+
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -1009,8 +1047,10 @@ public class Config {
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
       // Now we can check if we should pick the default injection/extraction
+
       tracePropagationStylesToExtract =
           extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
 
       traceBaggageMaxItems =
@@ -1032,15 +1072,23 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
-    logsInjectionEnabled =
-        configProvider.getBoolean(
-            LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    if (experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(LOGS_INJECTION))) {
+      logsInjectionEnabled =
+          configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
+    } else {
+      logsInjectionEnabled =
+          configProvider.getBoolean(
+              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    }
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
 
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
@@ -1087,7 +1135,8 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    // Enable tracer computed trace metrics by default for Azure Functions
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -1340,9 +1389,16 @@ public class Config {
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
-    apiSecurityRequestSampleRate =
-        configProvider.getFloat(
-            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecuritySampleDelay =
+        configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionMessageLimit =
+        configProvider.getInteger(
+            API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1558,6 +1614,8 @@ public class Config {
     ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
     ciVisibilityTestManagementAttemptToFixRetries =
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityScalatestForkMonitorEnabled =
+        configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1691,6 +1749,8 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerShadingIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1783,6 +1843,9 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsOpenLineageEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
@@ -1959,6 +2022,8 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, false);
+
     log.debug("New instance: {}", this);
   }
 
@@ -2027,6 +2092,10 @@ public class Config {
 
   public Set<String> getExperimentalFeaturesEnabled() {
     return experimentalFeaturesEnabled;
+  }
+
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -2123,6 +2192,10 @@ public class Config {
 
   public int getSpanAttributeSchemaVersion() {
     return spanAttributeSchemaVersion;
+  }
+
+  public boolean isPeerHostNameEnabled() {
+    return peerHostNameEnabled;
   }
 
   public boolean isPeerServiceDefaultsEnabled() {
@@ -2285,6 +2358,10 @@ public class Config {
 
   public Set<TracePropagationStyle> getTracePropagationStylesToInject() {
     return tracePropagationStylesToInject;
+  }
+
+  public TracePropagationBehaviorExtract getTracePropagationBehaviorExtract() {
+    return tracePropagationBehaviorExtract;
   }
 
   public boolean isTracePropagationExtractFirst() {
@@ -2706,8 +2783,16 @@ public class Config {
     return apiSecurityEnabled;
   }
 
-  public float getApiSecurityRequestSampleRate() {
-    return apiSecurityRequestSampleRate;
+  public float getApiSecuritySampleDelay() {
+    return apiSecuritySampleDelay;
+  }
+
+  public int getApiSecurityEndpointCollectionMessageLimit() {
+    return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
   }
 
   public ProductActivation getIastActivation() {
@@ -3042,6 +3127,10 @@ public class Config {
         || ciVisibilityTestManagementEnabled;
   }
 
+  public boolean isCiVisibilityScalatestForkMonitorEnabled() {
+    return ciVisibilityScalatestForkMonitorEnabled;
+  }
+
   public int getCiVisibilityFlakyRetryCount() {
     return ciVisibilityFlakyRetryCount;
   }
@@ -3246,6 +3335,10 @@ public class Config {
     return debuggerThirdPartyExcludes;
   }
 
+  public Set<String> getThirdPartyShadingIdentifiers() {
+    return debuggerShadingIdentifiers;
+  }
+
   private String getFinalDebuggerBaseUrl() {
     if (agentUrl.startsWith("unix:")) {
       // provide placeholder agent URL, in practice we'll be tunnelling over UDS
@@ -3445,6 +3538,10 @@ public class Config {
     return dogStatsDArgs;
   }
 
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
+  }
+
   public String getConfigFileStatus() {
     return configFileStatus;
   }
@@ -3455,6 +3552,10 @@ public class Config {
 
   public boolean isTrace128bitTraceIdGenerationEnabled() {
     return trace128bitTraceIdGenerationEnabled;
+  }
+
+  public boolean isLogs128bitTraceIdEnabled() {
+    return logs128bitTraceIdEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
@@ -3529,12 +3630,20 @@ public class Config {
     return dataJobsEnabled;
   }
 
+  public boolean isDataJobsOpenLineageEnabled() {
+    return dataJobsOpenLineageEnabled;
+  }
+
   public String getDataJobsCommandPattern() {
     return dataJobsCommandPattern;
   }
 
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
+  }
+
+  public boolean isJdkSocketEnabled() {
+    return jdkSocketEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4482,6 +4591,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationBehaviorExtract="
+        + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
         + ", clockSyncPeriod="
@@ -4703,6 +4814,8 @@ public class Config {
         + idGenerationStrategy
         + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
+        + ", logs128bitTraceIdEnabled="
+        + logs128bitTraceIdEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
@@ -4726,8 +4839,10 @@ public class Config {
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
-        + ", apiSecurityRequestSampleRate="
-        + apiSecurityRequestSampleRate
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
+        + ", apiSecurityEndpointCollectionMessageLimit="
+        + apiSecurityEndpointCollectionMessageLimit
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
@@ -4762,6 +4877,8 @@ public class Config {
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="
         + axisPromoteResourceName
+        + ", peerHostNameEnabled="
+        + peerHostNameEnabled
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="
@@ -4784,10 +4901,16 @@ public class Config {
         + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
+        + ", jdkSocketEnabled="
+        + jdkSocketEnabled
+        + ", cloudPayloadTaggingServices="
+        + cloudPayloadTaggingServices
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }

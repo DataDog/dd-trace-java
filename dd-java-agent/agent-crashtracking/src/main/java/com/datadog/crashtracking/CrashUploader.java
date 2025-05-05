@@ -121,6 +121,7 @@ public final class CrashUploader {
     }
   }
 
+  @SuppressForbidden
   boolean uploadToLogs(@Nonnull Path file) {
     try {
       uploadToLogs(new String(Files.readAllBytes(file), StandardCharsets.UTF_8), System.out);
@@ -156,6 +157,7 @@ public final class CrashUploader {
   }
 
   // @VisibleForTesting
+  @SuppressForbidden
   static String extractErrorKind(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
     if (!matcher.find()) {

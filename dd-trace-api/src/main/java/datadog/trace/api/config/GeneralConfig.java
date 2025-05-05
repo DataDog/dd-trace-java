@@ -29,6 +29,9 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED =
+      "experimental.propagate.process.tags.enabled";
+
   public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
@@ -69,6 +72,7 @@ public final class GeneralConfig {
 
   public static final String DATA_JOBS_ENABLED = "data.jobs.enabled";
   public static final String DATA_JOBS_COMMAND_PATTERN = "data.jobs.command.pattern";
+  public static final String DATA_JOBS_OPENLINEAGE_ENABLED = "data.jobs.openlineage.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
@@ -94,6 +98,7 @@ public final class GeneralConfig {
   public static final String AGENTLESS_LOG_SUBMISSION_LEVEL = "agentless.log.submission.level";
   public static final String AGENTLESS_LOG_SUBMISSION_URL = "agentless.log.submission.url";
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
+  public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
   private GeneralConfig() {}
 }

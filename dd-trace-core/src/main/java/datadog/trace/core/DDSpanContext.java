@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -142,7 +143,6 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private volatile boolean requiresPostProcessing;
   private volatile CharSequence lastParentId;
   private final boolean isRemote;
 
@@ -875,7 +875,8 @@ public class DDSpanContext
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
-              longRunningVersion));
+              longRunningVersion,
+              ProcessTags.getTagsForSerialization()));
     }
   }
 
@@ -1042,14 +1043,6 @@ public class DDSpanContext
   @Override
   public void setMetaStructCurrent(String field, Object value) {
     setMetaStruct(field, value);
-  }
-
-  public void setRequiresPostProcessing(boolean postProcessing) {
-    this.requiresPostProcessing = postProcessing;
-  }
-
-  public boolean isRequiresPostProcessing() {
-    return requiresPostProcessing;
   }
 
   public CharSequence getLastParentId() {

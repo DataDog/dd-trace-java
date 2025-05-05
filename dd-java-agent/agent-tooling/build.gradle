@@ -90,3 +90,9 @@ project.tasks.compileTest_java11Java.configure {
 final jmh = project.tasks.jmh
 jmh.outputs.upToDateWhen { false }
 jmh.dependsOn(compileTestJava)
+
+tasks.withType(Test).configureEach {
+  // same setting as AgentInstaller to avoid spurious agent-tooling test failures
+  // caused by ConfigTransformSpockExtension installing byte-buddy during testing
+  jvmArgs += ["-Dnet.bytebuddy.raw=true"]
+}

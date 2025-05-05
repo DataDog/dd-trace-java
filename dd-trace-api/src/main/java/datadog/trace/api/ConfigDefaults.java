@@ -91,6 +91,8 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
+      TracePropagationBehaviorExtract.CONTINUE;
   static final boolean DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST = false;
 
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
@@ -102,6 +104,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
+  // Change value to be false in new release. Until then, manually set logs_injection default
+  // value to false if config is under breaking changes flag
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
@@ -110,7 +114,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
-  static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
+  static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
+  // TODO: change to true once the RFC is approved
+  static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = false;
+  static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
@@ -217,6 +224,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
 
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
@@ -232,10 +240,12 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
-  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED = new HashSet<>();
+  static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
+      new HashSet<>(
+          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
-  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
+  static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
@@ -268,7 +278,14 @@ public final class ConfigDefaults {
   static final Set<String> DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES =
       new HashSet<>(
           Arrays.asList(
-              "ApiGateway", "ApiGatewayV2", "EventBridge", "Sqs", "Sns", "S3", "Kinesis"));
+              "ApiGateway",
+              "ApiGatewayV2",
+              "EventBridge",
+              "Sqs",
+              "Sns",
+              "S3",
+              "Kinesis",
+              "DynamoDB"));
 
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG = "aws.request.body";
   public static final String DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG = "aws.response.body";

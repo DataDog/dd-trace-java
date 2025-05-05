@@ -43,6 +43,7 @@ public class ServerDebuggerTestApplication {
     methodsByName.put("tracedMethod", ServerDebuggerTestApplication::runTracedMethod);
     methodsByName.put("loopingFullMethod", ServerDebuggerTestApplication::runLoopingFullMethod);
     methodsByName.put("loopingTracedMethod", ServerDebuggerTestApplication::runLoopingTracedMethod);
+    methodsByName.put("topLevelMethod", ServerDebuggerTestApplication::runTopLevelMethod);
   }
 
   public ServerDebuggerTestApplication(String controlServerUrl) {
@@ -76,7 +77,7 @@ public class ServerDebuggerTestApplication {
   }
 
   protected void waitForInstrumentation(String className) {
-    System.out.println("waitForInstrumentation on " + className + " from: " + lastMatchedLine);
+    System.out.println("waitForInstrumentation on " + className);
     try {
       lastMatchedLine =
           TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);
@@ -92,6 +93,17 @@ public class ServerDebuggerTestApplication {
       lastMatchedLine =
           TestApplicationHelper.waitForReTransformation(LOG_FILENAME, className, lastMatchedLine);
       System.out.println("re-transformed!");
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    }
+  }
+
+  protected void waitForSpecificLine(String line) {
+    System.out.println("waitForSpecificLine...");
+    try {
+      lastMatchedLine =
+          TestApplicationHelper.waitForSpecificLine(LOG_FILENAME, line, lastMatchedLine);
+      System.out.println("line found!");
     } catch (IOException ex) {
       ex.printStackTrace();
     }
@@ -150,6 +162,10 @@ public class ServerDebuggerTestApplication {
     for (int i = 0; i < Integer.parseInt(arg); i++) {
       runTracedMethod(arg);
     }
+  }
+
+  private static String runTopLevelMethod(String arg) {
+    return TopLevel.process(arg);
   }
 
   private static String fullMethod(
@@ -254,6 +270,12 @@ public class ServerDebuggerTestApplication {
             app.waitForReTransformation(className);
             break;
           }
+        case "/app/waitForSpecificLine":
+          {
+            String feature = request.getRequestUrl().queryParameter("line");
+            app.waitForSpecificLine(feature);
+            break;
+          }
         case "/app/execute":
           {
             String methodName = request.getRequestUrl().queryParameter("methodname");
@@ -271,5 +293,11 @@ public class ServerDebuggerTestApplication {
       }
       return EMPTY_HTTP_200;
     }
+  }
+}
+
+class TopLevel {
+  public static String process(String arg) {
+    return "TopLevel.process: " + arg;
   }
 }

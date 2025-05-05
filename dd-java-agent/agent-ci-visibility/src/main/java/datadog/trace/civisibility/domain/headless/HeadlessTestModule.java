@@ -2,7 +2,6 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -14,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.Constants;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
@@ -85,11 +85,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return executionStrategy.isFlaky(test);
-  }
-
-  @Override
   public boolean isModified(@Nonnull TestSourceData testSourceData) {
     return executionStrategy.isModified(testSourceData);
   }
@@ -150,7 +145,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     if (earlyFlakeDetectionSettings.isEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
       if (executionStrategy.isEFDLimitReached()) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, Constants.EFD_ABORT_REASON_FAULTY);
       }
     }
 

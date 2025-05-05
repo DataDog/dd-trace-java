@@ -29,9 +29,9 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -61,6 +61,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -113,6 +115,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
@@ -208,6 +211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
   private final boolean flushOnClose;
+  private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -288,6 +292,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return profilingContextIntegration.onRootSpanStarted(root);
     }
     return null;
+  }
+
+  @Override
+  public ScopeState oldScopeState() {
+    return scopeManager.oldScopeState();
   }
 
   @Override
@@ -605,7 +614,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTracingTags(config.getMergedSpanTags())
             .apply();
 
-    this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
+    this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -915,6 +924,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  @SuppressWarnings("resource")
+  public void activateSpanWithoutScope(AgentSpan span) {
+    scopeManager.activateSpan(span);
+  }
+
+  @Override
   public AgentScope.Continuation captureActiveSpan() {
     return scopeManager.captureActiveSpan();
   }
@@ -955,11 +970,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentSpan activeSpan() {
     return scopeManager.activeSpan();
-  }
-
-  @Override
-  public AgentScope activeScope() {
-    return scopeManager.active();
   }
 
   @Override
@@ -1122,6 +1132,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void addShutdownListener(Runnable listener) {
+    this.shutdownListeners.add(listener);
+  }
+
+  @Override
   public void addScopeListener(final ScopeListener listener) {
     this.scopeManager.addScopeListener(listener);
   }
@@ -1149,6 +1164,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    for (Runnable shutdownListener : shutdownListeners) {
+      try {
+        shutdownListener.run();
+      } catch (Exception e) {
+        log.error("Error while running shutdown listener", e);
+      }
+    }
     if (flushOnClose) {
       flush();
     }
@@ -1505,6 +1527,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       String parentServiceName = null;
       boolean isRemote = false;
+
+      TracePropagationBehaviorExtract behaviorExtract =
+          Config.get().getTracePropagationBehaviorExtract();
+      if (parentContext != null && parentContext.isRemote()) {
+        if (behaviorExtract == TracePropagationBehaviorExtract.IGNORE) {
+          // reset links that may have come terminated span links
+          links = new ArrayList<>();
+          parentContext = null;
+        } else if (behaviorExtract == TracePropagationBehaviorExtract.RESTART) {
+          links = new ArrayList<>();
+          SpanLink link =
+              (parentContext instanceof ExtractedContext)
+                  ? DDSpanLink.from(
+                      (ExtractedContext) parentContext,
+                      SpanAttributes.builder()
+                          .put("reason", "propagation_behavior_extract")
+                          .put(
+                              "context_headers",
+                              ((ExtractedContext) parentContext).getPropagationStyle().toString())
+                          .build())
+                  : SpanLink.from(parentContext);
+          links.add(link);
+          parentContext = null;
+        }
+      }
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first

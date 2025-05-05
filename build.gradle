@@ -32,6 +32,7 @@ description = 'dd-trace-java'
 
 def isCI = System.getenv("CI") != null
 
+apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/scm.gradle"
 spotless {
   // only resolve the spotless dependencies once in the build
@@ -77,12 +78,6 @@ allprojects {
   compileTask.configure {
     dependsOn tasks.withType(AbstractCompile)
   }
-}
-
-repositories {
-  mavenLocal()
-  mavenCentral()
-  gradlePluginPortal()
 }
 
 tasks.register("latestDepTest")

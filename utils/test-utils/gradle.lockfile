@@ -1,8 +1,8 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-ch.qos.logback:logback-classic:1.2.3=testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.3=testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.3=compileClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-core:1.2.3=compileClasspath,testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=runtimeClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.1=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.spotbugs:spotbugs-annotations:4.2.0=compileClasspath,testCompileClasspath,testRuntimeClasspath
@@ -21,8 +21,8 @@ jaxen:jaxen:1.2.0=spotbugs
 jline:jline:2.14.6=runtimeClasspath,testRuntimeClasspath
 junit:junit-dep:4.11=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 junit:junit:4.13.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-net.bytebuddy:byte-buddy-agent:1.14.18=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-net.bytebuddy:byte-buddy:1.14.18=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+net.bytebuddy:byte-buddy-agent:1.15.11=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+net.bytebuddy:byte-buddy:1.15.11=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 net.jcip:jcip-annotations:1.0=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
 net.sf.saxon:Saxon-HE:11.4=spotbugs
 org.apache.ant:ant-antlr:1.10.12=runtimeClasspath,testRuntimeClasspath
@@ -104,12 +104,13 @@ org.pitest:pitest:1.9.11=pitest
 org.slf4j:jcl-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:1.7.25=compileClasspath
 org.slf4j:slf4j-api:1.7.30=testCompileClasspath
 org.slf4j:slf4j-api:1.7.32=runtimeClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.0=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.0=spotbugsSlf4j
-org.spockframework:spock-core:2.2-groovy-3.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.spockframework:spock-junit4:2.2-groovy-3.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.spockframework:spock-core:2.3-groovy-3.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.spockframework:spock-junit4:2.3-groovy-3.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.testng:testng:7.5=runtimeClasspath,testRuntimeClasspath
 org.webjars:jquery:3.5.1=runtimeClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:4.4.3=spotbugs

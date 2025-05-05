@@ -44,6 +44,45 @@ class ClassNameTrieTest extends DDSpecification {
     // spotless:on
   }
 
+  def 'test class name "#key" mapping with fromIndex'() {
+    when:
+    int value = TestClassNamesTrie.apply(key, "garbage.".length())
+    then:
+    value == expected
+    where:
+    // spotless:off
+    key                    | expected
+    'garbage.One'                  | 1
+    'garbage.com.Two'              | 2
+    'garbage.com.foo.Three'        | 3
+    'garbage.company.foo.Four'     | 4
+    'garbage.com.foobar.Five'      | 5
+    'garbage.company.foobar.Six'   | 6
+    'garbage.company.foobar.Sixty' | 60
+    'garbage.com.f'                | 7
+    'garbage.com.foo.a'            | 8
+    'garbage.com.foobar.b'         | 9
+    'garbage.company.f'            | 10
+    'garbage.company.foo.a'        | 11
+    'garbage.company.foobar.S'     | 12
+    'garbage.com.Two$f'            | 13
+    'garbage.foobar.Two$b'         | 14
+    'garbage.'                     | -1
+    'garbage.O'                    | -1
+    'garbage._'                    | -1
+    'garbage.On'                   | -1
+    'garbage.O_'                   | -1
+    'garbage.On_'                  | -1
+    'garbage.OneNoMatch'           | -1
+    'garbage.com.Twos'             | 7
+    'garbage.com.foo.Threes'       | 8
+    'garbage.com.foobar.Fives'     | 9
+    'garbage.foobar.Thre'          | -1
+    'garbage.foobar.Three'         | 15
+    'garbage.foobar.ThreeMore'     | 15
+    // spotless:on
+  }
+
   def 'test internal name "#key" mapping'() {
     when:
     int value = TestClassNamesTrie.apply(key)

@@ -14,7 +14,6 @@ import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
 
-import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
@@ -202,7 +201,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
@@ -239,7 +238,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -258,7 +257,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
-    1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
@@ -273,7 +271,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
       | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -393,7 +390,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.isAppSecRaspEnabled() >> true
     1 * config.getAppSecRulesFile() >> null
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _) >> {
       listeners.savedConfDeserializer = it[1]
       listeners.savedConfChangesListener = it[2]
@@ -412,7 +409,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     }
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
-    1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
@@ -427,7 +423,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
       | CAPABILITY_ASM_RASP_SHI
-      | CAPABILITY_ASM_RASP_LFI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -497,7 +492,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_RASP_CMDI
@@ -562,6 +556,66 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     autoUserInstrum('anonymization')  | ANONYMIZATION
     autoUserInstrum('disabled')       | DISABLED
     autoUserInstrum('yolo')           | DISABLED
+  }
+
+  void 'RASP capabilities for LFI  is not sent when RASP is not fully enabled '() {
+    AppSecModuleConfigurer.SubconfigListener subconfigListener = Mock()
+    SavedListeners listeners = new SavedListeners()
+    Optional<CurrentAppSecConfig> initialWafConfig
+
+    when:
+    AppSecSystem.active = false
+    appSecConfigService.init()
+    appSecConfigService.maybeSubscribeConfigPolling()
+    def configurer = appSecConfigService.createAppSecModuleConfigurer()
+    initialWafConfig = configurer.addSubConfigListener("waf", subconfigListener)
+    configurer.commit()
+
+    then:
+    1 * config.isAppSecRaspEnabled() >> true
+    1 * config.getAppSecRulesFile() >> null
+    2 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    1 * poller.addListener(Product.ASM_DD, _, _) >> {
+      listeners.savedConfDeserializer = it[1]
+      listeners.savedConfChangesListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM_DATA, _, _) >> {
+      listeners.savedWafDataDeserializer = it[1]
+      listeners.savedWafDataChangesListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM, _, _) >> {
+      listeners.savedWafRulesOverrideDeserializer = it[1]
+      listeners.savedWafRulesOverrideListener = it[2]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
+      | CAPABILITY_ASM_IP_BLOCKING
+      | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
+      | CAPABILITY_ASM_REQUEST_BLOCKING
+      | CAPABILITY_ASM_USER_BLOCKING
+      | CAPABILITY_ASM_CUSTOM_RULES
+      | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+      | CAPABILITY_ASM_TRUSTED_IPS
+      | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_CMDI
+      | CAPABILITY_ASM_RASP_SHI
+      | CAPABILITY_ASM_RASP_LFI
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT)
+    0 * _._
+    initialWafConfig.get() != null
+
+    cleanup:
+    AppSecSystem.active = true
   }
 
   private static AppSecFeatures autoUserInstrum(String mode) {

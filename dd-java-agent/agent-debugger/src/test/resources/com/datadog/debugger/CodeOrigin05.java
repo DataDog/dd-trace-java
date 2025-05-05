@@ -1,6 +1,5 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -49,7 +48,7 @@ public class CodeOrigin05 {
 
   public static void entry() throws NoSuchMethodException {
     // just to fill out the method body
-    boolean dummyCode = true;
+    boolean dummyCode = true; // code origin 1
     if (!dummyCode) {
       dummyCode = false;
     }
@@ -57,13 +56,13 @@ public class CodeOrigin05 {
   }
 
   private static void exit() {
-    int x = 47 / 3;
+    int x = 47 / 3; // code origin 2
   }
 
   public static void doubleEntry() throws NoSuchMethodException {
     // just to fill out the method body
     boolean dummyCode = true;
-    if (!dummyCode) {
+    if (!dummyCode) { // double entry code origin
       dummyCode = false;
     }
   }
