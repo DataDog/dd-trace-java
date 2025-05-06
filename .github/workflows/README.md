@@ -129,6 +129,14 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
+### run-system-tests [🔗](run-system-tests.yaml)
+
+_Trigger:_ When pushing commits to `master` or manually.
+
+_Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
+
+_Recovery:_ Manually trigger the action on the desired branch.
+
 
 ## Maintenance
 
