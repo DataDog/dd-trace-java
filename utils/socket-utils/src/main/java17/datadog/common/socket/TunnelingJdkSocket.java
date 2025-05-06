@@ -142,7 +142,9 @@ final class TunnelingJdkSocket extends Socket {
     try {
       unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_SNDBUF, size);
     } catch (IOException e) {
-      throw new SocketException("Failed to set send buffer size socket option");
+      SocketException se = new SocketException("Failed to set send buffer size socket option");
+      se.initCause(e);
+      throw se;
     }
   }
 
@@ -169,7 +171,9 @@ final class TunnelingJdkSocket extends Socket {
     try {
       unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_RCVBUF, size);
     } catch (IOException e) {
-      throw new SocketException("Failed to set receive buffer size socket option");
+      SocketException se = new SocketException("Failed to set receive buffer size socket option");
+      se.initCause(e);
+      throw se;
     }
   }
 
@@ -339,18 +343,31 @@ final class TunnelingJdkSocket extends Socket {
     if (isClosed()) {
       return;
     }
-    if (!isInputShutdown()) {
-      shutdownInput();
+    // Ignore possible exceptions so that we continue closing the socket
+    try {
+      if (!isInputShutdown()) {
+        shutdownInput();
+      }
+    } catch (IOException e) {
     }
-    if (!isOutputShutdown()) {
-      shutdownOutput();
+    try {
+      if (!isOutputShutdown()) {
+        shutdownOutput();
+      }
+    } catch (IOException e) {
     }
-    if (selector != null) {
-      selector.close();
-      selector = null;
+    try {
+      if (selector != null) {
+        selector.close();
+        selector = null;
+      }
+    } catch (IOException e) {
     }
-    if (unixSocketChannel != null) {
-      unixSocketChannel.close();
+    try {
+      if (unixSocketChannel != null) {
+        unixSocketChannel.close();
+      }
+    } catch (IOException e) {
     }
     closed = true;
   }
