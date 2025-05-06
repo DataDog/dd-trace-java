@@ -3,23 +3,27 @@ package datadog.trace.civisibility.decorator
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Specification
 
 class TestDecoratorImplTest extends Specification {
 
   def span = Mock(AgentSpan)
+  def context  = Mock(AgentSpanContext)
+
 
   def "test afterStart"() {
     setup:
     def decorator = new TestDecoratorImpl("test-component", "session-name", "test-command", ["ci-tag-1": "value", "ci-tag-2": "another value"])
-
     when:
     decorator.afterStart(span)
 
     then:
     1 * span.setTag(Tags.TEST_SESSION_NAME, "session-name")
     1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.context() >> context
+    1 * context.setIntegrationName("test-component")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
@@ -44,6 +48,8 @@ class TestDecoratorImplTest extends Specification {
     decorator.afterStart(span)
 
     then:
+    1 * span.context() >> context
+    1 * context.setIntegrationName("test-component")
     1 * span.setTag(Tags.TEST_SESSION_NAME, expectedSessionName)
 
     where:
