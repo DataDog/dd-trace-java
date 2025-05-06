@@ -62,7 +62,7 @@ class MuzzlePlugin implements Plugin<Project> {
       MUZZLE_REPOS = Collections.singletonList(central)
     } else {
       RemoteRepository proxy = new RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
-      MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(proxy))
+      MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(proxy, central))
     }
   }
 
