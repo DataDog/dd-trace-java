@@ -168,11 +168,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  public AgentSpan startSpan(String instrumentationName, REQUEST_CARRIER carrier, Context context) {
+  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    AgentSpanContext.Extracted extractedContext =
-        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
-    return startSpan(instrumentationName, carrier, extractedContext);
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   /* Verify whether we have only span contexts or more contexts */
