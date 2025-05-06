@@ -12,9 +12,9 @@ public class InstrumentationComponentAdder implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    final CharSequence internalComponentName = spanContext.getInstrumentationName();
-    if (internalComponentName != null) {
-      unsafeTags.put(DD_INTEGRATION, internalComponentName);
+    final CharSequence instrumentationName = spanContext.getInstrumentationName();
+    if (instrumentationName != null) {
+      unsafeTags.put(DD_INTEGRATION, instrumentationName);
     } else {
       unsafeTags.remove(DD_INTEGRATION);
     }
