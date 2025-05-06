@@ -167,6 +167,8 @@ public final class TraceInstrumentationConfig {
       "trace.websocket.messages.separate.traces";
   public static final String TRACE_WEBSOCKET_TAG_SESSION_ID = "trace.websocket.tag.session-id";
 
+  public static final String TRACE_PEKKO_SCHEDULER_ENABLED = "trace.pekko.scheduler.enabled";
+
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";

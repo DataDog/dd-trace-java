@@ -64,6 +64,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
@@ -126,6 +127,7 @@ public class InstrumenterConfig {
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
   private final boolean websocketTracingEnabled;
+  private final boolean pekkoSchedulerEnabled;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -278,6 +280,7 @@ public class InstrumenterConfig {
     this.websocketTracingEnabled =
         configProvider.getBoolean(
             TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
+    this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -505,6 +508,10 @@ public class InstrumenterConfig {
     return websocketTracingEnabled;
   }
 
+  public boolean isPekkoSchedulerEnabled() {
+    return pekkoSchedulerEnabled;
+  }
+
   /**
    * Check whether asynchronous result types are supported with @Trace annotation.
    *
@@ -637,6 +644,8 @@ public class InstrumenterConfig {
         + additionalJaxRsAnnotations
         + ", websocketTracingEnabled="
         + websocketTracingEnabled
+        + ", pekkoSchedulerEnabled="
+        + pekkoSchedulerEnabled
         + '}';
   }
 }
