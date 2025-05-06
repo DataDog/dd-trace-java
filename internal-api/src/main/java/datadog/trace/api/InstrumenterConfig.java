@@ -32,6 +32,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_EXECUTOR_TASK_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_POOL_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
@@ -128,6 +131,10 @@ public class InstrumenterConfig {
   private final String axisTransportClassName;
   private final boolean websocketTracingEnabled;
   private final boolean pekkoSchedulerEnabled;
+
+  private final String akkaForkJoinTaskName;
+  private final String akkaForkJoinExecutorTaskName;
+  private final String akkaForkJoinPoolName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -227,6 +234,10 @@ public class InstrumenterConfig {
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
+
+    akkaForkJoinTaskName = configProvider.getString(AKKA_FORK_JOIN_TASK_NAME, "");
+    akkaForkJoinExecutorTaskName = configProvider.getString(AKKA_FORK_JOIN_EXECUTOR_TASK_NAME, "");
+    akkaForkJoinPoolName = configProvider.getString(AKKA_FORK_JOIN_POOL_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -402,6 +413,18 @@ public class InstrumenterConfig {
 
   public String getAxisTransportClassName() {
     return axisTransportClassName;
+  }
+
+  public String getAkkaForkJoinTaskName() {
+    return akkaForkJoinTaskName;
+  }
+
+  public String getAkkaForkJoinExecutorTaskName() {
+    return akkaForkJoinExecutorTaskName;
+  }
+
+  public String getAkkaForkJoinPoolName() {
+    return akkaForkJoinPoolName;
   }
 
   public boolean isDirectAllocationProfilingEnabled() {
