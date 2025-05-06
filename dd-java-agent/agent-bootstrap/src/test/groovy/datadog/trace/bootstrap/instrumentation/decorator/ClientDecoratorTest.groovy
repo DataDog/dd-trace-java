@@ -24,7 +24,7 @@ class ClientDecoratorTest extends BaseDecoratorTest {
     1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.context() >> spanContext
-    1 * spanContext.setInstrumentationName("test-component")
+    1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType(decorator.spanType())
     1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)

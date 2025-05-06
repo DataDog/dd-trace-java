@@ -32,7 +32,7 @@ public final class TagsPostProcessorFactory {
       if (Config.get().isAddSpanPointers("aws")) {
         processors.add(new SpanPointersProcessor());
       }
-      processors.add(new InstrumentationComponentAdder());
+      processors.add(new IntegrationAdder());
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }

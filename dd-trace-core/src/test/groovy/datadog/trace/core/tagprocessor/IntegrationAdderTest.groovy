@@ -4,10 +4,10 @@ package datadog.trace.core.tagprocessor
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 
-class InstrumentationAdderTest extends DDSpecification {
+class IntegrationAdderTest extends DDSpecification {
   def "should add or remove _dd.integration when set (#isSet) on the span context"() {
     setup:
-    def calculator = new InstrumentationComponentAdder()
+    def calculator = new IntegrationAdder()
     def spanContext = Mock(DDSpanContext)
 
     when:
@@ -15,7 +15,7 @@ class InstrumentationAdderTest extends DDSpecification {
     def enrichedTags = calculator.processTags(["_dd.integration": "bad"], spanContext, [])
 
     then:
-    1 * spanContext.getInstrumentationName() >> (isSet ? "test" : null)
+    1 * spanContext.getIntegrationName() >> (isSet ? "test" : null)
 
     and:
     assert enrichedTags == (isSet ? ["_dd.integration": "test"] : [:])

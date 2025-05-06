@@ -117,7 +117,7 @@ class OpenTracing32Test extends AgentTestRunner {
             }
             defaultTags(addReference != null)
           }
-          assert span.context().instrumentationName == "opentracing"
+          assert span.context().integrationName == "opentracing"
         }
       }
     }

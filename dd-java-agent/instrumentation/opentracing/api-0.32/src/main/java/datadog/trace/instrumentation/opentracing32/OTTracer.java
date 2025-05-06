@@ -173,14 +173,14 @@ public class OTTracer implements Tracer {
     @Override
     public Span start() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setInstrumentationName("opentracing");
+      agentSpan.context().setIntegrationName("opentracing");
       return converter.toSpan(agentSpan);
     }
 
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setInstrumentationName("opentracing");
+      agentSpan.context().setIntegrationName("opentracing");
       return converter.toScope(tracer.activateManualSpan(agentSpan), finishSpanOnClose);
     }
   }

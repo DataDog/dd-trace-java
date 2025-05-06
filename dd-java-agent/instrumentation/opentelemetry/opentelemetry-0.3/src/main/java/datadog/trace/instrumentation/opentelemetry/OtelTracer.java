@@ -163,7 +163,7 @@ public class OtelTracer implements Tracer {
     @Override
     public Span startSpan() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setInstrumentationName("otel");
+      agentSpan.context().setIntegrationName("otel");
       return converter.toSpan(agentSpan);
     }
   }
