@@ -7,7 +7,7 @@ import datadog.trace.core.DDSpanContext;
 import java.util.List;
 import java.util.Map;
 
-public class InstrumentationComponentAdder implements TagsPostProcessor {
+public class InstrumentationAdder implements TagsPostProcessor {
 
   @Override
   public Map<String, Object> processTags(
