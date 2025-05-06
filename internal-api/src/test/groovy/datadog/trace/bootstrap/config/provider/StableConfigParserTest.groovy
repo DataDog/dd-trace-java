@@ -1,14 +1,12 @@
 package datadog.trace.bootstrap.config.provider
-
 import datadog.trace.test.util.DDSpecification
-
 import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
   def "test parse valid"() {
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -42,7 +40,7 @@ apm_configuration_rules:
       KEY_FOUR: "ignored"
 """
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -82,6 +80,8 @@ apm_configuration_rules:
     "language" | ["java", "golang"] | "equals" | "" | true
     "language" | ["java"] | "starts_with" | "" | true
     "language" | ["golang"] | "equals" | "" | false
+    "language" | ["java"] | "exists" | "" | false
+    "language" | ["java"] | "something unexpected" | "" | false
     "environment_variables" | [] | "exists" | "DD_TAGS" | true
     "environment_variables" | ["team:apm"] | "contains" | "DD_TAGS" | true
     "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"] | "CoNtAiNs" | "Dd_TaGs" | true // check case insensitivity
@@ -96,13 +96,12 @@ apm_configuration_rules:
     "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
     "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
     "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
-    //    "process_arguments" | null | "equals" | "-DCustomKey" | true
   }
 
   def "test duplicate entries"() {
     // When duplicate keys are encountered, snakeyaml preserves the last value by default
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -116,7 +115,7 @@ apm_configuration_rules:
   """
 
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -134,10 +133,38 @@ apm_configuration_rules:
     cfg.get("DD_KEY") == "value_2"
   }
 
+  def "test config_id only"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    if (filePath == null) {
+      throw new AssertionError("Failed to create test file")
+    }
+    String yaml = """
+  config_id: 12345
+  """
+    try {
+      Files.write(filePath, yaml.getBytes())
+    } catch (IOException e) {
+      throw new AssertionError("Failed to write to file: ${e.message}")
+    }
+
+    StableConfigSource.StableConfig cfg
+    try {
+      cfg = StableConfigParser.parse(filePath.toString())
+    } catch (Exception e) {
+      throw new AssertionError("Failed to parse the file: ${e.message}")
+    }
+
+    then:
+    cfg != null
+    cfg.getConfigId() == "12345"
+    cfg.getKeys().size() == 0
+  }
+
   def "test parse invalid"() {
     // If any piece of the file is invalid, the whole file is rendered invalid and an exception is thrown
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -159,7 +186,7 @@ apm_configuration_rules:
   something-else-irrelevant: value-irrelevant
   """
     try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
+      Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -176,5 +203,40 @@ apm_configuration_rules:
     exception != null
     cfg == null
     Files.delete(filePath)
+  }
+
+  def "test processTemplate valid cases"() {
+    when:
+    if (envKey != null) {
+      injectEnvConfig(envKey, envVal)
+    }
+
+    then:
+    StableConfigParser.processTemplate(templateVar) == expect
+
+    where:
+    templateVar | envKey | envVal | expect
+    "{{environment_variables['DD_KEY']}}" | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY']}}" | null | null | "UNDEFINED"
+    "{{}}" | null | null | "UNDEFINED"
+    "{}" | null | null | "{}"
+    "{{environment_variables['dd_key']}}" | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY}}" | "DD_KEY" | "value" | "UNDEFINED"
+    "header-{{environment_variables['DD_KEY']}}-footer" | "DD_KEY" | "value" | "header-value-footer"
+    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "UNDEFINEDvalueUNDEFINED"
+  }
+
+  def "test processTemplate error cases"() {
+    when:
+    StableConfigParser.processTemplate(templateVar)
+
+    then:
+    def e = thrown(IOException)
+    e.message == expect
+
+    where:
+    templateVar | expect
+    "{{environment_variables['']}}" | "Empty environment variable name in template"
+    "{{environment_variables['DD_KEY']}" | "Unterminated template in config"
   }
 }

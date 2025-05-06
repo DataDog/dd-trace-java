@@ -33,7 +33,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test empty file"() {
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -47,7 +47,7 @@ class StableConfigSourceTest extends DDSpecification {
   def "test file invalid format"() {
     // StableConfigSource must handle the exception thrown by StableConfigParser.parse(filePath) gracefully
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -73,7 +73,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test file valid format"() {
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -133,16 +133,6 @@ class StableConfigSourceTest extends DDSpecification {
   def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap(singletonMap("DD_KEY_FOUR", new ConfigurationValue("four"))))
 
   // Helper functions
-  static Path tempFile() {
-    try {
-      return Files.createTempFile("testFile_", ".yaml")
-    } catch (IOException e) {
-      println "Error creating file: ${e.message}"
-      e.printStackTrace()
-      return null // or throw new RuntimeException("File creation failed", e)
-    }
-  }
-
   def stableConfigYamlWriter = getStableConfigYamlWriter()
 
   Yaml getStableConfigYamlWriter() {
@@ -166,7 +156,6 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def writeFileYaml(Path filePath, StableConfigYaml stableConfigs) {
-    //    Yaml yaml = getStableConfigYaml();
     try (FileWriter writer = new FileWriter(filePath.toString())) {
       stableConfigYamlWriter.dump(stableConfigs, writer)
     } catch (IOException e) {
@@ -177,12 +166,6 @@ class StableConfigSourceTest extends DDSpecification {
   // Use this if you want to explicitly write/test configId
   def writeFileRaw(Path filePath, String configId, String data) {
     data = configId + "\n" + data
-    StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
-    Files.write(filePath, data.getBytes(), openOpts)
-  }
-
-  // Use this for writing a string directly into a file
-  static writeFileRaw(Path filePath, String data) {
     StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
     Files.write(filePath, data.getBytes(), openOpts)
   }

@@ -103,9 +103,9 @@ public class CapturedEnvironment {
       return siteName;
     }
 
-    if (processInfo.jarFile != null) {
-      final String jarName = processInfo.jarFile.getName();
-      return jarName.substring(0, jarName.length() - 4); // strip .jar
+    // preserve the original logic that is case sensitive on the .jar extension
+    if (processInfo.jarFile != null && processInfo.jarFile.getName().endsWith(".jar")) {
+      return processInfo.jarFile.getName().replace(".jar", "");
     } else {
       return processInfo.mainClass;
     }
