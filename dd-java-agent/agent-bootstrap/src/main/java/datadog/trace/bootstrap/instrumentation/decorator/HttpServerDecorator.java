@@ -4,7 +4,6 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -169,27 +168,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  public AgentSpan startSpan(
-      String instrumentationName, REQUEST_CARRIER carrier, Context context) {
+  public AgentSpan startSpan(String instrumentationName, REQUEST_CARRIER carrier, Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    AgentSpanContext.Extracted extractedContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
-    AgentSpan span =
-        tracer()
-            .startSpan(instrumentationName, spanName(), callIGCallbackStart(extractedContext))
-            .setMeasured(true);
-    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
-    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
-    }
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
-    }
-    return span;
+    AgentSpanContext.Extracted extractedContext =
+        extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    return startSpan(instrumentationName, carrier, extractedContext);
   }
 
   /* Verify whether we have only span contexts or more contexts */
-  public ContextScope activateScope(Context context, AgentSpan span){
+  public ContextScope activateScope(Context context, AgentSpan span) {
     Baggage baggage = Baggage.fromContext(context);
     if (baggage == null) {
       return span.attach();
