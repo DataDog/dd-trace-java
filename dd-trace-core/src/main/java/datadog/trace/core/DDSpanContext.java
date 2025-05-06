@@ -85,7 +85,7 @@ public class DDSpanContext
   private final UTF8BytesString threadName;
 
   private volatile short httpStatusCode;
-  private CharSequence instrumentationComponentName;
+  private CharSequence instrumentationName;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -882,12 +882,12 @@ public class DDSpanContext
   }
 
   @Override
-  public void setInstrumentationComponentName(CharSequence componentName) {
-    this.instrumentationComponentName = componentName;
+  public void setInstrumentationName(CharSequence componentName) {
+    this.instrumentationName = componentName;
   }
 
-  public CharSequence getInstrumentationComponentName() {
-    return instrumentationComponentName;
+  public CharSequence getInstrumentationName() {
+    return instrumentationName;
   }
 
   @Override

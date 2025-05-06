@@ -25,7 +25,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE)
     1 * span.setTag(COMPONENT, "test-component")
     1 * span.context() >> spanContext
-    1 * spanContext.setInstrumentationComponentName("test-component")
+    1 * spanContext.setInstrumentationName("test-component")
     1 * span.setTag(SPAN_KIND, "server")
     1 * span.setSpanType(decorator.spanType())
     if (decorator.traceAnalyticsEnabled) {

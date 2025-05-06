@@ -82,7 +82,7 @@ class OpenTelemetryTest extends AgentTestRunner {
             }
             defaultTags()
           }
-          assert span.context().instrumentationComponentName == "otel"
+          assert span.context().instrumentationName == "otel"
         }
       }
     }

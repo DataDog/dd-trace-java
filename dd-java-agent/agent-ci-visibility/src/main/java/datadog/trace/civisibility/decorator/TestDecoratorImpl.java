@@ -51,7 +51,7 @@ public class TestDecoratorImpl implements TestDecorator {
     span.setTag(DDTags.HOST_VCPU_COUNT, cpuCount);
     span.setTag(Tags.TEST_TYPE, testType());
     span.setTag(Tags.COMPONENT, component());
-    span.context().setInstrumentationComponentName(component());
+    span.context().setInstrumentationName(component());
     span.setTag(Tags.TEST_SESSION_NAME, sessionName);
 
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {

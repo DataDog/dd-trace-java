@@ -656,7 +656,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     @Override
     public Span start() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setInstrumentationComponentName("opentracing");
+      agentSpan.context().setInstrumentationName("opentracing");
       return converter.toSpan(agentSpan);
     }
 

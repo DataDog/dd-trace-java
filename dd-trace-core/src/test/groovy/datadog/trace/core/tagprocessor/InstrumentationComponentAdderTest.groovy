@@ -15,7 +15,7 @@ class InstrumentationComponentAdderTest extends DDSpecification {
     def enrichedTags = calculator.processTags(["_dd.integration": "bad"], spanContext, [])
 
     then:
-    1 * spanContext.getInstrumentationComponentName() >> (isSet ? "test" : null)
+    1 * spanContext.getInstrumentationName() >> (isSet ? "test" : null)
 
     and:
     assert enrichedTags == (isSet ? ["_dd.integration": "test"] : [:])
