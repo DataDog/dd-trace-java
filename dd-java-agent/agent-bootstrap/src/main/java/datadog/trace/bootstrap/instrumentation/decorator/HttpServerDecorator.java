@@ -4,10 +4,14 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.ContextScope;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -24,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -132,6 +137,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
+  public Context extractContext(REQUEST_CARRIER carrier) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return null;
+    }
+    Context context = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    return context;
+  }
+
   /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
@@ -153,6 +167,34 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
     return span;
+  }
+
+  public AgentSpan startSpan(
+      String instrumentationName, REQUEST_CARRIER carrier, Context context) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    AgentSpanContext.Extracted extractedContext = extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    AgentSpan span =
+        tracer()
+            .startSpan(instrumentationName, spanName(), callIGCallbackStart(extractedContext))
+            .setMeasured(true);
+    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    }
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null != carrier && null != getter) {
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
+    }
+    return span;
+  }
+
+  /* Verify whether we have only span contexts or more contexts */
+  public ContextScope activateScope(Context context, AgentSpan span){
+    Baggage baggage = Baggage.fromContext(context);
+    if (baggage == null) {
+      return span.attach();
+    }
+    return context.with(span).attach();
   }
 
   public AgentSpan onRequest(
