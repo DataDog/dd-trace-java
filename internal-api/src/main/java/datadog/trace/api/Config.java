@@ -2371,16 +2371,8 @@ public class Config {
     return tracePropagationExtractFirst;
   }
 
-  public boolean isInferredProxyToExtract() {
-    return tracePropagationStylesToExtract.contains(TracePropagationStyle.INFERREDPROXY);
-  }
-
-  public boolean isInferredProxyEnabledByEnv() {
-    return traceInferredProxyEnabled;
-  }
-
   public boolean isInferredProxyPropagationEnabled() {
-    return isInferredProxyToExtract() || isInferredProxyEnabledByEnv();
+    return traceInferredProxyEnabled;
   }
 
   public boolean isBaggageExtract() {

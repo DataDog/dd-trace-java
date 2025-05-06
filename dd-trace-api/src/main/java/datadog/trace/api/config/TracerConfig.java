@@ -100,7 +100,7 @@ public final class TracerConfig {
   public static final String TRACE_BAGGAGE_MAX_BYTES = "trace.baggage.max.bytes";
 
   public static final String TRACE_INFERRED_PROXY_SERVICES_ENABLED =
-      "inferred.proxy.services.enabled";
+      "trace.inferred.proxy.services.enabled";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
