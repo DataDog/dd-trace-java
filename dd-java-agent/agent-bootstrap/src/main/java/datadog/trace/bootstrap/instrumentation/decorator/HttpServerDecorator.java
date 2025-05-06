@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.context.Context;
 import datadog.context.InferredProxyContext;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
@@ -529,8 +528,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (null == carrier || null == getter) {
       return null;
     }
-    Context c = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
-    c.attach();
+
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
@@ -541,40 +539,67 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan startSpan(
-      String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+      String instrumentationName,
+      REQUEST_CARRIER carrier,
+      AgentSpanContext.Extracted standardExtractedContext) {
     boolean addInferredProxy = Config.get().isInferredProxyPropagationEnabled();
     AgentSpan apiGtwSpan = null;
+
     if (addInferredProxy) {
-      apiGtwSpan = startSpanWithInferredProxy(instrumentationName, carrier, context);
+      // Locally extract the full datadog.context.Context for inferred proxy information
+      AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter =
+          getter(); // Ensure getter is available
+      datadog.context.Context fullContextForInferredProxy = datadog.context.Context.root();
+      if (carrier != null && getter != null) {
+        fullContextForInferredProxy =
+            Propagators.defaultPropagator()
+                .extract(datadog.context.Context.root(), carrier, getter);
+      }
+      // Pass the locally extracted fullContextForInferredProxy and the standardExtractedContext
+      apiGtwSpan =
+          startSpanWithInferredProxy(
+              instrumentationName, fullContextForInferredProxy, standardExtractedContext);
     }
 
-    AgentSpan span =
+    AgentSpan serverSpan =
         tracer()
             .startSpan(
                 instrumentationName,
                 spanName(),
-                apiGtwSpan != null ? apiGtwSpan.context() : callIGCallbackStart(context))
+                // Parent serverSpan to apiGtwSpan if it exists, otherwise to
+                // standardExtractedContext
+                apiGtwSpan != null
+                    ? apiGtwSpan.context()
+                    : callIGCallbackStart(standardExtractedContext))
             .setMeasured(true);
-    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
+    Flow<Void> flow = callIGCallbackRequestHeaders(serverSpan, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
-      span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+      serverSpan.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
     }
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
+    // Ensure getter() is available for DSM checkpoint; it was obtained above if addInferredProxy
+    // was true.
+    // If not, get it again. This logic might need refinement if getter() is expensive, but for now,
+    // direct call.
+    if (null != carrier && null != getter()) {
+      tracer()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(serverSpan, fromTags(SERVER_PATHWAY_EDGE_TAGS));
     }
 
     if (addInferredProxy && apiGtwSpan != null) {
-      return new InferredProxySpanGroup(apiGtwSpan, span);
+      return new InferredProxySpanGroup(apiGtwSpan, serverSpan);
     } else {
-      return span;
+      return serverSpan;
     }
   }
 
   private AgentSpan startSpanWithInferredProxy(
-      String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+      String instrumentationName,
+      datadog.context.Context fullContextForInferredProxy,
+      AgentSpanContext.Extracted standardExtractedContext) {
 
-    InferredProxyContext inferredProxy = InferredProxyContext.fromContext(Context.current());
+    InferredProxyContext inferredProxy =
+        InferredProxyContext.fromContext(fullContextForInferredProxy);
 
     if (inferredProxy == null) {
       return null;
@@ -604,7 +629,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             .startSpan(
                 "inferred_proxy",
                 SUPPORTED_PROXIES.get(proxySystem),
-                callIGCallbackStart(context),
+                callIGCallbackStart(standardExtractedContext),
                 startTime);
 
     apiGtwSpan.setTag(Tags.COMPONENT, proxySystem);
