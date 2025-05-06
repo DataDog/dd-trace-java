@@ -4,7 +4,7 @@ package datadog.trace.core.tagprocessor
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 
-class InstrumentationComponentAdderTest extends DDSpecification {
+class InstrumentationAdderTest extends DDSpecification {
   def "should add or remove _dd.integration when set (#isSet) on the span context"() {
     setup:
     def calculator = new InstrumentationComponentAdder()
