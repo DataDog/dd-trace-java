@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
@@ -15,12 +16,16 @@ class ServerDecoratorTest extends BaseDecoratorTest {
 
   def "test afterStart"() {
     def decorator = newDecorator()
+    def spanContext = Mock(AgentSpanContext)
+
     when:
     decorator.afterStart(span)
 
     then:
     1 * span.setTag(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE)
     1 * span.setTag(COMPONENT, "test-component")
+    1 * span.context() >> spanContext
+    1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(SPAN_KIND, "server")
     1 * span.setSpanType(decorator.spanType())
     if (decorator.traceAnalyticsEnabled) {
