@@ -882,8 +882,8 @@ public class DDSpanContext
   }
 
   @Override
-  public void setInstrumentationName(CharSequence componentName) {
-    this.instrumentationName = componentName;
+  public void setInstrumentationName(CharSequence instrumentationName) {
+    this.instrumentationName = instrumentationName;
   }
 
   public CharSequence getInstrumentationName() {
