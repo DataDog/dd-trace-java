@@ -185,11 +185,7 @@ public class Agent {
     if (Platform.isNativeImageBuilder()) {
       // apply trace instrumentation at native-image build time
       startDatadogAgent(initTelemetry, inst);
-      // TODO: are we sure we want measure native-image build instrumentation?
-      //  This is very different, happens at build time and doesn't include any service
-      // initialization time.
       StaticEventLogger.end("Agent.start");
-
       return;
     }
 
