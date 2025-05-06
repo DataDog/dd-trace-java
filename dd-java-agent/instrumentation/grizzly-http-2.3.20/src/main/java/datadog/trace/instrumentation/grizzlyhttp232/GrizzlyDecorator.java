@@ -1,17 +1,15 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -114,13 +112,13 @@ public class GrizzlyDecorator
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
-    AgentSpanContext.Extracted context = DECORATE.extract(httpRequest);
-    AgentSpan span = DECORATE.startSpan(httpRequest, context);
-    AgentScope scope = activateSpan(span);
+    Context context = DECORATE.extractContext(httpRequest);
+    AgentSpan span = DECORATE.startSpan(httpRequest, DECORATE.getExtractedSpanContext(context));
+    ContextScope scope = DECORATE.activateScope(context, span);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onRequest(span, httpRequest, httpRequest, context);
+    DECORATE.onRequest(span, httpRequest, httpRequest, DECORATE.getExtractedSpanContext(context));
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {
