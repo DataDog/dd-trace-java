@@ -183,6 +183,9 @@ public class Agent {
     createAgentClassloader(agentJarURL);
 
     if (Platform.isNativeImageBuilder()) {
+      // these default services are not used during native-image builds
+      remoteConfigEnabled = false;
+      telemetryEnabled = false;
       // apply trace instrumentation at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
