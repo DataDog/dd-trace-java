@@ -32,8 +32,8 @@ public class TracingInterceptor implements Interceptor {
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      Context context = Context.current();
-      defaultPropagator().inject(context.with(span).with(dsmContext), requestBuilder, SETTER);
+      defaultPropagator()
+          .inject(Context.current().with(span).with(dsmContext), requestBuilder, SETTER);
 
       final Response response;
       try {
