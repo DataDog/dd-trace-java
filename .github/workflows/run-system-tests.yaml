@@ -1,4 +1,4 @@
-name: system-tests
+name: Run system tests
 
 on:
   pull_request:
@@ -29,7 +29,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      
+
       - name: Build dd-trace-java
         run: |
           GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
