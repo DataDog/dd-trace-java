@@ -42,14 +42,12 @@ public enum JDBCConnectionUrlParser {
         }
 
         String path = uri.getPath();
-        // a URI can have a null path
-        if (path != null) {
-          if (path.startsWith("/")) {
-            path = path.substring(1);
-          }
-          if (!path.isEmpty()) {
-            builder.db(path);
-          }
+
+        if (path.startsWith("/")) {
+          path = path.substring(1);
+        }
+        if (!path.isEmpty()) {
+          builder.db(path);
         }
 
         if (uri.getHost() != null) {
