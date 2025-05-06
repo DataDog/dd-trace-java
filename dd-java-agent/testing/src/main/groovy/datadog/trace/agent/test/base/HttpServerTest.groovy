@@ -566,8 +566,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
       // Limit pool size. Too many threads overwhelm the server and starve the host
-      // availableProcessors() in CI can be very high and incorrect depending on JDK version
-      def poolSize = Math.min(4, Runtime.getRuntime().availableProcessors())
+      def poolSize = System.getenv().getOrDefault("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE", Runtime.getRuntime().availableProcessors())
       def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
