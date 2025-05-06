@@ -124,6 +124,7 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     "com.intersystems.jdbc.IRISCallableStatement",
     // sybase
     "com.sybase.jdbc4.jdbc.SybPreparedStatement",
+    "com.sybase.jdbc4.jdbc.SybCallableStatement",
     // for testing purposes
     "test.TestPreparedStatement"
   };
