@@ -29,7 +29,6 @@ import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class OpenTracing31Test extends AgentTestRunner {
 
@@ -113,6 +112,7 @@ class OpenTracing31Test extends AgentTestRunner {
             }
             defaultTags(addReference != null)
           }
+          assert span.context().integrationName == "opentracing"
         }
       }
     }

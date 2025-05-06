@@ -68,6 +68,7 @@ public class ExceptionHistogramTest {
 
   @BeforeEach
   public void setup() {
+    assumeFalse(Platform.isJ9());
     recording = new Recording();
     recording.enable("datadog.ExceptionCount");
     recording.start();

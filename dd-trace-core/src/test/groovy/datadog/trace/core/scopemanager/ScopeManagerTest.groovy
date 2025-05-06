@@ -72,8 +72,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "scope state should be able to fetch and activate state when there is no active span"() {
     when:
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
+    def initialScopeState = scopeManager.oldScopeState()
 
     then:
     scopeManager.active() == null
@@ -125,8 +124,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
+    def initialScopeState = scopeManager.oldScopeState()
 
     then:
     scope.span() == span

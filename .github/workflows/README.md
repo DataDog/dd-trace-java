@@ -110,7 +110,6 @@ _Trigger:_ When pushing commits to `master` or any pull request targeting `maste
 
 _Action:_
 
-* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
 * Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only when pushing to `master`,
 * Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
 
@@ -129,6 +128,14 @@ _Trigger:_ Every week or manually.
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
+
+### run-system-tests [🔗](run-system-tests.yaml)
+
+_Trigger:_ When pushing commits to `master` or manually.
+
+_Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 
 ## Maintenance

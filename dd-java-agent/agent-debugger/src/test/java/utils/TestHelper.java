@@ -17,9 +17,12 @@ public class TestHelper {
     return new String(Files.readAllBytes(Paths.get(TestHelper.class.getResource(fixture).toURI())));
   }
 
-  public static List<String> getFixtureLines(String fixture)
-      throws IOException, URISyntaxException {
-    return Files.readAllLines(Paths.get(TestHelper.class.getResource(fixture).toURI()));
+  public static List<String> getFixtureLines(String fixture) {
+    try {
+      return Files.readAllLines(Paths.get(TestHelper.class.getResource(fixture).toURI()));
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
   }
 
   public static void setFieldInConfig(Object target, String fieldName, Object value) {
