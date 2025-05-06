@@ -2253,7 +2253,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         //        if (endpoint.fragment) {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
         //        }
-        defaultTags(true, true)
+        defaultTags(true)
         addTags(expectedExtraServerTags)
         if (extraTags) {
           it.addTags(extraTags)
