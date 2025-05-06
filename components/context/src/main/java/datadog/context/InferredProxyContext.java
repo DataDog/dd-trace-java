@@ -1,5 +1,6 @@
 package datadog.context;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,7 +14,10 @@ public class InferredProxyContext implements ImplicitContextKeyed {
   }
 
   public InferredProxyContext(Map<String, String> contextInfo) {
-    this.inferredProxy = contextInfo;
+    this.inferredProxy =
+        (contextInfo == null || contextInfo.isEmpty())
+            ? new HashMap<>()
+            : new HashMap<>(contextInfo);
   }
 
   public InferredProxyContext() {
@@ -21,7 +25,7 @@ public class InferredProxyContext implements ImplicitContextKeyed {
   }
 
   public Map<String, String> getInferredProxyContext() {
-    return inferredProxy;
+    return Collections.unmodifiableMap(inferredProxy);
   }
 
   public void putInferredProxyInfo(String key, String value) {
