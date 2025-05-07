@@ -51,7 +51,7 @@ default:
   - echo "NORMALIZED_NODE_TOTAL=$NORMALIZED_NODE_TOTAL , NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.04-base
   stage: build
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
@@ -130,7 +130,7 @@ spotless:
 
 test_published_artifacts:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.04-base
   stage: tests
   needs: [ build ]
   variables:
@@ -250,7 +250,7 @@ muzzle-dep-report:
 
 .test_job:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
+  image: ghcr.io/datadog/dd-trace-java-docker-build:v25.04-base
   needs: [ build ]
   stage: tests
   variables:
