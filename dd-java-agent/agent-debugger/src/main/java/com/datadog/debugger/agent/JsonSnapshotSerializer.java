@@ -6,6 +6,7 @@ import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 
@@ -56,6 +57,9 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
 
     private final String ddtags;
 
+    @Json(name = "process_tags")
+    private final String processTags;
+
     @Json(name = "dd.trace_id")
     private String traceId;
 
@@ -87,6 +91,8 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
       this.message = debugger.snapshot.getMessage();
       this.ddtags = debugger.snapshot.getProbe().getStrTags();
       this.timestamp = debugger.snapshot.getTimestamp();
+      final CharSequence pt = ProcessTags.getTagsForSerialization();
+      this.processTags = pt != null ? pt.toString() : null;
     }
 
     public String getService() {
@@ -135,6 +141,10 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
 
     public String getLoggerThreadName() {
       return loggerThreadName;
+    }
+
+    public String getProcessTags() {
+      return processTags;
     }
   }
 

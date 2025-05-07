@@ -143,8 +143,12 @@ public class ProcessTags {
 
   /** Visible for testing. */
   static void reset() {
+    reset(Config.get());
+  }
+  /** Visible for testing. */
+  public static void reset(Config config) {
     empty();
-    enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
+    enabled = config.isExperimentalPropagateProcessTagsEnabled();
     Lazy.TAGS.putAll(Lazy.loadTags());
   }
 }
