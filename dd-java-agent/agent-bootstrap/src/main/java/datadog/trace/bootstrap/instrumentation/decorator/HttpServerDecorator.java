@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.context.Context.root;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -38,7 +38,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -61,15 +60,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
-
-  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
-
-  static {
-    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
-    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
-    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
-  }
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
@@ -165,7 +155,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     }
     return span;
   }

@@ -104,7 +104,7 @@ public class DataStreamsPropagator implements Propagator {
         && span.getTag(COMPONENT) instanceof CharSequence
         && "java-web-servlet-dispatcher"
             .equals(((CharSequence) span.getTag(COMPONENT)).toString())) {
-      return DataStreamsContext.client();
+      return DataStreamsContext.forHttpClient();
     }
     return null;
   }
