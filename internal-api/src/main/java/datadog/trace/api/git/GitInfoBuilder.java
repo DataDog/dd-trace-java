@@ -11,9 +11,8 @@ public interface GitInfoBuilder {
 
   /**
    * Used for SHA discrepancies telemetry. Two enums are needed, one for each tag:
-   * - `expected_provider`
-   * - `discrepant_provider`
-   * A provider can act as either of them depending on the discrepancy found.
+   * `expected_provider`, `discrepant_provider`. A provider can act as either of them depending on
+   * the discrepancy found.
    */
   GitProviderExpected providerAsExpected();
 
