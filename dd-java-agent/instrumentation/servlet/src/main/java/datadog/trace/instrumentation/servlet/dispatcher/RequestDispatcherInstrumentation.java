@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
@@ -25,7 +24,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -122,8 +120,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
       // In case we lose context, inject trace into to the request.
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      defaultPropagator().inject(span, request, SETTER);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
