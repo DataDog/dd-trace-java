@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
@@ -18,6 +17,8 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -26,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
@@ -205,10 +207,19 @@ public class RabbitDecorator extends MessagingClientDecorator {
       String queue) {
     final Map<String, Object> headers =
         propagate && null != properties ? properties.getHeaders() : null;
-    AgentSpanContext parentContext =
-        null != headers
-            ? extractContextAndGetSpanContext(headers, ContextVisitors.objectValuesMap())
-            : null;
+    Context extractedContext = null;
+    AgentSpanContext parentContext = null;
+    if (null != headers) {
+      extractedContext =
+          Propagators.defaultPropagator()
+              .extract(
+                  Java8BytecodeBridge.getCurrentContext(),
+                  headers,
+                  ContextVisitors.objectValuesMap());
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      parentContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    }
     // TODO: check dynamically bound queues -
     // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
 
@@ -260,7 +271,10 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
 
     CONSUMER_DECORATE.afterStart(span);
-    AgentScope scope = activateSpan(span);
+    AgentScope scope =
+        extractedContext == null
+            ? activateSpan(span)
+            : (AgentScope) extractedContext.with(span).attach();
     if (null != queueSpan) {
       queueSpan.finish(spanStartMicros);
     }

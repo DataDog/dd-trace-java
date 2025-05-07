@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import javax.jms.Destination;
 import javax.jms.Message;
@@ -94,7 +95,8 @@ public final class JMSMessageProducerInstrumentation
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && (null == producerState || !producerState.isPropagationDisabled())) {
-          defaultPropagator().inject(span, message, SETTER);
+          defaultPropagator()
+              .inject(Java8BytecodeBridge.getCurrentContext().with(span), message, SETTER);
         }
         if (TIME_IN_QUEUE_ENABLED) {
           if (null != producerState) {
@@ -141,7 +143,8 @@ public final class JMSMessageProducerInstrumentation
       if (JMSDecorator.canInject(message)) {
         if (Config.get().isJmsPropagationEnabled()
             && !Config.get().isJmsPropagationDisabledForDestination(destinationName))
-          defaultPropagator().inject(span, message, SETTER);
+          defaultPropagator()
+              .inject(Java8BytecodeBridge.getCurrentContext().with(span), message, SETTER);
         if (TIME_IN_QUEUE_ENABLED) {
           MessageProducerState producerState =
               InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)

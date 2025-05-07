@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.azurefunctions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azurefunctions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -14,6 +13,7 @@ import com.google.auto.service.AutoService;
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.HttpRequestMessage;
 import com.microsoft.azure.functions.HttpResponseMessage;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -67,13 +67,17 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpRequestMessage request,
         @Advice.Argument(1) final ExecutionContext context) {
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
-      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
+      final Context extractedContext = DECORATE.extract(request);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext.Extracted extractedSpanContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+
+      final AgentSpan span = DECORATE.startSpan(request, extractedSpanContext);
       DECORATE.afterStart(span, context.getFunctionName());
-      DECORATE.onRequest(span, request, request, extractedContext);
+      DECORATE.onRequest(span, request, request, extractedSpanContext);
       HTTP_RESOURCE_DECORATOR.withRoute(
           span, request.getHttpMethod().name(), request.getUri().getPath());
-      return activateSpan(span);
+      return (AgentScope) extractedContext.with(span).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

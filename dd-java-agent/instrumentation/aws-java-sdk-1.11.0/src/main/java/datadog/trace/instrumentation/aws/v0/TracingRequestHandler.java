@@ -17,6 +17,7 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -71,7 +72,8 @@ public class TracingRequestHandler extends RequestHandler2 {
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
       if (Config.get().isAwsPropagationEnabled()) {
         try {
-          Propagators.forConcern(XRAY_TRACING_CONCERN).inject(span, request, DECORATE);
+          Propagators.forConcern(XRAY_TRACING_CONCERN)
+              .inject(Context.current().with(span), request, DECORATE);
         } catch (Throwable e) {
           log.warn("Unable to inject trace header", e);
         }

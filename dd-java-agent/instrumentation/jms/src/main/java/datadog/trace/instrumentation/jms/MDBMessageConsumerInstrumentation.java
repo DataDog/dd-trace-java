@@ -4,8 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
@@ -16,11 +14,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -67,7 +68,12 @@ public final class MDBMessageConsumerInstrumentation
       if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
         return null;
       }
-      AgentSpanContext propagatedContext = extractContextAndGetSpanContext(message, GETTER);
+      final Context extractedContext =
+          Propagators.defaultPropagator()
+              .extract(Java8BytecodeBridge.getCurrentContext(), message, GETTER);
+      final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
+      final AgentSpanContext propagatedContext =
+          extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
       AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
@@ -81,7 +87,7 @@ public final class MDBMessageConsumerInstrumentation
         consumerResourceName = "unknown JMS destination";
       }
       CONSUMER_DECORATE.onConsume(span, message, consumerResourceName);
-      return activateSpan(span);
+      return (AgentScope) extractedContext.with(span).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
