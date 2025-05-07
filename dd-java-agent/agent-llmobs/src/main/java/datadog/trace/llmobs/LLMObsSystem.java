@@ -48,11 +48,11 @@ public class LLMObsSystem {
         String modelName,
         String modelProvider,
         @Nullable String mlApp,
-        @Nullable String sessionID) {
+        @Nullable String sessionId) {
 
       DDLLMObsSpan span =
           new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+              Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -68,30 +68,30 @@ public class LLMObsSystem {
 
     @Override
     public LLMObsSpan startAgentSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_AGENT_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_AGENT_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
     @Override
     public LLMObsSpan startToolSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
     @Override
     public LLMObsSpan startTaskSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_TASK_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
     @Override
     public LLMObsSpan startWorkflowSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionID, serviceName);
+          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
     private String getMLApp(String mlApp) {
