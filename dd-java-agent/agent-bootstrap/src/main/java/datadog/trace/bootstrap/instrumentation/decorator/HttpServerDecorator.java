@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -27,7 +26,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -128,6 +126,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
+  /** Deprecated. Use {@link #extractContext(REQUEST_CARRIER)} instead. */
   public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
@@ -144,7 +143,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
+  /** Deprecated. Use {@link #startSpan(String, Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
@@ -167,18 +166,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
+  public AgentSpan startSpan(String instrumentationName, REQUEST_CARRIER carrier, Context context) {
+    return startSpan(instrumentationName, carrier, getExtractedSpanContext(context));
+  }
+
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
-  }
-
-  /* Verify whether we have only span contexts or more contexts */
-  public ContextScope activateScope(Context context, AgentSpan span) {
-    Baggage baggage = Baggage.fromContext(context);
-    if (baggage == null) {
-      return span.attach();
-    }
-    return context.with(span).attach();
   }
 
   public AgentSpan onRequest(
