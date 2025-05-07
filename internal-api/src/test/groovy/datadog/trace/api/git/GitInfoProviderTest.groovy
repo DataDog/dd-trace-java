@@ -238,6 +238,10 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.commit.committer.iso8601Date == null
   }
 
+  def "test emit telemetry metrics when SHA discrepancies are found"() {
+
+  }
+
   def "test ignores remote URLs starting with file protocol"() {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
