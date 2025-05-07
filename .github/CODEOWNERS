@@ -90,6 +90,7 @@
 /dd-java-agent/instrumentation/spark-executor/  @DataDog/data-jobs-monitoring
 
 # @DataDog/data-streams-monitoring
+<<<<<<< HEAD
 /dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/datastreams  @DataDog/data-streams-monitoring
 /dd-trace-core/src/main/java/datadog/trace/core/datastreams                  @DataDog/data-streams-monitoring
 /dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                @DataDog/data-streams-monitoring
@@ -110,3 +111,9 @@
 /internal-api/src/main/java/datadog/trace/api/EndpointCheckpointer.java                     @DataDog/profiling-java
 /internal-api/src/main/java/datadog/trace/api/EndpointTracker.java                          @DataDog/profiling-java
 /dd-smoke-tests/profiling-integration-tests/                                                @DataDog/profiling-java
+
+# @DataDog/ml-observability
+dd-trace-api/src/main/java/datadog/trace/api/llmobs/ @DataDog/ml-observability
+dd-java-agent/agent-llmobs/                          @DataDog/ml-observability
+dd-trace-core/src/main/java/datadog/trace/llmobs/    @DataDog/ml-observability
+dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
