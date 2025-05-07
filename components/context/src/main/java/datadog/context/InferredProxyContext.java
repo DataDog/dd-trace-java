@@ -9,6 +9,10 @@ public class InferredProxyContext implements ImplicitContextKeyed {
       ContextKey.named("inferred-proxy-key");
   private final Map<String, String> inferredProxy;
 
+  // at most 6 x-dd-proxy http headers to be extracted and stored into the Context hashmap,
+  // following API Gateway RFC
+  private final int DEFAULT_CAPACITY = 6;
+
   public static InferredProxyContext fromContext(Context context) {
     return context.get(CONTEXT_KEY);
   }
@@ -16,12 +20,12 @@ public class InferredProxyContext implements ImplicitContextKeyed {
   public InferredProxyContext(Map<String, String> contextInfo) {
     this.inferredProxy =
         (contextInfo == null || contextInfo.isEmpty())
-            ? new HashMap<>()
+            ? new HashMap<>(DEFAULT_CAPACITY)
             : new HashMap<>(contextInfo);
   }
 
   public InferredProxyContext() {
-    this.inferredProxy = new HashMap<>();
+    this.inferredProxy = new HashMap<>(DEFAULT_CAPACITY);
   }
 
   public Map<String, String> getInferredProxyContext() {
