@@ -137,6 +137,13 @@ _Action:_ Build the Java Client Library and runs [the system tests](https://gith
 
 _Recovery:_ Manually trigger the action on the desired branch.
 
+### all-green [🔗](all-green.yaml)
+
+_Trigger:_ Any pull request.
+
+_Action:_ This action will check all other jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails. This action got an `ignored` paraemters to exclude some jobs if they are temprorary failing. The purpose of this job is to be required for merges, achieving Green CI Policy.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 ## Maintenance
 
