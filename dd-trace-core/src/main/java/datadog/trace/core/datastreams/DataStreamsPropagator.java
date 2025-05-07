@@ -2,6 +2,8 @@ package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.HTTP_CLIENT;
+import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
@@ -20,7 +22,6 @@ import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.io.IOException;
@@ -80,21 +81,30 @@ public class DataStreamsPropagator implements Propagator {
   }
 
   private static DataStreamsContext createDataStreamsContext(AgentSpan span) {
-    if (span.getTag(SPAN_KIND).equals(SPAN_KIND_CLIENT)) {
+    if (SPAN_KIND_CLIENT.equals(span.getTag(SPAN_KIND))) {
       LinkedHashMap<String, String> tags = new LinkedHashMap<>(2);
       tags.put(DIRECTION_TAG, DIRECTION_OUT);
       Object componentTag = span.getTag(COMPONENT);
-      String component = componentTag instanceof String ? (String) componentTag : "";
+      String component =
+          componentTag instanceof CharSequence ? ((CharSequence) componentTag).toString() : "";
       CharSequence spanType =
           span.context() instanceof DDSpanContext
               ? ((DDSpanContext) span.context()).getSpanType()
               : "";
-      if (spanType == InternalSpanTypes.HTTP_CLIENT) {
+      // System.out.println(">>> component: " + component);
+      // System.out.println(">>> type: " + spanType);
+      if (spanType == HTTP_CLIENT) {
         tags.put(TYPE_TAG, "http");
-      } else if (spanType == InternalSpanTypes.RPC && component.startsWith("grpc")) {
+      } else if (spanType == RPC && component.contains("grpc")) {
         tags.put(TYPE_TAG, "grpc");
       }
       return DataStreamsContext.fromTags(tags);
+    }
+    if (span.getTag("servlet.context") != null
+        && span.getTag(COMPONENT) instanceof CharSequence
+        && "java-web-servlet-dispatcher"
+            .equals(((CharSequence) span.getTag(COMPONENT)).toString())) {
+      return DataStreamsContext.client();
     }
     return null;
   }
