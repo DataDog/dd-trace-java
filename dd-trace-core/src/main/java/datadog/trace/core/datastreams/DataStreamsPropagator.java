@@ -2,6 +2,12 @@ package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -14,8 +20,11 @@ import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.core.DDSpanContext;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -46,12 +55,18 @@ public class DataStreamsPropagator implements Propagator {
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     // TODO Pathway context needs to be stored into its own context element instead of span context
     AgentSpan span = AgentSpan.fromContext(context);
-    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
     PathwayContext pathwayContext;
     if (span == null
-        || dsmContext == null
         || (pathwayContext = span.context().getPathwayContext()) == null
         || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+      return;
+    }
+    // Get current DSM context, or try to create a new one to inject if missing from context
+    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
+    if (dsmContext == null) {
+      dsmContext = createDataStreamsContext(span);
+    }
+    if (dsmContext == null) {
       return;
     }
 
@@ -64,17 +79,37 @@ public class DataStreamsPropagator implements Propagator {
     }
   }
 
+  private static DataStreamsContext createDataStreamsContext(AgentSpan span) {
+    if (span.getTag(SPAN_KIND).equals(SPAN_KIND_CLIENT)) {
+      LinkedHashMap<String, String> tags = new LinkedHashMap<>(2);
+      tags.put(DIRECTION_TAG, DIRECTION_OUT);
+      Object componentTag = span.getTag(COMPONENT);
+      String component = componentTag instanceof String ? (String) componentTag : "";
+      CharSequence spanType =
+          span.context() instanceof DDSpanContext
+              ? ((DDSpanContext) span.context()).getSpanType()
+              : "";
+      if (spanType == InternalSpanTypes.HTTP_CLIENT) {
+        tags.put(TYPE_TAG, "http");
+      } else if (spanType == InternalSpanTypes.RPC && component.startsWith("grpc")) {
+        tags.put(TYPE_TAG, "grpc");
+      }
+      return DataStreamsContext.fromTags(tags);
+    }
+    return null;
+  }
+
   private <C> boolean injectPathwayContext(
       PathwayContext pathwayContext, C carrier, CarrierSetter<C> setter) {
     try {
       String encodedContext = pathwayContext.encode();
       if (encodedContext != null) {
-        //        LOGGER.debug("Injecting pathway context {}", pathwayContext);
+        // LOGGER.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
         return true;
       }
     } catch (IOException e) {
-      //      LOGGER.debug("Unable to set encode pathway context", e);
+      // LOGGER.debug("Unable to set encode pathway context", e);
     }
     return false;
   }
