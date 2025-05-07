@@ -1369,7 +1369,7 @@ class WAFModuleSpecification extends DDSpecification {
     final flow = Mock(ChangeableFlow)
     final suspiciousIp = '34.65.27.85'
     initialRuleAdd('rules_suspicious_attacker_blocking.json')
-    ctx.closeWafContext()
+
     final bundle = MapDataBundle.of(
     KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
     suspiciousIp,

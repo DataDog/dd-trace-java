@@ -176,7 +176,7 @@ public class WAFModule implements AppSecModule {
     try {
       success = initOrUpdateWafHandle(wafBuilder);
     } catch (Exception e) {
-      throw new AppSecModuleActivationException("Could not initialize waf", e);
+      throw new AppSecModuleActivationException("Could not initialize waf handle", e);
     } finally {
       if (init) {
         WafMetricCollector.get().wafInit(Waf.LIB_VERSION, currentRulesVersion, success);

@@ -230,6 +230,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.close()
 
     then:
+    ctx.wafContext == null
     !wafContext.online
   }
 
