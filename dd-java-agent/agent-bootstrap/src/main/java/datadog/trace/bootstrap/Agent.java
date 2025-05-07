@@ -186,7 +186,7 @@ public class Agent {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
       telemetryEnabled = false;
-      // apply trace instrumentation at native-image build time
+      // apply trace instrumentation, but skip other products at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
       return;
