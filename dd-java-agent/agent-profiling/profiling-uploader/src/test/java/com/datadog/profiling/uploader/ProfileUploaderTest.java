@@ -43,6 +43,7 @@ import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -828,6 +829,34 @@ public class ProfileUploaderTest {
     assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
     verify(recording).release();
+  }
+
+  @ParameterizedTest(name = "process tags enabled ''{0}''")
+  @ValueSource(booleans = {true, false})
+  public void testRequestWithProcessTags(boolean processTagsEnabled) throws Exception {
+    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    ProcessTags.reset(config);
+    uploader =
+        new ProfileUploader(
+            config, configProvider, ioLogger, (int) TERMINATION_TIMEOUT.getSeconds());
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData());
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(recordedRequest);
+    final List<FileItem> multiPartItems =
+        FileUpload.parse(
+            recordedRequest.getBody().readByteArray(), recordedRequest.getHeader("Content-Type"));
+
+    final FileItem rawEvent = multiPartItems.get(0);
+    final Map<String, ?> parsed = new ObjectMapper().readValue(rawEvent.get(), Map.class);
+    if (processTagsEnabled) {
+      assertNotNull(ProcessTags.getTagsForSerialization());
+      assertEquals(ProcessTags.getTagsForSerialization().toString(), parsed.get("process_tags"));
+    } else {
+      assertNull(parsed.get("process_tags"));
+    }
   }
 
   private RecordingData mockRecordingData() throws IOException {
