@@ -72,8 +72,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "scope state should be able to fetch and activate state when there is no active span"() {
     when:
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
+    def initialScopeState = scopeManager.oldScopeState()
 
     then:
     scopeManager.active() == null
@@ -125,8 +124,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
+    def initialScopeState = scopeManager.oldScopeState()
 
     then:
     scope.span() == span
@@ -1154,6 +1152,63 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     scopeManager.active() == null
     scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "rollback stops at most recent checkpoint"() {
+    when:
+    def span1 = tracer.buildSpan("test1", "test1").start()
+    def span2 = tracer.buildSpan("test2", "test2").start()
+    def span3 = tracer.buildSpan("test3", "test3").start()
+    then:
+    scopeManager.activeSpan() == null
+
+    when:
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.activateSpan(span2)
+    tracer.activateSpan(span3)
+    then:
+    scopeManager.activeSpan() == span3
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
     scopeManager.activeSpan() == null
   }
 

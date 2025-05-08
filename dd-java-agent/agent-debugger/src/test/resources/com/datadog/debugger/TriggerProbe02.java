@@ -1,11 +1,9 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.core.DDSpan;
 
 public class TriggerProbe02 {
   private int intField = 42;

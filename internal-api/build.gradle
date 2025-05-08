@@ -139,6 +139,7 @@ excludedClassesCoverage += [
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
+  "datadog.trace.api.git.GitInfoProvider.ShaDiscrepancy",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO
@@ -203,6 +204,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   "datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint",
   "datadog.trace.api.telemetry.MetricCollector",
+  //Enum
+  "datadog.trace.api.telemetry.WafTruncatedType",
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',

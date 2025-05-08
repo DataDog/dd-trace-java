@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -84,6 +85,7 @@ public class DDSpanContext
   private final UTF8BytesString threadName;
 
   private volatile short httpStatusCode;
+  private CharSequence integrationName;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -874,8 +876,18 @@ public class DDSpanContext
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
-              longRunningVersion));
+              longRunningVersion,
+              ProcessTags.getTagsForSerialization()));
     }
+  }
+
+  @Override
+  public void setIntegrationName(CharSequence integrationName) {
+    this.integrationName = integrationName;
+  }
+
+  public CharSequence getIntegrationName() {
+    return integrationName;
   }
 
   @Override

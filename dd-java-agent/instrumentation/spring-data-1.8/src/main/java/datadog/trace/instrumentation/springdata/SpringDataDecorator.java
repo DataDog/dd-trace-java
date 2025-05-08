@@ -2,8 +2,10 @@
 
 package datadog.trace.instrumentation.springdata;
 
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
+
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -46,6 +48,7 @@ public final class SpringDataDecorator extends ClientDecorator {
       span.setResourceName(spanNameForMethod(method));
     }
 
-    CodeOriginInfo.exit(span);
+    marker();
+    captureCodeOrigin(false);
   }
 }

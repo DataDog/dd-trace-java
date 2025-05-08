@@ -150,6 +150,7 @@ public class Config {
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -194,6 +195,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -846,6 +848,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1066,6 +1070,8 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceInferredProxyEnabled =
+        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -2091,6 +2097,10 @@ public class Config {
     return experimentalFeaturesEnabled;
   }
 
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
+  }
+
   public boolean isTraceEnabled() {
     return instrumenterConfig.isTraceEnabled();
   }
@@ -2359,6 +2369,10 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isInferredProxyPropagationEnabled() {
+    return traceInferredProxyEnabled;
   }
 
   public boolean isBaggageExtract() {
@@ -4902,6 +4916,8 @@ public class Config {
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }

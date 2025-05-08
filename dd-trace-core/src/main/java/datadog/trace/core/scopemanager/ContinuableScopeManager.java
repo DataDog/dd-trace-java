@@ -350,8 +350,13 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
   }
 
   @Override
+  public ScopeState oldScopeState() {
+    return new ContinuableScopeState(tlsScopeStack.get());
+  }
+
+  @Override
   public ScopeState newScopeState() {
-    return new ContinuableScopeState();
+    return new ContinuableScopeState(tlsScopeStack.initialValue());
   }
 
   @Override
@@ -371,8 +376,11 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
   }
 
   private class ContinuableScopeState implements ScopeState {
+    private final ScopeStack localScopeStack;
 
-    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
+    ContinuableScopeState(ScopeStack scopeStack) {
+      this.localScopeStack = scopeStack;
+    }
 
     @Override
     public void activate() {
@@ -380,8 +388,8 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
     }
 
     @Override
-    public void fetchFromActive() {
-      localScopeStack = tlsScopeStack.get();
+    public ScopeState copy() {
+      return new ContinuableScopeState(localScopeStack.copy());
     }
   }
 
