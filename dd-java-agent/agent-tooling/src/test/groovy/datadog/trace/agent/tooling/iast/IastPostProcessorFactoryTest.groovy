@@ -40,7 +40,8 @@ class IastPostProcessorFactoryTest extends DDSpecification {
     final method = new MethodDescription.ForLoadedMethod(NonAnnotatedAdvice.getDeclaredMethod('exit'))
 
     when:
-    final result = IastPostProcessorFactory.INSTANCE.make(method, true)
+    final result = IastPostProcessorFactory.INSTANCE.make(
+      method.getDeclaredAnnotations(), method.getReturnType().asErasure(), true)
 
     then:
     result == Advice.PostProcessor.NoOp.INSTANCE
@@ -60,7 +61,8 @@ class IastPostProcessorFactoryTest extends DDSpecification {
     final context = Mock(Implementation.Context)
 
     when:
-    final postProcessor = IastPostProcessorFactory.INSTANCE.make(method, true)
+    final postProcessor = IastPostProcessorFactory.INSTANCE.make(
+      method.getDeclaredAnnotations(), method.getReturnType().asErasure(), true)
 
     then:
     postProcessor != Advice.PostProcessor.NoOp.INSTANCE

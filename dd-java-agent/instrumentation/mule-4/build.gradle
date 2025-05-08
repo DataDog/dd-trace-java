@@ -79,7 +79,8 @@ configurations.all {
     force libs.logback.classic
     force libs.logback.core
 
-    // force specific version of byte-buddy for all configurations
+    // mule depends specifically on byte-buddy 1.14
+    // https://docs.mulesoft.com/release-notes/mule-runtime/mule-4.5.0-release-notes
     force 'net.bytebuddy:byte-buddy:1.14.18'
   }
 }
