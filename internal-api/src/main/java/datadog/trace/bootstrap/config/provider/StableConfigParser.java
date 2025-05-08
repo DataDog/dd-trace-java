@@ -258,8 +258,6 @@ public class StableConfigParser {
       }
       String value = System.getenv(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
-        log.debug(
-            "Environment variable specified in template {} has no value", envVar.toUpperCase());
         return UNDEFINED_VALUE;
       }
       return value;
@@ -277,7 +275,6 @@ public class StableConfigParser {
       }
       String value = System.getProperty(processArg.substring(2));
       if (value == null || value.isEmpty()) {
-        log.debug("Process argument specified in template {} has no value", processArg);
         return UNDEFINED_VALUE;
       }
       return value;
