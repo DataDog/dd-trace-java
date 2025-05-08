@@ -9,6 +9,7 @@ import java.util.Collection;
 public class ExecutionContext {
 
   private final TestExecutionPolicy executionPolicy;
+  private boolean suppressFailures;
   private boolean failed;
   private long startTimestamp;
 
@@ -32,6 +33,16 @@ public class ExecutionContext {
     boolean failed = this.failed;
     this.failed = false;
     return failed;
+  }
+
+  public void setSuppressFailures(boolean suppressFailures) {
+    this.suppressFailures = suppressFailures;
+  }
+
+  public boolean getAndResetSuppressFailures() {
+    boolean suppressFailures = this.suppressFailures;
+    this.suppressFailures = false;
+    return suppressFailures;
   }
 
   public TestExecutionPolicy getExecutionPolicy() {
