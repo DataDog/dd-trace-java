@@ -5,9 +5,7 @@ import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml;
 import datadog.yaml.YamlParser;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,8 +23,7 @@ public class StableConfigParser {
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
   private static final String UNDEFINED_VALUE = "";
-  private static final int MAX_FILE_SIZE_BYTES = 4096;
-  private static final String RULES_MARKER = "apm_configuration_rules";
+  private static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
 
   /**
    * Parses a configuration file and returns a stable configuration object.
@@ -45,35 +42,17 @@ public class StableConfigParser {
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
       Path path = Paths.get(filePath);
-      long fileSize = Files.size(path);
 
-      String content;
-      // If file is over size limit, check for rules marker in first 4KB
-      if (fileSize > MAX_FILE_SIZE_BYTES) {
-        try (InputStream is = Files.newInputStream(path)) {
-          byte[] buffer = new byte[MAX_FILE_SIZE_BYTES];
-          int bytesRead = is.read(buffer);
-          String first4KB = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-          if (!first4KB.contains(RULES_MARKER)) {
-            log.warn(
-                "Configuration file {} exceeds size limit of {} bytes for apm_configuration_default; dropping.",
-                filePath,
-                MAX_FILE_SIZE_BYTES);
-            return StableConfigSource.StableConfig.EMPTY;
-          }
-          // If we found the marker, read the rest of the file
-          ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-          outputStream.write(buffer, 0, bytesRead);
-          byte[] restBuffer = new byte[1024]; // 1KB buffer for reading rest of file
-          int n;
-          while ((n = is.read(restBuffer)) != -1) {
-            outputStream.write(restBuffer, 0, n);
-          }
-          content = outputStream.toString(StandardCharsets.UTF_8);
-        }
-      } else {
-        content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+      // If file is over size limit, drop
+      if (Files.size(path) > MAX_FILE_SIZE_BYTES) {
+        log.warn(
+            "Configuration file {} exceeds max size {} bytes; dropping.",
+            filePath,
+            MAX_FILE_SIZE_BYTES);
+        return StableConfigSource.StableConfig.EMPTY;
       }
+
+      String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
 
       String processedContent = processTemplate(content);
       StableConfigYaml data = YamlParser.parse(processedContent, StableConfigYaml.class);
@@ -305,5 +284,9 @@ public class StableConfigParser {
     } else {
       return UNDEFINED_VALUE;
     }
+  }
+
+  static int getMaxFileSizeBytes() {
+    return MAX_FILE_SIZE_BYTES;
   }
 }
