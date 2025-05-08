@@ -8,7 +8,6 @@ import com.oracle.svm.core.jdk.Resources;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -61,25 +60,19 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
       tracerResources.add("metrics/jmxfetch-config.yaml");
       tracerResources.add("metrics/jmxfetch-websphere-config.yaml");
 
-      {
-        // jmxfetch integrations metricconfigs
-        String metricConfigsPath = "metrics/datadog/trace/agent/jmxfetch/";
-        String metricConfigs = metricConfigsPath + "metricconfigs.txt";
-        tracerResources.add(metricConfigs);
-        InputStream is = ClassLoader.getSystemResourceAsStream(metricConfigs);
-        if (is == null) {
-          System.err.println("ERROR: metricconfigs.txt not found");
-        } else
-          try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
-            String metricConfig;
-            while ((metricConfig = reader.readLine()) != null) {
-              if (!metricConfig.trim().isEmpty()) {
-                tracerResources.add(metricConfigsPath + "metricconfigs/" + metricConfig);
-              }
-            }
-          } catch (IOException e) {
-            System.err.println("ERROR: reading metricconfig: " + e);
+      // jmxfetch integrations metricconfigs
+      String metricConfigsPath = "metrics/datadog/trace/agent/jmxfetch/";
+      String metricConfigs = metricConfigsPath + "metricconfigs.txt";
+      tracerResources.add(metricConfigs);
+      try (InputStream is = ClassLoader.getSystemResourceAsStream(metricConfigs);
+          BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+        String metricConfig;
+        while ((metricConfig = reader.readLine()) != null) {
+          if (!metricConfig.trim().isEmpty()) {
+            tracerResources.add(metricConfigsPath + "metricconfigs/" + metricConfig);
           }
+        }
+      } catch (Throwable ignore) {
       }
 
       // registering tracer resources to include in the native build
@@ -87,8 +80,7 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
         String flattened = original.substring(original.indexOf('/') + 1);
         try (InputStream is = ClassLoader.getSystemResourceAsStream(original)) {
           Resources.registerResource(flattened, is);
-        } catch (Throwable t) {
-          System.err.println("ERROR: reading `" + original + "` " + t);
+        } catch (Throwable ignore) {
         }
       }
     }
