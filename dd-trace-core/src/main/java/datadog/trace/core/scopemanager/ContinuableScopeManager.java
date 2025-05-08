@@ -36,6 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,6 +124,7 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
     return new ScopeContinuation(this, context, source, traceCollector).register();
   }
 
+  @SuppressForbidden
   private AgentScope activate(
       final AgentSpan span,
       final byte source,
@@ -155,12 +158,20 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
     final ContinuableScope scope =
         new ContinuableScope(this, context, source, asyncPropagation, createScopeState(context));
+    System.out.println("Scope size prior: " + scopeStack.depth());
     scopeStack.push(scope);
+    System.out.println("Scope size prior: " + scopeStack.depth());
     healthMetrics.onActivateScope();
+
+    if (iterationKeepAlive > 0 && currentDepth == 0) {
+      // For context-based scopes, only add them if they're going to be long-lived
+      scheduleRootIterationScopeCleanup(scopeStack, scope);
+    }
 
     return scope;
   }
 
+  @SuppressForbidden
   private AgentScope activate(final Context context) {
     ScopeStack scopeStack = scopeStack();
 
@@ -185,8 +196,16 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
     final ContinuableScope scope =
         new ContinuableScope(this, context, CONTEXT, asyncPropagation, createScopeState(context));
+    System.out.println("Context: " + context);
+    System.out.println("Scope size prior: " + scopeStack.depth());
     scopeStack.push(scope);
+    System.out.println("Scope size prior: " + scopeStack.depth());
     healthMetrics.onActivateScope();
+
+    if (iterationKeepAlive > 0 && currentDepth == 0) {
+      // For context-based scopes, only add them if they're going to be long-lived
+      scheduleRootIterationScopeCleanup(scopeStack, scope);
+    }
 
     return scope;
   }
@@ -304,8 +323,13 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
     }
   }
 
+  @SuppressForbidden
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
+
+    System.out.println("Scope size prior: " + scopeStack().depth());
+    System.out.println("scopeStack(): " + scopeStack());
+    System.out.println("active: " + active);
     return active == null ? null : active.span();
   }
 
