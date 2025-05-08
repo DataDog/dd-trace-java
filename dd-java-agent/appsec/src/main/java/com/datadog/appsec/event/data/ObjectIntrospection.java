@@ -1,5 +1,6 @@
 package com.datadog.appsec.event.data;
 
+import datadog.trace.api.Pair;
 import datadog.trace.api.Platform;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 public final class ObjectIntrospection {
   private static final int MAX_DEPTH = 20;
   private static final int MAX_ELEMENTS = 256;
+  private static final int MAX_STRING_LENGTH = 4096;
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
 
   private static final Method trySetAccessible;
@@ -60,20 +62,19 @@ public final class ObjectIntrospection {
    * <p>Certain instance fields are excluded. Right now, this includes metaClass fields in Groovy
    * objects and this$0 fields in inner classes.
    *
-   * <p>Only string values are preserved. Numbers or booleans are removed, since we do not expect
-   * rules to detect malicious payloads in these types. An exception to this are map keys, which are
-   * always converted to strings.
-   *
    * @param obj an arbitrary object
-   * @return the converted object
+   * @return the converted object and if the limits were exceeded
    */
-  public static Object convert(Object obj) {
-    return guardedConversion(obj, 0, new State());
+  public static Pair<Object, Boolean> convert(Object obj) {
+    State state = new State();
+    Object converted = guardedConversion(obj, 0, state);
+    return Pair.of(converted, state.limitsExceeded);
   }
 
   private static class State {
     int elemsLeft = MAX_ELEMENTS;
     int invalidKeyId;
+    boolean limitsExceeded = false;
   }
 
   private static Object guardedConversion(Object obj, int depth, State state) {
@@ -94,31 +95,43 @@ public final class ObjectIntrospection {
       return "null";
     }
     if (key instanceof String) {
-      return (String) key;
+      return checkStringLength((String) key, state);
     }
     if (key instanceof Number
         || key instanceof Boolean
         || key instanceof Character
         || key instanceof CharSequence) {
-      return key.toString();
+      return checkStringLength(key.toString(), state);
     }
     return "invalid_key:" + (++state.invalidKeyId);
   }
 
   private static Object doConversion(Object obj, int depth, State state) {
+    if (obj == null) {
+      return null;
+    }
     state.elemsLeft--;
-    if (state.elemsLeft <= 0 || obj == null || depth > MAX_DEPTH) {
+    if (state.elemsLeft <= 0 || depth > MAX_DEPTH) {
+      state.limitsExceeded = true;
       return null;
     }
 
-    // strings, booleans and numbers are preserved
-    if (obj instanceof String || obj instanceof Boolean || obj instanceof Number) {
+    // booleans and numbers are preserved
+    if (obj instanceof Boolean || obj instanceof Number) {
       return obj;
     }
 
+    // strings are preserved, but we need to check the length
+    if (obj instanceof String) {
+      return checkStringLength((String) obj, state);
+    }
+
     // char sequences are transformed just in case they are not immutable,
+    if (obj instanceof CharSequence) {
+      return checkStringLength(obj.toString(), state);
+    }
     // single char sequences are transformed to strings for ddwaf compatibility.
-    if (obj instanceof CharSequence || obj instanceof Character) {
+    if (obj instanceof Character) {
       return obj.toString();
     }
 
@@ -147,6 +160,7 @@ public final class ObjectIntrospection {
       }
       for (Object o : ((Iterable<?>) obj)) {
         if (state.elemsLeft <= 0) {
+          state.limitsExceeded = true;
           break;
         }
         newList.add(guardedConversion(o, depth + 1, state));
@@ -178,6 +192,7 @@ public final class ObjectIntrospection {
     for (Field[] fields : allFields) {
       for (Field f : fields) {
         if (state.elemsLeft <= 0) {
+          state.limitsExceeded = true;
           break outer;
         }
         if (Modifier.isStatic(f.getModifiers())) {
@@ -238,5 +253,13 @@ public final class ObjectIntrospection {
       log.error("Unable to make field accessible", e);
       return false;
     }
+  }
+
+  private static String checkStringLength(final String str, final State state) {
+    if (str.length() > MAX_STRING_LENGTH) {
+      state.limitsExceeded = true;
+      return str.substring(0, MAX_STRING_LENGTH);
+    }
+    return str;
   }
 }

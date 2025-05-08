@@ -55,7 +55,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
-    //command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.add('-Ddd.appsec.rasp.collect.request.body=true')
@@ -228,6 +227,48 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.span.metaStruct != null
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
+    !rootSpan.meta.containsKey('_dd.appsec.rasp.request_body_size.exceeded')
+
+  }
+
+  void 'test request body collection if RASP event exceeded'(){
+    when:
+    String url = "http://localhost:${httpPort}/shi/cmd"
+    def formBuilder = new FormBody.Builder()
+    formBuilder.add('cmd', '$(cat /etc/passwd 1>&2 ; echo .)'+'A' * 5000)
+    final body = formBuilder.build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(body)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-932-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    rootSpan.span.metaStruct != null
+    def requestBody = rootSpan.span.metaStruct.get('http.request.body')
+    assert requestBody != null, 'request body is not set'
+    rootSpan.meta.containsKey('_dd.appsec.rasp.request_body_size.exceeded')
 
   }
 

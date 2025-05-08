@@ -21,6 +21,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -473,7 +474,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj);
+      Object convObj = ObjectIntrospection.convert(obj).getLeft();
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -573,9 +574,14 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object converted = ObjectIntrospection.convert(obj);
+      Pair<Object, Boolean> pair = ObjectIntrospection.convert(obj);
+      Object converted = pair.getLeft();
       if (Config.get().isAppSecRaspCollectRequestBody()) {
-        ctx.setProcessedRequestBody(converted);
+        ctx.setProcessedRequestBody(pair.getLeft());
+        Boolean limitsExceeded = pair.getRight();
+        if (Boolean.TRUE.equals(limitsExceeded)) {
+          ctx_.getTraceSegment().setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+        }
       }
       DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
