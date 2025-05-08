@@ -17,7 +17,7 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilder = givenABuilderReturning(
       new GitInfo("repoUrl", "branch", "tag", new CommitInfo("sha"))
-      )
+    )
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilder)
@@ -36,11 +36,11 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null, new CommitInfo(null))
-      )
+    )
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo(null, "branch", "tag", new CommitInfo("sha")), 2
-      )
+    )
 
     def gitInfoProvider = new GitInfoProvider()
     // registering provider with higher order first, to check that the registration logic will do proper reordering after the second registration
@@ -61,11 +61,11 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", "", "", new CommitInfo(""))
-      )
+    )
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo(null, "branch", "tag", new CommitInfo("sha"))
-      )
+    )
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -85,11 +85,11 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", " ", " ", new CommitInfo(" "))
-      )
+    )
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo(null, "branch", "tag", new CommitInfo("sha"))
-      )
+    )
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -109,17 +109,17 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      PersonInfo.NOOP,
-      PersonInfo.NOOP,
-      null)))
+        new CommitInfo("sha",
+          PersonInfo.NOOP,
+          PersonInfo.NOOP,
+          null)))
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message")))
+        new CommitInfo("sha",
+          new PersonInfo("author name", "author email", "author date"),
+          new PersonInfo("committer name", "committer email", "committer date"),
+          "message")))
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -144,17 +144,17 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      new PersonInfo("", "", ""),
-      new PersonInfo("", "", ""),
-      "")))
+        new CommitInfo("sha",
+          new PersonInfo("", "", ""),
+          new PersonInfo("", "", ""),
+          "")))
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message")))
+        new CommitInfo("sha",
+          new PersonInfo("author name", "author email", "author date"),
+          new PersonInfo("committer name", "committer email", "committer date"),
+          "message")))
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -179,17 +179,17 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      new PersonInfo(" ", " ", " "),
-      new PersonInfo(" ", " ", " "),
-      " ")))
+        new CommitInfo("sha",
+          new PersonInfo(" ", " ", " "),
+          new PersonInfo(" ", " ", " "),
+          " ")))
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message")))
+        new CommitInfo("sha",
+          new PersonInfo("author name", "author email", "author date"),
+          new PersonInfo("committer name", "committer email", "committer date"),
+          "message")))
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -214,17 +214,17 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("sha",
-      PersonInfo.NOOP,
-      PersonInfo.NOOP,
-      "message")))
+        new CommitInfo("sha",
+          PersonInfo.NOOP,
+          PersonInfo.NOOP,
+          "message")))
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("repoUrl", null, null,
-      new CommitInfo("different sha",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message")))
+        new CommitInfo("different sha",
+          new PersonInfo("author name", "author email", "author date"),
+          new PersonInfo("committer name", "committer email", "committer date"),
+          "message")))
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -252,21 +252,21 @@ class GitInfoProviderTest extends Specification {
 
     def gitInfoA = new GitInfo("repoUrlA", null, null,
       new CommitInfo("shaA",
-      PersonInfo.NOOP,
-      PersonInfo.NOOP,
-      "message"
+        PersonInfo.NOOP,
+        PersonInfo.NOOP,
+        "message"
       ))
     def gitInfoB = new GitInfo("repoUrlA", null, null,
       new CommitInfo("shaB",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message"
+        new PersonInfo("author name", "author email", "author date"),
+        new PersonInfo("committer name", "committer email", "committer date"),
+        "message"
       ))
     def gitInfoC = new GitInfo("repoUrlB", null, null,
       new CommitInfo("shaC",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message"
+        new PersonInfo("author name", "author email", "author date"),
+        new PersonInfo("committer name", "committer email", "committer date"),
+        "message"
       ))
 
     def gitInfoBuilderA = givenABuilderReturning(gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER)
@@ -294,15 +294,15 @@ class GitInfoProviderTest extends Specification {
 
     def gitInfoA = new GitInfo("repoUrlA", null, null,
       new CommitInfo("shaA",
-      PersonInfo.NOOP,
-      PersonInfo.NOOP,
-      "message"
+        PersonInfo.NOOP,
+        PersonInfo.NOOP,
+        "message"
       ))
     def gitInfoB = new GitInfo("repoUrlA", null, null,
       new CommitInfo("shaA",
-      new PersonInfo("author name", "author email", "author date"),
-      new PersonInfo("committer name", "committer email", "committer date"),
-      "message"
+        new PersonInfo("author name", "author email", "author date"),
+        new PersonInfo("committer name", "committer email", "committer date"),
+        "message"
       ))
 
     def gitInfoBuilderA = givenABuilderReturning(gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER)
@@ -324,11 +324,11 @@ class GitInfoProviderTest extends Specification {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
       new GitInfo("file://uselessUrl", null, null, new CommitInfo(null)), 1
-      )
+    )
 
     def gitInfoBuilderB = givenABuilderReturning(
       new GitInfo("http://usefulUrl", null, null, new CommitInfo(null)), 2
-      )
+    )
 
     def gitInfoProvider = new GitInfoProvider()
     gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
@@ -339,6 +339,25 @@ class GitInfoProviderTest extends Specification {
 
     then:
     actualGitInfo.repositoryURL == "http://usefulUrl"
+  }
+
+  def "test caches git info regardless of path normalization"() {
+    setup:
+    def gitInfo = new GitInfo("repoUrl", "branch", "tag", new CommitInfo("sha"))
+    def gitInfoBuilder = Mock(GitInfoBuilder)
+    gitInfoBuilder.order() >> 1
+    gitInfoBuilder.providerAsExpected() >> GitProviderExpected.USER_SUPPLIED
+    gitInfoBuilder.providerAsDiscrepant() >> GitProviderDiscrepant.USER_SUPPLIED
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilder)
+
+    when:
+    gitInfoProvider.getGitInfo(REPO_PATH)
+    gitInfoProvider.getGitInfo(REPO_PATH + File.separator)
+
+    then:
+    1 * gitInfoBuilder.build(REPO_PATH) >> gitInfo
   }
 
   private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo) {

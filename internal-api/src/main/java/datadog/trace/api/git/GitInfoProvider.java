@@ -55,11 +55,10 @@ public class GitInfoProvider {
   public GitInfo getGitInfo(@Nullable String repositoryPath) {
     if (repositoryPath == null) {
       repositoryPath = NULL_PATH_STRING;
-    } else if (!repositoryPath.endsWith(File.separator)) {
-      // normalize to correctly hit the cache
-      repositoryPath = repositoryPath + File.separator;
     }
-    return gitInfoCache.computeIfAbsent(repositoryPath, this::buildGitInfo);
+
+    // normalize path to avoid creating two entries in the cache
+    return gitInfoCache.computeIfAbsent(Paths.get(repositoryPath).toString(), this::buildGitInfo);
   }
 
   private GitInfo buildGitInfo(String repositoryPath) {
