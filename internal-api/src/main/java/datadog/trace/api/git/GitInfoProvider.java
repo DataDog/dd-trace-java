@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
 import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.util.Strings;
-import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
