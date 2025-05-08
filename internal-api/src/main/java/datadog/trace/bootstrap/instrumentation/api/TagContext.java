@@ -173,7 +173,7 @@ public class TagContext implements AgentSpanContext.Extracted {
 
   public void putTag(final String key, final String value) {
     if (this.tags == null) {
-      this.tags = new TagMap();
+      this.tags = TagMap.create(4);
     }
     this.tags.set(key, value);
   }

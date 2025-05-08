@@ -1888,7 +1888,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   static TagMap withTracerTags(
       Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
-    final TagMap result = new TagMap();
+    final TagMap result = TagMap.create();
     result.putAll(userSpanTags);
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {

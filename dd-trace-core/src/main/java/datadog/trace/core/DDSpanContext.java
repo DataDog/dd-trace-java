@@ -342,7 +342,10 @@ public class DDSpanContext
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
 
-    this.unsafeTags = new TagMap();
+    // The +1 is the magic number from the tags below that we set at the end,
+    // and "* 4 / 3" is to make sure that we don't resize immediately
+    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
+    this.unsafeTags = TagMap.create(capacity);
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -772,7 +775,7 @@ public class DDSpanContext
               Object value = tagEntry.objectValue();
 
               if (!tagInterceptor.interceptTag(ctx, tag, value)) {
-                ctx.unsafeTags.putEntry(tagEntry);
+                ctx.unsafeTags.set(tagEntry);
               }
             });
       } else {
@@ -790,7 +793,7 @@ public class DDSpanContext
     synchronized (unsafeTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
         if (entryChange.isRemoval()) {
-          unsafeTags.removeEntry(entryChange.tag());
+          unsafeTags.remove(entryChange.tag());
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
@@ -798,7 +801,7 @@ public class DDSpanContext
           Object value = entry.objectValue();
 
           if (!tagInterceptor.interceptTag(this, tag, value)) {
-            unsafeTags.putEntry(entry);
+            unsafeTags.set(entry);
           }
         }
       }

@@ -27,8 +27,8 @@ public final class TagMapFuzzTest {
     TestCase mapACase = generateTest();
     TestCase mapBCase = generateTest();
 
-    TagMap tagMapA = test(mapACase);
-    TagMap tagMapB = test(mapBCase);
+    OptimizedTagMap tagMapA = test(mapACase);
+    OptimizedTagMap tagMapB = test(mapBCase);
 
     HashMap<String, Object> hashMapA = new HashMap<>(tagMapA);
     HashMap<String, Object> hashMapB = new HashMap<>(tagMapB);
@@ -855,7 +855,7 @@ public final class TagMapFuzzTest {
             put("key-41", "values--904162962"));
 
     Map<String, Object> expected = makeMap(testCase);
-    TagMap actual = makeTagMap(testCase);
+    OptimizedTagMap actual = makeTagMap(testCase);
 
     MapAction failingAction = remove("key-127");
     failingAction.apply(expected);
@@ -887,27 +887,27 @@ public final class TagMapFuzzTest {
     return map;
   }
 
-  public static final TagMap makeTagMap(TestCase testCase) {
+  public static final OptimizedTagMap makeTagMap(TestCase testCase) {
     return makeTagMap(testCase.actions);
   }
 
-  public static final TagMap makeTagMap(MapAction... actions) {
+  public static final OptimizedTagMap makeTagMap(MapAction... actions) {
     return makeTagMap(Arrays.asList(actions));
   }
 
-  public static final TagMap makeTagMap(List<MapAction> actions) {
-    TagMap map = new TagMap();
+  public static final OptimizedTagMap makeTagMap(List<MapAction> actions) {
+    OptimizedTagMap map = new OptimizedTagMap();
     for (MapAction action : actions) {
       action.apply(map);
     }
     return map;
   }
 
-  public static final TagMap test(TestCase test) {
+  public static final OptimizedTagMap test(TestCase test) {
     List<MapAction> actions = test.actions();
 
     Map<String, Object> hashMap = new HashMap<>();
-    TagMap tagMap = new TagMap();
+    OptimizedTagMap tagMap = new OptimizedTagMap();
 
     int actionIndex = 0;
     try {
@@ -983,7 +983,7 @@ public final class TagMapFuzzTest {
     return new Remove(key);
   }
 
-  static final void assertMapEquals(Map<String, Object> expected, TagMap actual) {
+  static final void assertMapEquals(Map<String, Object> expected, OptimizedTagMap actual) {
     // checks entries in both directions to make sure there's full intersection
 
     for (Map.Entry<String, Object> expectedEntry : expected.entrySet()) {
@@ -996,7 +996,7 @@ public final class TagMapFuzzTest {
       Object expectedValue = expected.get(actualEntry.tag());
       assertEquals(expectedValue, actualEntry.objectValue());
     }
-
+    
     actual.checkIntegrity();
   }
 
@@ -1044,14 +1044,15 @@ public final class TagMapFuzzTest {
   }
 
   static final TagMap tagMapOf(String... keysAndValues) {
-    TagMap map = new TagMap();
+    OptimizedTagMap map = new OptimizedTagMap();
     for (int i = 0; i < keysAndValues.length; i += 2) {
       String key = keysAndValues[i];
       String value = keysAndValues[i + 1];
 
       map.set(key, value);
-      // map.check();
     }
+    map.checkIntegrity();
+    
     return map;
   }
 

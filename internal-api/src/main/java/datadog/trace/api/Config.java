@@ -3657,9 +3657,7 @@ public class Config {
   public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
 
-    final TagMap result = new TagMap();
-    result.putAll(runtimeTags);
-
+    final TagMap result = TagMap.fromMap(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);

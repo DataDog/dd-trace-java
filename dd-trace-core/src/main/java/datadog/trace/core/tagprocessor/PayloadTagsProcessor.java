@@ -79,7 +79,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
       RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
       Object tagValue = unsafeTags.getObject(tagPrefix);
       if (tagValue instanceof PayloadTagsData) {
-        if (unsafeTags.remove(tagPrefix) != null) {
+        if (unsafeTags.remove(tagPrefix)) {
           spanMaxTags -= 1;
         }
 

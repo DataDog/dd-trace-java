@@ -9,6 +9,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 public class TagMapLedgerTest {
   static final int SIZE = 32;
@@ -66,7 +68,27 @@ public class TagMapLedgerTest {
     for (int i = 0; i < SIZE; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
-    assertEquals(SIZE, map.computeSize());
+    assertEquals(SIZE, map.size());
+
+    // just proving that the map is mutable
+    map.set(key(1000), value(1000));
+  }
+  
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void buildMutable(TagMapType mapType) {
+    TagMap.Ledger ledger = TagMap.ledger();
+    for (int i = 0; i < SIZE; ++i) {
+      ledger.set(key(i), value(i));
+    }
+
+    assertEquals(SIZE, ledger.estimateSize());
+
+    TagMap map = ledger.build(mapType.factory);
+    for (int i = 0; i < SIZE; ++i) {
+      assertEquals(value(i), map.getString(key(i)));
+    }
+    assertEquals(SIZE, map.size());
 
     // just proving that the map is mutable
     map.set(key(1000), value(1000));
@@ -85,7 +107,26 @@ public class TagMapLedgerTest {
     for (int i = 0; i < SIZE; ++i) {
       assertEquals(value(i), map.getString(key(i)));
     }
-    assertEquals(SIZE, map.computeSize());
+    assertEquals(SIZE, map.size());
+
+    assertFrozen(map);
+  }
+  
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void buildImmutable(TagMapType mapType) {
+    TagMap.Ledger ledger = TagMap.ledger();
+    for (int i = 0; i < SIZE; ++i) {
+      ledger.set(key(i), value(i));
+    }
+
+    assertEquals(SIZE, ledger.estimateSize());
+
+    TagMap map = ledger.buildImmutable(mapType.factory);
+    for (int i = 0; i < SIZE; ++i) {
+      assertEquals(value(i), map.getString(key(i)));
+    }
+    assertEquals(SIZE, map.size());
 
     assertFrozen(map);
   }
@@ -97,6 +138,14 @@ public class TagMapLedgerTest {
     assertNotSame(TagMap.EMPTY, ledger.build());
   }
 
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void build_empty(TagMapType mapType) {
+    TagMap.Ledger ledger = TagMap.ledger();
+    assertTrue(ledger.isDefinitelyEmpty());
+    assertNotSame(mapType.empty(), ledger.build(mapType.factory));
+  }
+  
   @Test
   public void buildImmutable_empty() {
     TagMap.Ledger ledger = TagMap.ledger();
@@ -112,7 +161,7 @@ public class TagMapLedgerTest {
 
     assertFalse(ledger.isDefinitelyEmpty());
     TagMap map = ledger.build();
-    assertTrue(map.checkIfEmpty());
+    assertTrue(map.isEmpty());
   }
 
   @Test

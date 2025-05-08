@@ -989,7 +989,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       getTraceSegment() >> traceSegment
     }
     final spanInfo = Mock(AgentSpan) {
-      getTags() >> ['http.route':'/']
+      getTags() >> TagMap.fromMap(['http.route':'/'])
     }
 
     when:

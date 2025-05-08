@@ -57,7 +57,7 @@ public class DefaultExceptionDebuggerTest {
   private ConfigurationUpdater configurationUpdater;
   private DefaultExceptionDebugger exceptionDebugger;
   private TestSnapshotListener listener;
-  private TagMap spanTags = new TagMap();
+  private TagMap spanTags = TagMap.create();
 
   @BeforeEach
   public void setUp() {

@@ -5,7 +5,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
@@ -15,15 +14,18 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 public class TagMapTest {
   // size is chosen to make sure to stress all types of collisions in the Map
   static final int MANY_SIZE = 256;
 
-  @Test
-  public void map_put() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void map_put(TagMapType mapType) {
+    TagMap map = mapType.create();
 
     Object prev = map.put("foo", "bar");
     assertNull(prev);
@@ -34,69 +36,85 @@ public class TagMapTest {
     assertNotEmpty(map);
   }
 
-  @Test
-  public void booleanEntry() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void booleanEntry(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.set("bool", false);
 
     TagMap.Entry entry = map.getEntry("bool");
-    assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
+    if ( map.isOptimized() ) {
+      assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
+    }
 
     assertEquals(false, entry.booleanValue());
     assertEquals(false, map.getBoolean("bool"));
   }
 
-  @Test
-  public void intEntry() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void intEntry(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.set("int", 42);
 
     TagMap.Entry entry = map.getEntry("int");
-    assertEquals(TagMap.Entry.INT, entry.rawType);
+    if ( map.isOptimized() ) {
+      assertEquals(TagMap.Entry.INT, entry.rawType);
+    }
 
     assertEquals(42, entry.intValue());
     assertEquals(42, map.getInt("int"));
   }
 
-  @Test
-  public void longEntry() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void longEntry(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.set("long", 42L);
 
     TagMap.Entry entry = map.getEntry("long");
-    assertEquals(TagMap.Entry.LONG, entry.rawType);
+    if ( map.isOptimized() ) {
+      assertEquals(TagMap.Entry.LONG, entry.rawType);
+    }
 
     assertEquals(42L, entry.longValue());
     assertEquals(42L, map.getLong("long"));
   }
 
-  @Test
-  public void floatEntry() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void floatEntry(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.set("float", 3.14F);
 
     TagMap.Entry entry = map.getEntry("float");
-    assertEquals(TagMap.Entry.FLOAT, entry.rawType);
+    if ( map.isOptimized() ) {
+      assertEquals(TagMap.Entry.FLOAT, entry.rawType);
+    }
 
     assertEquals(3.14F, entry.floatValue());
     assertEquals(3.14F, map.getFloat("float"));
   }
 
-  @Test
-  public void doubleEntry() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void doubleEntry(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.set("double", Math.PI);
 
     TagMap.Entry entry = map.getEntry("double");
-    assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
+    if ( map.isOptimized() ) {
+      assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
+    }
 
     assertEquals(Math.PI, entry.doubleValue());
     assertEquals(Math.PI, map.getDouble("double"));
   }
 
-  @Test
-  public void empty() {
-    TagMap empty = TagMap.EMPTY;
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void empty(TagMapType mapType) {
+    TagMap empty = mapType.empty();
     assertFrozen(empty);
 
     assertNull(empty.getEntry("foo"));
@@ -104,22 +122,24 @@ public class TagMapTest {
     assertEmpty(empty);
   }
 
-  @Test
-  public void putAll_empty() {
-    // TagMap.EMPTY breaks the rules and uses a different size bucket array
-    // This test is just to verify that the commonly use putAll still works with EMPTY
-    TagMap newMap = new TagMap();
-    newMap.putAll(TagMap.EMPTY);
-
-    assertSize(0, newMap);
-    assertEmpty(newMap);
+  @ParameterizedTest
+  @EnumSource(TagMapTypePair.class)
+  public void putAll_empty(TagMapTypePair mapTypePair) {
+	// TagMap.EMPTY breaks the rules and uses a different size bucket array
+	// This test is just to verify that the commonly use putAll still works with EMPTY
+	TagMap newMap = mapTypePair.firstType.create();
+	newMap.putAll(mapTypePair.secondType.empty());
+	
+	assertSize(0, newMap);
+	assertEmpty(newMap);
   }
 
-  @Test
-  public void clear() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void clear(TagMapType mapType) {
     int size = randomSize();
 
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
     assertSize(size, map);
     assertNotEmpty(map);
 
@@ -128,9 +148,10 @@ public class TagMapTest {
     assertEmpty(map);
   }
 
-  @Test
-  public void map_put_replacement() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void map_put_replacement(TagMapType mapType) {
+    TagMap map = mapType.create();
     Object prev1 = map.put("foo", "bar");
     assertNull(prev1);
 
@@ -145,11 +166,12 @@ public class TagMapTest {
     assertEntry("foo", "baz", map);
   }
 
-  @Test
-  public void map_remove() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void map_remove(TagMapType mapType) {
+    TagMap map = mapType.create();
 
-    Object prev1 = map.remove("foo");
+    Object prev1 = map.remove((Object)"foo");
     assertNull(prev1);
 
     map.put("foo", "bar");
@@ -157,15 +179,16 @@ public class TagMapTest {
     assertSize(1, map);
     assertNotEmpty(map);
 
-    Object prev2 = map.remove("foo");
+    Object prev2 = map.remove((Object)"foo");
     assertEquals("bar", prev2);
     assertSize(0, map);
     assertEmpty(map);
   }
 
-  @Test
-  public void freeze() {
-    TagMap map = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void freeze(TagMapType mapType) {
+    TagMap map = mapType.create();
     map.put("foo", "bar");
 
     assertEntry("foo", "bar", map);
@@ -180,9 +203,10 @@ public class TagMapTest {
     assertEntry("foo", "bar", map);
   }
 
-  @Test
-  public void emptyMap() {
-    TagMap map = TagMap.EMPTY;
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void emptyMap(TagMapType mapType) {
+    TagMap map = mapType.empty();
 
     assertSize(0, map);
     assertEmpty(map);
@@ -190,10 +214,11 @@ public class TagMapTest {
     assertFrozen(map);
   }
 
-  @Test
-  public void putMany() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void putMany(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), map);
@@ -203,12 +228,13 @@ public class TagMapTest {
     assertSize(size, map);
   }
 
-  @Test
-  public void copyMany() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void copyMany(TagMapType mapType) {
     int size = randomSize();
-    TagMap orig = createTagMap(size);
+    TagMap orig = createTagMap(mapType, size);
     assertSize(size, orig);
-
+    
     TagMap copy = orig.copy();
     orig.clear(); // doing this to make sure that copied isn't modified
 
@@ -217,25 +243,27 @@ public class TagMapTest {
     }
     assertSize(size, copy);
   }
-
-  @Test
-  public void immutableCopy() {
-    int size = randomSize();
-    TagMap orig = createTagMap(size);
-
-    TagMap immutableCopy = orig.immutableCopy();
-    orig.clear(); // doing this to make sure that copied isn't modified
-
+  
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void immutableCopy(TagMapType mapType) {
+	int size = randomSize();
+	TagMap orig = createTagMap(mapType, size);
+	
+	TagMap immutableCopy = orig.immutableCopy();
+	orig.clear(); // doing this to make sure that copied isn't modified
+	
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), immutableCopy);
     }
     assertSize(size, immutableCopy);
   }
 
-  @Test
-  public void replaceALot() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void replaceALot(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     for (int i = 0; i < size; ++i) {
       int index = ThreadLocalRandom.current().nextInt(size);
@@ -245,24 +273,29 @@ public class TagMapTest {
     }
   }
 
-  @Test
-  public void shareEntry() {
-    TagMap orig = new TagMap();
+  @ParameterizedTest
+  @EnumSource(TagMapTypePair.class)
+  public void shareEntry(TagMapTypePair mapTypePair) {
+    TagMap orig = mapTypePair.firstType.create();
     orig.set("foo", "bar");
 
-    TagMap dest = new TagMap();
-    dest.putEntry(orig.getEntry("foo"));
-
-    assertSame(orig.getEntry("foo"), dest.getEntry("foo"));
+    TagMap dest = mapTypePair.secondType.create();
+    dest.set(orig.getEntry("foo"));
+    
+    assertEquals(orig.getEntry("foo"), dest.getEntry("foo"));
+    if ( mapTypePair == TagMapTypePair.BOTH_OPTIMIZED ) {
+      assertSame(orig.getEntry("foo"), dest.getEntry("foo"));
+    }
   }
 
-  @Test
-  public void putAll_clobberAll() {
+  @ParameterizedTest
+  @EnumSource(TagMapTypePair.class)
+  public void putAll_clobberAll(TagMapTypePair mapTypePair) {
     int size = randomSize();
-    TagMap orig = createTagMap(size);
+    TagMap orig = createTagMap(mapTypePair.firstType, size);
     assertSize(size, orig);
 
-    TagMap dest = new TagMap();
+    TagMap dest = mapTypePair.secondType.create();
     for (int i = size - 1; i >= 0; --i) {
       dest.set(key(i), altValue(i));
     }
@@ -273,19 +306,20 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), dest);
     }
-    assertSize(size, dest);
+    assertSize(size,  dest);
   }
-
-  @Test
-  public void putAll_clobberAndExtras() {
+  
+  @ParameterizedTest
+  @EnumSource(TagMapTypePair.class)
+  public void putAll_clobberAndExtras(TagMapTypePair mapTypePair) {
     int size = randomSize();
-    TagMap orig = createTagMap(size);
+    TagMap orig = createTagMap(mapTypePair.firstType, size);
     assertSize(size, orig);
 
-    TagMap dest = new TagMap();
+    TagMap dest = mapTypePair.secondType.create();
     for (int i = size / 2 - 1; i >= 0; --i) {
       dest.set(key(i), altValue(i));
-    }
+    }    
 
     // This should clobber all the values in dest
     dest.putAll(orig);
@@ -293,14 +327,15 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), dest);
     }
-
-    assertSize(size, dest);
+    
+    assertSize(size,  dest);
   }
 
-  @Test
-  public void removeMany() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void removeMany(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), map);
@@ -310,20 +345,21 @@ public class TagMapTest {
     assertSize(size, map);
 
     for (int i = 0; i < size; ++i) {
-      Object removedValue = map.remove(key(i));
+      Object removedValue = map.remove((Object)key(i));
       assertEquals(value(i), removedValue);
 
       // not doing exhaustive size checks
-      assertEquals(size - i - 1, map.computeSize());
+      assertEquals(size - i - 1, map.size());
     }
 
     assertEmpty(map);
   }
 
-  @Test
-  public void fillMap() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void fillMap(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = new TagMap();
+    TagMap map = mapType.create();
     for (int i = 0; i < size; ++i) {
       map.set(key(i), i);
     }
@@ -337,10 +373,11 @@ public class TagMapTest {
     assertTrue(hashMap.isEmpty());
   }
 
-  @Test
-  public void fillStringMap() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void fillStringMap(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = new TagMap();
+    TagMap map = mapType.create();
     for (int i = 0; i < size; ++i) {
       map.set(key(i), i);
     }
@@ -354,10 +391,11 @@ public class TagMapTest {
     assertTrue(hashMap.isEmpty());
   }
 
-  @Test
-  public void iterator() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void iterator(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>();
     for (TagMap.Entry entry : map) {
@@ -374,10 +412,11 @@ public class TagMapTest {
     assertTrue(keys.isEmpty());
   }
 
-  @Test
-  public void forEachConsumer() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void forEachConsumer(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>(size);
     map.forEach((entry) -> keys.add(entry.tag()));
@@ -391,10 +430,11 @@ public class TagMapTest {
     assertTrue(keys.isEmpty());
   }
 
-  @Test
-  public void forEachBiConsumer() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void forEachBiConsumer(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>(size);
     map.forEach(keys, (k, entry) -> k.add(entry.tag()));
@@ -408,10 +448,11 @@ public class TagMapTest {
     assertTrue(keys.isEmpty());
   }
 
-  @Test
-  public void forEachTriConsumer() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void forEachTriConsumer(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>(size);
     map.forEach(keys, "hi", (k, msg, entry) -> keys.add(entry.tag()));
@@ -425,10 +466,11 @@ public class TagMapTest {
     assertTrue(keys.isEmpty());
   }
 
-  @Test
-  public void entrySet() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void entrySet(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<Map.Entry<String, Object>> actualEntries = map.entrySet();
     assertEquals(size, actualEntries.size());
@@ -441,10 +483,11 @@ public class TagMapTest {
     assertTrue(expectedKeys.isEmpty());
   }
 
-  @Test
-  public void keySet() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void keySet(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Set<String> actualKeys = map.keySet();
     assertEquals(size, actualKeys.size());
@@ -457,10 +500,11 @@ public class TagMapTest {
     assertTrue(expectedKeys.isEmpty());
   }
 
-  @Test
-  public void values() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void values(TagMapType mapType) {
     int size = randomSize();
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
 
     Collection<Object> actualValues = map.values();
     assertEquals(size, actualValues.size());
@@ -473,29 +517,24 @@ public class TagMapTest {
     assertTrue(expectedValues.isEmpty());
   }
 
-  @Test
-  public void _toString() {
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void _toString(TagMapType mapType) {
     int size = 4;
-    TagMap map = createTagMap(size);
+    TagMap map = createTagMap(mapType, size);
     assertEquals("{key-1=value-1, key-0=value-0, key-3=value-3, key-2=value-2}", map.toString());
-  }
-
-  @Test
-  public void toInternalString() {
-    TagMap map = createTagMap(128);
-    assertNotEquals("", map.toInternalString());
   }
 
   static final int randomSize() {
     return ThreadLocalRandom.current().nextInt(1, MANY_SIZE);
   }
 
-  static final TagMap createTagMap() {
-    return createTagMap(randomSize());
+  static final TagMap createTagMap(TagMapType mapType) {
+    return createTagMap(mapType, randomSize());
   }
 
-  static final TagMap createTagMap(int size) {
-    TagMap map = new TagMap();
+  static final TagMap createTagMap(TagMapType mapType, int size) {
+    TagMap map = mapType.create();
     for (int i = 0; i < size; ++i) {
       map.set(key(i), value(i));
     }
@@ -563,7 +602,9 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    assertEquals(size, map.computeSize());
+    if ( map instanceof OptimizedTagMap ) {
+      assertEquals(size, ((OptimizedTagMap)map).computeSize());
+    }
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
@@ -574,12 +615,16 @@ public class TagMapTest {
   }
 
   static final void assertNotEmpty(TagMap map) {
-    assertFalse(map.checkIfEmpty());
+	if ( map instanceof OptimizedTagMap ) {
+      assertFalse(((OptimizedTagMap)map).checkIfEmpty());
+	}
     assertFalse(map.isEmpty());
   }
 
   static final void assertEmpty(TagMap map) {
-    assertTrue(map.checkIfEmpty());
+	if ( map instanceof OptimizedTagMap ) {
+	  assertTrue(((OptimizedTagMap)map).checkIfEmpty());
+	}
     assertTrue(map.isEmpty());
   }
 
