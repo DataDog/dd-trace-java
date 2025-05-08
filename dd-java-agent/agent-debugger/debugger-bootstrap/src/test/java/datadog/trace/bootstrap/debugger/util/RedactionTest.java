@@ -58,10 +58,11 @@ class RedactionTest {
     setFieldInConfig(
         config,
         "dynamicInstrumentationRedactionExcludedIdentifiers",
-        new HashSet<>(Arrays.asList("password")));
+        new HashSet<>(Arrays.asList("password", "_2FA")));
     Redaction.initKeywords();
     try {
       assertFalse(Redaction.isRedactedKeyword("password"));
+      assertFalse(Redaction.isRedactedKeyword("_2fa"));
     } finally {
       setFieldInConfig(
           config, "dynamicInstrumentationRedactionExcludedIdentifiers", Collections.emptySet());

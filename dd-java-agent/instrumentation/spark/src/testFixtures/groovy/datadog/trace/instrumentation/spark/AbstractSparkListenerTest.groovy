@@ -4,10 +4,10 @@ import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.AgentTestRunner
+import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.scheduler.JobSucceeded$
-import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.SparkListenerApplicationStart
 import org.apache.spark.scheduler.SparkListenerExecutorAdded
@@ -30,7 +30,8 @@ import scala.collection.JavaConverters
 
 abstract class AbstractSparkListenerTest extends AgentTestRunner {
 
-  protected abstract SparkListener getTestDatadogSparkListener()
+  protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener()
+  protected abstract AbstractDatadogSparkListener getTestDatadogSparkListener(SparkConf conf)
 
   protected applicationStartEvent(time=0L) {
     // Constructor of SparkListenerApplicationStart changed starting spark 3.0
@@ -458,6 +459,33 @@ abstract class AbstractSparkListenerTest extends AgentTestRunner {
           validateSerializedHistogram(span.tags["_dd.spark.task_run_time"] as String, 100, 200, 300, relativeAccuracy)
           spanType "spark"
           childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "sets up OpenLineage trace id properly"() {
+    setup:
+    def conf = new SparkConf()
+    conf.set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
+    conf.set("spark.openlineage.parentJobNamespace", "default")
+    conf.set("spark.openlineage.parentJobName", "dag-push-to-s3-spark.upload_to_s3")
+    conf.set("spark.openlineage.rootParentRunId", "01964820-5280-7674-b04e-82fbed085f39")
+    conf.set("spark.openlineage.rootParentJobNamespace", "default")
+    conf.set("spark.openlineage.rootParentJobName", "dag-push-to-s3-spark")
+    def listener = getTestDatadogSparkListener(conf)
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.context.traceId.toString() == "13959090542865903119"
         }
       }
     }

@@ -43,7 +43,7 @@ jobs:
         run: |
           echo "${{ steps.get-release-version.outputs.VERSION }}: ${{ steps.get-release-url.outputs.URL }}" >> index.yml
       - name: Commit and push changes
-        uses: planetscale/ghcommit-action@9400254a26464337cbe5af17c5f25075134e0089 # v0.2.7
+        uses: planetscale/ghcommit-action@5b20c92facae8dbf8a3836dc65b8503dda378573 # v0.2.13
         with:
           commit_message: "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
           repo: ${{ github.repository }}

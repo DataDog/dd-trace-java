@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.hibernate;
 
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.OrmClientDecorator;
@@ -10,11 +11,13 @@ import java.util.Set;
 
 public class HibernateDecorator extends OrmClientDecorator {
   public static final CharSequence HIBERNATE_SESSION = UTF8BytesString.create("hibernate.session");
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service("hibernate");
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
 
   @Override
   protected String service() {
-    return "hibernate";
+    return SERVICE_NAME;
   }
 
   @Override

@@ -1,15 +1,12 @@
+import Scheduler.Schedule
+
 import java.util.concurrent.Semaphore
 import org.apache.pekko.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import org.apache.pekko.pattern.ask
 import org.apache.pekko.routing.RoundRobinPool
 import org.apache.pekko.util.Timeout
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activateSpan,
-  setAsyncPropagationEnabled,
-  activeSpan,
-  startSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activateSpan, activeSpan, setAsyncPropagationEnabled, startSpan}
 
 import scala.concurrent.duration._
 
@@ -21,6 +18,9 @@ class PekkoActors extends AutoCloseable {
     system.actorOf(Forwarder.props(receiver), "forwarder")
   val router: ActorRef =
     system.actorOf(RoundRobinPool(5).props(Props[Receiver]()), "router")
+  val scheduler: ActorRef =
+    system.actorOf(Scheduler.props, "scheduler")
+
   val tellGreeter: ActorRef =
     system.actorOf(Greeter.props("Howdy", receiver), "tell-greeter")
   val askGreeter: ActorRef =
@@ -71,6 +71,15 @@ class PekkoActors extends AutoCloseable {
     activeSpan().setSpanName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)
+  }
+
+  @Trace
+  def schedule(): Semaphore = {
+    val barrier = new Semaphore(0)
+    setAsyncPropagationEnabled(true)
+    activeSpan().setSpanName("schedulerSpan")
+    scheduler ! Schedule(barrier)
+    barrier
   }
 }
 
@@ -160,5 +169,30 @@ class Forwarder(receiverActor: ActorRef) extends Actor with ActorLogging {
     case msg => {
       receiverActor forward msg
     }
+  }
+}
+
+object Scheduler {
+  def props: Props = Props[Scheduler]
+
+  final case class Schedule(barrier: Semaphore)
+  final case class Execute(barrier: Semaphore)
+}
+
+class Scheduler extends Actor with ActorLogging {
+  import Scheduler._
+  import context.dispatcher
+
+  def receive = {
+    case Schedule(barrier) =>
+      context.system.scheduler.scheduleOnce(1.second, self, Execute(barrier))
+    case Execute(barrier) =>
+      tracedChild(barrier)
+  }
+
+  @Trace
+  def tracedChild(barrier: Semaphore): Unit = {
+    activeSpan().setSpanName("scheduledOperationSpan")
+    barrier.release(1)
   }
 }

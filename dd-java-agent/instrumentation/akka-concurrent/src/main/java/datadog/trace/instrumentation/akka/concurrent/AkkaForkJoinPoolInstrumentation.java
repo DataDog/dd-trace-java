@@ -12,6 +12,7 @@ import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -19,7 +20,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.ForConfiguredType,
+        Instrumenter.HasMethodAdvice {
 
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");
@@ -28,6 +31,11 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tr
   @Override
   public String instrumentedType() {
     return "akka.dispatch.forkjoin.ForkJoinPool";
+  }
+
+  @Override
+  public String configuredMatchingType() {
+    return InstrumenterConfig.get().getAkkaForkJoinPoolName();
   }
 
   @Override
@@ -43,6 +51,7 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tr
   }
 
   public static final class ExternalPush {
+
     @Advice.OnMethodEnter
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {

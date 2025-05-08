@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Platform;
 import datadog.trace.core.DDSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -38,6 +39,7 @@ public class TraceStructureWriter implements Writer {
     this(outputFile, false);
   }
 
+  @SuppressForbidden
   public TraceStructureWriter(String outputFile, boolean debugLog) {
     boolean argsDebugLog = debugLog;
     boolean argsIncludeResource = false;
@@ -181,6 +183,7 @@ public class TraceStructureWriter implements Writer {
     return true;
   }
 
+  @SuppressForbidden
   @Override
   public void close() {
     if (out != System.err) {

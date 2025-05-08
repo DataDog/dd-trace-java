@@ -1,6 +1,7 @@
 package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -888,7 +889,8 @@ class SymbolExtractionTransformerTest {
         new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE));
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(
-            new SymbolAggregator(classNameFiltering, symbolSinkMock, 1), classNameFiltering);
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSinkMock, 1),
+            classNameFiltering);
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -989,7 +991,7 @@ class SymbolExtractionTransformerTest {
   private SymbolExtractionTransformer createTransformer(
       SymbolSink symbolSink, int symbolFlushThreshold, ClassNameFiltering classNameFiltering) {
     return new SymbolExtractionTransformer(
-        new SymbolAggregator(classNameFiltering, symbolSink, symbolFlushThreshold),
+        new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, symbolFlushThreshold),
         classNameFiltering);
   }
 

@@ -26,6 +26,11 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
   }
 
   @Override
+  String expectedIntegrationName() {
+    "netty"
+  }
+
+  @Override
   HttpServer startServer(int port) {
     HttpServer testServer = new FinatraServer()
 

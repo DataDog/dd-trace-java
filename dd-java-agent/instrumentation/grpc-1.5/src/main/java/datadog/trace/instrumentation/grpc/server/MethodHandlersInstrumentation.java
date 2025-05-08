@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.grpc.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
-import static datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo.entry;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -68,7 +69,10 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
           }
           for (Method method : superClass.getDeclaredMethods()) {
             try {
-              entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
+              marker();
+              captureCodeOrigin(
+                  serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()),
+                  true);
             } catch (Throwable e) {
               // service method not overridden on the impl.  skipping instrumentation.
             }

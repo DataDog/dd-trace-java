@@ -19,13 +19,9 @@ class ContinuableScope implements AgentScope {
 
   final Context context; // package-private so scopeManager can access it directly
 
-  /** Flag that this scope should be allowed to propagate across async boundaries. */
-  private static final byte ASYNC_PROPAGATING = 1;
+  private boolean asyncPropagating;
 
-  /** Flag that we intend to roll back the scope stack to this scope in the future. */
-  private static final byte CHECKPOINTED = 2;
-
-  private byte flags;
+  private short checkpointCount = 0;
 
   private final byte source;
 
@@ -37,12 +33,12 @@ class ContinuableScope implements AgentScope {
       final ContinuableScopeManager scopeManager,
       final Context context,
       final byte source,
-      final boolean isAsyncPropagating,
+      final boolean asyncPropagating,
       final Stateful scopeState) {
     this.scopeManager = scopeManager;
     this.context = context;
     this.source = source;
-    this.flags = isAsyncPropagating ? ASYNC_PROPAGATING : 0;
+    this.asyncPropagating = asyncPropagating;
     this.scopeState = scopeState;
   }
 
@@ -121,7 +117,7 @@ class ContinuableScope implements AgentScope {
 
   @Override
   public final boolean isAsyncPropagating() {
-    return (flags & ASYNC_PROPAGATING) != 0;
+    return asyncPropagating;
   }
 
   @Override
@@ -136,11 +132,7 @@ class ContinuableScope implements AgentScope {
 
   @Override
   public final void setAsyncPropagation(final boolean value) {
-    if (value) {
-      flags |= ASYNC_PROPAGATING;
-    } else {
-      flags &= ~ASYNC_PROPAGATING;
-    }
+    asyncPropagating = value;
   }
 
   @Override
@@ -149,13 +141,13 @@ class ContinuableScope implements AgentScope {
   }
 
   public void checkpoint() {
-    flags |= CHECKPOINTED;
+    checkpointCount++;
   }
 
   public boolean rollback() {
-    if ((flags & CHECKPOINTED) != 0) {
-      flags &= ~CHECKPOINTED;
-      return false;
+    if (checkpointCount > 0) {
+      checkpointCount--;
+      return false; // stop rollback at checkpoint
     } else {
       return true;
     }

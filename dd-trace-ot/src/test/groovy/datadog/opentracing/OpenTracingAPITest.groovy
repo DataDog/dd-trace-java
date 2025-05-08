@@ -64,6 +64,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }
@@ -74,7 +75,7 @@ class OpenTracingAPITest extends DDSpecification {
   def "span with builder"() {
     when:
     Span testSpan = tracer.buildSpan("someOperation")
-      .withTag(Tags.COMPONENT, "test-component")
+      .withTag(Tags.COMPONENT, "opentracing")
       .withTag("someBoolean", true)
       .withTag("someNumber", 1)
       .withTag(DDTags.SERVICE_NAME, "someService")
@@ -100,7 +101,8 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
-            "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "test-component"
+            "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
             defaultTags()
@@ -122,7 +124,7 @@ class OpenTracingAPITest extends DDSpecification {
 
     when:
     testSpan.setTag(DDTags.SERVICE_NAME, "someService")
-    testSpan.setTag(Tags.COMPONENT, "test-component")
+    testSpan.setTag(Tags.COMPONENT, "opentracing")
     testSpan.setTag("someBoolean", true)
     testSpan.setTag("someNumber", 1)
     testSpan.setOperationName("someOtherOperation")
@@ -141,7 +143,8 @@ class OpenTracingAPITest extends DDSpecification {
           operationName("someOtherOperation")
           resourceName "someOtherOperation"
           tags {
-            "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "test-component"
+            "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "opentracing"
+            "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
             defaultTags()
@@ -205,6 +208,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }
@@ -214,6 +218,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation2"
           childOf(span(0))
           tags {
+            "$DDTags.DD_INTEGRATION" null
             defaultTags()
           }
         }
@@ -258,6 +263,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            "$DDTags.DD_INTEGRATION" "opentracing"
             defaultTags()
           }
         }

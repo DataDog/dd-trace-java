@@ -1,9 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.FlightRecorder
 import jdk.jfr.Recording
 import jdk.jfr.consumer.RecordingFile
+import spock.lang.Requires
 
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
@@ -14,6 +16,9 @@ import java.util.stream.Collectors
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@Requires({
+  !Platform.isJ9()
+})
 class DirectAllocationTrackingTest extends AgentTestRunner {
 
   Recording recording

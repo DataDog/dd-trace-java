@@ -1,5 +1,7 @@
 package datadog.trace.api.git;
 
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -88,5 +90,15 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
   @Override
   public int order() {
     return Integer.MAX_VALUE;
+  }
+
+  @Override
+  public GitProviderExpected providerAsExpected() {
+    return GitProviderExpected.EMBEDDED;
+  }
+
+  @Override
+  public GitProviderDiscrepant providerAsDiscrepant() {
+    return GitProviderDiscrepant.EMBEDDED;
   }
 }

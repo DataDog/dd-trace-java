@@ -76,6 +76,11 @@ abstract class FinatraServerTest extends HttpServerTest<HttpServer> {
     return false
   }
 
+  @Override
+  String expectedIntegrationName() {
+    "netty"
+  }
+
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def errorEndpoint = endpoint == EXCEPTION || endpoint == ERROR
     trace.span {

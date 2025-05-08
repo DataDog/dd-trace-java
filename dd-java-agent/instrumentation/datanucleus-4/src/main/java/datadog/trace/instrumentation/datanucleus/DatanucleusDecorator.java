@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.datanucleus;
 
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -16,7 +17,8 @@ public class DatanucleusDecorator extends OrmClientDecorator {
   public static final CharSequence DATANUCLEUS_QUERY_DELETE =
       UTF8BytesString.create("datanucleus.query.delete");
   public static final CharSequence JAVA_DATANUCLEUS = UTF8BytesString.create("java-datanucleus");
-
+  private static final String SERVICE_NAME =
+      SpanNaming.instance().namingSchema().database().service("datanucleus");
   public static final DatanucleusDecorator DECORATE = new DatanucleusDecorator();
 
   @Override
@@ -36,7 +38,7 @@ public class DatanucleusDecorator extends OrmClientDecorator {
 
   @Override
   protected String service() {
-    return "datanucleus";
+    return SERVICE_NAME;
   }
 
   @Override

@@ -1,6 +1,6 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -56,7 +56,7 @@ public class CodeOrigin02 {
   }
 
   public static void exit() {
-    int x = 47 / 3;
+    int x = 47 / 3;  // code origin 2
   }
 
 }

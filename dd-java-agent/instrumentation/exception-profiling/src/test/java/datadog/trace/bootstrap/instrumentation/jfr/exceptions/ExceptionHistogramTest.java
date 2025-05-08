@@ -5,10 +5,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Comparator;
@@ -60,6 +62,7 @@ public class ExceptionHistogramTest {
 
   @BeforeEach
   public void setup() {
+    assumeFalse(Platform.isJ9());
     recording = new Recording();
     recording.enable("datadog.ExceptionCount");
     recording.start();

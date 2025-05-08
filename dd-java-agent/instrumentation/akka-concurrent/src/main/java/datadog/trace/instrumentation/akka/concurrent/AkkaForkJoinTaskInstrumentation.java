@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -52,14 +53,26 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public String hierarchyMarkerType() {
-    return "akka.dispatch.forkjoin.ForkJoinTask";
+    String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
+    return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
+        ? null // bypass the hint if custom class is configured
+        : "akka.dispatch.forkjoin.ForkJoinTask";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
         .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(extendsClass(named(hierarchyMarkerType())));
+        .and(isForkJoinTaskSubclass());
+  }
+
+  private ElementMatcher<TypeDescription> isForkJoinTaskSubclass() {
+    ElementMatcher.Junction<TypeDescription> forkJoinTaskSubclass =
+        extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"));
+    String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
+    return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
+        ? forkJoinTaskSubclass.or(extendsClass(named(akkaForkJoinTaskName)))
+        : forkJoinTaskSubclass;
   }
 
   @Override

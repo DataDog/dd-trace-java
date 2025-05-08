@@ -32,6 +32,7 @@ class SourceFileTrackingTransformerTest {
         null,
         null,
         getClassFileBytes(MyTopLevelClass.class));
+    sourceFileTrackingTransformer.flush();
     changedClasses =
         finder.getAllLoadedChangedClasses(
             new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
@@ -48,6 +49,7 @@ class SourceFileTrackingTransformerTest {
     ConfigurationComparer comparer = createComparer("InnerHelper.java");
     sourceFileTrackingTransformer.transform(
         null, getInternalName(InnerHelper.class), null, null, getClassFileBytes(InnerHelper.class));
+    sourceFileTrackingTransformer.flush();
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(new Class[] {InnerHelper.class}, comparer);
     assertEquals(1, changedClasses.size());
@@ -64,6 +66,7 @@ class SourceFileTrackingTransformerTest {
         null,
         null,
         getClassFileBytes(InnerHelper.MySecondInner.class));
+    sourceFileTrackingTransformer.flush();
     changedClasses =
         finder.getAllLoadedChangedClasses(
             new Class[] {

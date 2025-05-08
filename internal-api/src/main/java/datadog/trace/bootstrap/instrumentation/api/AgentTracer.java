@@ -639,6 +639,11 @@ public class AgentTracer {
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
 
     @Override
+    public ScopeState oldScopeState() {
+      return null;
+    }
+
+    @Override
     public ScopeState newScopeState() {
       return null;
     }

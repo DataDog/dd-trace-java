@@ -59,8 +59,8 @@ dependencies {
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
 
-  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '+'
-  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
   //latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
   latestDepTestImplementation group: 'io.dropwizard.metrics', name: 'metrics-core', version: '+'
 

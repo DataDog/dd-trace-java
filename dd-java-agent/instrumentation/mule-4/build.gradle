@@ -78,6 +78,10 @@ configurations.all {
     // avoid bringing in logback based on java 11
     force libs.logback.classic
     force libs.logback.core
+
+    // mule depends specifically on byte-buddy 1.14
+    // https://docs.mulesoft.com/release-notes/mule-runtime/mule-4.5.0-release-notes
+    force 'net.bytebuddy:byte-buddy:1.14.18'
   }
 }
 
@@ -146,7 +150,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:caffeine')
   testImplementation project(':dd-java-agent:instrumentation:quartz-2')
 
-
   testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   //testImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: muleVersion
@@ -174,7 +177,6 @@ dependencies {
   latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.8.+'
   latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.8.+'
   latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.8.+'
-
 
   //TODO: 4.9.0 is not yet out but it looks like using 4.+ instead of above 4.8.+ brings in 4.9.0-SNAPSHOT artifacts.
   /*

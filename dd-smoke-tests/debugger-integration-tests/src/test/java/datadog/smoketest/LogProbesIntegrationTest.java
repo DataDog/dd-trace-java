@@ -251,6 +251,33 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   }
 
   @Test
+  @DisplayName("testLineProbe")
+  void testLineProbe() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(LINE_PROBE_ID1)
+            .where("DebuggerTestApplication.java", 88)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
+          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(88);
+          assertFullMethodCaptureArgs(capturedContext);
+          assertNull(capturedContext.getLocals());
+          assertNull(capturedContext.getCapturedThrowable());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
+  }
+
+  @Test
   @DisplayName("testSamplingSnapshotDefault")
   @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefault() throws Exception {

@@ -39,8 +39,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   @Override
   public ScopeState updateThreadContext(@NotNull final CoroutineContext coroutineContext) {
-    final ScopeState oldScopeState = AgentTracer.get().newScopeState();
-    oldScopeState.fetchFromActive();
+    final ScopeState oldScopeState = AgentTracer.get().oldScopeState();
 
     final Job coroutine = CoroutineContextHelper.getJob(coroutineContext);
     final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
@@ -53,22 +52,20 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
 
   /** If there's a context item for the coroutine then try to close it */
   public void maybeCloseScopeAndCancelContinuation(final Job coroutine, final Job parent) {
-    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.get(coroutine);
+    final ScopeStateCoroutineContextItem contextItem = contextItemPerCoroutine.remove(coroutine);
     if (contextItem != null) {
       ScopeState currentThreadScopeState = null;
       if (parent != null) {
         final ScopeStateCoroutineContextItem parentItem = contextItemPerCoroutine.get(parent);
         if (parentItem != null) {
-          currentThreadScopeState = parentItem.getScopeState();
+          currentThreadScopeState = parentItem.maybeCopyScopeState();
         }
       }
       if (currentThreadScopeState == null) {
-        currentThreadScopeState = AgentTracer.get().newScopeState();
-        currentThreadScopeState.fetchFromActive();
+        currentThreadScopeState = AgentTracer.get().oldScopeState();
       }
 
       contextItem.maybeCloseScopeAndCancelContinuation();
-      contextItemPerCoroutine.remove(coroutine);
 
       currentThreadScopeState.activate();
     }
@@ -111,16 +108,23 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
     @Nullable private AgentScope.Continuation continuation;
     @Nullable private AgentScope continuationScope;
     private boolean isInitialized = false;
+    private volatile Thread activatedOn;
 
     public ScopeStateCoroutineContextItem() {
       coroutineScopeState = AgentTracer.get().newScopeState();
     }
 
-    public ScopeState getScopeState() {
-      return coroutineScopeState;
+    public ScopeState maybeCopyScopeState() {
+      // take defensive copy of scope stack if on different thread
+      if (activatedOn != null && activatedOn != Thread.currentThread()) {
+        return coroutineScopeState.copy();
+      } else {
+        return coroutineScopeState;
+      }
     }
 
     public void activate() {
+      activatedOn = Thread.currentThread();
       coroutineScopeState.activate();
 
       if (continuation != null && continuationScope == null) {
@@ -144,6 +148,7 @@ public class ScopeStateCoroutineContext implements ThreadContextElement<ScopeSta
      * scope and cancels the continuation.
      */
     public void maybeCloseScopeAndCancelContinuation() {
+      // only temporary activation, will be replaced by another activate in caller
       coroutineScopeState.activate();
 
       if (continuationScope != null) {

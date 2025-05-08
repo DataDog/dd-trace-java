@@ -24,6 +24,8 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     }
     1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.context() >> spanContext
+    1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType("test-type")
     1 * span.setServiceName("test-db")

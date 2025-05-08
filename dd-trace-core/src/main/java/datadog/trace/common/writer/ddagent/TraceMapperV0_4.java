@@ -6,6 +6,7 @@ import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -36,25 +37,35 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private static final class MetaWriter implements MetadataConsumer {
 
     private Writable writable;
-    private boolean writeSamplingPriority;
+    private boolean firstSpanInChunk;
+    private boolean lastSpanInChunk;
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
       return this;
     }
 
-    MetaWriter withWriteSamplingPriority(final boolean writeSamplingPriority) {
-      this.writeSamplingPriority = writeSamplingPriority;
+    MetaWriter forFirstSpanInChunk(final boolean firstSpanInChunk) {
+      this.firstSpanInChunk = firstSpanInChunk;
+      return this;
+    }
+
+    MetaWriter forLastSpanInChunk(final boolean lastSpanInChunk) {
+      this.lastSpanInChunk = lastSpanInChunk;
       return this;
     }
 
     @Override
     public void accept(Metadata metadata) {
+      final boolean writeSamplingPriority = firstSpanInChunk || lastSpanInChunk;
+      final UTF8BytesString processTags =
+          firstSpanInChunk ? ProcessTags.getTagsForSerialization() : null;
       int metaSize =
           metadata.getBaggage().size()
               + metadata.getTags().size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
+              + (null == processTags ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -123,6 +134,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (null != metadata.getOrigin()) {
         writable.writeUTF8(ORIGIN_KEY);
         writable.writeString(metadata.getOrigin(), null);
+      }
+      if (processTags != null) {
+        writable.writeUTF8(PROCESS_TAGS_KEY);
+        writable.writeUTF8(processTags);
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         String key = entry.getKey();
@@ -273,7 +288,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
+              .forFirstSpanInChunk(i == 0)
+              .forLastSpanInChunk(i == trace.size() - 1));
       if (!metaStruct.isEmpty()) {
         /* 13 */
         metaStructWriter.withWritable(writable).write(metaStruct);

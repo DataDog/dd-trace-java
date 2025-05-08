@@ -69,7 +69,9 @@ public abstract class BaseDecorator {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
-    span.setTag(Tags.COMPONENT, component());
+    final CharSequence component = component();
+    span.setTag(Tags.COMPONENT, component);
+    span.context().setIntegrationName(component);
     if (traceAnalyticsEnabled) {
       span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }

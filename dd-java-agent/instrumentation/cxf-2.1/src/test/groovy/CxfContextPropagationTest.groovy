@@ -73,6 +73,7 @@ class CxfContextPropagationTest extends AgentTestRunner {
             "servlet.path" { it == null || it == "/test" }
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            withCustomIntegrationName("jetty-server")
             defaultTags()
           }
         }

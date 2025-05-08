@@ -27,6 +27,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -509,6 +510,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
     InstrumentationErrors.resetErrorCount()
+    ProcessTags.reset()
   }
 
   @Override
