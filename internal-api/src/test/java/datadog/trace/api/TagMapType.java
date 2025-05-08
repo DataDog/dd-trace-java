@@ -5,16 +5,16 @@ public enum TagMapType {
   LEGACY(new LegacyTagMapFactory());
 
   final TagMapFactory<?> factory;
-  
+
   TagMapType(TagMapFactory<?> factory) {
-	this.factory = factory;
+    this.factory = factory;
   }
-  
+
   public final TagMap create() {
-	return factory.create();
+    return factory.create();
   }
-  
+
   public final TagMap empty() {
-	return factory.empty();
+    return factory.empty();
   }
 }

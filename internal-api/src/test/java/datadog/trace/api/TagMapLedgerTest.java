@@ -73,7 +73,7 @@ public class TagMapLedgerTest {
     // just proving that the map is mutable
     map.set(key(1000), value(1000));
   }
-  
+
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void buildMutable(TagMapType mapType) {
@@ -111,7 +111,7 @@ public class TagMapLedgerTest {
 
     assertFrozen(map);
   }
-  
+
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void buildImmutable(TagMapType mapType) {
@@ -145,7 +145,7 @@ public class TagMapLedgerTest {
     assertTrue(ledger.isDefinitelyEmpty());
     assertNotSame(mapType.empty(), ledger.build(mapType.factory));
   }
-  
+
   @Test
   public void buildImmutable_empty() {
     TagMap.Ledger ledger = TagMap.ledger();

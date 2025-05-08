@@ -996,7 +996,7 @@ public final class TagMapFuzzTest {
       Object expectedValue = expected.get(actualEntry.tag());
       assertEquals(expectedValue, actualEntry.objectValue());
     }
-    
+
     actual.checkIntegrity();
   }
 
@@ -1052,7 +1052,7 @@ public final class TagMapFuzzTest {
       map.set(key, value);
     }
     map.checkIntegrity();
-    
+
     return map;
   }
 

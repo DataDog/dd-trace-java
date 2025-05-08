@@ -14,7 +14,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -43,7 +42,7 @@ public class TagMapTest {
     map.set("bool", false);
 
     TagMap.Entry entry = map.getEntry("bool");
-    if ( map.isOptimized() ) {
+    if (map.isOptimized()) {
       assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
     }
 
@@ -58,7 +57,7 @@ public class TagMapTest {
     map.set("int", 42);
 
     TagMap.Entry entry = map.getEntry("int");
-    if ( map.isOptimized() ) {
+    if (map.isOptimized()) {
       assertEquals(TagMap.Entry.INT, entry.rawType);
     }
 
@@ -73,7 +72,7 @@ public class TagMapTest {
     map.set("long", 42L);
 
     TagMap.Entry entry = map.getEntry("long");
-    if ( map.isOptimized() ) {
+    if (map.isOptimized()) {
       assertEquals(TagMap.Entry.LONG, entry.rawType);
     }
 
@@ -88,7 +87,7 @@ public class TagMapTest {
     map.set("float", 3.14F);
 
     TagMap.Entry entry = map.getEntry("float");
-    if ( map.isOptimized() ) {
+    if (map.isOptimized()) {
       assertEquals(TagMap.Entry.FLOAT, entry.rawType);
     }
 
@@ -103,7 +102,7 @@ public class TagMapTest {
     map.set("double", Math.PI);
 
     TagMap.Entry entry = map.getEntry("double");
-    if ( map.isOptimized() ) {
+    if (map.isOptimized()) {
       assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
     }
 
@@ -125,13 +124,13 @@ public class TagMapTest {
   @ParameterizedTest
   @EnumSource(TagMapTypePair.class)
   public void putAll_empty(TagMapTypePair mapTypePair) {
-	// TagMap.EMPTY breaks the rules and uses a different size bucket array
-	// This test is just to verify that the commonly use putAll still works with EMPTY
-	TagMap newMap = mapTypePair.firstType.create();
-	newMap.putAll(mapTypePair.secondType.empty());
-	
-	assertSize(0, newMap);
-	assertEmpty(newMap);
+    // TagMap.EMPTY breaks the rules and uses a different size bucket array
+    // This test is just to verify that the commonly use putAll still works with EMPTY
+    TagMap newMap = mapTypePair.firstType.create();
+    newMap.putAll(mapTypePair.secondType.empty());
+
+    assertSize(0, newMap);
+    assertEmpty(newMap);
   }
 
   @ParameterizedTest
@@ -171,7 +170,7 @@ public class TagMapTest {
   public void map_remove(TagMapType mapType) {
     TagMap map = mapType.create();
 
-    Object prev1 = map.remove((Object)"foo");
+    Object prev1 = map.remove((Object) "foo");
     assertNull(prev1);
 
     map.put("foo", "bar");
@@ -179,7 +178,7 @@ public class TagMapTest {
     assertSize(1, map);
     assertNotEmpty(map);
 
-    Object prev2 = map.remove((Object)"foo");
+    Object prev2 = map.remove((Object) "foo");
     assertEquals("bar", prev2);
     assertSize(0, map);
     assertEmpty(map);
@@ -234,7 +233,7 @@ public class TagMapTest {
     int size = randomSize();
     TagMap orig = createTagMap(mapType, size);
     assertSize(size, orig);
-    
+
     TagMap copy = orig.copy();
     orig.clear(); // doing this to make sure that copied isn't modified
 
@@ -243,16 +242,16 @@ public class TagMapTest {
     }
     assertSize(size, copy);
   }
-  
+
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void immutableCopy(TagMapType mapType) {
-	int size = randomSize();
-	TagMap orig = createTagMap(mapType, size);
-	
-	TagMap immutableCopy = orig.immutableCopy();
-	orig.clear(); // doing this to make sure that copied isn't modified
-	
+    int size = randomSize();
+    TagMap orig = createTagMap(mapType, size);
+
+    TagMap immutableCopy = orig.immutableCopy();
+    orig.clear(); // doing this to make sure that copied isn't modified
+
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), immutableCopy);
     }
@@ -281,9 +280,9 @@ public class TagMapTest {
 
     TagMap dest = mapTypePair.secondType.create();
     dest.set(orig.getEntry("foo"));
-    
+
     assertEquals(orig.getEntry("foo"), dest.getEntry("foo"));
-    if ( mapTypePair == TagMapTypePair.BOTH_OPTIMIZED ) {
+    if (mapTypePair == TagMapTypePair.BOTH_OPTIMIZED) {
       assertSame(orig.getEntry("foo"), dest.getEntry("foo"));
     }
   }
@@ -306,9 +305,9 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), dest);
     }
-    assertSize(size,  dest);
+    assertSize(size, dest);
   }
-  
+
   @ParameterizedTest
   @EnumSource(TagMapTypePair.class)
   public void putAll_clobberAndExtras(TagMapTypePair mapTypePair) {
@@ -319,7 +318,7 @@ public class TagMapTest {
     TagMap dest = mapTypePair.secondType.create();
     for (int i = size / 2 - 1; i >= 0; --i) {
       dest.set(key(i), altValue(i));
-    }    
+    }
 
     // This should clobber all the values in dest
     dest.putAll(orig);
@@ -327,8 +326,8 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), dest);
     }
-    
-    assertSize(size,  dest);
+
+    assertSize(size, dest);
   }
 
   @ParameterizedTest
@@ -345,7 +344,7 @@ public class TagMapTest {
     assertSize(size, map);
 
     for (int i = 0; i < size; ++i) {
-      Object removedValue = map.remove((Object)key(i));
+      Object removedValue = map.remove((Object) key(i));
       assertEquals(value(i), removedValue);
 
       // not doing exhaustive size checks
@@ -602,8 +601,8 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    if ( map instanceof OptimizedTagMap ) {
-      assertEquals(size, ((OptimizedTagMap)map).computeSize());
+    if (map instanceof OptimizedTagMap) {
+      assertEquals(size, ((OptimizedTagMap) map).computeSize());
     }
     assertEquals(size, map.size());
 
@@ -615,16 +614,16 @@ public class TagMapTest {
   }
 
   static final void assertNotEmpty(TagMap map) {
-	if ( map instanceof OptimizedTagMap ) {
-      assertFalse(((OptimizedTagMap)map).checkIfEmpty());
-	}
+    if (map instanceof OptimizedTagMap) {
+      assertFalse(((OptimizedTagMap) map).checkIfEmpty());
+    }
     assertFalse(map.isEmpty());
   }
 
   static final void assertEmpty(TagMap map) {
-	if ( map instanceof OptimizedTagMap ) {
-	  assertTrue(((OptimizedTagMap)map).checkIfEmpty());
-	}
+    if (map instanceof OptimizedTagMap) {
+      assertTrue(((OptimizedTagMap) map).checkIfEmpty());
+    }
     assertTrue(map.isEmpty());
   }
 

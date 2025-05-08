@@ -82,7 +82,8 @@ public class TagMapBucketGroupTest {
     int origHash = origEntry.hash();
     int otherHash = otherEntry.hash();
 
-    OptimizedTagMap.BucketGroup group = new OptimizedTagMap.BucketGroup(origHash, origEntry, otherHash, otherEntry);
+    OptimizedTagMap.BucketGroup group =
+        new OptimizedTagMap.BucketGroup(origHash, origEntry, otherHash, otherEntry);
     assertContainsDirectly(origEntry, group);
     assertContainsDirectly(otherEntry, group);
 
@@ -150,7 +151,8 @@ public class TagMapBucketGroupTest {
     assertFalse(firstGroup._insert(newHash, newEntry));
     assertDoesntContainDirectly(newEntry, firstGroup);
 
-    OptimizedTagMap.BucketGroup newHeadGroup = new OptimizedTagMap.BucketGroup(newHash, newEntry, firstGroup);
+    OptimizedTagMap.BucketGroup newHeadGroup =
+        new OptimizedTagMap.BucketGroup(newHash, newEntry, firstGroup);
     assertContainsDirectly(newEntry, newHeadGroup);
     assertSame(firstGroup, newHeadGroup.prev);
 
@@ -302,7 +304,8 @@ public class TagMapBucketGroupTest {
         TagMap.Entry.newObjectEntry(tag(startingIndex + 1), value(startingIndex + 1));
 
     OptimizedTagMap.BucketGroup group =
-        new OptimizedTagMap.BucketGroup(firstEntry.hash(), firstEntry, secondEntry.hash(), secondEntry);
+        new OptimizedTagMap.BucketGroup(
+            firstEntry.hash(), firstEntry, secondEntry.hash(), secondEntry);
     for (int offset = 2; offset < OptimizedTagMap.BucketGroup.LEN; ++offset) {
       TagMap.Entry anotherEntry =
           TagMap.Entry.newObjectEntry(tag(startingIndex + offset), value(startingIndex + offset));
@@ -311,7 +314,8 @@ public class TagMapBucketGroupTest {
     return group;
   }
 
-  static final OptimizedTagMap.BucketGroup fullGroup(int startingIndex, OptimizedTagMap.BucketGroup prev) {
+  static final OptimizedTagMap.BucketGroup fullGroup(
+      int startingIndex, OptimizedTagMap.BucketGroup prev) {
     OptimizedTagMap.BucketGroup group = fullGroup(startingIndex);
     group.prev = prev;
     return group;
