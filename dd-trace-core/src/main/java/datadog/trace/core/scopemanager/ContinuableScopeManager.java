@@ -29,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeStateAware;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +37,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
