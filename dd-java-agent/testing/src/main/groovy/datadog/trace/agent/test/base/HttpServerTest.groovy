@@ -1041,7 +1041,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
-
+    println(request)
+    println(response)
     expect:
     if (bubblesResponse()) {
       assert response.code() == REDIRECT.status
