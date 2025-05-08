@@ -46,6 +46,11 @@ class TagsAssert {
     tag(DDTags.PEER_SERVICE_SOURCE, { SpanNaming.instance().namingSchema().peerService().supports() ? it == sourceTag : it == null })
   }
 
+  def withCustomIntegrationName(String integrationName) {
+    assertedTags.add(DDTags.DD_INTEGRATION)
+    assert tags[DDTags.DD_INTEGRATION]?.toString() == integrationName
+  }
+
   def defaultTagsNoPeerService(boolean distributedRootSpan = false) {
     defaultTags(distributedRootSpan, false)
   }
@@ -92,6 +97,9 @@ class TagsAssert {
     assertedTags.add(DDTags.SPAN_LINKS) // this is checked by LinksAsserter
     DDTags.REQUIRED_CODE_ORIGIN_TAGS.each {
       assertedTags.add(it)
+    }
+    if (assertedTags.add(DDTags.DD_INTEGRATION) && tags[Tags.COMPONENT] != null) {
+      assert tags[Tags.COMPONENT].toString() == tags[DDTags.DD_INTEGRATION].toString()
     }
 
     assert tags["thread.name"] != null

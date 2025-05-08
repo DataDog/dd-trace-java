@@ -261,13 +261,13 @@ apm_configuration_rules:
     where:
     templateVar | envKey | envVal | expect
     "{{environment_variables['DD_KEY']}}" | "DD_KEY" | "value" | "value"
-    "{{environment_variables['DD_KEY']}}" | null | null | ""
-    "{{}}" | null | null | ""
+    "{{environment_variables['DD_KEY']}}" | null | null | "UNDEFINED"
+    "{{}}" | null | null | "UNDEFINED"
     "{}" | null | null | "{}"
     "{{environment_variables['dd_key']}}" | "DD_KEY" | "value" | "value"
-    "{{environment_variables['DD_KEY}}" | "DD_KEY" | "value" | ""
+    "{{environment_variables['DD_KEY}}" | "DD_KEY" | "value" | "UNDEFINED"
     "header-{{environment_variables['DD_KEY']}}-footer" | "DD_KEY" | "value" | "header-value-footer"
-    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "value"
+    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "UNDEFINEDvalueUNDEFINED"
   }
 
   def "test processTemplate error cases"() {
