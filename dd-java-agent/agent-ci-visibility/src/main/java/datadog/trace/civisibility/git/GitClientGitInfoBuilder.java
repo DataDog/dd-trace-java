@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.git;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
@@ -63,5 +65,15 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
   @Override
   public int order() {
     return 3;
+  }
+
+  @Override
+  public GitProviderExpected providerAsExpected() {
+    return GitProviderExpected.GIT_CLIENT;
+  }
+
+  @Override
+  public GitProviderDiscrepant providerAsDiscrepant() {
+    return GitProviderDiscrepant.GIT_CLIENT;
   }
 }

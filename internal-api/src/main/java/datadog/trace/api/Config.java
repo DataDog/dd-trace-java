@@ -2025,7 +2025,7 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
-    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, false);
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
     log.debug("New instance: {}", this);
   }
