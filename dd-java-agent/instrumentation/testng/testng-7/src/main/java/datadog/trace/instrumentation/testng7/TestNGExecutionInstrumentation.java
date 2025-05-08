@@ -8,13 +8,18 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.instrumentation.testng.TestNGUtils;
+import datadog.trace.instrumentation.testng.TracingListener;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collections;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.testng.IRetryAnalyzer;
+import org.testng.ITestListener;
 import org.testng.ITestResult;
+import org.testng.internal.ITestResultNotifier;
+import org.testng.internal.TestListenerHelper;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibility
@@ -59,6 +64,29 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   public static class ExecutionAdvice {
+    @Advice.OnMethodEnter
+    public static void alignBeforeRetry(
+        @Advice.FieldValue(value = "m_notifier") final ITestResultNotifier resultNotifier,
+        @Advice.Argument(1) final ITestResult result) {
+      IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
+      if (retryAnalyzer instanceof RetryAnalyzer) {
+        // If DD's retry analyzer is used, report the test result beforehand to the tracing listener
+        // to align execution ordering with other frameworks (reports before `retry` method is
+        // called). Also avoids TestNG marking retried tests as skipped
+        ITestListener tracingListener = null;
+        for (ITestListener listener : resultNotifier.getTestListeners()) {
+          if (listener instanceof TracingListener) {
+            tracingListener = listener;
+          }
+        }
+
+        TestListenerHelper.runTestListeners(result, Collections.singletonList(tracingListener));
+
+        // Also set suppress failures beforehand to align execution ordering.
+        ((RetryAnalyzer) retryAnalyzer).setSuppressFailures(result);
+      }
+    }
+
     @SuppressWarnings("bytebuddy-exception-suppression")
     @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
     @Advice.OnMethodExit
@@ -89,7 +117,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
       RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      if (ddRetryAnalyzer.suppressFailures()) {
+      if (ddRetryAnalyzer.getAndResetSuppressFailures()) {
         // "failed but within success percentage"
         result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
       }
