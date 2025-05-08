@@ -4,7 +4,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 plugins {
   java
   application
-  id("com.gradleup.shadow") version "8.3.6"
+  id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
 if (hasProperty("appBuildDir")) {
