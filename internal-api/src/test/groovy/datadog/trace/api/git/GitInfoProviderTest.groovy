@@ -1,5 +1,12 @@
 package datadog.trace.api.git
 
+import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected
+import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType
+import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch
 import spock.lang.Specification
 
 class GitInfoProviderTest extends Specification {
@@ -238,6 +245,81 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.commit.committer.iso8601Date == null
   }
 
+  def "test adds correct telemetry metrics when SHA discrepancies are found"() {
+    setup:
+    def metricCollector = Mock(CiVisibilityMetricCollector)
+    InstrumentationBridge.registerMetricCollector(metricCollector)
+
+    def gitInfoA = new GitInfo("repoUrlA", null, null,
+      new CommitInfo("shaA",
+      PersonInfo.NOOP,
+      PersonInfo.NOOP,
+      "message"
+      ))
+    def gitInfoB = new GitInfo("repoUrlA", null, null,
+      new CommitInfo("shaB",
+      new PersonInfo("author name", "author email", "author date"),
+      new PersonInfo("committer name", "committer email", "committer date"),
+      "message"
+      ))
+    def gitInfoC = new GitInfo("repoUrlB", null, null,
+      new CommitInfo("shaC",
+      new PersonInfo("author name", "author email", "author date"),
+      new PersonInfo("committer name", "committer email", "committer date"),
+      "message"
+      ))
+
+    def gitInfoBuilderA = givenABuilderReturning(gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER)
+    def gitInfoBuilderB = givenABuilderReturning(gitInfoB, 2, GitProviderExpected.LOCAL_GIT, GitProviderDiscrepant.LOCAL_GIT)
+    def gitInfoBuilderC = givenABuilderReturning(gitInfoC, 3, GitProviderExpected.GIT_CLIENT, GitProviderDiscrepant.GIT_CLIENT)
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderC)
+
+    when:
+    gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    1 * metricCollector.add(CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH, 1, GitShaMatch.FALSE)
+    1 * metricCollector.add(CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.LOCAL_GIT, GitShaDiscrepancyType.COMMIT_DISCREPANCY)
+    1 * metricCollector.add(CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.GIT_CLIENT, GitShaDiscrepancyType.REPOSITORY_DISCREPANCY)
+  }
+
+  def "test adds correct telemetry metrics when no SHA discrepancies are found"() {
+    setup:
+    def metricCollector = Mock(CiVisibilityMetricCollector)
+    InstrumentationBridge.registerMetricCollector(metricCollector)
+
+    def gitInfoA = new GitInfo("repoUrlA", null, null,
+      new CommitInfo("shaA",
+      PersonInfo.NOOP,
+      PersonInfo.NOOP,
+      "message"
+      ))
+    def gitInfoB = new GitInfo("repoUrlA", null, null,
+      new CommitInfo("shaA",
+      new PersonInfo("author name", "author email", "author date"),
+      new PersonInfo("committer name", "committer email", "committer date"),
+      "message"
+      ))
+
+    def gitInfoBuilderA = givenABuilderReturning(gitInfoA, 1, GitProviderExpected.CI_PROVIDER, GitProviderDiscrepant.CI_PROVIDER)
+    def gitInfoBuilderB = givenABuilderReturning(gitInfoB, 2, GitProviderExpected.LOCAL_GIT, GitProviderDiscrepant.LOCAL_GIT)
+
+    def gitInfoProvider = new GitInfoProvider()
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderA)
+    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilderB)
+
+    when:
+    gitInfoProvider.getGitInfo(REPO_PATH)
+
+    then:
+    1 * metricCollector.add(CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH, 1, GitShaMatch.TRUE)
+    0 * metricCollector.add(CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY, *_)
+  }
+
   def "test ignores remote URLs starting with file protocol"() {
     setup:
     def gitInfoBuilderA = givenABuilderReturning(
@@ -264,9 +346,15 @@ class GitInfoProviderTest extends Specification {
   }
 
   private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo, int order) {
+    givenABuilderReturning(gitInfo, order, GitProviderExpected.USER_SUPPLIED, GitProviderDiscrepant.USER_SUPPLIED)
+  }
+
+  private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo, int order, GitProviderExpected expected, GitProviderDiscrepant discrepant) {
     def gitInfoBuilder = Stub(GitInfoBuilder)
     gitInfoBuilder.build(REPO_PATH) >> gitInfo
     gitInfoBuilder.order() >> order
+    gitInfoBuilder.providerAsExpected() >> expected
+    gitInfoBuilder.providerAsDiscrepant() >> discrepant
     gitInfoBuilder
   }
 }
