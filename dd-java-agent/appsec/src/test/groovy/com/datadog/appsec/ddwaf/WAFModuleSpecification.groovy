@@ -1569,9 +1569,9 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     (1..2) * ctx.isWafContextClosed() >> false // if UnclassifiedWafException it's called twice
-    1 * ctx.getOrCreateWafContext(_, true)
+    1 * ctx.getOrCreateWafContext(_, true) >> wafContext
     1 * wafMetricCollector.raspRuleEval(RuleType.SQL_INJECTION)
-    1 * wafContext.run(_, _, _) >> { throw createWafException(_ as WafErrorCode) }
+    1 * wafContext.run(_, _, _) >> { throw createWafException(wafErrorCode as WafErrorCode) }
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * ctx.getRaspMetrics()
     1 * ctx.getRaspMetricsCounter()
@@ -1597,8 +1597,8 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     (1..2) * ctx.isWafContextClosed() >> false // if UnclassifiedWafException it's called twice
-    1 * ctx.getOrCreateWafContext(_, false)
-    1 * wafContext.run(_, _, _)
+    1 * ctx.getOrCreateWafContext(_, false) >> wafContext
+    1 * wafContext.run(_, _, _) >> { throw createWafException(wafErrorCode as WafErrorCode) }
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     2 * ctx.getWafMetrics()
     1 * wafMetricCollector.wafErrorCode(_)
