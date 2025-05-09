@@ -1,13 +1,14 @@
-package datadog.trace.bootstrap.config.provider.stableconfigyaml;
+package datadog.trace.bootstrap.config.provider.stableconfig;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class Selector {
-  private String origin;
-  private String key;
-  private List<String> matches;
-  private String operator;
+public final class Selector {
+  private final String origin;
+  private final String key;
+  private final List<String> matches;
+  private final String operator;
 
   public Selector(String origin, String key, List<String> matches, String operator) {
     this.origin = origin;
@@ -20,7 +21,7 @@ public class Selector {
     Map map = (Map) yaml;
     origin = (String) map.get("origin");
     key = (String) map.get("key");
-    matches = (List<String>) map.get("matches");
+    matches = Collections.unmodifiableList((List<String>) map.get("matches"));
     operator = (String) map.get("operator");
   }
 
@@ -28,31 +29,15 @@ public class Selector {
     return origin;
   }
 
-  public void setOrigin(String origin) {
-    this.origin = origin;
-  }
-
   public String getKey() {
     return key;
-  }
-
-  public void setKey(String key) {
-    this.key = key;
   }
 
   public List<String> getMatches() {
     return matches;
   }
 
-  public void setMatches(List<String> matches) {
-    this.matches = matches;
-  }
-
   public String getOperator() {
     return operator;
-  }
-
-  public void setOperator(String operator) {
-    this.operator = operator;
   }
 }
