@@ -57,7 +57,7 @@ public class GitInfoProvider {
     }
 
     // normalize path to avoid creating two entries in the cache
-    return gitInfoCache.computeIfAbsent(Paths.get(repositoryPath).toString(), this::buildGitInfo);
+    return gitInfoCache.computeIfAbsent(repositoryPath, this::buildGitInfo);
   }
 
   private GitInfo buildGitInfo(String repositoryPath) {

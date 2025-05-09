@@ -210,19 +210,13 @@ public class CIInfo {
   }
 
   /**
-   * @deprecated This method is here only to satisfy CI spec tests. Use {@link
-   *     #getNormalizedCiWorkspace()}
+   * @return Workspace path without the trailing separator
    */
-  @Deprecated
   public String getCiWorkspace() {
-    return ciWorkspace;
-  }
-
-  public String getNormalizedCiWorkspace() {
     String realCiWorkspace = FileUtils.toRealPath(ciWorkspace);
-    return (realCiWorkspace == null || realCiWorkspace.endsWith(File.separator))
+    return (realCiWorkspace == null || !realCiWorkspace.endsWith(File.separator))
         ? realCiWorkspace
-        : (realCiWorkspace + File.separator);
+        : (realCiWorkspace.substring(0, realCiWorkspace.length() - 1));
   }
 
   public String getCiNodeName() {

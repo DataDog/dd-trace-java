@@ -341,25 +341,6 @@ class GitInfoProviderTest extends Specification {
     actualGitInfo.repositoryURL == "http://usefulUrl"
   }
 
-  def "test caches git info regardless of path normalization"() {
-    setup:
-    def gitInfo = new GitInfo("repoUrl", "branch", "tag", new CommitInfo("sha"))
-    def gitInfoBuilder = Mock(GitInfoBuilder)
-    gitInfoBuilder.order() >> 1
-    gitInfoBuilder.providerAsExpected() >> GitProviderExpected.USER_SUPPLIED
-    gitInfoBuilder.providerAsDiscrepant() >> GitProviderDiscrepant.USER_SUPPLIED
-
-    def gitInfoProvider = new GitInfoProvider()
-    gitInfoProvider.registerGitInfoBuilder(gitInfoBuilder)
-
-    when:
-    gitInfoProvider.getGitInfo(REPO_PATH)
-    gitInfoProvider.getGitInfo(REPO_PATH + File.separator)
-
-    then:
-    1 * gitInfoBuilder.build(REPO_PATH) >> gitInfo
-  }
-
   private GitInfoBuilder givenABuilderReturning(GitInfo gitInfo) {
     givenABuilderReturning(gitInfo, 1)
   }
