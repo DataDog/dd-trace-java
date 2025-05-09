@@ -148,7 +148,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");;
+      AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
