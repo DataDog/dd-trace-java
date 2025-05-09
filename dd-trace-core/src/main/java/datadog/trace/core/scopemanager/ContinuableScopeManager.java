@@ -384,7 +384,13 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
     @Override
     public void activate() {
+      ContinuableScope oldScope = tlsScopeStack.get().top;
       tlsScopeStack.set(localScopeStack);
+      ContinuableScope newScope = localScopeStack.top;
+      if (oldScope != newScope && newScope != null) {
+        newScope.beforeActivated();
+        newScope.afterActivated();
+      }
     }
 
     @Override
