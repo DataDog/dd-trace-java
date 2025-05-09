@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.spark;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import org.apache.spark.SparkEnv;
 import org.apache.spark.executor.Executor;
 import org.apache.spark.executor.TaskMetrics;
 
@@ -29,6 +30,7 @@ public class SparkExecutorDecorator extends BaseDecorator {
   public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
     span.setTag("task_id", taskRunner.taskId());
     span.setTag("task_thread_name", taskRunner.threadName());
+    String clusterTags = SparkEnv.get().conf().get("spark.databricks.clusterUsageTags.clusterAllTags");
   }
 
   public void onTaskEnd(AgentSpan span, Executor.TaskRunner taskRunner) {
