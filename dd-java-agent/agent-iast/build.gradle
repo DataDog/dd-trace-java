@@ -1,7 +1,7 @@
 import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
   id 'java-test-fixtures'
   id 'com.google.protobuf' version '0.8.18'

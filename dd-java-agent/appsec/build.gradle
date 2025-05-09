@@ -2,7 +2,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
   id "me.champeau.jmh"
   id 'java-test-fixtures'
 }

@@ -242,7 +242,7 @@ project.afterEvaluate {
   }
 }
 
-if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   // Remove the no-deps jar from the archives to prevent publication
   configurations.archives.with {
     artifacts.remove artifacts.find {

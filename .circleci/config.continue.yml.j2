@@ -1341,6 +1341,24 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_graalvm17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm17"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm21_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm21"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
       stage: smoke
       cacheType: smoke
