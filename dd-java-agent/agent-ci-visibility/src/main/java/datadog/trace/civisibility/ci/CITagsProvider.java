@@ -22,7 +22,7 @@ public class CITagsProvider {
   }
 
   public Map<String, String> getCiTags(CIInfo ciInfo, PullRequestInfo pullRequestInfo) {
-    String repoRoot = ciInfo.getNormalizedCiWorkspace();
+    String repoRoot = ciInfo.getCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
     return new CITagsBuilder()
