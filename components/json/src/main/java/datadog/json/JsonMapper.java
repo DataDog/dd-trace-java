@@ -1,6 +1,12 @@
 package datadog.json;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /** Utility class for simple Java structure mapping into JSON strings. */
@@ -101,6 +107,49 @@ public final class JsonMapper {
       }
       writer.endArray();
       return writer.toString();
+    }
+  }
+
+  /**
+   * Parses a JSON string into a {@link Map}.
+   *
+   * @param json The JSON string to parse.
+   * @return A {@link Map} containing the parsed JSON object's key-value pairs.
+   * @throws IOException If the JSON is invalid or a reader error occurs.
+   */
+  @SuppressWarnings("unchecked")
+  public static Map<String, Object> fromJsonToMap(String json) throws IOException {
+    if (json == null || json.isEmpty() || "{}".equals(json) || "null".equals(json)) {
+      return emptyMap();
+    }
+    try (JsonReader reader = new JsonReader(json)) {
+      Object value = reader.nextValue();
+      if (!(value instanceof Map)) {
+        throw new IOException("Expected JSON object but was " + value.getClass().getSimpleName());
+      }
+      return (Map<String, Object>) value;
+    }
+  }
+
+  /**
+   * Parses a JSON string array into a {@link List<String>}.
+   *
+   * @param json The JSON string array to parse.
+   * @return A {@link List<String>} containing the parsed JSON strings.
+   * @throws IOException If the JSON is invalid or a reader error occurs.
+   */
+  public static List<String> fromJsonToList(String json) throws IOException {
+    if (json == null || json.isEmpty() || "[]".equals(json) || "null".equals(json)) {
+      return emptyList();
+    }
+    try (JsonReader reader = new JsonReader(json)) {
+      List<String> list = new ArrayList<>();
+      reader.beginArray();
+      while (reader.hasNext()) {
+        list.add(reader.nextString());
+      }
+      reader.endArray();
+      return list;
     }
   }
 }
