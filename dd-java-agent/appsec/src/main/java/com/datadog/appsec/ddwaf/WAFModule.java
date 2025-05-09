@@ -478,6 +478,7 @@ public class WAFModule implements AppSecModule {
         }
 
         if (gwCtx.isRasp) {
+          reqCtx.setRaspMatched(true);
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 

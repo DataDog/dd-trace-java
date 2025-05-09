@@ -21,6 +21,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -77,6 +78,7 @@ public class GatewayBridge {
   private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
 
   private static final Map<LoginEvent, Address<?>> EVENT_MAPPINGS = new EnumMap<>(LoginEvent.class);
+  private static final String METASTRUCT_REQUEST_BODY = "http.request.body";
 
   static {
     EVENT_MAPPINGS.put(LoginEvent.LOGIN_SUCCESS, KnownAddresses.LOGIN_SUCCESS);
@@ -472,7 +474,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj);
+      Object convObj = ObjectIntrospection.convert(obj).getLeft();
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -572,9 +574,16 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+      Pair<Object, Boolean> pair = ObjectIntrospection.convert(obj);
+      Object converted = pair.getLeft();
+      if (Config.get().isAppSecRaspCollectRequestBody()) {
+        ctx.setProcessedRequestBody(pair.getLeft());
+        Boolean limitsExceeded = pair.getRight();
+        if (Boolean.TRUE.equals(limitsExceeded)) {
+          ctx_.getTraceSegment().setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+        }
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -718,6 +727,12 @@ public class GatewayBridge {
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
+        }
+
+        // Report collected parsed request body if there is a RASP event
+        if (ctx.isRaspMatched() && ctx.getProcessedRequestBody() != null) {
+          ctx_.getOrCreateMetaStructTop(
+              METASTRUCT_REQUEST_BODY, k -> ctx.getProcessedRequestBody());
         }
 
       } else if (hasUserInfo(traceSeg)) {
