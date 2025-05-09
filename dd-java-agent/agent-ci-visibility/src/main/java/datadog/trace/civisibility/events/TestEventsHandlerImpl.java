@@ -255,11 +255,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestIdentifier thisTest = test.getIdentifier();
     if (testExecutionHistory != null) {
-      if (test.hasFailed() && testExecutionHistory.hasFailedAllRetries()) {
+      testExecutionHistory.registerExecution(test.getStatus(), test.getDuration(endTime));
+
+      if (testExecutionHistory.hasFailedAllRetries()) {
         test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
-      } else if (!test.hasFailed()
-          && testModule.isAttemptToFix(thisTest)
-          && testExecutionHistory.hasSucceededAllRetries()) {
+      } else if (testExecutionHistory.hasSucceededAllRetries()
+          && testModule.isAttemptToFix(thisTest)) {
         test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, true);
       }
     }
@@ -277,7 +278,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      final @Nullable String reason) {
+      final @Nullable String reason,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     onTestStart(
         suiteDescriptor,
         testDescriptor,
@@ -288,9 +290,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         categories,
         testSourceData,
         null,
-        null);
+        testExecutionHistory);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null, null);
+    onTestFinish(testDescriptor, null, testExecutionHistory);
   }
 
   @Override

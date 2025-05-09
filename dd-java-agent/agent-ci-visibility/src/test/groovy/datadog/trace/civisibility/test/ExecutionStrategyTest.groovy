@@ -100,8 +100,8 @@ class ExecutionStrategyTest extends Specification {
     def strategy = givenAnExecutionStrategy(executionSettings)
     def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN, [])
 
-    // retry once to get the retry reason
-    policy.retry(true, 0)
+    // register one execution to get the retry reason
+    policy.registerExecution(true, 0,)
 
     expect:
     policy.class == RunNTimes

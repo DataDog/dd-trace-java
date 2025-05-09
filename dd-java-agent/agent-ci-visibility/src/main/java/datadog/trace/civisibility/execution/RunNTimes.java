@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.civisibility.config.ExecutionsByDuration;
 import java.util.List;
@@ -13,9 +14,9 @@ public class RunNTimes implements TestExecutionPolicy {
   private final List<ExecutionsByDuration> executionsByDuration;
   private int executions;
   private int maxExecutions;
-  private int totalExecutionsSeen;
   private int successfulExecutionsSeen;
   private final RetryReason retryReason;
+  private TestStatus lastStatus;
 
   public RunNTimes(
       List<ExecutionsByDuration> executionsByDuration,
@@ -25,18 +26,36 @@ public class RunNTimes implements TestExecutionPolicy {
     this.executionsByDuration = executionsByDuration;
     this.executions = 0;
     this.maxExecutions = getExecutions(0);
-    this.totalExecutionsSeen = 0;
     this.successfulExecutionsSeen = 0;
     this.retryReason = retryReason;
   }
 
   @Override
-  public boolean applicable() {
-    return !currentExecutionIsLast() || suppressFailures();
+  public void registerExecution(TestStatus status, long durationMillis) {
+    lastStatus = status;
+    ++executions;
+    if (status != TestStatus.fail) {
+      ++successfulExecutionsSeen;
+    }
+    int maxExecutionsForGivenDuration = getExecutions(durationMillis);
+    maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
+  }
+
+  @Override
+  public boolean wasLastExecution() {
+    // skipped tests (either by the framework or DD) should not be retried
+    return lastStatus == TestStatus.skip || executions >= maxExecutions;
   }
 
   private boolean currentExecutionIsLast() {
+    // this could give false negatives if maxExecutions is updated after the current execution is
+    // registered
     return executions == maxExecutions - 1;
+  }
+
+  @Override
+  public boolean applicable() {
+    return !currentExecutionIsLast() || suppressFailures();
   }
 
   @Override
@@ -53,17 +72,6 @@ public class RunNTimes implements TestExecutionPolicy {
     return 0;
   }
 
-  @Override
-  public boolean retry(boolean successful, long durationMillis) {
-    ++totalExecutionsSeen;
-    if (successful) {
-      ++successfulExecutionsSeen;
-    }
-    int maxExecutionsForGivenDuration = getExecutions(durationMillis);
-    maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
-    return ++executions < maxExecutions;
-  }
-
   @Nullable
   @Override
   public RetryReason currentExecutionRetryReason() {
@@ -76,11 +84,11 @@ public class RunNTimes implements TestExecutionPolicy {
 
   @Override
   public boolean hasFailedAllRetries() {
-    return currentExecutionIsLast() && successfulExecutionsSeen == 0;
+    return wasLastExecution() && successfulExecutionsSeen == 0;
   }
 
   @Override
   public boolean hasSucceededAllRetries() {
-    return currentExecutionIsLast() && successfulExecutionsSeen == totalExecutionsSeen;
+    return wasLastExecution() && successfulExecutionsSeen == executions;
   }
 }

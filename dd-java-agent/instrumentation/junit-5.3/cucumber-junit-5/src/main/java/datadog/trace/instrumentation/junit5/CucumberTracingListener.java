@@ -196,6 +196,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
             null,
             tags,
             TestSourceData.UNKNOWN,
-            reason);
+            reason,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
   }
 }

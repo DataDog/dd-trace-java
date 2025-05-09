@@ -10,29 +10,9 @@ public class ExecutionContext {
 
   private final TestExecutionPolicy executionPolicy;
   private boolean suppressFailures;
-  private boolean failed;
-  private long startTimestamp;
 
   public ExecutionContext(TestExecutionPolicy executionPolicy) {
     this.executionPolicy = executionPolicy;
-  }
-
-  public void setStartTimestamp(long startTimestamp) {
-    this.startTimestamp = startTimestamp;
-  }
-
-  public long getStartTimestamp() {
-    return startTimestamp;
-  }
-
-  public void setFailed(boolean failed) {
-    this.failed = failed;
-  }
-
-  public boolean getAndResetFailed() {
-    boolean failed = this.failed;
-    this.failed = false;
-    return failed;
   }
 
   public void setSuppressFailures(boolean suppressFailures) {

@@ -36,8 +36,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
       return false;
     }
     setExecutionPolicy(result);
-    return executionPolicy.retry(
-        result.isSuccess(), result.getEndMillis() - result.getStartMillis());
+    return !executionPolicy.wasLastExecution();
   }
 
   public void setSuppressFailures(ITestResult result) {
@@ -53,9 +52,5 @@ public class RetryAnalyzer implements IRetryAnalyzer {
 
   public TestExecutionHistory getExecutionHistory() {
     return executionPolicy;
-  }
-
-  public boolean suppressFailures() {
-    return executionPolicy != null && executionPolicy.suppressFailures();
   }
 }

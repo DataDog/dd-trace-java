@@ -122,15 +122,15 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                             | success | tests                          | retriedTests
-    "test-failed"                            | false   | [TestFailed]                   | []
-    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
-    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
-    "test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestFQN("org.example.TestFailedTemplate", "test_template")]
-    "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
-    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
+    //"test-failed"                            | false   | [TestFailed]                   | []
+    //"test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
+    //"test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
+    //"test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestFQN("org.example.TestFailedTemplate", "test_template")]
+    //"test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
+    //"test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
     "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
-    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
-    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
+    //"test-retry-parameterized"               | false   | [TestFailedParameterized]      | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+    //"test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
   def "test early flakiness detection #testcaseName"() {

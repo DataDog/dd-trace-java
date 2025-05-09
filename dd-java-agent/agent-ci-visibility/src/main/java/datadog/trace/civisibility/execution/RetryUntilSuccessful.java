@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
@@ -25,6 +26,22 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   }
 
   @Override
+  public void registerExecution(TestStatus status, long durationMillis) {
+    ++executions;
+    successfulExecutionSeen |= (status != TestStatus.fail);
+    totalExecutions.incrementAndGet();
+  }
+
+  @Override
+  public boolean wasLastExecution() {
+    return successfulExecutionSeen || executions == maxExecutions;
+  }
+
+  private boolean currentExecutionIsLast() {
+    return executions == maxExecutions - 1;
+  }
+
+  @Override
   public boolean applicable() {
     return !currentExecutionIsLast() || suppressFailures;
   }
@@ -34,21 +51,6 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
     // do not suppress failures for last execution
     // (unless flag to suppress all failures is set)
     return !currentExecutionIsLast() || suppressFailures;
-  }
-
-  private boolean currentExecutionIsLast() {
-    return executions == maxExecutions - 1;
-  }
-
-  @Override
-  public boolean retry(boolean successful, long durationMillis) {
-    successfulExecutionSeen |= successful;
-    if (!successful && ++executions < maxExecutions) {
-      totalExecutions.incrementAndGet();
-      return true;
-    } else {
-      return false;
-    }
   }
 
   @Nullable
@@ -63,7 +65,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   @Override
   public boolean hasFailedAllRetries() {
-    return currentExecutionIsLast() && !successfulExecutionSeen;
+    return wasLastExecution() && !successfulExecutionSeen;
   }
 
   @Override

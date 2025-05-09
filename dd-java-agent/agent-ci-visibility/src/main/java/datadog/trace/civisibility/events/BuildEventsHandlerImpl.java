@@ -11,7 +11,7 @@ import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.domain.BuildSystemModule;
 import datadog.trace.civisibility.domain.BuildSystemSession;
-import datadog.trace.civisibility.domain.TestStatus;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
