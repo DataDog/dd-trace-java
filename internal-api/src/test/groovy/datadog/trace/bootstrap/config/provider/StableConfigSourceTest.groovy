@@ -3,8 +3,6 @@ package datadog.trace.bootstrap.config.provider
 import static java.util.Collections.singletonMap
 
 import datadog.trace.api.ConfigOrigin
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationValue
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector
 import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml
@@ -79,7 +77,7 @@ class StableConfigSourceTest extends DDSpecification {
     }
     StableConfigYaml stableConfigYaml = new StableConfigYaml()
     stableConfigYaml.setConfig_id(configId)
-    stableConfigYaml.setApm_configuration_default(defaultConfigs as ConfigurationMap)
+    stableConfigYaml.setApm_configuration_default(defaultConfigs as Map<String, String>)
 
     try {
       writeFileYaml(filePath, stableConfigYaml)
@@ -115,9 +113,9 @@ class StableConfigSourceTest extends DDSpecification {
     Files.delete(filePath)
 
     where:
-    configId | defaultConfigs | ruleConfigs
-    ""       | new HashMap<>() | Arrays.asList(new Rule())
-    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
+    configId | defaultConfigs                             | ruleConfigs
+    ""       | [:]                                        | Arrays.asList(new Rule())
+    "12345"  | ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
@@ -129,8 +127,8 @@ class StableConfigSourceTest extends DDSpecification {
     '''
 
   // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
-  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap(singletonMap("DD_KEY_THREE", new ConfigurationValue("three"))))
-  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap(singletonMap("DD_KEY_FOUR", new ConfigurationValue("four"))))
+  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
+  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
 
   // Helper functions
   def stableConfigYamlWriter = getStableConfigYamlWriter()

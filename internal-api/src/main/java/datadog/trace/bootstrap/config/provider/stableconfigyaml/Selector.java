@@ -1,20 +1,13 @@
 package datadog.trace.bootstrap.config.provider.stableconfigyaml;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class Selector {
   private String origin;
   private String key;
   private List<String> matches;
   private String operator;
-
-  public Selector() {
-    this.origin = null;
-    this.key = null;
-    this.matches = new ArrayList<>();
-    this.operator = null;
-  }
 
   public Selector(String origin, String key, List<String> matches, String operator) {
     this.origin = origin;
@@ -23,7 +16,14 @@ public class Selector {
     this.operator = operator;
   }
 
-  // Getters and setters
+  public Selector(Object yaml) {
+    Map map = (Map) yaml;
+    origin = (String) map.get("origin");
+    key = (String) map.get("key");
+    matches = (List<String>) map.get("matches");
+    operator = (String) map.get("operator");
+  }
+
   public String getOrigin() {
     return origin;
   }

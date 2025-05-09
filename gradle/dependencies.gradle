@@ -52,7 +52,7 @@ final class CachedData {
       exclude(dependency('cafe.cryptography::'))
 
       // snakeyaml and its transitives
-      exclude(dependency('org.yaml:snakeyaml'))
+      exclude(dependency('org.snakeyaml:snakeyaml'))
     }
   ]
 }

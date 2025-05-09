@@ -42,14 +42,14 @@ apm_configuration_rules:
     try {
       Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
+      throw new AssertionError("Failed to write to file: ${e.message}", e)
     }
 
     StableConfigSource.StableConfig cfg
     try {
       cfg = StableConfigParser.parse(filePath.toString())
     } catch (Exception e) {
-      throw new AssertionError("Failed to parse the file: ${e.message}")
+      throw new AssertionError("Failed to parse the file: ${e.message}", e)
     }
 
     then:
@@ -117,14 +117,14 @@ apm_configuration_rules:
     try {
       Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
+      throw new AssertionError("Failed to write to file: ${e.message}", e)
     }
 
     StableConfigSource.StableConfig cfg
     try {
       cfg = StableConfigParser.parse(filePath.toString())
     } catch (Exception e) {
-      throw new AssertionError("Failed to parse the file: ${e.message}")
+      throw new AssertionError("Failed to parse the file: ${e.message}", e)
     }
 
     then:
@@ -137,7 +137,7 @@ apm_configuration_rules:
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create test file", e)
     }
     String yaml = """
   config_id: 12345
@@ -145,14 +145,14 @@ apm_configuration_rules:
     try {
       Files.write(filePath, yaml.getBytes())
     } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
+      throw new AssertionError("Failed to write to file: ${e.message}", e)
     }
 
     StableConfigSource.StableConfig cfg
     try {
       cfg = StableConfigParser.parse(filePath.toString())
     } catch (Exception e) {
-      throw new AssertionError("Failed to parse the file: ${e.message}")
+      throw new AssertionError("Failed to parse the file: ${e.message}", e)
     }
 
     then:
@@ -166,7 +166,7 @@ apm_configuration_rules:
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create test file", e)
     }
     String yaml = """
   something-irrelevant: ""
