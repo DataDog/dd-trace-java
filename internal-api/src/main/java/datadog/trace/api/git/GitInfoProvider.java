@@ -56,7 +56,6 @@ public class GitInfoProvider {
       repositoryPath = NULL_PATH_STRING;
     }
 
-    // normalize path to avoid creating two entries in the cache
     return gitInfoCache.computeIfAbsent(repositoryPath, this::buildGitInfo);
   }
 
