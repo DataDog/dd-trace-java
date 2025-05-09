@@ -69,6 +69,26 @@ public final class PidHelper {
     return pid;
   }
 
+  private static String getOSTempDir() {
+    // See
+    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
+    // and
+    // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
+    // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
+    if (Platform.isLinux()) {
+      return "/tmp/";
+    } else if (Platform.isWindows()) {
+      return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
+          .filter(String::isEmpty)
+          .findFirst()
+          .orElse("C:\\Windows");
+    } else if (Platform.isMac()) {
+      return System.getenv("TMPDIR");
+    } else {
+      return System.getProperty("java.io.tmpdir");
+    }
+  }
+
   public static Set<String> getJavaPids() {
     // Attempt to use jvmstat directly, fall through to jps process fork strategy
     Set<String> directlyObtainedPids = JPSUtils.getVMPids();
@@ -79,11 +99,7 @@ public final class PidHelper {
     // Some JDKs don't have jvmstat available as a module, attempt to read from the hsperfdata
     // directory instead
     try (Stream<Path> stream =
-        Files.list(
-            Paths.get(
-                System.getProperty("java.io.tmpdir")
-                    + "hsperfdata_"
-                    + System.getProperty("user.name")))) {
+        Files.list(Paths.get(getOSTempDir() + "/hsperfdata_" + System.getProperty("user.name")))) {
       return stream
           .filter(file -> !Files.isDirectory(file))
           .map(Path::getFileName)
