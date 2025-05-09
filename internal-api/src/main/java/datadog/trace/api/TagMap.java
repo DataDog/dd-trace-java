@@ -1056,7 +1056,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
  * That will allow all of the calls to create methods to be devirtualized without a guard
  */
 abstract class TagMapFactory<MapT extends TagMap> {
-  public static final TagMapFactory<?> INSTANCE = new OptimizedTagMapFactory();
+  public static final TagMapFactory<?> INSTANCE =
+      Config.get().isOptimizedMapEnabled()
+          ? new OptimizedTagMapFactory()
+          : new LegacyTagMapFactory();
 
   public abstract MapT create();
 
