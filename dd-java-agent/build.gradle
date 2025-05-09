@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
 }
 
 description = 'dd-java-agent'

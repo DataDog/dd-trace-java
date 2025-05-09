@@ -45,6 +45,11 @@ abstract class QuarkusNativeSmokeTest extends AbstractServerSmokeTest {
 
   abstract String resourceName()
 
+  @Override
+  boolean testTelemetry() {
+    return false
+  }
+
   def "get welcome endpoint in parallel"() {
     expect:
     // Do one request before to initialize the server

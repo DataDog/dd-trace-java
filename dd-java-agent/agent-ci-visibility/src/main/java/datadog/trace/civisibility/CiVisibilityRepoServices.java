@@ -35,7 +35,6 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
 import datadog.trace.util.Strings;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -72,7 +71,7 @@ public class CiVisibilityRepoServices {
       LOGGER.info("PR detected: {}", pullRequestInfo);
     }
 
-    repoRoot = appendSlashIfNeeded(getRepoRoot(ciInfo, services.gitClientFactory));
+    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
     moduleName = getModuleName(services.config, repoRoot, path);
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
@@ -126,7 +125,7 @@ public class CiVisibilityRepoServices {
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
-    String ciWorkspace = ciInfo.getNormalizedCiWorkspace();
+    String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;
 
@@ -143,14 +142,6 @@ public class CiVisibilityRepoServices {
         LOGGER.error("Error while getting repo root", e);
         return null;
       }
-    }
-  }
-
-  private static String appendSlashIfNeeded(String repoRoot) {
-    if (repoRoot != null && !repoRoot.endsWith(File.separator)) {
-      return repoRoot + File.separator;
-    } else {
-      return repoRoot;
     }
   }
 
