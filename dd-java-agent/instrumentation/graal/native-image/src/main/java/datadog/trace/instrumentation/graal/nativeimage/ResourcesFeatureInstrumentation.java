@@ -50,8 +50,7 @@ public final class ResourcesFeatureInstrumentation extends AbstractNativeImageIn
       tracerResources.add("profiling/jfr/overrides/minimal.jfp");
 
       // jmxfetch configs
-      tracerResources.add(
-          "metrics/project.properties"); // org.datadog.jmxfetch.AppConfig reads its version
+      tracerResources.add("metrics/project.properties");
       tracerResources.add("metrics/org/datadog/jmxfetch/default-jmx-metrics.yaml");
       tracerResources.add("metrics/org/datadog/jmxfetch/new-gc-default-jmx-metrics.yaml");
       tracerResources.add("metrics/org/datadog/jmxfetch/old-gc-default-jmx-metrics.yaml");
