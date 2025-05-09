@@ -494,9 +494,24 @@ class WAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = Mock()
 
     when:
-    initialRuleAdd()
+    initialRuleAdd('test_multi_config_no_action.json')
 
-    def actions =  [
+    // original action
+    def action1 =  [
+      actions:
+      [
+        [
+          id        : 'block',
+          type      : 'block_request',
+          parameters: [
+            status_code: 418,
+            type      : 'html'
+          ]
+        ]
+      ]
+    ]
+
+    def action2 =  [
       actions:
       [
         [
@@ -508,12 +523,15 @@ class WAFModuleSpecification extends DDSpecification {
         ]
       ]
     ]
-    send('new config', actions)
+
+    send('original config', action1)
+    send('original config', null)
+    send('new config', action2)
     readyToHandle()
 
     then:
     1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
-    2 * wafMetricCollector.wafUpdates(_, true)
+    1 * wafMetricCollector.wafUpdates(_, true)
     0 * _
 
     when:
@@ -1109,16 +1127,15 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'rule toggling data given through configuration'() {
     ChangeableFlow flow = Mock()
+    initialRuleAdd()
 
     when: 'rule disabled in config b'
-    initialRuleAdd()
     send('b', toggleById('ua0-600-12x', false))
     readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
-    1 * wafMetricCollector.wafInit(Waf.LIB_VERSION, _, true)
     1 * wafMetricCollector.wafUpdates(null, true)
     // no attack
     1 * ctx.getOrCreateWafContext(_, false)
@@ -1156,6 +1173,7 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     1 * wafMetricCollector.wafUpdates(_, true)
+    1 * ctx.getOrCreateWafContext(_, false)
     2 * ctx.getWafMetrics()
     1 * flow.isBlocking()
     1 * flow.setAction({ it.blocking })
@@ -1169,13 +1187,14 @@ class WAFModuleSpecification extends DDSpecification {
     0 * _
 
     when: 'removing c removes c'
-    wafBuilder.removeConfig("c")
+    send("c", null)
 
     readyToHandle()
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeWafContext()
 
     then:
+    1 * wafMetricCollector.wafUpdates(_, true)
     // no attack
     1 * ctx.getOrCreateWafContext(_, false)
     2 * ctx.getWafMetrics()
@@ -1393,7 +1412,7 @@ class WAFModuleSpecification extends DDSpecification {
     0 * _
 
     when:
-    final ipData = [rules_data: [
+    final ipData = [exclusions: [
         [
           id  : 'suspicious_ips_data_id',
           type: 'ip_with_expiration',
