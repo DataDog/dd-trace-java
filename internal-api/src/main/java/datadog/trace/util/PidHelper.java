@@ -8,11 +8,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +75,24 @@ public final class PidHelper {
     if (directlyObtainedPids != null) {
       return directlyObtainedPids;
     }
+
+    // Some JDKs don't have jvmstat available as a module, attempt to read from the hsperfdata
+    // directory instead
+    try (Stream<Path> stream =
+        Files.list(
+            Paths.get(
+                System.getProperty("java.io.tmpdir")
+                    + "hsperfdata_"
+                    + System.getProperty("user.name")))) {
+      return stream
+          .filter(file -> !Files.isDirectory(file))
+          .map(Path::getFileName)
+          .map(Path::toString)
+          .collect(Collectors.toSet());
+    } catch (IOException e) {
+      log.debug("Unable to obtain Java PIDs via hsperfdata", e);
+    }
+
     // there is no supported Java API to achieve this
     // one could use sun.jvmstat.monitor.MonitoredHost but it is an internal API and can go away at
     // any time -
