@@ -209,9 +209,7 @@ public class CIInfo {
     return ciJobUrl;
   }
 
-  /**
-   * @return Workspace path without the trailing separator
-   */
+  /** @return Workspace path without the trailing separator */
   public String getCiWorkspace() {
     String realCiWorkspace = FileUtils.toRealPath(ciWorkspace);
     return (realCiWorkspace == null || !realCiWorkspace.endsWith(File.separator))
