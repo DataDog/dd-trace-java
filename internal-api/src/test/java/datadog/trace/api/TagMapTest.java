@@ -38,76 +38,136 @@ public class TagMapTest {
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void booleanEntry(TagMapType mapType) {
-    TagMap map = mapType.create();
-    map.set("bool", false);
+    boolean first = false;
+    boolean second = true;
 
-    TagMap.Entry entry = map.getEntry("bool");
+    TagMap map = mapType.create();
+    map.set("bool", first);
+
+    TagMap.Entry firstEntry = map.getEntry("bool");
     if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.BOOLEAN, entry.rawType);
+      assertEquals(TagMap.Entry.BOOLEAN, firstEntry.rawType);
     }
 
-    assertEquals(false, entry.booleanValue());
-    assertEquals(false, map.getBoolean("bool"));
+    assertEquals(first, firstEntry.booleanValue());
+    assertEquals(first, map.getBoolean("bool"));
+
+    TagMap.Entry priorEntry = map.getAndSet("bool", second);
+    if (map.isOptimized()) {
+      assertSame(priorEntry, firstEntry);
+    }
+    assertEquals(first, priorEntry.booleanValue());
+
+    TagMap.Entry newEntry = map.getEntry("bool");
+    assertEquals(second, newEntry.booleanValue());
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void intEntry(TagMapType mapType) {
-    TagMap map = mapType.create();
-    map.set("int", 42);
+    int first = 3142;
+    int second = 2718;
 
-    TagMap.Entry entry = map.getEntry("int");
+    TagMap map = mapType.create();
+    map.set("int", first);
+
+    TagMap.Entry firstEntry = map.getEntry("int");
     if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.INT, entry.rawType);
+      assertEquals(TagMap.Entry.INT, firstEntry.rawType);
     }
 
-    assertEquals(42, entry.intValue());
-    assertEquals(42, map.getInt("int"));
+    assertEquals(first, firstEntry.intValue());
+    assertEquals(first, map.getInt("int"));
+
+    TagMap.Entry priorEntry = map.getAndSet("int", second);
+    if (map.isOptimized()) {
+      assertSame(priorEntry, firstEntry);
+    }
+    assertEquals(first, priorEntry.intValue());
+
+    TagMap.Entry newEntry = map.getEntry("int");
+    assertEquals(second, newEntry.intValue());
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void longEntry(TagMapType mapType) {
-    TagMap map = mapType.create();
-    map.set("long", 42L);
+    long first = 3142L;
+    long second = 2718L;
 
-    TagMap.Entry entry = map.getEntry("long");
+    TagMap map = mapType.create();
+    map.set("long", first);
+
+    TagMap.Entry firstEntry = map.getEntry("long");
     if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.LONG, entry.rawType);
+      assertEquals(TagMap.Entry.LONG, firstEntry.rawType);
     }
 
-    assertEquals(42L, entry.longValue());
-    assertEquals(42L, map.getLong("long"));
+    assertEquals(first, firstEntry.longValue());
+    assertEquals(first, map.getLong("long"));
+
+    TagMap.Entry priorEntry = map.getAndSet("long", second);
+    if (map.isOptimized()) {
+      assertSame(priorEntry, firstEntry);
+    }
+    assertEquals(first, priorEntry.longValue());
+
+    TagMap.Entry newEntry = map.getEntry("long");
+    assertEquals(second, newEntry.longValue());
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void floatEntry(TagMapType mapType) {
-    TagMap map = mapType.create();
-    map.set("float", 3.14F);
+    float first = 3.14F;
+    float second = 2.718F;
 
-    TagMap.Entry entry = map.getEntry("float");
+    TagMap map = mapType.create();
+    map.set("float", first);
+
+    TagMap.Entry firstEntry = map.getEntry("float");
     if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.FLOAT, entry.rawType);
+      assertEquals(TagMap.Entry.FLOAT, firstEntry.rawType);
     }
 
-    assertEquals(3.14F, entry.floatValue());
-    assertEquals(3.14F, map.getFloat("float"));
+    assertEquals(first, firstEntry.floatValue());
+    assertEquals(first, map.getFloat("float"));
+
+    TagMap.Entry priorEntry = map.getAndSet("float", second);
+    if (map.isOptimized()) {
+      assertSame(priorEntry, firstEntry);
+    }
+    assertEquals(first, priorEntry.floatValue());
+
+    TagMap.Entry newEntry = map.getEntry("float");
+    assertEquals(second, newEntry.floatValue());
   }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
   public void doubleEntry(TagMapType mapType) {
+    double first = Math.PI;
+    double second = Math.E;
+
     TagMap map = mapType.create();
     map.set("double", Math.PI);
 
-    TagMap.Entry entry = map.getEntry("double");
+    TagMap.Entry firstEntry = map.getEntry("double");
     if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.DOUBLE, entry.rawType);
+      assertEquals(TagMap.Entry.DOUBLE, firstEntry.rawType);
     }
 
-    assertEquals(Math.PI, entry.doubleValue());
-    assertEquals(Math.PI, map.getDouble("double"));
+    assertEquals(first, firstEntry.doubleValue());
+    assertEquals(first, map.getDouble("double"));
+
+    TagMap.Entry priorEntry = map.getAndSet("double", second);
+    if (map.isOptimized()) {
+      assertSame(priorEntry, firstEntry);
+    }
+    assertEquals(first, priorEntry.doubleValue());
+
+    TagMap.Entry newEntry = map.getEntry("double");
+    assertEquals(second, newEntry.doubleValue());
   }
 
   @ParameterizedTest
