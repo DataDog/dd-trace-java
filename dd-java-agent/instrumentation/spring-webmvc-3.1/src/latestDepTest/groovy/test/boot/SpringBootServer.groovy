@@ -22,7 +22,7 @@ class SpringBootServer implements WebsocketServer {
 
   @Override
   void start() {
-    app.setDefaultProperties(["server.port": 0, "server.servlet.context-path": "/$servletContext"])
+    app.setDefaultProperties(["server.port": 0, "server.servlet.context-path": "/$servletContext", "server.forward-headers-strategy": "NONE"])
     context = app.run() as ServletWebServerApplicationContext
     port = context.getWebServer().getPort()
     try {

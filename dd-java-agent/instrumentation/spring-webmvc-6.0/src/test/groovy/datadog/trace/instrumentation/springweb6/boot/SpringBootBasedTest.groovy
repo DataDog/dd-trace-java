@@ -72,7 +72,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     void start() {
       app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
         "spring.mvc.throw-exception-if-no-handler-found": false,
-        "spring.web.resources.add-mappings"             : false])
+        "spring.web.resources.add-mappings"             : false,
+        "server.forward-headers-strategy": "NONE"])
       context = app.run()
       port = (context as ServletWebServerApplicationContext).webServer.port
       try {

@@ -7,6 +7,7 @@ import spock.lang.Shared
 import spock.lang.TempDir
 
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
+import spock.util.concurrent.PollingConditions
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -14,7 +15,6 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.locks.LockSupport
 
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
   @Shared
@@ -69,24 +69,22 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
   def "check native instrumentation"() {
     setup:
     String url = "http://localhost:${httpPort}/hello"
+    def conditions = new PollingConditions(initialDelay: 2, timeout: 6)
 
     when:
     def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
 
     then:
-    def ts = System.nanoTime()
     def responseBodyStr = response.body().string()
     responseBodyStr != null
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
 
-    // sanity test for profiler generating JFR files
-    // the recording is collected after 1 second of execution
-    // make sure the app has been up and running for at least 1.5 seconds
-    while (System.nanoTime() - ts < 1_500_000_000L) {
-      LockSupport.parkNanos(1_000_000)
+    conditions.eventually {
+      assert countJfrs() > 0
     }
-    countJfrs() > 0
+
+    udpMessage.get(1, TimeUnit.SECONDS) contains "service:smoke-test-java-app,version:99,env:smoketest"
   }
 
   int countJfrs() {

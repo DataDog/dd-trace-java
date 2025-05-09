@@ -574,7 +574,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responses
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
-      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      // Limit pool size. Too many threads overwhelm the server and starve the host
+      def availableProcessorsOverride = System.getenv().get("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+      def poolSize = availableProcessorsOverride == null ? Runtime.getRuntime().availableProcessors() : Integer.valueOf(availableProcessorsOverride)
+      def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
         completionService.submit {
@@ -1295,7 +1298,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
@@ -2218,8 +2221,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+          } else {
+            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
         }

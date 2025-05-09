@@ -107,5 +107,25 @@
         <directory>${target.dir}</directory>
       </build>
     </profile>
+    <profile>
+      <id>maven-proxy-profile</id>
+      <activation>
+        <property>
+          <name>env.MAVEN_REPOSITORY_PROXY</name>
+        </property>
+      </activation>
+      <repositories>
+        <repository>
+          <id>maven-proxy-repo</id>
+          <url>${env.MAVEN_REPOSITORY_PROXY}</url>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>maven-plugin-proxy</id>
+          <url>${env.MAVEN_REPOSITORY_PROXY}</url>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
   </profiles>
 </project>
