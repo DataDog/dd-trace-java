@@ -60,6 +60,9 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("bool");
     assertEquals(second, newEntry.booleanValue());
+
+    assertEquals(false, map.getBoolean("unset"));
+    assertEquals(true, map.getBooleanOrDefault("unset", true));
   }
 
   @ParameterizedTest
@@ -87,6 +90,9 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("int");
     assertEquals(second, newEntry.intValue());
+
+    assertEquals(0, map.getInt("unset"));
+    assertEquals(21, map.getIntOrDefault("unset", 21));
   }
 
   @ParameterizedTest
@@ -114,6 +120,9 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("long");
     assertEquals(second, newEntry.longValue());
+
+    assertEquals(0L, map.getLong("unset"));
+    assertEquals(21L, map.getLongOrDefault("unset", 21L));
   }
 
   @ParameterizedTest
@@ -141,6 +150,9 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("float");
     assertEquals(second, newEntry.floatValue());
+
+    assertEquals(0F, map.getFloat("unset"));
+    assertEquals(2.718F, map.getFloatOrDefault("unset", 2.718F));
   }
 
   @ParameterizedTest
@@ -168,6 +180,9 @@ public class TagMapTest {
 
     TagMap.Entry newEntry = map.getEntry("double");
     assertEquals(second, newEntry.doubleValue());
+
+    assertEquals(0D, map.getDouble("unset"));
+    assertEquals(2.718D, map.getDoubleOrDefault("unset", 2.718D));
   }
 
   @ParameterizedTest

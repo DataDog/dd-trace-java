@@ -123,13 +123,23 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   boolean getBoolean(String tag);
 
+  boolean getBooleanOrDefault(String tag, boolean defaultValue);
+
   int getInt(String tag);
+
+  int getIntOrDefault(String tag, int defaultValue);
 
   long getLong(String tag);
 
+  long getLongOrDefault(String tag, long defaultValue);
+
   float getFloat(String tag);
 
+  float getFloatOrDefault(String tag, float defaultValue);
+
   double getDouble(String tag);
+
+  double getDoubleOrDefault(String tag, double defaultValue);
 
   /**
    * Provides the corresponding Entry object - preferable w/ optimized TagMap if the Entry needs to
@@ -1162,26 +1172,46 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public final boolean getBoolean(String tag) {
+    return this.getBooleanOrDefault(tag, false);
+  }
+
+  public final boolean getBooleanOrDefault(String tag, boolean defaultValue) {
     Entry entry = this.getEntry(tag);
-    return entry == null ? false : entry.booleanValue();
+    return entry == null ? defaultValue : entry.booleanValue();
   }
 
   public final int getInt(String tag) {
+    return getIntOrDefault(tag, 0);
+  }
+
+  public final int getIntOrDefault(String tag, int defaultValue) {
     Entry entry = this.getEntry(tag);
-    return entry == null ? 0 : entry.intValue();
+    return entry == null ? defaultValue : entry.intValue();
   }
 
   public final long getLong(String tag) {
+    return this.getLongOrDefault(tag, 0L);
+  }
+
+  public final long getLongOrDefault(String tag, long defaultValue) {
     Entry entry = this.getEntry(tag);
-    return entry == null ? 0L : entry.longValue();
+    return entry == null ? defaultValue : entry.longValue();
   }
 
   public final float getFloat(String tag) {
+    return this.getFloatOrDefault(tag, 0F);
+  }
+
+  public final float getFloatOrDefault(String tag, float defaultValue) {
     Entry entry = this.getEntry(tag);
-    return entry == null ? 0F : entry.floatValue();
+    return entry == null ? defaultValue : entry.floatValue();
   }
 
   public final double getDouble(String tag) {
+    return this.getDoubleOrDefault(tag, 0D);
+  }
+
+  public final double getDoubleOrDefault(String tag, double defaultValue) {
     Entry entry = this.getEntry(tag);
     return entry == null ? 0D : entry.doubleValue();
   }
@@ -2642,26 +2672,6 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final Object getObject(String tag) {
-    return this.get(tag);
-  }
-
-  @Override
-  public final boolean getBoolean(String tag) {
-    Object result = this.get(tag);
-    if (result == null) return false;
-
-    if (result instanceof Boolean) {
-      return (Boolean) result;
-    } else if (result instanceof Number) {
-      Number number = (Number) result;
-      return (number.intValue() != 0);
-    } else {
-      return true;
-    }
-  }
-
-  @Override
   public final TagMap.Entry getAndSet(String tag, Object value) {
     Object prior = this.put(tag, value);
     return prior == null ? null : TagMap.Entry.newAnyEntry(tag, prior);
@@ -2710,55 +2720,106 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public final double getDouble(String tag) {
+  public final Object getObject(String tag) {
+    return this.get(tag);
+  }
+
+  @Override
+  public final boolean getBoolean(String tag) {
+    return this.getBooleanOrDefault(tag, false);
+  }
+
+  @Override
+  public final boolean getBooleanOrDefault(String tag, boolean defaultValue) {
+    Object result = this.get(tag);
+    if (result == null) {
+      return defaultValue;
+    } else if (result instanceof Boolean) {
+      return (Boolean) result;
+    } else if (result instanceof Number) {
+      Number number = (Number) result;
+      return (number.intValue() != 0);
+    } else {
+      // deliberately doesn't use defaultValue
+      return true;
+    }
+  }
+
+  @Override
+  public double getDouble(String tag) {
+    return this.getDoubleOrDefault(tag, 0D);
+  }
+
+  @Override
+  public final double getDoubleOrDefault(String tag, double defaultValue) {
     Object value = this.get(tag);
-    if (value instanceof Number) {
+    if (value == null) {
+      return defaultValue;
+    } else if (value instanceof Number) {
       return ((Number) value).doubleValue();
     } else if (value instanceof Boolean) {
       return ((Boolean) value) ? 1D : 0D;
     } else {
+      // deliberately doesn't use defaultValue
       return 0D;
     }
   }
 
   @Override
   public final long getLong(String tag) {
+    return this.getLongOrDefault(tag, 0L);
+  }
+
+  public final long getLongOrDefault(String tag, long defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
-      return 0L;
+      return defaultValue;
     } else if (value instanceof Number) {
       return ((Number) value).longValue();
     } else if (value instanceof Boolean) {
       return ((Boolean) value) ? 1L : 0L;
     } else {
+      // deliberately doesn't use defaultValue
       return 0L;
     }
   }
 
   @Override
   public final float getFloat(String tag) {
+    return this.getFloatOrDefault(tag, 0F);
+  }
+
+  @Override
+  public final float getFloatOrDefault(String tag, float defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
-      return 0F;
+      return defaultValue;
     } else if (value instanceof Number) {
       return ((Number) value).floatValue();
     } else if (value instanceof Boolean) {
       return ((Boolean) value) ? 1F : 0F;
     } else {
+      // deliberately doesn't use defaultValue
       return 0F;
     }
   }
 
   @Override
   public final int getInt(String tag) {
+    return this.getIntOrDefault(tag, 0);
+  }
+
+  @Override
+  public final int getIntOrDefault(String tag, int defaultValue) {
     Object value = this.get(tag);
     if (value == null) {
-      return 0;
+      return defaultValue;
     } else if (value instanceof Number) {
       return ((Number) value).intValue();
     } else if (value instanceof Boolean) {
       return ((Boolean) value) ? 1 : 0;
     } else {
+      // deliberately doesn't use defaultValue
       return 0;
     }
   }
