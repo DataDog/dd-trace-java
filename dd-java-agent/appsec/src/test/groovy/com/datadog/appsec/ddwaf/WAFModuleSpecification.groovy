@@ -1412,7 +1412,7 @@ class WAFModuleSpecification extends DDSpecification {
     0 * _
 
     when:
-    final ipData = [exclusions: [
+    final ipData = [exclusion_data : [
         [
           id  : 'suspicious_ips_data_id',
           type: 'ip_with_expiration',
