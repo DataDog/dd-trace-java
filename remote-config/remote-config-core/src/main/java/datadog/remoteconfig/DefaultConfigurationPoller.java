@@ -7,6 +7,7 @@ import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
+import datadog.remoteconfig.state.MapListener;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -134,6 +135,12 @@ public class DefaultConfigurationPoller
   }
 
   @Override
+  public synchronized void addListener(
+      Product product, ConfigurationChangesListener mapConfigurationChangesTypedListener) {
+    this.addListener(product, new SimpleProductListener(mapConfigurationChangesTypedListener));
+  }
+
+  @Override
   public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
@@ -154,6 +161,12 @@ public class DefaultConfigurationPoller
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
     productState.addProductListener(configKey, listener);
+  }
+
+  @Override
+  public synchronized void addListener(
+      Product product, ConfigurationMapListener configurationMapListener) {
+    this.addListener(product, new MapListener(configurationMapListener));
   }
 
   @Override
