@@ -23,6 +23,10 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
       span.meta
     }
 
+    Map<String, Number> getMetrics() {
+      span.metrics
+    }
+
     List<Map<String, Object>> getTriggers() {
       def appsecJSON = meta.get("_dd.appsec.json")
       if (appsecJSON) {
