@@ -2,8 +2,6 @@ package datadog.context.propagation;
 
 import datadog.context.Context;
 import datadog.context.InferredProxyContext;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class InferredProxyPropagator implements Propagator {
@@ -48,11 +46,6 @@ public class InferredProxyPropagator implements Propagator {
 
     InferredProxyContextExtractor() {}
 
-    private Map<String, String> parseInferredProxyHeaders(String input) {
-      Map<String, String> parsedHeaders = new HashMap<>();
-      return parsedHeaders;
-    }
-
     /**
      * Performs this operation on the given arguments.
      *
@@ -64,7 +57,6 @@ public class InferredProxyPropagator implements Propagator {
       if (key == null || key.isEmpty() || !key.startsWith(INFERRED_PROXY_KEY)) {
         return;
       }
-      Map<String, String> inferredProxyMap = parseInferredProxyHeaders(value);
       if (extractedContext == null) {
         extractedContext = new InferredProxyContext();
       }
