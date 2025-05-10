@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.context.InferredProxyContext;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
@@ -523,6 +524,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
+  /** Deprecated. Use {@link #extractContext(REQUEST_CARRIER)} instead. */
   public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
@@ -532,7 +534,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
+  public Context extractContext(REQUEST_CARRIER carrier) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return null;
+    }
+    return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+  }
+
+  /** Deprecated. Use {@link #startSpanFromContext(String, Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
@@ -642,6 +652,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     apiGtwSpan.setTag("stage", headers.get(STAGE));
     apiGtwSpan.setTag("_dd.inferred_span", 1);
     return apiGtwSpan;
+  }
+
+  public AgentSpan startSpanFromContext(
+      String instrumentationName, REQUEST_CARRIER carrier, Context context) {
+    return startSpan(instrumentationName, carrier, getExtractedSpanContext(context));
+  }
+
+  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   public AgentSpan onRequest(
