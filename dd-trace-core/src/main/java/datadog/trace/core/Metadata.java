@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
@@ -9,7 +10,7 @@ public final class Metadata {
   private final long threadId;
   private final UTF8BytesString threadName;
   private final UTF8BytesString httpStatusCode;
-  private final Map<String, Object> tags;
+  private final TagMap tags;
   private final Map<String, String> baggage;
 
   private final int samplingPriority;
@@ -22,7 +23,7 @@ public final class Metadata {
   public Metadata(
       long threadId,
       UTF8BytesString threadName,
-      Map<String, Object> tags,
+      TagMap tags,
       Map<String, String> baggage,
       int samplingPriority,
       boolean measured,
@@ -60,8 +61,8 @@ public final class Metadata {
     return threadName;
   }
 
-  public Map<String, Object> getTags() {
-    return tags;
+  public TagMap getTags() {
+    return this.tags;
   }
 
   public Map<String, String> getBaggage() {
