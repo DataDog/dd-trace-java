@@ -10,14 +10,14 @@ final class ContextProviders {
     static final ContextManager INSTANCE =
         null != ContextProviders.customManager
             ? ContextProviders.customManager
-            : new ThreadLocalContextManager();
+            : ThreadLocalContextManager.INSTANCE;
   }
 
   private static final class ProvidedBinder {
     static final ContextBinder INSTANCE =
         null != ContextProviders.customBinder
             ? ContextProviders.customBinder
-            : new WeakMapContextBinder();
+            : WeakMapContextBinder.INSTANCE;
   }
 
   static ContextManager manager() {
