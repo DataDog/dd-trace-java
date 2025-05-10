@@ -21,7 +21,7 @@ public class StableConfigParser {
 
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
-  private static final String UNDEFINED_VALUE = "UNDEFINED";
+  private static final String UNDEFINED_VALUE = "";
 
   /**
    * Parses a configuration file and returns a stable configuration object.
@@ -244,6 +244,8 @@ public class StableConfigParser {
       }
       String value = System.getenv(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
+        log.debug(
+            "Environment variable specified in template {} has no value", envVar.toUpperCase());
         return UNDEFINED_VALUE;
       }
       return value;
@@ -261,6 +263,7 @@ public class StableConfigParser {
       }
       String value = System.getProperty(processArg.substring(2));
       if (value == null || value.isEmpty()) {
+        log.debug("Process argument specified in template {} has no value", processArg);
         return UNDEFINED_VALUE;
       }
       return value;
