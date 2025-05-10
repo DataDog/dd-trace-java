@@ -89,7 +89,7 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
-      if (config.isDynamicInstrumentationInstrumentTheWorld()) {
+      if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
     }
