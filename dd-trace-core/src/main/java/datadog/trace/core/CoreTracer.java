@@ -4,6 +4,7 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.api.TracePropagationBehaviorExtract.RESTART;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
@@ -33,7 +34,6 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -1343,7 +1343,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     private DDSpan buildSpan() {
-      addTerminatedContextAsLinks();
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, buildSpanContext(), links);
       if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
@@ -1352,6 +1351,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
       return span;
+    }
+
+    private void addParentContextAsLinks(AgentSpanContext parentContext) {
+      SpanLink link;
+      if (parentContext instanceof ExtractedContext) {
+        String headers = ((ExtractedContext) parentContext).getPropagationStyle().toString();
+        SpanAttributes attributes =
+            SpanAttributes.builder()
+                .put("reason", "propagation_behavior_extract")
+                .put("context_headers", headers)
+                .build();
+        link = DDSpanLink.from((ExtractedContext) parentContext, attributes);
+      } else {
+        link = SpanLink.from(parentContext);
+      }
+      withLink(link);
     }
 
     private void addTerminatedContextAsLinks() {
@@ -1521,6 +1536,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         spanId = this.spanId;
       }
 
+      // Find the parent context
       AgentSpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
@@ -1529,37 +1545,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentContext = activeSpan.context();
         }
       }
-
-      String parentServiceName = null;
-      boolean isRemote = false;
-
-      TracePropagationBehaviorExtract behaviorExtract =
-          Config.get().getTracePropagationBehaviorExtract();
+      // Handle remote terminated context as span links
       if (parentContext != null && parentContext.isRemote()) {
-        if (behaviorExtract == TracePropagationBehaviorExtract.IGNORE) {
-          // reset links that may have come terminated span links
-          links = new ArrayList<>();
-          parentContext = null;
-        } else if (behaviorExtract == TracePropagationBehaviorExtract.RESTART) {
-          links = new ArrayList<>();
-          SpanLink link =
-              (parentContext instanceof ExtractedContext)
-                  ? DDSpanLink.from(
-                      (ExtractedContext) parentContext,
-                      SpanAttributes.builder()
-                          .put("reason", "propagation_behavior_extract")
-                          .put(
-                              "context_headers",
-                              ((ExtractedContext) parentContext).getPropagationStyle().toString())
-                          .build())
-                  : SpanLink.from(parentContext);
-          links.add(link);
-          parentContext = null;
+        switch (Config.get().getTracePropagationBehaviorExtract()) {
+          case RESTART:
+            addParentContextAsLinks(parentContext);
+            parentContext = null;
+            break;
+          case IGNORE:
+            parentContext = null;
+            break;
+          case CONTINUE:
+          default:
+            addTerminatedContextAsLinks();
         }
       }
 
+      String parentServiceName = null;
       // Propagate internal trace.
-      // Note: if we are not in the context of distributed tracing and we are starting the first
+      // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
       if (parentContext instanceof DDSpanContext) {
         final DDSpanContext ddsc = (DDSpanContext) parentContext;
@@ -1591,7 +1595,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
-          isRemote = true;
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
@@ -1732,8 +1735,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               disableSamplingMechanismValidation,
               propagationTags,
               profilingContextIntegration,
-              injectBaggageAsTags,
-              isRemote);
+              injectBaggageAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
@@ -1742,9 +1744,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
-      if (contextualTags != null) {
-        context.setAllTags(contextualTags);
-      }
+      context.setAllTags(contextualTags);
       return context;
     }
   }
