@@ -89,6 +89,15 @@ public class OtelContext implements Context {
     return "OtelContext{" + "delegate=" + delegate + '}';
   }
 
+  /**
+   * Returns the underlying context.
+   *
+   * @return The underlying context.
+   */
+  public datadog.context.Context asContext() {
+    return this.delegate;
+  }
+
   private static datadog.context.ContextKey delegateKey(ContextKey key) {
     return DELEGATE_KEYS.computeIfAbsent(key, OtelContext::mapByKeyName);
   }
