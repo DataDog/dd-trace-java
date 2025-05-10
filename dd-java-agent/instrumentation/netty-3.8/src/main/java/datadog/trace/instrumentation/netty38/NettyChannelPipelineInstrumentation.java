@@ -68,6 +68,9 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
       packageName + ".server.MaybeBlockResponseHandler",
+      packageName + ".server.websocket.WebSocketServerTracingHandler",
+      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
+      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
     };
   }
 

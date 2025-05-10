@@ -74,7 +74,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class OperationCompleteAdvice {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*
       Idea here is:
