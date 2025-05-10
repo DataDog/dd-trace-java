@@ -3,14 +3,27 @@ package datadog.context;
 import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
-class ContextProviderForkedTest {
+class ContextProvidersForkedTest {
   @Test
   void testCustomBinder() {
-    // register a NOOP context binder
+    assertTrue(ContextBinder.allowTesting());
+
+    Context context = root().with(STRING_KEY, "value");
+    Object carrier = new Object();
+
+    // should delegate to the default binder
+    context.attachTo(carrier);
+    assertNotEquals(root(), Context.from(carrier));
+    assertEquals(context, Context.detachFrom(carrier));
+    assertEquals(root(), Context.from(carrier));
+
+    // now register a NOOP context binder
     ContextBinder.register(
         new ContextBinder() {
           @Override
@@ -29,17 +42,28 @@ class ContextProviderForkedTest {
           }
         });
 
-    Context context = root().with(STRING_KEY, "value");
-
     // NOOP binder, context will always be root
-    Object carrier = new Object();
     context.attachTo(carrier);
     assertEquals(root(), Context.from(carrier));
+    assertEquals(root(), Context.detachFrom(carrier));
   }
 
   @Test
   void testCustomManager() {
-    // register a NOOP context manager
+    assertTrue(ContextManager.allowTesting());
+
+    Context context = root().with(STRING_KEY, "value");
+
+    // should delegate to the default manager
+    try (ContextScope ignored = context.attach()) {
+      assertNotEquals(root(), Context.current());
+    }
+
+    Context swapped = context.swap();
+    assertNotEquals(root(), Context.current());
+    swapped.swap();
+
+    // now register a NOOP context manager
     ContextManager.register(
         new ContextManager() {
           @Override
@@ -68,11 +92,14 @@ class ContextProviderForkedTest {
           }
         });
 
-    Context context = root().with(STRING_KEY, "value");
-
     // NOOP manager, context will always be root
     try (ContextScope ignored = context.attach()) {
       assertEquals(root(), Context.current());
     }
+
+    // NOOP manager, context will always be root
+    swapped = context.swap();
+    assertEquals(root(), Context.current());
+    swapped.swap();
   }
 }

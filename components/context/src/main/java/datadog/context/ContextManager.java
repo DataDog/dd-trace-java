@@ -33,4 +33,13 @@ public interface ContextManager {
   static void register(ContextManager manager) {
     ContextProviders.customManager = manager;
   }
+
+  /**
+   * Allow re-registration of custom {@link ContextManager}s for testing.
+   *
+   * @return {@code true} if re-registration is allowed; otherwise {@code false}
+   */
+  static boolean allowTesting() {
+    return TestContextManager.register();
+  }
 }

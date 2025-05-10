@@ -34,4 +34,13 @@ public interface ContextBinder {
   static void register(ContextBinder binder) {
     ContextProviders.customBinder = binder;
   }
+
+  /**
+   * Allow re-registration of custom {@link ContextBinder}s for testing.
+   *
+   * @return {@code true} if re-registration is allowed; otherwise {@code false}
+   */
+  static boolean allowTesting() {
+    return TestContextBinder.register();
+  }
 }
