@@ -1,6 +1,8 @@
 package com.datadog.debugger.sink;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.verify;
@@ -14,6 +16,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -26,6 +29,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -63,8 +68,11 @@ public class SnapshotSinkTest {
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
   }
 
-  @Test
-  public void addHighRateSnapshot() throws IOException {
+  @ParameterizedTest(name = "Process tags enabled ''{0}''")
+  @ValueSource(booleans = {true, false})
+  public void addHighRateSnapshot(boolean processTagsEnabled) throws IOException {
+    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    ProcessTags.reset(config);
     SnapshotSink snapshotSink = createSnapshotSink();
     snapshotSink.start();
     Snapshot snapshot = createSnapshot();
@@ -86,6 +94,13 @@ public class SnapshotSinkTest {
             .getDebugger()
             .getRuntimeId()
             .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+    if (processTagsEnabled) {
+      assertNotNull(ProcessTags.getTagsForSerialization());
+      assertEquals(
+          ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
+    } else {
+      assertNull(intakeRequest.getProcessTags());
+    }
   }
 
   @Test
