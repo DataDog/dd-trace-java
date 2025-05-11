@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
     extends ServerDecorator {
 
-  class InferredProxySpanGroup implements AgentSpan {
+  static class InferredProxySpanGroup implements AgentSpan {
     private final AgentSpan inferredProxySpan;
     private final AgentSpan serverSpan;
 
