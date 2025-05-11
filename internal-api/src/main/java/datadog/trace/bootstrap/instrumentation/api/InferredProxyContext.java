@@ -1,5 +1,8 @@
-package datadog.context;
+package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
+import datadog.context.ContextKey;
+import datadog.context.ImplicitContextKeyed;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

@@ -1,12 +1,13 @@
-package datadog.context;
+package datadog.trace.core.propagation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
-import datadog.context.propagation.InferredProxyPropagator;
+import datadog.trace.bootstrap.instrumentation.api.InferredProxyContext;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -105,7 +106,7 @@ class InferredProxyHandlingTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(
-        "datadog.context.InferredProxyHandlingTest#validHeadersProviderForPropagator") // Fully
+        "datadog.trace.core.propagation.InferredProxyHandlingTest#validHeadersProviderForPropagator") // Fully
     // qualified
     // name
     @DisplayName("Should extract InferredProxyContext when valid headers are present")
@@ -141,7 +142,7 @@ class InferredProxyHandlingTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(
-        "datadog.context.InferredProxyHandlingTest#invalidOrMissingHeadersProviderForPropagator") // Fully qualified name
+        "datadog.trace.core.propagation.InferredProxyHandlingTest#invalidOrMissingHeadersProviderForPropagator") // Fully qualified name
     @DisplayName("Should create InferredProxyContext even if some critical headers are missing")
     void testExtractionWithMissingCriticalHeaders(String description, Map<String, String> headers) {
       Context rootContext = Context.root();
