@@ -315,7 +315,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
-    private ContinuableScopeManager scopeManager;
     private Map<String, ?> localRootSpanTags;
     private Map<String, ?> defaultSpanTags;
     private Map<String, String> serviceNameMappings;

@@ -14,7 +14,7 @@ import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_ROOT_S
 import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 
-class ContextForkedTest extends AgentTestRunner {
+class ContextTest extends AgentTestRunner {
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("context-instrumentation")
 
