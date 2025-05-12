@@ -68,7 +68,7 @@ public class TestImpl implements DDTest {
   private final TestContext context;
   private final TestIdentifier identifier;
 
-  private final Long startMicros;
+  private Long startMicros;
   private TestStatus status;
 
   public TestImpl(
@@ -252,7 +252,7 @@ public class TestImpl implements DDTest {
     if (endMicros == null) {
       endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
     }
-    return TimeUnit.MICROSECONDS.convert(endMicros - startMicros, TimeUnit.MILLISECONDS);
+    return TimeUnit.MICROSECONDS.toMillis(endMicros - startMicros);
   }
 
   @Override

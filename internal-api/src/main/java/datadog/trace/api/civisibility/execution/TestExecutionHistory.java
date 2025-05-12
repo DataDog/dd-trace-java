@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 public interface TestExecutionHistory {
 
   /**
-   * @param status         result of the execution: pass, fail or skip
+   * @param status result of the execution: pass, fail or skip
    * @param durationMillis duration of current test execution in milliseconds
    */
   void registerExecution(TestStatus status, long durationMillis);
