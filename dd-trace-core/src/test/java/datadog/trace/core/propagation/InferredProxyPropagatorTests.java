@@ -1,13 +1,14 @@
-package datadog.trace.api.gateway.inferredproxy;
+package datadog.trace.core.propagation;
 
 import static datadog.context.Context.root;
-import static datadog.trace.api.gateway.inferredproxy.InferredProxyHeaders.fromContext;
+import static datadog.trace.api.gateway.InferredProxyHeaders.fromContext;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
+import datadog.trace.api.gateway.InferredProxyHeaders;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;

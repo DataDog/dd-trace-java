@@ -1,4 +1,4 @@
-package datadog.trace.api.gateway.inferredproxy;
+package datadog.trace.api.gateway;
 
 import static datadog.context.ContextKey.named;
 

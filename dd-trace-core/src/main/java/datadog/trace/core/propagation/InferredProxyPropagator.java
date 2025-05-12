@@ -1,9 +1,10 @@
-package datadog.trace.api.gateway.inferredproxy;
+package datadog.trace.core.propagation;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
+import datadog.trace.api.gateway.InferredProxyHeaders;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
