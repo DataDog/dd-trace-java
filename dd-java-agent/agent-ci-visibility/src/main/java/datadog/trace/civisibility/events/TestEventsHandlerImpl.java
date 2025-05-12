@@ -262,9 +262,12 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
       if (testExecutionHistory.hasFailedAllRetries()) {
         test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
-      } else if (testExecutionHistory.hasSucceededAllRetries()
-          && testModule.isAttemptToFix(thisTest)) {
-        test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, true);
+      }
+
+      if (testExecutionHistory.wasLastExecution() && testModule.isAttemptToFix(thisTest)) {
+        test.setTag(
+            Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
+            testExecutionHistory.hasSucceededAllRetries());
       }
     }
 
