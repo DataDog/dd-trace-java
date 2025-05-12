@@ -9,6 +9,9 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.ProductTraceSource
+import datadog.trace.api.config.GeneralConfig
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -22,6 +25,7 @@ import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
@@ -1162,4 +1166,66 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.getDataSubscribers(KnownAddresses.SESSION_ID) >> nonEmptyDsInfo
     1 * eventDispatcher.publishDataEvent(_, _, _, _)
   }
+
+  void 'test api security sampling'() {
+    given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> true
+    0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+  void 'test api security sampling - trace excluded'() {
+    given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> false
+    0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+  void 'test api security sampling with tracing disabled'() {
+    given:
+    injectSysConfig(GeneralConfig.APM_TRACING_ENABLED, "false")
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> true
+    1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
 }

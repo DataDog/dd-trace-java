@@ -25,6 +25,25 @@ class ApiSecuritySamplerTest extends DDSpecification {
     sampled
   }
 
+  void 'happy path with single request and tracing disabled'() {
+    given:
+    final ctx = createContext('route1', 'GET', 200)
+    final sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    final preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled
+
+    when:
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    final sampled = sampler.sampleRequest(ctx)
+
+    then:
+    sampled
+  }
+
   void 'second request is not sampled for the same endpoint'() {
     given:
     AppSecRequestContext ctx1 = createContext('route1', 'GET', 200)
