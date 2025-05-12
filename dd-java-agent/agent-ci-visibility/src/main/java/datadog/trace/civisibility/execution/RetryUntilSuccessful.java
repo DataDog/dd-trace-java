@@ -29,7 +29,9 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   public void registerExecution(TestStatus status, long durationMillis) {
     ++executions;
     successfulExecutionSeen |= (status != TestStatus.fail);
-    totalExecutions.incrementAndGet();
+    if (executions > 1) {
+      totalExecutions.incrementAndGet();
+    }
   }
 
   @Override
