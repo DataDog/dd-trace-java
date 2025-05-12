@@ -16,7 +16,6 @@ import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,10 +185,7 @@ class B3HttpCodec {
 
     protected void setSpanId(final String sId) {
       spanId = DDSpanId.fromHex(sId);
-      if (tags.isEmpty()) {
-        tags = new TreeMap<>();
-      }
-      tags.put(B3_SPAN_ID, sId);
+      tagLedger().set(B3_SPAN_ID, sId);
     }
 
     protected boolean setTraceId(final String tId) {
@@ -202,10 +198,7 @@ class B3HttpCodec {
         B3TraceId b3TraceId = B3TraceId.fromHex(tId);
         traceId = b3TraceId.toLong() == 0 ? DDTraceId.ZERO : b3TraceId;
       }
-      if (tags.isEmpty()) {
-        tags = new TreeMap<>();
-      }
-      tags.put(B3_TRACE_ID, tId);
+      tagLedger().set(B3_TRACE_ID, tId);
       return true;
     }
   }
