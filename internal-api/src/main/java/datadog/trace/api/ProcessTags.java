@@ -138,15 +138,19 @@ public class ProcessTags {
 
   /** Visible for testing. */
   static void empty() {
-    Lazy.TAGS.clear();
-    Lazy.serializedForm = null;
-    Lazy.listForm = null;
+    synchronized (Lazy.TAGS) {
+      Lazy.TAGS.clear();
+      Lazy.serializedForm = null;
+      Lazy.listForm = null;
+    }
   }
 
   /** Visible for testing. */
   static void reset() {
-    empty();
-    enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
-    Lazy.TAGS.putAll(Lazy.loadTags());
+    synchronized (Lazy.TAGS) {
+      empty();
+      enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
+      Lazy.TAGS.putAll(Lazy.loadTags());
+    }
   }
 }
