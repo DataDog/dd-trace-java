@@ -182,14 +182,13 @@ public class CucumberTracingListener extends TracingListener {
     } else {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
       String testName = CucumberUtils.getTestNameForScenario(description);
-      TestDescriptor testDescriptor = CucumberUtils.toTestDescriptor(description);
       List<String> categories = getCategories(description);
 
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.CUCUMBER)
           .onTestIgnore(
               new TestSuiteDescriptor(testSuiteName, null),
-              testDescriptor,
+              CucumberUtils.toTestDescriptor(description),
               testName,
               FRAMEWORK_NAME,
               FRAMEWORK_VERSION,
