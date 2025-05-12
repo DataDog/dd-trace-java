@@ -131,7 +131,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
       final AgentSpan span = DECORATE.startSpanFromContext("http-server", req, extractedContext);
       final ContextScope scope = extractedContext.with(span).attach();
-      //      final ContextScope scope = activateSpan(span);
+
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
 
