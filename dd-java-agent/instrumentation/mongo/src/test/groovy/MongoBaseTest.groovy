@@ -81,7 +81,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "java-mongo"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" mongoDbContainer.getHost()
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" dbType
         "$Tags.DB_INSTANCE" instance

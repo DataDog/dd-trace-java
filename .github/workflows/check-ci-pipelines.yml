@@ -16,7 +16,8 @@ permissions:
   statuses: read
 
 jobs:
-  all-jobs-are-green:
+  check-ci-pipelines:
+    name: Check CI Pipelines
     runs-on: ubuntu-latest
     steps:
       - name: Run Ensure CI Success

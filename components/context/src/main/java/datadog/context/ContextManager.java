@@ -28,9 +28,21 @@ public interface ContextManager {
   /**
    * Requests use of a custom {@link ContextManager}.
    *
-   * @param manager the manager to use (will replace any other manager in use).
+   * <p>Once the registered manager is used it cannot be replaced and this method will have no
+   * effect. To test different managers, make sure {@link #allowTesting()} is called early on.
+   *
+   * @param manager the manager to use.
    */
   static void register(ContextManager manager) {
     ContextProviders.customManager = manager;
+  }
+
+  /**
+   * Allow re-registration of custom {@link ContextManager}s for testing.
+   *
+   * @return {@code true} if re-registration is allowed; otherwise {@code false}
+   */
+  static boolean allowTesting() {
+    return TestContextManager.register();
   }
 }
