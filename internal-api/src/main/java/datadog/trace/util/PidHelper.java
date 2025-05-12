@@ -99,6 +99,8 @@ public final class PidHelper {
     // Some JDKs don't have jvmstat available as a module, attempt to read from the hsperfdata
     // directory instead
     try (Stream<Path> stream =
+       // Emulating the hotspot way to enumerate the JVM processes using the perfdata file
+       // https://github.com/openjdk/jdk/blob/d7cb933b89839b692f5562aeeb92076cd25a99f6/src/hotspot/share/runtime/perfMemory.cpp#L244
         Files.list(Paths.get(getOSTempDir() + "/hsperfdata_" + System.getProperty("user.name")))) {
       return stream
           .filter(file -> !Files.isDirectory(file))
