@@ -7,58 +7,34 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 
 public class FiberContext {
-  private final ScopeState state;
-  private AgentScope.Continuation continuation;
-  private AgentScope scope;
-  private ScopeState oldState;
+  private final ScopeState scopeState;
+  private final AgentScope.Continuation continuation;
 
-  private FiberContext(ScopeState state) {
-    this.state = state;
-    this.scope = null;
-    this.oldState = null;
+  private ScopeState oldScopeState;
+
+  public FiberContext() {
+    // copy scope stack to use for this fiber
+    this.scopeState = AgentTracer.get().oldScopeState().copy();
+    // stop enclosing trace from finishing early
     this.continuation = captureActiveSpan();
   }
 
-  public static FiberContext create() {
-    final ScopeState state = AgentTracer.get().newScopeState();
-    return new FiberContext(state);
-  }
-
-  public void onEnd() {
-    if (this.scope != null) {
-      this.scope.close();
-      this.scope = null;
-    }
-    if (continuation != null) {
-      continuation.cancel();
-      continuation = null;
-    }
-
-    if (this.oldState != null) {
-      this.oldState.activate();
-      this.oldState = null;
-    }
+  public void onResume() {
+    oldScopeState = AgentTracer.get().oldScopeState();
+    scopeState.activate(); // swap in the fiber's scope stack
   }
 
   public void onSuspend() {
-    if (this.scope != null && continuation != null) {
-      this.scope.close();
-      this.scope = null;
-    }
-    if (this.oldState != null) {
-      this.oldState.activate();
-      this.oldState = null;
+    if (oldScopeState != null) {
+      oldScopeState.activate(); // swap bock the original scope stack
+      oldScopeState = null;
     }
   }
 
-  public void onResume() {
-    this.oldState = AgentTracer.get().oldScopeState();
-
-    this.state.activate();
-
-    if (this.continuation != null) {
-      this.scope = continuation.activate();
-      continuation = null;
+  public void onEnd() {
+    if (continuation != null) {
+      // release enclosing trace now the fiber has ended
+      continuation.cancel();
     }
   }
 }
