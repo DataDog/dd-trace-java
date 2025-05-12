@@ -18,7 +18,7 @@ import spock.lang.Shared
 import java.time.Duration
 
 class S3ClientTest extends AgentTestRunner {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "s3")
   .withReuse(true)
@@ -92,8 +92,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -151,8 +151,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$sourceKey") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$sourceKey") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -185,8 +185,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$destKey") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$destKey") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -276,8 +276,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "POST"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -303,8 +303,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -330,8 +330,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -365,8 +365,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "POST"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }

@@ -100,7 +100,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     span.setTag(Tags.COMPONENT, component);
-
+    span.context().setIntegrationName(component);
     return span;
   }
 
