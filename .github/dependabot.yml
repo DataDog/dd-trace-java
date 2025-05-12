@@ -8,7 +8,13 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+    labels:
+      - "comp: tooling"
+      - "tag: dependencies"
+      - "tag: no release notes"
+    commit-message:
+      prefix: "chore(ci): "
     groups:
       gh-actions-packages:
         patterns:
