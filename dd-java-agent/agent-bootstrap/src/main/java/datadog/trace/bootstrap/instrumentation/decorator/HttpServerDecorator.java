@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
-import datadog.context.InferredProxyContext;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
