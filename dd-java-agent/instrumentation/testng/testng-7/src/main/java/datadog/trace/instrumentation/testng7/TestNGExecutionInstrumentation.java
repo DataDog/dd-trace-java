@@ -70,9 +70,12 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
         @Advice.Argument(1) final ITestResult result) {
       IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
       if (retryAnalyzer instanceof RetryAnalyzer) {
-        // If DD's retry analyzer is used, report the test result beforehand to the tracing listener
-        // to align execution ordering with other frameworks (reports before `retry` method is
-        // called). Also avoids TestNG marking retried tests as skipped
+        // If DD's retry analyzer is used, create the execution history and report the test result
+        // beforehand to the tracing listener to align execution ordering with other frameworks.
+        // Also avoids TestNG marking retried tests as skipped
+        RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
+        ddRetryAnalyzer.createExecutionPolicy(result);
+
         ITestListener tracingListener = null;
         for (ITestListener listener : resultNotifier.getTestListeners()) {
           if (listener instanceof TracingListener) {
@@ -83,7 +86,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
         TestListenerHelper.runTestListeners(result, Collections.singletonList(tracingListener));
 
         // Also set suppress failures beforehand to align execution ordering.
-        ((RetryAnalyzer) retryAnalyzer).setSuppressFailures(result);
+        ddRetryAnalyzer.setSuppressFailures(result);
       }
     }
 

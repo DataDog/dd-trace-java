@@ -15,7 +15,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
   private volatile TestExecutionPolicy executionPolicy;
   private boolean suppressFailures;
 
-  private void setExecutionPolicy(ITestResult result) {
+  public void createExecutionPolicy(ITestResult result) {
     if (executionPolicy == null) {
       synchronized (this) {
         if (executionPolicy == null) {
@@ -35,12 +35,12 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
       return false;
     }
-    setExecutionPolicy(result);
+    createExecutionPolicy(result);
     return !executionPolicy.wasLastExecution();
   }
 
   public void setSuppressFailures(ITestResult result) {
-    setExecutionPolicy(result);
+    createExecutionPolicy(result);
     suppressFailures = executionPolicy.suppressFailures();
   }
 
