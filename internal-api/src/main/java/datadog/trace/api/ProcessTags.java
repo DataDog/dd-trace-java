@@ -102,11 +102,13 @@ public class ProcessTags {
   private ProcessTags() {}
 
   // need to be synchronized on writing. As optimization, it does not need to be sync on read.
-  public static synchronized void addTag(String key, String value) {
+  public static void addTag(String key, String value) {
     if (enabled) {
-      Lazy.TAGS.put(key, value);
-      Lazy.serializedForm = null;
-      Lazy.listForm = null;
+      synchronized (Lazy.TAGS) {
+        Lazy.TAGS.put(key, value);
+        Lazy.serializedForm = null;
+        Lazy.listForm = null;
+      }
     }
   }
 
