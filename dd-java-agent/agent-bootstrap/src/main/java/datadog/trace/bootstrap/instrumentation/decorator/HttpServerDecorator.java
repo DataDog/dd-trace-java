@@ -11,12 +11,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.propagation.Propagators;
-import datadog.context.InferredProxyContext;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -24,14 +20,13 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.InferredProxySpan;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -44,8 +39,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -60,400 +53,8 @@ import org.slf4j.LoggerFactory;
 public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
     extends ServerDecorator {
 
-  class InferredProxySpanGroup implements AgentSpan {
-    private final AgentSpan inferredProxySpan;
-    private final AgentSpan serverSpan;
-
-    InferredProxySpanGroup(AgentSpan inferredProxySpan, AgentSpan serverSpan) {
-      this.inferredProxySpan = inferredProxySpan;
-      this.serverSpan = serverSpan;
-    }
-
-    @Override
-    public DDTraceId getTraceId() {
-      return serverSpan.getTraceId();
-    }
-
-    @Override
-    public long getSpanId() {
-      return serverSpan.getSpanId();
-    }
-
-    @Override
-    public AgentSpan setTag(String key, boolean value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, int value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, long value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, double value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, String value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, CharSequence value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setTag(String key, Object value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    /**
-     * @param map
-     * @return
-     */
-    @Override
-    public AgentSpan setAllTags(Map<String, ?> map) {
-      return null;
-    }
-
-    @Override
-    public AgentSpan setTag(String key, Number value) {
-      return serverSpan.setTag(key, value);
-    }
-
-    @Override
-    public AgentSpan setMetric(CharSequence key, int value) {
-      return serverSpan.setMetric(key, value);
-    }
-
-    @Override
-    public AgentSpan setMetric(CharSequence key, long value) {
-      return serverSpan.setMetric(key, value);
-    }
-
-    @Override
-    public AgentSpan setMetric(CharSequence key, double value) {
-      return serverSpan.setMetric(key, value);
-    }
-
-    @Override
-    public AgentSpan setSpanType(CharSequence type) {
-      return serverSpan.setSpanType(type);
-    }
-
-    @Override
-    public Object getTag(String key) {
-      return serverSpan.getTag(key);
-    }
-
-    @Override
-    public AgentSpan setError(boolean error) {
-      serverSpan.setError(error);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.setError(error);
-      }
-      return this;
-    }
-
-    @Override
-    public AgentSpan setError(boolean error, byte priority) {
-      serverSpan.setError(error, priority);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.setError(error, priority);
-      }
-      return this;
-    }
-
-    @Override
-    public AgentSpan setMeasured(boolean measured) {
-      return serverSpan.setMeasured(measured);
-    }
-
-    @Override
-    public AgentSpan setErrorMessage(String errorMessage) {
-      return serverSpan.setErrorMessage(errorMessage);
-    }
-
-    @Override
-    public AgentSpan addThrowable(Throwable throwable) {
-      serverSpan.addThrowable(throwable);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.addThrowable(throwable);
-      }
-      return this;
-    }
-
-    @Override
-    public AgentSpan addThrowable(Throwable throwable, byte errorPriority) {
-      serverSpan.addThrowable(throwable, errorPriority);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.addThrowable(throwable, errorPriority);
-      }
-      return this;
-    }
-
-    @Override
-    public AgentSpan getLocalRootSpan() {
-      return serverSpan.getLocalRootSpan();
-    }
-
-    @Override
-    public boolean isSameTrace(AgentSpan otherSpan) {
-      return serverSpan.isSameTrace(otherSpan);
-    }
-
-    @Override
-    public AgentSpanContext context() {
-      return serverSpan.context();
-    }
-
-    @Override
-    public String getBaggageItem(String key) {
-      return serverSpan.getBaggageItem(key);
-    }
-
-    @Override
-    public AgentSpan setBaggageItem(String key, String value) {
-      return serverSpan.setBaggageItem(key, value);
-    }
-
-    @Override
-    public AgentSpan setHttpStatusCode(int statusCode) {
-      serverSpan.setHttpStatusCode(statusCode);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.setHttpStatusCode(statusCode);
-      }
-      return this;
-    }
-
-    @Override
-    public short getHttpStatusCode() {
-      return serverSpan.getHttpStatusCode();
-    }
-
-    @Override
-    public void finish() {
-      serverSpan.finish();
-      if (inferredProxySpan != null) {
-        inferredProxySpan.finish();
-      }
-    }
-
-    @Override
-    public void finish(long finishMicros) {
-      serverSpan.finish(finishMicros);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.finish(finishMicros);
-      }
-    }
-
-    @Override
-    public void finishWithDuration(long durationNanos) {
-      serverSpan.finishWithDuration(durationNanos);
-      if (inferredProxySpan != null) {
-        inferredProxySpan.finishWithDuration(durationNanos);
-      }
-    }
-
-    @Override
-    public void beginEndToEnd() {
-      serverSpan.beginEndToEnd();
-    }
-
-    @Override
-    public void finishWithEndToEnd() {
-      serverSpan.finishWithEndToEnd();
-      if (inferredProxySpan != null) {
-        inferredProxySpan.finishWithEndToEnd();
-      }
-    }
-
-    @Override
-    public boolean phasedFinish() {
-      final boolean ret = serverSpan.phasedFinish();
-      if (inferredProxySpan != null) {
-        inferredProxySpan.phasedFinish();
-      }
-      return ret;
-    }
-
-    @Override
-    public void publish() {
-      serverSpan.publish();
-    }
-
-    @Override
-    public CharSequence getSpanName() {
-      return serverSpan.getSpanName();
-    }
-
-    @Override
-    public void setSpanName(CharSequence spanName) {
-      serverSpan.setSpanName(spanName);
-    }
-
-    @Deprecated
-    @Override
-    public boolean hasResourceName() {
-      return serverSpan.hasResourceName();
-    }
-
-    @Override
-    public byte getResourceNamePriority() {
-      return serverSpan.getResourceNamePriority();
-    }
-
-    @Override
-    public AgentSpan setResourceName(CharSequence resourceName) {
-      return serverSpan.setResourceName(resourceName);
-    }
-
-    @Override
-    public AgentSpan setResourceName(CharSequence resourceName, byte priority) {
-      return serverSpan.setResourceName(resourceName, priority);
-    }
-
-    @Override
-    public RequestContext getRequestContext() {
-      return serverSpan.getRequestContext();
-    }
-
-    @Override
-    public Integer forceSamplingDecision() {
-      return serverSpan.forceSamplingDecision();
-    }
-
-    @Override
-    public AgentSpan setSamplingPriority(int newPriority, int samplingMechanism) {
-      return serverSpan.setSamplingPriority(newPriority, samplingMechanism);
-    }
-
-    @Override
-    public TraceConfig traceConfig() {
-      return serverSpan.traceConfig();
-    }
-
-    @Override
-    public void addLink(AgentSpanLink link) {
-      serverSpan.addLink(link);
-    }
-
-    @Override
-    public AgentSpan setMetaStruct(String field, Object value) {
-      return serverSpan.setMetaStruct(field, value);
-    }
-
-    @Override
-    public boolean isOutbound() {
-      return serverSpan.isOutbound();
-    }
-
-    @Override
-    public AgentSpan asAgentSpan() {
-      return serverSpan.asAgentSpan();
-    }
-
-    @Override
-    public long getStartTime() {
-      return serverSpan.getStartTime();
-    }
-
-    @Override
-    public long getDurationNano() {
-      return serverSpan.getDurationNano();
-    }
-
-    @Override
-    public CharSequence getOperationName() {
-      return serverSpan.getOperationName();
-    }
-
-    @Override
-    public MutableSpan setOperationName(CharSequence serviceName) {
-      return serverSpan.setOperationName(serviceName);
-    }
-
-    @Override
-    public String getServiceName() {
-      return serverSpan.getServiceName();
-    }
-
-    @Override
-    public MutableSpan setServiceName(String serviceName) {
-      return serverSpan.setServiceName(serviceName);
-    }
-
-    @Override
-    public CharSequence getResourceName() {
-      return serverSpan.getResourceName();
-    }
-
-    @Override
-    public Integer getSamplingPriority() {
-      return serverSpan.getSamplingPriority();
-    }
-
-    @Deprecated
-    @Override
-    public MutableSpan setSamplingPriority(int newPriority) {
-      return serverSpan.setSamplingPriority(newPriority);
-    }
-
-    @Override
-    public String getSpanType() {
-      return serverSpan.getSpanType();
-    }
-
-    @Override
-    public Map<String, Object> getTags() {
-      return serverSpan.getTags();
-    }
-
-    @Override
-    public boolean isError() {
-      return serverSpan.isError();
-    }
-
-    @Deprecated
-    @Override
-    public MutableSpan getRootSpan() {
-      return serverSpan.getRootSpan();
-    }
-
-    @Override
-    public void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {
-      serverSpan.setRequestBlockingAction(rba);
-    }
-
-    @Override
-    public Flow.Action.RequestBlockingAction getRequestBlockingAction() {
-      return serverSpan.getRequestBlockingAction();
-    }
-  }
-
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
   private static final int UNSET_PORT = 0;
-
-  public static final String PROXY_SYSTEM = "x-dd-proxy";
-  public static final String PROXY_START_TIME_MS = "x-dd-proxy-request-time-ms";
-  public static final String PROXY_PATH = "x-dd-proxy-path";
-  public static final String PROXY_HTTP_METHOD = "x-dd-proxy-httpmethod";
-  public static final String PROXY_DOMAIN_NAME = "x-dd-proxy-domain-name";
-  public static final String STAGE = "x-dd-proxy-stage";
-
-  public static final Map<String, String> SUPPORTED_PROXIES;
-
-  static {
-    SUPPORTED_PROXIES = new HashMap<>();
-    SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
-  }
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
@@ -547,69 +148,30 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         instrumentationNames != null && instrumentationNames.length > 0
             ? instrumentationNames[0]
             : DEFAULT_INSTRUMENTATION_NAME;
-    AgentSpanContext.Extracted extracted = callIGCallbackStart(getExtractedSpanContext(context));
+    AgentSpanContext extracted = getExtractedSpanContext(context);
+    // Call IG callbacks
+    extracted = callIGCallbackStart(extracted);
+    // Create gateway inferred span if needed
+    extracted = startInferredProxySpan(context, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
-    }
+    // DSM Checkpoint
+    tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     return context.with(span);
   }
 
-  private AgentSpan startSpanWithInferredProxy(
-      String instrumentationName,
-      datadog.context.Context fullContextForInferredProxy,
-      AgentSpanContext.Extracted standardExtractedContext) {
-
-    InferredProxyContext inferredProxy =
-        InferredProxyContext.fromContext(fullContextForInferredProxy);
-
-    if (inferredProxy == null) {
-      return null;
+  protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
+    InferredProxySpan span;
+    if (!Config.get().isInferredProxyPropagationEnabled()
+        || (span = InferredProxySpan.fromContext(context)) == null) {
+      return extracted;
     }
-
-    Map<String, String> headers = inferredProxy.getInferredProxyContext();
-
-    // Check if timestamp and proxy system are present
-    String startTimeStr = headers.get(PROXY_START_TIME_MS);
-    String proxySystem = headers.get(PROXY_SYSTEM);
-
-    if (startTimeStr == null
-        || proxySystem == null
-        || !SUPPORTED_PROXIES.containsKey(proxySystem)) {
-      return null;
-    }
-
-    long startTime;
-    try {
-      startTime = Long.parseLong(startTimeStr) * 1000; // Convert to microseconds
-    } catch (NumberFormatException e) {
-      return null; // Invalid timestamp
-    }
-
-    AgentSpan apiGtwSpan =
-        tracer()
-            .startSpan(
-                "inferred_proxy",
-                SUPPORTED_PROXIES.get(proxySystem),
-                callIGCallbackStart(standardExtractedContext),
-                startTime);
-
-    apiGtwSpan.setTag(Tags.COMPONENT, proxySystem);
-    apiGtwSpan.setTag(
-        DDTags.RESOURCE_NAME, headers.get(PROXY_HTTP_METHOD) + " " + headers.get(PROXY_PATH));
-    apiGtwSpan.setTag(DDTags.SERVICE_NAME, headers.get(PROXY_DOMAIN_NAME));
-    apiGtwSpan.setTag(DDTags.SPAN_TYPE, "web");
-    apiGtwSpan.setTag(Tags.HTTP_METHOD, headers.get(PROXY_HTTP_METHOD));
-    apiGtwSpan.setTag(Tags.HTTP_URL, headers.get(PROXY_DOMAIN_NAME) + headers.get(PROXY_PATH));
-    apiGtwSpan.setTag("stage", headers.get(STAGE));
-    apiGtwSpan.setTag("_dd.inferred_span", 1);
-    return apiGtwSpan;
+    return span.start(extracted);
   }
 
   public AgentSpan onRequest(
@@ -832,8 +394,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  private AgentSpanContext.Extracted callIGCallbackStart(
-      @Nullable final AgentSpanContext.Extracted extracted) {
+  private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
     AgentTracer.TracerAPI tracer = tracer();
     Supplier<Flow<Object>> startedCbAppSec =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
@@ -969,8 +530,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
+    // TODO Migrate beforeFinish to Context API
     onRequestEndForInstrumentationGateway(span);
+    // Close Serverless Gateway Inferred Span if any
+    // finishInferredProxySpan(context);
     return super.beforeFinish(span);
+  }
+
+  protected void finishInferredProxySpan(Context context) {
+    InferredProxySpan span;
+    if ((span = InferredProxySpan.fromContext(context)) != null) {
+      span.finish();
+    }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
