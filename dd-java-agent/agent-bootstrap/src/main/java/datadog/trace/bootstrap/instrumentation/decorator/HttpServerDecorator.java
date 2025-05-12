@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.context.InferredProxyContext;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -22,6 +21,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.inferredproxy.InferredProxyHeaders;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ActiveSubsystems;
@@ -598,18 +598,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       datadog.context.Context fullContextForInferredProxy,
       AgentSpanContext.Extracted standardExtractedContext) {
 
-    InferredProxyContext inferredProxy =
-        InferredProxyContext.fromContext(fullContextForInferredProxy);
+    InferredProxyHeaders headers = InferredProxyHeaders.fromContext(fullContextForInferredProxy);
 
-    if (inferredProxy == null) {
+    if (headers == null) {
       return null;
     }
 
-    Map<String, String> headers = inferredProxy.getInferredProxyContext();
-
     // Check if timestamp and proxy system are present
-    String startTimeStr = headers.get(PROXY_START_TIME_MS);
-    String proxySystem = headers.get(PROXY_SYSTEM);
+    String startTimeStr = headers.getValue(PROXY_START_TIME_MS);
+    String proxySystem = headers.getValue(PROXY_SYSTEM);
 
     if (startTimeStr == null
         || proxySystem == null
@@ -634,12 +631,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     apiGtwSpan.setTag(Tags.COMPONENT, proxySystem);
     apiGtwSpan.setTag(
-        DDTags.RESOURCE_NAME, headers.get(PROXY_HTTP_METHOD) + " " + headers.get(PROXY_PATH));
-    apiGtwSpan.setTag(DDTags.SERVICE_NAME, headers.get(PROXY_DOMAIN_NAME));
+        DDTags.RESOURCE_NAME,
+        headers.getValue(PROXY_HTTP_METHOD) + " " + headers.getValue(PROXY_PATH));
+    apiGtwSpan.setTag(DDTags.SERVICE_NAME, headers.getValue(PROXY_DOMAIN_NAME));
     apiGtwSpan.setTag(DDTags.SPAN_TYPE, "web");
-    apiGtwSpan.setTag(Tags.HTTP_METHOD, headers.get(PROXY_HTTP_METHOD));
-    apiGtwSpan.setTag(Tags.HTTP_URL, headers.get(PROXY_DOMAIN_NAME) + headers.get(PROXY_PATH));
-    apiGtwSpan.setTag("stage", headers.get(STAGE));
+    apiGtwSpan.setTag(Tags.HTTP_METHOD, headers.getValue(PROXY_HTTP_METHOD));
+    apiGtwSpan.setTag(
+        Tags.HTTP_URL, headers.getValue(PROXY_DOMAIN_NAME) + headers.getValue(PROXY_PATH));
+    apiGtwSpan.setTag("stage", headers.getValue(STAGE));
     apiGtwSpan.setTag("_dd.inferred_span", 1);
     return apiGtwSpan;
   }
