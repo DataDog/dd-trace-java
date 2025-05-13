@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   check-ci-pipelines:
-    name: check-ci-pipelines  # do not change this name, it must be equal to job id
+    # Do not change this name, it must be equal to job id
+    # https://github.com/DataDog/ensure-ci-success/blob/main/docs/limitations.md#do-not-set-a-name-to-the-job-shipping-ensure-ci-success
+    name: check-ci-pipelines  
     runs-on: ubuntu-latest
     steps:
       - name: Run Ensure CI Success
