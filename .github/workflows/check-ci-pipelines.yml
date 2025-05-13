@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   check-ci-pipelines:
-    name: Check CI Pipelines
+    name: check-ci-pipelines  # do not change this name, it must be equal to job id
     runs-on: ubuntu-latest
     steps:
       - name: Run Ensure CI Success
