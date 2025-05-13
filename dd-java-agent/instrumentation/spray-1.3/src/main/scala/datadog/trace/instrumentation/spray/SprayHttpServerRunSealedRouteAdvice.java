@@ -33,7 +33,9 @@ public class SprayHttpServerRunSealedRouteAdvice {
 
     DECORATE.afterStart(span);
 
-    ctx = SprayHelper.wrapRequestContext(ctx, span, extractedContext);
+    ctx =
+        SprayHelper.wrapRequestContext(
+            ctx, span, DECORATE.getExtractedSpanContext(extractedContext));
     return scope;
   }
 
