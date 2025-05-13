@@ -143,7 +143,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpanFromContext(String, Object, Context)} instead. */
+  /** Deprecated. Use {@link #startSpanFromContext(Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
