@@ -95,7 +95,7 @@ public final class PidHelper {
             Class.forName("openj9.internal.tools.attach.target.IPC")
                 .getDeclaredMethod("getTmpDir")
                 .invoke(null);
-      } catch (Exception e) {
+      } catch (Throwable t) {
         // Fall back to constants based on J9 source code, may not have perfect coverage
         String tmpDir = System.getProperty("java.io.tmpdir");
         if (tmpDir != null && !tmpDir.isEmpty()) {
@@ -136,6 +136,17 @@ public final class PidHelper {
           .filter(file -> !Files.isDirectory(file))
           .map(Path::getFileName)
           .map(Path::toString)
+          .filter(
+              (name) -> {
+                // On J9, additional metadata files are present alongside files named $PID.
+                // This also makes sense to have as defensive programming.
+                try {
+                  Integer.parseInt(name);
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              })
           .collect(Collectors.toSet());
     } catch (IOException e) {
       log.debug("Unable to obtain Java PIDs via hsperfdata", e);
