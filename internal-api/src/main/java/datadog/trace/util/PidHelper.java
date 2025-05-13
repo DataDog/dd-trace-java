@@ -138,7 +138,8 @@ public final class PidHelper {
           .filter(
               (name) -> {
                 // On J9, additional metadata files are present alongside files named $PID.
-                // Additionally, the contents of the ps dir are files with process ID files for Hotspot,
+                // Additionally, the contents of the ps dir are files with process ID files for
+                // Hotspot,
                 // but they are directories for J9.
                 // This also makes sense as defensive programming.
                 try {
