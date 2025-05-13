@@ -133,13 +133,14 @@ public final class PidHelper {
     // directory instead
     try (Stream<Path> stream = Files.list(getJavaProcessesDir())) {
       return stream
-          .filter(file -> !Files.isDirectory(file))
           .map(Path::getFileName)
           .map(Path::toString)
           .filter(
               (name) -> {
                 // On J9, additional metadata files are present alongside files named $PID.
-                // This also makes sense to have as defensive programming.
+                // Additionally, the contents of the ps dir are files with process ID files for Hotspot,
+                // but they are directories for J9.
+                // This also makes sense as defensive programming.
                 try {
                   Integer.parseInt(name);
                   return true;
