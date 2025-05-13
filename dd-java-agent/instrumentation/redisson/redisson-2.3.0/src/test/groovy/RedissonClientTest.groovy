@@ -1,3 +1,5 @@
+import org.testcontainers.utility.DockerImageName
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -17,7 +19,7 @@ import spock.lang.Shared
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
-  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME).waitingFor(Wait.forListeningPort())
+  RedisServer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6")).waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()
@@ -127,7 +129,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
-            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_HOSTNAME" redisServer.getHost()
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" redisServer.firstMappedPort
             peerServiceFrom(Tags.PEER_HOSTNAME)
@@ -323,7 +325,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         "$Tags.COMPONENT" "redis-command"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" "redis"
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" redisServer.getHost()
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" redisServer.firstMappedPort
         peerServiceFrom(Tags.PEER_HOSTNAME)

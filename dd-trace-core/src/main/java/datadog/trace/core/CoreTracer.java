@@ -6,7 +6,6 @@ import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
@@ -22,7 +21,6 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
-import datadog.context.propagation.InferredProxyPropagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
@@ -62,7 +60,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -296,16 +293,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return null;
   }
 
-  @Override
-  public ScopeState oldScopeState() {
-    return scopeManager.oldScopeState();
-  }
-
-  @Override
-  public ScopeState newScopeState() {
-    return scopeManager.newScopeState();
-  }
-
   public static class CoreTracerBuilder {
 
     private Config config;
@@ -317,7 +304,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private SingleSpanSampler singleSpanSampler;
     private HttpCodec.Injector injector;
     private HttpCodec.Extractor extractor;
-    private ContinuableScopeManager scopeManager;
     private Map<String, ?> localRootSpanTags;
     private Map<String, ?> defaultSpanTags;
     private Map<String, String> serviceNameMappings;
@@ -732,9 +718,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     if (config.isBaggagePropagationEnabled()) {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
-    }
-    if (config.isInferredProxyPropagationEnabled()) {
-      Propagators.register(INFERRED_PROXY_CONCERN, new InferredProxyPropagator());
     }
 
     this.tagInterceptor =

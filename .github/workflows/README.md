@@ -115,6 +115,16 @@ _Action:_
 
 _Notes:_ Results are sent on both production and staging environments.
 
+### check-ci-pipelines [🔗](check-ci-pipelines.yaml)
+
+_Trigger:_ When opening or updating a PR.
+
+_Action:_ This action will check all other continuous integration jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails.
+The purpose of this job is to be required for PR merges, achieving Green CI Policy.
+It got an `ignored` parameters to exclude some jobs if they are temprorary failing.
+
+_Recovery:_ Manually trigger the action on the desired branch.
+
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
 _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a Git Submodule update.
@@ -134,14 +144,6 @@ _Recovery:_ Manually trigger the action again.
 _Trigger:_ When pushing commits to `master` or manually.
 
 _Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
-
-_Recovery:_ Manually trigger the action on the desired branch.
-
-### all-green [🔗](all-green.yaml)
-
-_Trigger:_ Any pull request.
-
-_Action:_ This action will check all other jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails. This action got an `ignored` paraemters to exclude some jobs if they are temprorary failing. The purpose of this job is to be required for merges, achieving Green CI Policy.
 
 _Recovery:_ Manually trigger the action on the desired branch.
 

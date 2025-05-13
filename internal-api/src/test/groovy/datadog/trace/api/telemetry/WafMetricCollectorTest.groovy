@@ -462,6 +462,29 @@ class WafMetricCollectorTest extends DDSpecification {
     [triggered, blocked, wafError, wafTimeout, blockFailure, rateLimited, inputTruncated] << allBooleanCombinations(7)
   }
 
+  void 'test waf input truncated metrics'() {
+    given:
+    def collector = WafMetricCollector.get()
+    def bitField = WafMetricCollector.computeWafInputTruncatedIndex(stringTooLong, listMapTooLarge, objectTooDeep)
+
+    when:
+    collector.wafInputTruncated(stringTooLong, listMapTooLarge, objectTooDeep)
+
+    then:
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+    def inputTruncatedMetrics = metrics.findAll { it.metricName == 'waf.input_truncated' }
+
+    final metric = inputTruncatedMetrics[0]
+    metric.type == 'count'
+    metric.metricName == 'waf.input_truncated'
+    metric.namespace == 'appsec'
+    metric.tags == ["truncation_reason:${bitField}"]
+
+    where:
+    [stringTooLong, listMapTooLarge, objectTooDeep] << allBooleanCombinations(3)
+  }
+
   /**
    * Helper method to generate all combinations of n boolean values.
    */
