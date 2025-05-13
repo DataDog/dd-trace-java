@@ -69,23 +69,56 @@ public final class PidHelper {
     return pid;
   }
 
-  private static String getOSTempDir() {
-    // See
-    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
-    // and
-    // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
-    // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
-    if (Platform.isLinux()) {
-      return "/tmp/";
-    } else if (Platform.isWindows()) {
-      return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
-          .filter(String::isEmpty)
-          .findFirst()
-          .orElse("C:\\Windows");
-    } else if (Platform.isMac()) {
-      return System.getenv("TMPDIR");
+  private static String getTempDir() {
+    if (!Platform.isJ9()) {
+      // See
+      // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
+      // and
+      // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
+      // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
+      if (Platform.isLinux()) {
+        return "/tmp";
+      } else if (Platform.isWindows()) {
+        return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
+            .filter(String::isEmpty)
+            .findFirst()
+            .orElse("C:\\Windows");
+      } else if (Platform.isMac()) {
+        return System.getenv("TMPDIR");
+      } else {
+        return System.getProperty("java.io.tmpdir");
+      }
     } else {
-      return System.getProperty("java.io.tmpdir");
+      try {
+        https: // github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/IPC.java#L351
+        return (String)
+            Class.forName("openj9.internal.tools.attach.target.IPC")
+                .getDeclaredMethod("getTmpDir")
+                .invoke(null);
+      } catch (Throwable t) {
+        // Fall back to constants based on J9 source code, may not have perfect coverage
+        String tmpDir = System.getProperty("java.io.tmpdir");
+        if (tmpDir != null && !tmpDir.isEmpty()) {
+          return tmpDir;
+        } else if (Platform.isWindows()) {
+          return "C:\\Documents";
+        } else {
+          return "/tmp";
+        }
+      }
+    }
+  }
+
+  private static Path getJavaProcessesDir() {
+    if (Platform.isJ9()) {
+      // J9 uses a different temporary directory AND subdirectory for storing jps / attach-related
+      // info
+      // https://github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/CommonDirectory.java#L94
+      return Paths.get(getTempDir(), ".com_ibm_tools_attach");
+    } else {
+      // Emulating the hotspot way to enumerate the JVM processes using the perfdata file
+      // https://github.com/openjdk/jdk/blob/d7cb933b89839b692f5562aeeb92076cd25a99f6/src/hotspot/share/runtime/perfMemory.cpp#L244
+      return Paths.get(getTempDir(), "hsperfdata_" + System.getProperty("user.name"));
     }
   }
 
@@ -98,14 +131,27 @@ public final class PidHelper {
 
     // Some JDKs don't have jvmstat available as a module, attempt to read from the hsperfdata
     // directory instead
-    try (Stream<Path> stream =
-        // Emulating the hotspot way to enumerate the JVM processes using the perfdata file
-        // https://github.com/openjdk/jdk/blob/d7cb933b89839b692f5562aeeb92076cd25a99f6/src/hotspot/share/runtime/perfMemory.cpp#L244
-        Files.list(Paths.get(getOSTempDir(), "hsperfdata_" + System.getProperty("user.name")))) {
+    try (Stream<Path> stream = Files.list(getJavaProcessesDir())) {
       return stream
-          .filter(file -> !Files.isDirectory(file))
           .map(Path::getFileName)
           .map(Path::toString)
+          .filter(
+              (name) -> {
+                // On J9, additional metadata files are present alongside files named $PID.
+                // Additionally, the contents of the ps dir are files with process ID files for
+                // Hotspot,
+                // but they are directories for J9.
+                // This also makes sense as defensive programming.
+                if (name.isEmpty()) {
+                  return false;
+                }
+                for (int i = 0; i < name.length(); i++) {
+                  if (!Character.isDigit(name.charAt(i))) {
+                    return false;
+                  }
+                }
+                return true;
+              })
           .collect(Collectors.toSet());
     } catch (IOException e) {
       log.debug("Unable to obtain Java PIDs via hsperfdata", e);
