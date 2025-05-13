@@ -142,12 +142,15 @@ public final class PidHelper {
                 // Hotspot,
                 // but they are directories for J9.
                 // This also makes sense as defensive programming.
-                try {
-                  Integer.parseInt(name);
-                  return true;
-                } catch (Exception e) {
+                if (name.isEmpty()) {
                   return false;
                 }
+                for (int i = 0; i < name.length(); i++) {
+                  if (!Character.isDigit(name.charAt(i))) {
+                    return false;
+                  }
+                }
+                return true;
               })
           .collect(Collectors.toSet());
     } catch (IOException e) {
