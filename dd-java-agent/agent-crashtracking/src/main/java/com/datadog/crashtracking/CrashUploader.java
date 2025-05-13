@@ -14,6 +14,7 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
@@ -139,6 +140,7 @@ public final class CrashUploader {
         writer.beginObject();
         writer.name("ddsource").value("crashtracker");
         writer.name("ddtags").value(tags);
+        writeProcessTags(writer);
         writer.name("hostname").value(config.getHostName());
         writer.name("service").value(config.getServiceName());
         writer.name("message").value(message);
@@ -153,6 +155,13 @@ public final class CrashUploader {
       }
 
       out.println(buf.readByteString().utf8());
+    }
+  }
+
+  private void writeProcessTags(JsonWriter writer) throws IOException {
+    final CharSequence processTags = ProcessTags.getTagsForSerialization();
+    if (processTags != null) {
+      writer.name("process_tags").value(processTags.toString());
     }
   }
 
@@ -306,6 +315,7 @@ public final class CrashUploader {
         writer.name("service_name").value(config.getServiceName());
         writer.name("service_version").value(config.getVersion());
         writer.name("tracer_version").value(VersionInfo.VERSION);
+        writeProcessTags(writer);
         writer.endObject();
         writer.name("host");
         writer.beginObject();
