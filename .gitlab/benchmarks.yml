@@ -34,6 +34,7 @@
 benchmarks-artifacts-dl:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
   needs: [ "build" ]
+  stage: benchmarks
   script:
     - mkdir test-dl
     - cd test-dl
