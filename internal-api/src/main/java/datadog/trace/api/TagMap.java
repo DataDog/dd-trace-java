@@ -1421,7 +1421,7 @@ final class OptimizedTagMap implements TagMap {
    * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
    *
    * <p>For optimized TagMaps, this method takes advantage of the consistent TagMap layout to
-   * quickly handle each bucket. And similar to {@link TagMap#putEntry(Entry)} this method shares
+   * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
    * Entry objects from the source TagMap
    */
   public final void putAll(TagMap that) {
