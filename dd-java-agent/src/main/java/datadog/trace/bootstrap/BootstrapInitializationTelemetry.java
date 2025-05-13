@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import datadog.json.JsonWriter;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -204,6 +205,7 @@ public abstract class BootstrapInitializationTelemetry {
       this.payload = payload;
     }
 
+    @SuppressForbidden
     @Override
     public void run() {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
