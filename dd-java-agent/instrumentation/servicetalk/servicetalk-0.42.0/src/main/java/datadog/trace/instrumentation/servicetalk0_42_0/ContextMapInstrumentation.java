@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;

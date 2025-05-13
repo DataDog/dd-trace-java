@@ -8,11 +8,6 @@ muzzle {
     module = 'servicetalk-concurrent-api'
     versions = '[0.42.0,0.42.56)'
   }
-  fail {
-    group = 'io.servicetalk'
-    module = 'servicetalk-concurrent-api'
-    versions = '[0.42.56,]' //TODO what's missing in 0.42.56, so I can add a muzzleCheck
-  }
 }
 
 ext {
@@ -27,8 +22,8 @@ dependencies {
   compileOnly group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.0'
   compileOnly group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.0'
 
-  testImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.0'
-  testImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.0'
+  testImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.55'
+  testImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.55'
 
   latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.56'
   latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.56'

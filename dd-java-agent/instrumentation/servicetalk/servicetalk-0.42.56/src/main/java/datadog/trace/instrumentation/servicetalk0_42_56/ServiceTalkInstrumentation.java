@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_56;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

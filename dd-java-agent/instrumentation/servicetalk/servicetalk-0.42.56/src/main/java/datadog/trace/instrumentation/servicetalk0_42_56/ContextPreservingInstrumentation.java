@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_56;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
@@ -67,20 +67,6 @@ public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
       if (agentScope != null) {
         agentScope.close();
       }
-    }
-
-    // TODO muzzle to be applied only for older versions < 0.42.56
-    public static void muzzleCheck() {
-      // TODO how to disable this instrumentation for 0.42.56+
-      // because otherwise it fails to instrument b/o missing "saved" fields
-      // Also ContextMapInstrumentation shouldn't be applied to 0.42.56+
-
-      // We need a class or method that has been deleted in 0.42.56 but was in 0.42.0+
-      // But there is no such thing comparing 0.42.55 and 0.42.56 of servicetalk-concurrent-api
-
-      // Can't check io.servicetalk.concurrent.api.ContextPreservingCallable.saved
-      // b/o the class is package private and the field is private
-
     }
   }
 }
