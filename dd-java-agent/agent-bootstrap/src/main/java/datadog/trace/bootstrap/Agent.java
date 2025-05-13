@@ -184,13 +184,11 @@ public class Agent {
 
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
-      jmxFetchEnabled = false;
       remoteConfigEnabled = false;
       telemetryEnabled = false;
-      // apply trace instrumentation, but skip starting other services
+      // apply trace instrumentation, but skip other products at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
-
       return;
     }
 

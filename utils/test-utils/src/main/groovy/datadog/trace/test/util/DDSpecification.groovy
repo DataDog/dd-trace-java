@@ -13,6 +13,8 @@ import java.lang.reflect.Modifier
 abstract class DDSpecification extends Specification {
   private static final CHECK_TIMEOUT_MS = 3000
 
+  static final String CONTEXT_BINDER = "datadog.context.ContextBinder"
+  static final String CONTEXT_MANAGER = "datadog.context.ContextManager"
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig"
   static final String CONFIG = "datadog.trace.api.Config"
 
@@ -22,8 +24,11 @@ abstract class DDSpecification extends Specification {
   private static Constructor configConstructor
 
   static {
+    allowContextTesting()
     makeConfigInstanceModifiable()
   }
+
+  private static Boolean contextTestingAllowed
 
   // Keep track of config instance already made modifiable
   private static isConfigInstanceModifiable = false
@@ -41,6 +46,21 @@ abstract class DDSpecification extends Specification {
 
   @Shared
   private boolean ignoreThreadCleanup
+
+  static void allowContextTesting() {
+    if (contextTestingAllowed == null) {
+      try {
+        contextTestingAllowed =
+          Class.forName(CONTEXT_BINDER).allowTesting() &&
+          Class.forName(CONTEXT_MANAGER).allowTesting()
+      } catch (ClassNotFoundException e) {
+        // don't block testing if these types aren't found (project doesn't use context API)
+        contextTestingAllowed = e.message == CONTEXT_BINDER || e.message == CONTEXT_MANAGER
+      } catch (Throwable ignore) {
+        contextTestingAllowed = false
+      }
+    }
+  }
 
   static void makeConfigInstanceModifiable() {
     if (isConfigInstanceModifiable || configModificationFailed) {
@@ -92,6 +112,7 @@ abstract class DDSpecification extends Specification {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert contextTestingAllowed: "Context not ready for testing.  Ensure all test classes extend DDSpecification"
 
     if (getDDThreads().isEmpty()) {
       ignoreThreadCleanup = false

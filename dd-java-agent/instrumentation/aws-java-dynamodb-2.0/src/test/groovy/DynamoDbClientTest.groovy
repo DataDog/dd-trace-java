@@ -29,7 +29,7 @@ import spock.lang.Shared
 import java.time.Duration
 
 class DynamoDbClientTest extends AgentTestRunner {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "dynamodb")
   .withReuse(true)
