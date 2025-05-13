@@ -166,14 +166,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  public AgentSpan startSpanFromContext(
-      String instrumentationName, REQUEST_CARRIER carrier, Context context) {
-    return startSpan(instrumentationName, carrier, getExtractedSpanContext(context));
+  public AgentSpan startSpanFromContext(REQUEST_CARRIER carrier, Context context) {
+    return startSpan("http-server", carrier, getExtractedSpanContext(context));
   }
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+  }
+
+  public AgentSpan onRequestWithContext(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final Context context) {
+    return onRequest(span, connection, request, getExtractedSpanContext(context));
   }
 
   public AgentSpan onRequest(
