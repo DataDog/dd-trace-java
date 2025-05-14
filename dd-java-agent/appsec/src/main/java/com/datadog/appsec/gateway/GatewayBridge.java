@@ -20,6 +20,7 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -668,8 +669,10 @@ public class GatewayBridge {
     Map<String, Object> tags = spanInfo.getTags();
 
     if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
-      traceSeg.setTagTop(Tags.ASM_KEEP, true);
-      traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      if (!Config.get().isApmTracingEnabled()) {
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
     } else {
       ctx.closeWafContext();
     }
