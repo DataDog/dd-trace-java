@@ -3,7 +3,6 @@ package datadog.opentelemetry.shim.context.propagation;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
-import datadog.context.propagation.Propagators;
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
 import datadog.trace.api.TracePropagationStyle;
