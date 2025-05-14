@@ -23,7 +23,7 @@ public abstract class ServiceTalkInstrumentation extends InstrumenterModule.Trac
     return new Reference[] {
       // This check prevents older instrumentation from being applied to ServiceTalk v0.42.56+
       new Reference.Builder("io.servicetalk.concurrent.api.DelegatingExecutor")
-          // This field existed was removed in v0.42.56
+          // Removed in v0.42.56
           .withField(new String[0], 0, "delegate", "Lio/servicetalk/concurrent/api/Executor;")
           .build(),
     };
