@@ -89,7 +89,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable String reason) {
+      @Nullable String reason,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     // do nothing
   }
 

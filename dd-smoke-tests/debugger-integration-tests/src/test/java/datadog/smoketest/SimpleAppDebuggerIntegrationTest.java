@@ -11,7 +11,8 @@ public class SimpleAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String DEBUGGER_TEST_APP_CLASS =
       "datadog.smoketest.debugger.DebuggerTestApplication";
   protected static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
-  protected static final ProbeId PROBE_ID2 = new ProbeId("1233565368", 12);
+  protected static final ProbeId LINE_PROBE_ID1 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000001", 0);
   protected static final String MAIN_CLASS_NAME = "Main";
 
   @Override

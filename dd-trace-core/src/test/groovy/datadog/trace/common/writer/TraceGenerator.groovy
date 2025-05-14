@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
@@ -177,7 +178,8 @@ class TraceGenerator {
       this.samplingPriority = samplingPriority
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, samplingPriority, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0)
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0,
+        ProcessTags.tagsForSerialization)
       this.httpStatusCode = (short) statusCode
     }
 

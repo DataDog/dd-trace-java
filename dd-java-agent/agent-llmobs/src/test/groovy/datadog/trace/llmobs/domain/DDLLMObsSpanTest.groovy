@@ -256,7 +256,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def toolCall = spanOutputMsg.getToolCalls().get(0)
     assert toolCall.getName().equals("weather-tool")
     assert toolCall.getType().equals("function")
-    assert toolCall.getToolID().equals("6176241000")
+    assert toolCall.getToolId().equals("6176241000")
     def expectedToolArgs = Maps.of("location", "paris")
     assert toolCall.getArguments().equals(expectedToolArgs)
   }

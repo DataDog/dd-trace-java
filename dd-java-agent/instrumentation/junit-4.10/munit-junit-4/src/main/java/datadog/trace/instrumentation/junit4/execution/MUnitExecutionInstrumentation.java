@@ -109,19 +109,13 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
 
       FailureSuppressingNotifier failureSuppressingNotifier =
           new FailureSuppressingNotifier(executionPolicy, notifier);
-      long duration;
-      boolean testFailed;
       do {
-        long startTimestamp = System.currentTimeMillis();
         try {
           runTest.setAccessible(true);
           result = (Future<?>) runTest.invoke(runner, failureSuppressingNotifier, test);
-          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
-        } catch (Throwable throwable) {
-          testFailed = true;
+        } catch (Throwable ignored) {
         }
-        duration = System.currentTimeMillis() - startTimestamp;
-      } while (executionPolicy.retry(!testFailed, duration));
+      } while (!executionPolicy.wasLastExecution());
 
       // skip original method
       return result;

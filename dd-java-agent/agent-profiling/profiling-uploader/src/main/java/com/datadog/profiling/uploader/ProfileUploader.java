@@ -27,6 +27,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.RecordingData;
@@ -469,6 +470,7 @@ public final class ProfileUploader {
       if (recordingData == null) {
         return;
       }
+      final CharSequence processTags = ProcessTags.getTagsForSerialization();
       writer.beginObject();
       writer.name("attachments");
       writer.beginArray();
@@ -476,6 +478,10 @@ public final class ProfileUploader {
       writer.endArray();
       writer.name(V4_PROFILE_TAGS_PARAM);
       writer.value(tags + ",snapshot:" + recordingData.getKind().name().toLowerCase(Locale.ROOT));
+      if (processTags != null) {
+        writer.name("process_tags");
+        writer.value(processTags.toString());
+      }
       writer.name(V4_PROFILE_START_PARAM);
       writer.value(recordingData.getStart().toString());
       writer.name(V4_PROFILE_END_PARAM);
