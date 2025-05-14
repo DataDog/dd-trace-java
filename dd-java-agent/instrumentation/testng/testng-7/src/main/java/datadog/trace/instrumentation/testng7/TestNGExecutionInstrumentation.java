@@ -84,6 +84,10 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
           }
         }
 
+        // Test reporting is idempotent due to only working for in progress tests. Once a test is
+        // reported it is not considered in progress anymore. DD's test listener will be asked by
+        // the framework to report the test again after the retry logic is executed, but it will
+        // result in a no-op, avoiding double reporting
         TestListenerHelper.runTestListeners(result, Collections.singletonList(tracingListener));
 
         // Also set suppress failures beforehand to align execution ordering.

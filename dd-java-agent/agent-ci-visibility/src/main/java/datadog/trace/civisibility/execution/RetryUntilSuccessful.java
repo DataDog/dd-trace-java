@@ -14,14 +14,14 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
   private int executions;
   private boolean successfulExecutionSeen;
 
-  /** Total execution counter that is shared by all retry policies */
-  private final AtomicInteger totalExecutions;
+  /** Total retry counter that is shared by all retry until successful policies (currently ATR) */
+  private final AtomicInteger totalRetryCount;
 
   public RetryUntilSuccessful(
-      int maxExecutions, boolean suppressFailures, AtomicInteger totalExecutions) {
+      int maxExecutions, boolean suppressFailures, AtomicInteger totalRetryCount) {
     this.maxExecutions = maxExecutions;
     this.suppressFailures = suppressFailures;
-    this.totalExecutions = totalExecutions;
+    this.totalRetryCount = totalRetryCount;
     this.executions = 0;
   }
 
@@ -30,7 +30,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
     ++executions;
     successfulExecutionSeen |= (status != TestStatus.fail);
     if (executions > 1) {
-      totalExecutions.incrementAndGet();
+      totalRetryCount.incrementAndGet();
     }
   }
 
@@ -45,7 +45,9 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   @Override
   public boolean applicable() {
-    return !currentExecutionIsLast() || suppressFailures;
+    // executions must always be registered, therefore consider it applicable as long as there are
+    // retries left
+    return !wasLastExecution();
   }
 
   @Override

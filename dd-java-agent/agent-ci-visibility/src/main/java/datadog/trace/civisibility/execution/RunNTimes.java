@@ -47,15 +47,11 @@ public class RunNTimes implements TestExecutionPolicy {
     return lastStatus == TestStatus.skip || executions >= maxExecutions;
   }
 
-  private boolean currentExecutionIsLast() {
-    // this could give false negatives if maxExecutions is updated after the current execution is
-    // registered
-    return executions == maxExecutions - 1;
-  }
-
   @Override
   public boolean applicable() {
-    return !currentExecutionIsLast() || suppressFailures();
+    // executions must always be registered, therefore consider it applicable as long as there are
+    // retries left
+    return !wasLastExecution();
   }
 
   @Override

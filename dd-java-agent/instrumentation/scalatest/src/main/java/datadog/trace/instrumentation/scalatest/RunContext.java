@@ -162,6 +162,18 @@ public class RunContext {
     return executionPolicies.get(testIdentifier);
   }
 
+  @Nullable
+  public TestExecutionHistory popExecutionHistory(TestIdentifier testIdentifier) {
+    TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
+    executionPolicies.computeIfPresent(
+        testIdentifier,
+        (ti, policy) -> {
+          holder[0] = policy;
+          return policy.applicable() ? policy : null;
+        });
+    return holder[0];
+  }
+
   public void destroy() {
     eventHandler.close();
   }

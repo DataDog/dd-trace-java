@@ -189,7 +189,7 @@ public class DatadogReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.getExecutionHistory(testIdentifier);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestFinish(testDescriptor, null, executionHistory);
@@ -212,7 +212,7 @@ public class DatadogReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.getExecutionHistory(testIdentifier);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestFailure(testDescriptor, throwable);
@@ -247,7 +247,7 @@ public class DatadogReporter {
         categories,
         new TestSourceData(testClass, null, null),
         reason != null ? reason.getDescription() : null,
-        context.getExecutionHistory(skippableTest));
+        context.popExecutionHistory(skippableTest));
   }
 
   private static void onTestCancel(TestCanceled event) {
@@ -275,7 +275,7 @@ public class DatadogReporter {
     }
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.getExecutionHistory(testIdentifier);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
 
     eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
@@ -300,7 +300,7 @@ public class DatadogReporter {
     eventHandler.onTestSkip(testDescriptor, reason);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.getExecutionHistory(testIdentifier);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
 
     eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }

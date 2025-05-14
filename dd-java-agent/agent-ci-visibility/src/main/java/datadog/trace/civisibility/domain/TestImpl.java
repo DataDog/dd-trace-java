@@ -67,8 +67,7 @@ public class TestImpl implements DDTest {
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
   private final TestIdentifier identifier;
-
-  private Long startMicros;
+  private final long startMicros;
   private TestStatus status;
 
   public TestImpl(
