@@ -127,15 +127,6 @@ abstract class Liberty20Test extends HttpServerTest<Server> {
     true
   }
 
-  @Override
-  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
-    if (endpoint.path == '/not-found') {
-      'GET /testapp/not-found'
-    } else {
-      super.expectedResourceName(endpoint, method, address)
-    }
-  }
-
   def 'test blocking on response with commit during the response'() {
     setup:
     assumeTrue(testBlockingOnResponse())
@@ -218,7 +209,7 @@ class Liberty20AsyncForkedTest extends Liberty20Test implements TestingGenericHt
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
+class LibertyServletClassloaderNamingForkedTest extends Liberty20V0Test {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -232,7 +223,7 @@ class LibertyServletClassloaderNamingForkedTest extends Liberty20V0ForkedTest {
   // instrumented while on the the global ignores list
   System.getProperty('java.vm.name') == 'IBM J9 VM' &&
   System.getProperty('java.specification.version') == '1.8' })
-class Liberty20V0ForkedTest extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
+class Liberty20V0Test extends Liberty20Test implements TestingGenericHttpNamingConventions.ServerV0 {
 }
 
 @IgnoreIf({
