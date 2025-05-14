@@ -40,4 +40,6 @@ public class DDSpanTypes {
   public static final String WEBSOCKET = "websocket";
 
   public static final String SERVERLESS = "serverless";
+
+  public static final String LLMOBS = "llm";
 }
