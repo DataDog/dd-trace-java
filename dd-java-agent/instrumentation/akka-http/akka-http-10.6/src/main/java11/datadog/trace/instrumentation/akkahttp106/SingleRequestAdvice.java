@@ -8,9 +8,11 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import akka.http.scaladsl.HttpExt;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
@@ -30,7 +32,7 @@ public class SingleRequestAdvice {
 
     if (request != null) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, headers);
+      defaultPropagator().inject(Java8BytecodeBridge.getCurrentContext().with(span).with(dsmContext), request, headers);
       // Request is immutable, so we have to assign new value once we update headers
       request = headers.getRequest();
     }
