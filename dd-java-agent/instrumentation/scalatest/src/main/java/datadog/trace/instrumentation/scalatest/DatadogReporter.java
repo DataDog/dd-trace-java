@@ -246,7 +246,8 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        reason != null ? reason.getDescription() : null);
+        reason != null ? reason.getDescription() : null,
+        context.popExecutionHistory(skippableTest));
   }
 
   private static void onTestCancel(TestCanceled event) {
