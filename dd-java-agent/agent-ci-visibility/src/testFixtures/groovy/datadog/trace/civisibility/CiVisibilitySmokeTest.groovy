@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.config.TestFQN
 import spock.lang.Specification
 
 abstract class CiVisibilitySmokeTest extends Specification {
-  def SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
+  static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
