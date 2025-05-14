@@ -8,6 +8,11 @@ muzzle {
     module = 'servicetalk-concurrent-api'
     versions = '[0.42.0,0.42.56)'
   }
+  fail {
+    group = 'io.servicetalk'
+    module = 'servicetalk-concurrent-api'
+    versions = '[0.42.56,]'
+  }
 }
 
 ext {

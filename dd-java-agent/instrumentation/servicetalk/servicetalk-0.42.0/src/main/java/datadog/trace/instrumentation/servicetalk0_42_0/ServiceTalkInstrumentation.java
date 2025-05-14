@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
@@ -18,13 +19,13 @@ public abstract class ServiceTalkInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    // Instrumentation for ServiceTalk prior to 0.42.56 is disabled by default to avoid the missing
-    // private field "saved" error.
-    // This can't be addressed by a muzzle check because there is no decent public change between
-    // 0.42.55 and 0.42.56.
-    // For versions prior to 0.42.56, this instrumentation must be explicitly enabled with
-    // 'DD_INTEGRATION_SERVICETALK_ENABLED=true'.
-    return false;
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {
+      // This check prevents older instrumentation from being applied to ServiceTalk v0.42.56+
+      new Reference.Builder("io.servicetalk.concurrent.api.DelegatingExecutor")
+          // This field existed was removed in v0.42.56
+          .withField(new String[0], 0, "delegate", "Lio/servicetalk/concurrent/api/Executor;")
+          .build(),
+    };
   }
 }
