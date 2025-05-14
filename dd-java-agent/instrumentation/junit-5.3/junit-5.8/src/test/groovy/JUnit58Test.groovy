@@ -23,7 +23,7 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit58Test extends CiVisibilityInstrumentationTest {
 
-  def "test #testcaseName"() {
+  def "test setup teardown methods #testcaseName"() {
     runTests(tests, success)
 
     assertSpansData(testcaseName)

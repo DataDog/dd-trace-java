@@ -183,6 +183,7 @@ public class CucumberTracingListener extends TracingListener {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
       String testName = CucumberUtils.getTestNameForScenario(description);
       List<String> categories = getCategories(description);
+
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.CUCUMBER)
           .onTestIgnore(
@@ -194,7 +195,8 @@ public class CucumberTracingListener extends TracingListener {
               null,
               categories,
               TestSourceData.UNKNOWN,
-              reason);
+              reason,
+              executionHistories.get(description));
     }
   }
 
