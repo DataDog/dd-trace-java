@@ -191,6 +191,7 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void send(byte[] payload) {
       ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, payload);
+      t.setDaemon(true);
       t.start();
     }
   }
