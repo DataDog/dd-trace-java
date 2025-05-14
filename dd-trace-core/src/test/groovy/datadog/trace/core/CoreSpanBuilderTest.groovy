@@ -374,9 +374,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.traceId != extractedContext.traceId
     span.parentId != extractedContext.spanId
     span.samplingPriority() == PrioritySampling.UNSET
-
-
-    assert span.links.size() == 0
+    span.links.empty
   }
 
   def "TagContext should populate default span details"() {
