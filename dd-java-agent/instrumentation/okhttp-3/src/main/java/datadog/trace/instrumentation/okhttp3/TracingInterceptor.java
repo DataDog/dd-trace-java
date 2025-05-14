@@ -12,11 +12,8 @@ import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.io.IOException;
-
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
-import datadog.trace.core.scopemanager.ContinuableScopeManager;
-
+import java.io.IOException;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -34,7 +31,7 @@ public class TracingInterceptor implements Interceptor {
       System.out.println("AgentScope: " + scope.getClass());
       System.out.println("scope.context(): " + scope.context().getClass());
       System.out.print("Context.current(): ");
-      System.out.println(Context.current()==Context.root());
+      System.out.println(Context.current() == Context.root());
       System.out.println(Context.current().getClass());
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
@@ -43,14 +40,15 @@ public class TracingInterceptor implements Interceptor {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
 
       Baggage baggage = Baggage.fromContext(Context.current());
-      if(baggage != null){
+      if (baggage != null) {
         System.out.println("Baggage: " + baggage.getW3cHeader());
-      }else{
+      } else {
         System.out.println("null baggage");
       }
       System.out.println("span: " + span);
       System.out.println("span.with(baggage): " + span.with(baggage));
-      defaultPropagator().inject(Context.current().with(span).with(dsmContext), requestBuilder, SETTER);
+      defaultPropagator()
+          .inject(Context.current().with(span).with(dsmContext), requestBuilder, SETTER);
 
       final Response response;
       try {

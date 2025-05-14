@@ -61,11 +61,11 @@ public class BaggagePropagator implements Propagator {
     }
 
     String headerValue = baggage.getW3cHeader();
-//    if (headerValue != null) {
-//      System.out.println("Returning cached value immediately");
-//      setter.set(carrier, BAGGAGE_KEY, headerValue);
-//      return;
-//    }e
+    //    if (headerValue != null) {
+    //      System.out.println("Returning cached value immediately");
+    //      setter.set(carrier, BAGGAGE_KEY, headerValue);
+    //      return;
+    //    }e
 
     int processedItems = 0;
     int currentBytes = 0;
