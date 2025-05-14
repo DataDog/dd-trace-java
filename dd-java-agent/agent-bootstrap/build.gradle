@@ -1,6 +1,6 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
   id 'me.champeau.jmh'
 }
 
