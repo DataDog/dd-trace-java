@@ -1,21 +1,39 @@
 package com.datadog.appsec.event.data
 
-import spock.lang.Specification
+import com.datadog.appsec.gateway.AppSecRequestContext
+import datadog.trace.api.telemetry.WafMetricCollector
+import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 
 import java.nio.CharBuffer
 
 import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
-class ObjectIntrospectionSpecification extends Specification {
+class ObjectIntrospectionSpecification extends DDSpecification {
+
+  @Shared
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
+
+  AppSecRequestContext ctx = Mock(AppSecRequestContext)
+
+  WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+
+  void setup() {
+    WafMetricCollector.INSTANCE = wafMetricCollector
+  }
+
+  void cleanup() {
+    WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
+  }
 
   void 'null is preserved'() {
     expect:
-    convert(null) == null
+    convert(null, ctx) == null
   }
 
   void 'type #type is preserved'() {
     when:
-    def result = convert(input)
+    def result = convert(input, ctx)
 
     then:
     input.getClass() == type
@@ -38,7 +56,7 @@ class ObjectIntrospectionSpecification extends Specification {
 
   void 'type #type is converted to string'() {
     when:
-    def result = convert(input)
+    def result = convert(input, ctx)
 
     then:
     type.isAssignableFrom(input.getClass())
@@ -65,9 +83,9 @@ class ObjectIntrospectionSpecification extends Specification {
     }
 
     expect:
-    convert(iter) instanceof List
-    convert(iter) == ['a', 'b']
-    convert(['a', 'b']) == ['a', 'b']
+    convert(iter, ctx) instanceof List
+    convert(iter, ctx) == ['a', 'b']
+    convert(['a', 'b'], ctx) == ['a', 'b']
   }
 
   void 'maps are converted to hash maps'() {
@@ -77,21 +95,21 @@ class ObjectIntrospectionSpecification extends Specification {
     }
 
     expect:
-    convert(map) instanceof HashMap
-    convert(map) == [a: 'b']
-    convert([(6): 'b']) == ['6': 'b']
-    convert([(null): 'b']) == ['null': 'b']
-    convert([(true): 'b']) == ['true': 'b']
-    convert([('a' as Character): 'b']) == ['a': 'b']
-    convert([(createCharBuffer('a')): 'b']) == ['a': 'b']
+    convert(map, ctx) instanceof HashMap
+    convert(map, ctx) == [a: 'b']
+    convert([(6): 'b'], ctx) == ['6': 'b']
+    convert([(null): 'b'], ctx) == ['null': 'b']
+    convert([(true): 'b'], ctx) == ['true': 'b']
+    convert([('a' as Character): 'b'], ctx) == ['a': 'b']
+    convert([(createCharBuffer('a')): 'b'], ctx) == ['a': 'b']
   }
 
   void 'arrays are converted into lists'() {
     expect:
-    convert([6, 'b'] as Object[]) == [6, 'b']
-    convert([null, null] as Object[]) == [null, null]
-    convert([1, 2] as int[]) == [1 as int, 2 as int]
-    convert([1, 2] as byte[]) == [1 as byte, 2 as byte]
+    convert([6, 'b'] as Object[], ctx) == [6, 'b']
+    convert([null, null] as Object[], ctx) == [null, null]
+    convert([1, 2] as int[], ctx) == [1 as int, 2 as int]
+    convert([1, 2] as byte[], ctx) == [1 as byte, 2 as byte]
   }
 
   @SuppressWarnings('UnusedPrivateField')
@@ -109,8 +127,8 @@ class ObjectIntrospectionSpecification extends Specification {
 
   void 'other objects are converted into hash maps'() {
     expect:
-    convert(new ClassToBeConverted()) instanceof HashMap
-    convert(new ClassToBeConvertedExt()) == [c: 'd', a: 'b', l: [1, 2]]
+    convert(new ClassToBeConverted(), ctx) instanceof HashMap
+    convert(new ClassToBeConvertedExt(), ctx) == [c: 'd', a: 'b', l: [1, 2]]
   }
 
   class ProtobufLikeClass {
@@ -121,15 +139,15 @@ class ObjectIntrospectionSpecification extends Specification {
 
   void 'some field names are ignored'() {
     expect:
-    convert(new ProtobufLikeClass()) instanceof HashMap
-    convert(new ProtobufLikeClass()) == [c: 'd']
+    convert(new ProtobufLikeClass(), ctx) instanceof HashMap
+    convert(new ProtobufLikeClass(), ctx) == [c: 'd']
   }
 
   void 'invalid keys are converted to special strings'() {
     expect:
-    convert(Collections.singletonMap(new ClassToBeConverted(), 'a')) == ['invalid_key:1': 'a']
-    convert([new ClassToBeConverted(): 'a', new ClassToBeConverted(): 'b']) == ['invalid_key:1': 'a', 'invalid_key:2': 'b']
-    convert(Collections.singletonMap([1, 2], 'a')) == ['invalid_key:1': 'a']
+    convert(Collections.singletonMap(new ClassToBeConverted(), 'a'), ctx) == ['invalid_key:1': 'a']
+    convert([new ClassToBeConverted(): 'a', new ClassToBeConverted(): 'b'], ctx) == ['invalid_key:1': 'a', 'invalid_key:2': 'b']
+    convert(Collections.singletonMap([1, 2], 'a'), ctx) == ['invalid_key:1': 'a']
   }
 
   void 'max number of elements is honored'() {
@@ -137,52 +155,139 @@ class ObjectIntrospectionSpecification extends Specification {
     def m = [:]
     128.times { m[it] = 'b' }
 
-    expect:
-    convert([['a'] * 255])[0].size() == 254 // +2 for the lists
-    convert([['a'] * 255 as String[]])[0].size() == 254 // +2 for the lists
-    convert(m).size() == 127 // +1 for the map, 2 for each entry (key and value)
+    when:
+    def result1 = convert([['a'] * 255], ctx)[0]
+    def result2 = convert([['a'] * 255 as String[]], ctx)[0]
+    def result3 = convert(m, ctx)
+
+    then:
+    result1.size() == 254 // +2 for the lists
+    result2.size() == 254 // +2 for the lists
+    result3.size() == 127  // +1 for the map, 2 for each entry (key and value)
+    2 * ctx.setWafTruncated()
+    2 * wafMetricCollector.wafInputTruncated(false, true, false)
+
   }
 
   void 'max depth is honored — array version'() {
     setup:
+    // Build a nested array 22 levels deep
     Object[] objArray = new Object[1]
     def p = objArray
-    22.times {p = p[0] = new Object[1]}
+    22.times { p = p[0] = new Object[1] }
 
-    expect:
+    when:
+    // Invoke conversion with context
+    def result = convert(objArray, ctx)
+
+    then:
+    // Traverse converted arrays to count actual depth
     int depth = 0
-    for (p = convert(objArray); p != null; p = p[0]) {
+    for (p = result; p != null; p = p[0]) {
       depth++
     }
     depth == 21 // after max depth we have nulls
+
+    // Should record a truncation due to depth
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, false, true)
   }
 
   void 'max depth is honored — list version'() {
     setup:
+    // Build a nested list 22 levels deep
     def list = []
     def p = list
-    22.times {p << []; p = p[0] }
+    22.times { p << []; p = p[0] }
 
-    expect:
+    when:
+    // Invoke conversion with context
+    def result = convert(list, ctx)
+
+    then:
+    // Traverse converted lists to count actual depth
     int depth = 0
-    for (p = convert(list); p != null; p = p[0]) {
+    for (p = result; p != null; p = p[0]) {
       depth++
     }
     depth == 21 // after max depth we have nulls
+
+    // Should record a truncation due to depth
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, false, true)
   }
 
   def 'max depth is honored — map version'() {
     setup:
+    // Build a nested map 22 levels deep under key 'a'
     def map = [:]
     def p = map
-    22.times {p['a'] = [:]; p = p['a'] }
+    22.times { p['a'] = [:]; p = p['a'] }
 
-    expect:
+    when:
+    // Invoke conversion with context
+    def result = convert(map, ctx)
+
+    then:
+    // Traverse converted maps to count actual depth
     int depth = 0
-    for (p = convert(map); p != null; p = p['a']) {
+    for (p = result; p != null; p = p['a']) {
       depth++
     }
     depth == 21 // after max depth we have nulls
+
+    // Should record a truncation due to depth
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, false, true)
+  }
+
+  void 'truncate long #typeName to 4096 chars and set truncation flag'() {
+    setup:
+    def longInput = rawInput
+
+    when:
+    def converted   = convert(longInput, ctx)
+
+    then:
+    // Should always produce a String of exactly 4096 chars
+    converted instanceof String
+    converted.length() == 4096
+
+    // Should record a truncation due to string length
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(true, false, false)
+
+    where:
+    typeName        | rawInput
+    'String'        | 'A' * 5000
+    'StringBuilder' | new StringBuilder('B' * 6000)
+  }
+
+  void 'truncate long #typeName when used as map key to 4096 chars and set truncation flag'() {
+    setup:
+    // Build a map whose only key is a very long string/CharSequence
+    def longKey = rawKey
+    def inputMap = [(longKey): 'value']
+
+    when:
+    // convert returns Pair<convertedObject, wasTruncated>
+    def converted   = convert(inputMap, ctx)
+
+    then:
+    // Extract the single truncated key
+    def truncatedKey = converted.keySet().iterator().next() as String
+
+    // Key must be exactly 4096 characters
+    truncatedKey.length() == 4096
+
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(true, false, false)
+
+
+    where:
+    typeName        | rawKey
+    'String'        | 'A' * 5000
+    'StringBuilder' | new StringBuilder('B' * 6000)
   }
 
   void 'conversion of an element throws'() {
@@ -197,6 +302,6 @@ class ObjectIntrospectionSpecification extends Specification {
     }
 
     expect:
-    convert([cs]) == ['error:my exception']
+    convert([cs], ctx) == ['error:my exception']
   }
 }
