@@ -160,22 +160,16 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestDescriptorHandle descriptorHandle = new TestDescriptorHandle(testDescriptor);
 
       int retryAttemptIdx = 0;
-      boolean retry;
       while (true) {
         factory.setSuppressFailures(executionPolicy.suppressFailures());
 
-        long startTimestamp = System.currentTimeMillis();
         CallDepthThreadLocalMap.incrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
         testTask.execute();
         CallDepthThreadLocalMap.decrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
-        long duration = System.currentTimeMillis() - startTimestamp;
 
-        Throwable error = factory.getCollector().getThrowable();
         factory.setSuppressFailures(false); // restore default behavior
 
-        boolean success = error == null || JUnitPlatformUtils.isAssumptionFailure(error);
-        retry = executionPolicy.retry(success, duration);
-        if (!retry) {
+        if (executionPolicy.wasLastExecution()) {
           break;
         }
 

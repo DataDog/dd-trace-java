@@ -12,8 +12,6 @@ public class FailureSuppressingNotifier extends RunNotifier {
 
   private final TestExecutionPolicy executionPolicy;
 
-  private boolean failed;
-
   public FailureSuppressingNotifier(TestExecutionPolicy executionPolicy, RunNotifier notifier) {
     this.executionPolicy = executionPolicy;
 
@@ -25,8 +23,6 @@ public class FailureSuppressingNotifier extends RunNotifier {
 
   @Override
   public void fireTestFailure(Failure failure) {
-    this.failed = true;
-
     if (!executionPolicy.suppressFailures()) {
       super.fireTestFailure(failure);
       return;
@@ -43,11 +39,5 @@ public class FailureSuppressingNotifier extends RunNotifier {
         listener.testAssumptionFailure(failure);
       }
     }
-  }
-
-  public boolean getAndResetFailedFlag() {
-    boolean failed = this.failed;
-    this.failed = false;
-    return failed;
   }
 }

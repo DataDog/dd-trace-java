@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.config.TestSourceData
+import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
@@ -100,8 +101,8 @@ class ExecutionStrategyTest extends Specification {
     def strategy = givenAnExecutionStrategy(executionSettings)
     def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN, [])
 
-    // retry once to get the retry reason
-    policy.retry(true, 0)
+    // register one execution to get the retry reason
+    policy.registerExecution(TestStatus.pass, 0)
 
     expect:
     policy.class == RunNTimes
