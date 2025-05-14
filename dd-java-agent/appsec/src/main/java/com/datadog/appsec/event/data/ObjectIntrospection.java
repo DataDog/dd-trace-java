@@ -38,25 +38,6 @@ public final class ObjectIntrospection {
 
   private ObjectIntrospection() {}
 
-  /** Functional interface to receive truncation flags. */
-  @FunctionalInterface
-  public interface TruncationCallback {
-
-    /**
-     * Called when the object is converted.
-     *
-     * @param requestContext the request context
-     * @param stringTooLong true if a string was truncated
-     * @param listMapTooLarge true if a list or map was truncated
-     * @param objectTooDeep true if an object was too deep
-     */
-    void onTruncation(
-        AppSecRequestContext requestContext,
-        boolean stringTooLong,
-        boolean listMapTooLarge,
-        boolean objectTooDeep);
-  }
-
   /**
    * Converts arbitrary objects compatible with ddwaf_object. Possible types in the result are:
    *
