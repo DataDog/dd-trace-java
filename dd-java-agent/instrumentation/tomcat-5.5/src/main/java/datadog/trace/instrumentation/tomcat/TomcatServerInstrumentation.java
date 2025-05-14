@@ -126,8 +126,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       final Context extractedContext = DECORATE.extractContext(req);
       // TODO: Migrate setting DD_EXTRACTED_CONTEXT_ATTRIBUTE from AgentSpanContext.Extracted to
       // Context
-      req.setAttribute(
-          DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(extractedContext));
+      req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getSpanContext(extractedContext));
 
       final AgentSpan span = DECORATE.startSpanFromContext("http-server", req, extractedContext);
       final ContextScope scope = extractedContext.with(span).attach();

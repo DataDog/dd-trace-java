@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.context.Context.root;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -9,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -135,12 +136,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
+  /**
+   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentation's is complete
+   */
   public Context extractContext(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
-      return null;
+      return root();
     }
-    return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    return defaultPropagator().extract(root(), carrier, getter);
   }
 
   /** Deprecated. Use {@link #startSpanFromContext(String, Object, Context)} instead. */
@@ -166,12 +170,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
+  /**
+   * Will be renamed to #startSpan(String, REQUEST_CARRIER, Context) when refactoring of
+   * instrumentation's is complete
+   */
   public AgentSpan startSpanFromContext(
       String instrumentationName, REQUEST_CARRIER carrier, Context context) {
-    return startSpan(instrumentationName, carrier, getExtractedSpanContext(context));
+    return startSpan(instrumentationName, carrier, getSpanContext(context));
   }
 
-  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
+  public AgentSpanContext.Extracted getSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
