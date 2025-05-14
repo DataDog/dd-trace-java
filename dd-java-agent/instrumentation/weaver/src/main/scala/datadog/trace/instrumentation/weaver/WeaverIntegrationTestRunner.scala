@@ -8,6 +8,7 @@ import java.io.PrintStream
 import scala.jdk.CollectionConverters.*
 
 object WeaverIntegrationTestRunner {
+  @de.thetaphi.forbiddenapis.SuppressForbidden
   def runTests(testNames: java.util.List[String]): Unit = {
     class WeaverTestEventHandler() extends EventHandler {
       val events = scala.collection.mutable.ListBuffer.empty[sbt.testing.Event]

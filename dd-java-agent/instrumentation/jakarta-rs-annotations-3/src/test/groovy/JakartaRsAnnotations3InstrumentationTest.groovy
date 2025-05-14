@@ -59,6 +59,7 @@ class JakartaRsAnnotations3InstrumentationTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jakarta-rs"
             "$Tags.HTTP_ROUTE" name.split(" ").last()
+            withCustomIntegrationName(null)
             defaultTags()
           }
         }

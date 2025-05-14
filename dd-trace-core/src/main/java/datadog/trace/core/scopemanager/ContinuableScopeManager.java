@@ -24,8 +24,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
-import datadog.trace.bootstrap.instrumentation.api.ScopeStateAware;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -45,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public final class ContinuableScopeManager implements ScopeStateAware, ContextManager {
+public final class ContinuableScopeManager implements ContextManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -350,11 +348,6 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
   }
 
   @Override
-  public ScopeState newScopeState() {
-    return new ContinuableScopeState();
-  }
-
-  @Override
   public Context current() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? Context.root() : active.context;
@@ -367,22 +360,33 @@ public final class ContinuableScopeManager implements ScopeStateAware, ContextMa
 
   @Override
   public Context swap(Context context) {
-    throw new UnsupportedOperationException("Not yet implemented");
-  }
+    ScopeStack oldStack = tlsScopeStack.get();
+    ContinuableScope oldScope = oldStack.top;
 
-  private class ContinuableScopeState implements ScopeState {
-
-    private ScopeStack localScopeStack = tlsScopeStack.initialValue();
-
-    @Override
-    public void activate() {
-      tlsScopeStack.set(localScopeStack);
+    ScopeStack newStack;
+    ContinuableScope newScope;
+    if (context instanceof ScopeContext) {
+      // restore previously swapped context stack
+      newStack = ((ScopeContext) context).scopeStack;
+      newScope = newStack.top;
+    } else if (context != Context.root()) {
+      // start a new stack and record the new context as active
+      newStack = new ScopeStack(profilingContextIntegration);
+      newScope = new ContinuableScope(this, context, CONTEXT, true, createScopeState(context));
+      newStack.top = newScope;
+    } else {
+      // start a new stack with no active context
+      newStack = new ScopeStack(profilingContextIntegration);
+      newScope = null;
     }
 
-    @Override
-    public void fetchFromActive() {
-      localScopeStack = tlsScopeStack.get();
+    tlsScopeStack.set(newStack);
+    if (oldScope != newScope && newScope != null) {
+      newScope.beforeActivated();
+      newScope.afterActivated();
     }
+
+    return new ScopeContext(oldStack);
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

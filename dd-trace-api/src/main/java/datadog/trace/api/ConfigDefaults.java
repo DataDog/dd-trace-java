@@ -241,7 +241,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
-      new HashSet<>(asList("DD_TAGS", "DD_LOGS_INJECTION"));
+      new HashSet<>(
+          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;

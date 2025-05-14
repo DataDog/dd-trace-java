@@ -70,91 +70,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "scope state should be able to fetch and activate state when there is no active span"() {
-    when:
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    writer == [[scope.span()]]
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-  }
-
-  def "scope state should be able to fetch and activate state when there is an active span"() {
-    when:
-    def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    scopeManager.active() == null
-    writer == [[scope.span()]]
-  }
-
   def "non-ddspan activation results in a continuable scope"() {
     when:
     def scope = scopeManager.activateSpan(noopSpan())
@@ -1155,6 +1070,130 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.active() == null
     scopeManager.current() == Context.root()
     scopeManager.activeSpan() == null
+  }
+
+  def "rollback stops at most recent checkpoint"() {
+    when:
+    def span1 = tracer.buildSpan("test1", "test1").start()
+    def span2 = tracer.buildSpan("test2", "test2").start()
+    def span3 = tracer.buildSpan("test3", "test3").start()
+    then:
+    scopeManager.activeSpan() == null
+
+    when:
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.activateSpan(span2)
+    tracer.activateSpan(span3)
+    then:
+    scopeManager.activeSpan() == span3
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == null
+  }
+
+  def "contexts can be swapped out and back"() {
+    setup:
+    def testKey = ContextKey.named("test")
+    def context1 = Context.root().with(testKey, "first-value")
+    def context2 = context1.with(testKey, "second-value")
+
+    when:
+    def swappedOut = scopeManager.swap(Context.root())
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+
+    when:
+    scopeManager.swap(context1)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.current() == context1
+
+    when:
+    scopeManager.swap(swappedOut)
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+
+    when:
+    def contextScope = scopeManager.attach(context1)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context1
+
+    when:
+    swappedOut = scopeManager.swap(context2)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.active() != contextScope
+    scopeManager.current() == context2
+    swappedOut.get(testKey) == "first-value"
+
+    when:
+    def context3 = swappedOut.with(testKey, "third-value")
+    scopeManager.swap(context3)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.active() != contextScope
+    scopeManager.current() == context3
+
+    when:
+    scopeManager.swap(swappedOut)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context1
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
   }
 
   boolean spanFinished(AgentSpan span) {

@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 761b9e7a82ffb136c4653a4d1623d120d67b005b
+default_system_tests_commit: &default_system_tests_commit 9049791de92dcb72b104e99a80f6f9914c1b96fb
 
 parameters:
   nightly:
@@ -744,79 +744,6 @@ jobs:
           path: ./reports
 
       - display_memory_usage
-  muzzle-dep-report:
-    <<: *defaults
-    resource_class: medium
-    steps:
-      - setup_code
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-      - run:
-          name: Generate muzzle dep report
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew generateMuzzleReport muzzleInstrumentationReport
-      - run:
-          name: Collect Reports
-          command: .circleci/collect_muzzle_deps.sh
-      - store_artifacts:
-          path: ./reports
-
-  muzzle:
-    <<: *defaults
-    resource_class: medium+
-    parallelism: 4
-    steps:
-      - setup_code
-
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-
-      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
-      # ends up taking more time restoring/saving than the actual increase in time it takes just
-      # downloading the artifacts each time.
-      #
-      # Let's at least restore the build cache to have something to start from.
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-
-      - run:
-          name: Gather muzzle tasks
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew writeMuzzleTasksToFile
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=3
-
-      - run:
-          name: Verify Muzzle
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=4
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
-
-      - display_memory_usage
 
   system-tests:
     machine:
@@ -850,8 +777,6 @@ jobs:
             (
             echo "
             DEFAULT
-            APM_TRACING_E2E
-            APM_TRACING_E2E_SINGLE_SPAN
             TRACING_CONFIG_NONDEFAULT
             TRACING_CONFIG_NONDEFAULT_2
             TRACING_CONFIG_NONDEFAULT_3
@@ -875,14 +800,8 @@ jobs:
               "
             fi
             ) | circleci tests split > scenarios.list
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
             for scenario in $(<scenarios.list); do
-              if [[ $scenario =~ .*_E2E.* ]]; then
-                export DD_SITE=datadoghq.com
-                export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY
-                export DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY
-              else
-                export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
-              fi
               echo "Running scenario $scenario"
               ./run.sh $scenario
             done
@@ -922,27 +841,11 @@ jobs:
 
       - run:
           name: Run APM Integrations tests
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
-
-      - run:
-          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
 
       - store_test_results:
           path: system-tests/logs_integrations
@@ -975,7 +878,7 @@ jobs:
           no_output_timeout: 5m
           command: |
             cd system-tests
-            export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
             ./run.sh DEBUGGER_SCENARIOS
 
       - run:
@@ -1365,6 +1268,24 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: test_graalvm17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm17"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm21_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm21"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm17_smoke
       gradleTarget: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
       stage: smoke
       cacheType: smoke
@@ -1451,20 +1372,6 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
 
-  - muzzle:
-      requires:
-        - ok_to_test
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - muzzle-dep-report:
-      requires:
-        - ok_to_test
-
   - system-tests:
       requires:
         - ok_to_test
@@ -1512,7 +1419,6 @@ build_test_jobs: &build_test_jobs
         - "test_{{ jdk }}"
 {% endfor %}
         - test_inst_latest
-        - muzzle
         - profiling
         - debugger
         - system-tests

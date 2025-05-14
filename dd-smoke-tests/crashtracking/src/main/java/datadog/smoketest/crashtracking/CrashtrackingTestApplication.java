@@ -39,7 +39,7 @@ public class CrashtrackingTestApplication {
     while (size < 1024) {
       buffer.add(new byte[size * 1024 * 1024]);
       System.out.println("Allocated " + size + "MB");
-      if (size < 256) {
+      if (size < 512) {
         size *= 2;
       }
     }

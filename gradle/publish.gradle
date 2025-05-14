@@ -21,7 +21,7 @@ assert !forceLocal || forceLocal != isGitlabCI
 publishing {
   publications {
     maven(MavenPublication) { MavenPublication publication ->
-      if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+      if (project.plugins.hasPlugin('com.gradleup.shadow')) {
         publication.artifact(project.tasks.shadowJar)
 
         // Required by Maven Central:
@@ -56,7 +56,7 @@ publishing {
   }
 }
 
-if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   // Disable gradle module metadata to avoid publishing contradictory info.
   tasks.withType(GenerateModuleMetadata).configureEach {
     enabled = false

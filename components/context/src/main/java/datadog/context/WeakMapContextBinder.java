@@ -11,6 +11,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 /** {@link ContextBinder} that uses a global weak map of carriers to contexts. */
 @ParametersAreNonnullByDefault
 final class WeakMapContextBinder implements ContextBinder {
+  static final ContextBinder INSTANCE = new WeakMapContextBinder();
+
   private static final Map<Object, Context> TRACKED = synchronizedMap(new WeakHashMap<>());
 
   @Override

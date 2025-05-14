@@ -55,11 +55,15 @@ class MuzzlePlugin implements Plugin<Project> {
 
   static {
     RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    // Only needed for restlet
-    RemoteRepository restlet = new RemoteRepository.Builder("restlet", "default", "https://maven.restlet.talend.com/").build()
-    // Only needed  for play-2.3
-    RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/maven-releases/").build()
-    MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
+
+    String mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+
+    if (mavenProxyUrl == null) {
+      MUZZLE_REPOS = Collections.singletonList(central)
+    } else {
+      RemoteRepository proxy = new RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
+      MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(proxy, central))
+    }
   }
 
   static class TestedArtifact {
