@@ -68,7 +68,6 @@ public class TestImpl implements DDTest {
   private final TestContext context;
   private final TestIdentifier identifier;
   private final long startMicros;
-  private TestStatus status;
 
   public TestImpl(
       AgentSpanContext moduleSpanContext,
@@ -138,7 +137,6 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE_ID, moduleSpanContext.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, moduleSpanContext.getTraceId());
 
-    status = TestStatus.pass;
     span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
@@ -210,10 +208,6 @@ public class TestImpl implements DDTest {
     return identifier;
   }
 
-  public boolean hasFailed() {
-    return span.isError();
-  }
-
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
@@ -223,14 +217,11 @@ public class TestImpl implements DDTest {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    status = TestStatus.fail;
     span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    status = TestStatus.skip;
-
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
@@ -244,7 +235,7 @@ public class TestImpl implements DDTest {
   }
 
   public TestStatus getStatus() {
-    return status;
+    return (TestStatus) span.getTag(Tags.TEST_STATUS);
   }
 
   public long getDuration(@Nullable Long endMicros) {

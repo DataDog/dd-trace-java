@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -255,7 +256,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestIdentifier thisTest = test.getIdentifier();
     if (testExecutionHistory != null) {
-      testExecutionHistory.registerExecution(test.getStatus(), test.getDuration(endTime));
+      TestStatus testStatus = test.getStatus();
+      testExecutionHistory.registerExecution(
+          testStatus != null ? testStatus : TestStatus.skip, test.getDuration(endTime));
 
       if (testExecutionHistory.hasFailedAllRetries()) {
         test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
