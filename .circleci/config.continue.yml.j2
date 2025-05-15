@@ -179,9 +179,14 @@ commands:
   display_memory_usage:
     steps:
       - run:
-          name: Max Memory Used
+          name: Runner Memory Usage
           # The file does not seem to exist when DLC is disabled
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes || true
+          command: |
+            # Show cgroupv2 memory usage
+            printf "cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 'not found')"
+            printf "cgroup memory.max : $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 'not found')"
+            printf "cgroup memory.high: $(cat /sys/fs/cgroup/memory.high 2>/dev/null || echo 'not found')"
+            printf "ram memory        : $(grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f 2)%s\n"
           when: always
 
 
@@ -282,7 +287,7 @@ commands:
 jobs:
   build:
     <<: *defaults
-    resource_class: xlarge
+    resource_class: 2xlarge
 
     parameters:
       gradleTarget:
@@ -304,15 +309,15 @@ jobs:
 
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
-
+          
       - run:
           name: Build Project
           command: >-
 {% if is_nightly %}
-            ./gradlew resolveAndLockAll --write-locks &&
+            ./gradlew resolveAndLockAll --write-locks --no-daemon &&
 {% endif %}
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
