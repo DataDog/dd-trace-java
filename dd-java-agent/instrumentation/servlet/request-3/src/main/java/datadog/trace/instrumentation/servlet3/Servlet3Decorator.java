@@ -7,6 +7,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.io.IOException;
+import java.io.OutputStream;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -98,6 +100,14 @@ public class Servlet3Decorator
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
     return super.onRequest(span, connection, request, context);
+  }
+
+  protected OutputStream responseBody(HttpServletResponse response) {
+    try {
+      return response.getOutputStream();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
