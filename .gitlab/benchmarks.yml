@@ -33,14 +33,14 @@
 
 benchmarks-artifacts-dl:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
-  needs: [ "build" ]
+  needs: [ ]
   stage: benchmarks
   script:
     - mkdir test-dl
     - cd test-dl
     - 'curl -v -f --location --header "JOB-TOKEN: $CI_JOB_TOKEN" --output master-artifacts.zip "$CI_API_V4_URL/projects/304/jobs/artifacts/master/download?job=build"'
     - unzip master-artifacts.zip
-    - 'curl -v -f --location --header "JOB-TOKEN: $CI_JOB_TOKEN" --output master-artifacts.zip "$CI_API_V4_URL/projects/304/jobs/artifacts/smola/enable-api-security-by-default/download?job=build"'
+    - 'curl -v -f --location --header "JOB-TOKEN: $CI_JOB_TOKEN" --output branch-artifacts.zip "$CI_API_V4_URL/projects/304/jobs/artifacts/smola/enable-api-security-by-default/download?job=build"'
   artifacts:
     name: "downloads"
     paths:
