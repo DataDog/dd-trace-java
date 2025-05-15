@@ -149,7 +149,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  private childSpan() {
+  private static childSpan() {
     AgentTracer.startSpan("test", "child").finish()
   }
 }

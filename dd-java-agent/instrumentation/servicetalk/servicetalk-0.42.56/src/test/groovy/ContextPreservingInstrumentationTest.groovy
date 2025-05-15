@@ -3,7 +3,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
 import io.servicetalk.concurrent.api.CapturedContext
-
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -11,11 +10,28 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class ContextPreservingInstrumentationTest extends AgentTestRunner {
 
+  def "capturedContext"() {
+    setup:
+    def parent = startParentContext()
+
+    when:
+    runInSeparateThread {
+      parent.capturedContext.attachContext()
+      try (def _ = parent.capturedContext.attachContext()) {
+        childSpan()
+      }
+    }
+    parent.releaseParentSpan()
+
+    then:
+    assertParentChildTrace()
+  }
+
   def "wrapBiConsumer"() {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapBiConsumer({ t, u -> childSpan() }, parent.capturedContext)
+    asyncContextProvider.wrapBiConsumer({ t, u -> childSpan() }, parent.capturedContext)
 
     when:
     runInSeparateThread{ wrapped.accept(null, null) }
@@ -29,7 +45,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapBiFunction({ t, u -> childSpan() }, parent.capturedContext)
+    asyncContextProvider.wrapBiFunction({ t, u -> childSpan() }, parent.capturedContext)
 
     when:
     runInSeparateThread{ wrapped.apply(null, null) }
@@ -43,7 +59,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapCallable({ -> childSpan() }, parent.capturedContext)
+    asyncContextProvider.wrapCallable({ -> childSpan() }, parent.capturedContext)
 
     when:
     runInSeparateThread{ wrapped.call() }
@@ -57,7 +73,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapConsumer({ t -> childSpan() }, parent.capturedContext)
+    asyncContextProvider.wrapConsumer({ t -> childSpan() }, parent.capturedContext)
 
     when:
     runInSeparateThread{ wrapped.accept(null) }
@@ -71,7 +87,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapFunction({ t -> childSpan() }, parent.capturedContext)
+    asyncContextProvider.wrapFunction({ t -> childSpan() }, parent.capturedContext)
 
     when:
     runInSeparateThread { wrapped.apply(null) }
@@ -85,7 +101,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     setup:
     def parent = startParentContext()
     def wrapped =
-      asyncContextProvider.wrapRunnable({ -> childSpan() },  parent.capturedContext)
+    asyncContextProvider.wrapRunnable({ -> childSpan() },  parent.capturedContext)
 
     when:
     runInSeparateThread(wrapped)
@@ -113,7 +129,6 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
    */
   private class ParentContext {
     final CapturedContext capturedContext = asyncContextProvider.captureContext()
-    //    final CapturedContext capturedContext = asyncContextProvider.captureContextCopy() //TODO
     final AgentScope.Continuation spanContinuation = AgentTracer.captureActiveSpan()
 
     def releaseParentSpan() {
@@ -151,7 +166,7 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  private childSpan() {
+  private static childSpan() {
     AgentTracer.startSpan("test", "child").finish()
   }
 }
