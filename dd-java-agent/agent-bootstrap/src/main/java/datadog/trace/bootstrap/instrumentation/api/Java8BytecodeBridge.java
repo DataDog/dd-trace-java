@@ -29,4 +29,9 @@ public class Java8BytecodeBridge {
   public static Context detachContextFrom(Object carrier) {
     return Context.detachFrom(carrier);
   }
+
+  /** @see AgentSpan#fromContext(Context) */
+  public static AgentSpan spanFromContext(Context context) {
+    return AgentSpan.fromContext(context);
+  }
 }

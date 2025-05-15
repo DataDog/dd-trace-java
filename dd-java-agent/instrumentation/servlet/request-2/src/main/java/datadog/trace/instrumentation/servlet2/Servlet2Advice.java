@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
@@ -97,7 +98,7 @@ public class Servlet2Advice {
     if (scope == null) {
       return;
     }
-    final AgentSpan span = AgentSpan.fromContext(scope.context());
+    final AgentSpan span = spanFromContext(scope.context());
 
     if (response instanceof HttpServletResponse) {
       DECORATE.onResponse(
