@@ -98,6 +98,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private volatile StoredBodySupplier storedResponseBodySupplier;
   private String dbType;
 
   private int responseStatus;
@@ -106,6 +107,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private boolean rawResBodyPublished;
   private boolean pathParamsPublished;
   private volatile Map<String, String> derivatives;
 
@@ -451,6 +453,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  void setStoredResponseBodySupplier(StoredBodySupplier storedResponseBodySupplier) {
+    this.storedResponseBodySupplier = storedResponseBodySupplier;
+  }
+
   public String getDbType() {
     return dbType;
   }
@@ -503,8 +509,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return respDataPublished;
   }
 
+  public boolean isRawResBodyPublished() {
+    return rawResBodyPublished;
+  }
+
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public void setRawResBodyPublished(boolean rawResBodyPublished) {
+    this.rawResBodyPublished = rawResBodyPublished;
   }
 
   /**
@@ -578,6 +592,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       return null;
     }
     return storedRequestBodySupplier.get();
+  }
+
+  /** @return the portion of the body read so far, if any */
+  public CharSequence getStoredResponseBody() {
+    StoredBodySupplier storedResponseBodySupplier = this.storedResponseBodySupplier;
+    if (storedResponseBodySupplier == null) {
+      return null;
+    }
+    return storedResponseBodySupplier.get();
   }
 
   public void reportEvents(Collection<AppSecEvent> appSecEvents) {
