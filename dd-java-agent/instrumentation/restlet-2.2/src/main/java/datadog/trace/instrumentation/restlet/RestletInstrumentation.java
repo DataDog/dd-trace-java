@@ -72,7 +72,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan span = AgentSpan.fromContext(scope.context());
+      AgentSpan span = spanFromContext(scope.context());
       DECORATE.onResponse(span, exchange);
 
       if (null != error) {

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -107,7 +108,7 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       }
 
       if (throwable != null) {
-        final AgentSpan span = AgentSpan.fromContext(scope.context());
+        final AgentSpan span = spanFromContext(scope.context());
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();

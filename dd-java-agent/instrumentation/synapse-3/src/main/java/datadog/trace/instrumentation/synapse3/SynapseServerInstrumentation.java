@@ -114,7 +114,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       if (null == scope) {
         return;
       }
-      AgentSpan span = AgentSpan.fromContext(scope.context());
+      AgentSpan span = spanFromContext(scope.context());
       DECORATE.onResponse(span, connection.getHttpResponse());
       if (null != error) {
         DECORATE.onError(span, error);

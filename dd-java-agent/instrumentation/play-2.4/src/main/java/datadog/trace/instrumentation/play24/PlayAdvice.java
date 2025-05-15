@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.play24;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.PLAY_REQUEST;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
@@ -59,7 +60,7 @@ public class PlayAdvice {
       return;
     }
 
-    final AgentSpan playControllerSpan = AgentSpan.fromContext(playControllerScope.context());
+    final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(playControllerSpan, req, req, null);

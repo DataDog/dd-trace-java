@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.azurefunctions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azurefunctions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -80,7 +81,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final ContextScope scope,
         @Advice.Return final HttpResponseMessage response,
         @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = AgentSpan.fromContext(scope.context());
+      final AgentSpan span = spanFromContext(scope.context());
       DECORATE.onError(span, throwable);
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);

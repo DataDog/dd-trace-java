@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
@@ -118,7 +119,7 @@ public class Servlet3Advice {
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
 
-      final AgentSpan span = AgentSpan.fromContext(scope.context());
+      final AgentSpan span = spanFromContext(scope.context());
 
       if (request.isAsyncStarted()) {
         AtomicBoolean activated = new AtomicBoolean();
