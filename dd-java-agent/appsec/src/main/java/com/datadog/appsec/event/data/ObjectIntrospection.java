@@ -2,7 +2,6 @@ package com.datadog.appsec.event.data;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Platform;
-import datadog.trace.api.telemetry.WafMetricCollector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -38,25 +37,6 @@ public final class ObjectIntrospection {
 
   private ObjectIntrospection() {}
 
-  /** Functional interface to receive truncation flags. */
-  @FunctionalInterface
-  public interface TruncationCallback {
-
-    /**
-     * Called when the object is converted.
-     *
-     * @param requestContext the request context
-     * @param stringTooLong true if a string was truncated
-     * @param listMapTooLarge true if a list or map was truncated
-     * @param objectTooDeep true if an object was too deep
-     */
-    void onTruncation(
-        AppSecRequestContext requestContext,
-        boolean stringTooLong,
-        boolean listMapTooLarge,
-        boolean objectTooDeep);
-  }
-
   /**
    * Converts arbitrary objects compatible with ddwaf_object. Possible types in the result are:
    *
@@ -86,16 +66,18 @@ public final class ObjectIntrospection {
    * @param requestContext the request context
    * @return the converted object
    */
-  public static Object convert(Object obj, AppSecRequestContext requestContext) {
+  public static ConversionResult<Object> convert(Object obj, AppSecRequestContext requestContext) {
     State state = new State(requestContext);
     Object converted = guardedConversion(obj, 0, state);
     if (state.stringTooLong || state.listMapTooLarge || state.objectTooDeep) {
       requestContext.setWafTruncated();
-      //TODO Enable when rebase with master
-//      WafMetricCollector.get()
-//          .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
+      // TODO Enable when rebase with master
+      //      WafMetricCollector.get()
+      //          .wafInputTruncated(state.stringTooLong, state.listMapTooLarge,
+      // state.objectTooDeep);
     }
-    return converted;
+    return new ConversionResult<>(
+        converted, state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
   }
 
   private static class State {
@@ -222,8 +204,8 @@ public final class ObjectIntrospection {
     Map<String, Object> newMap = new HashMap<>();
     List<Field[]> allFields = new ArrayList<>();
     for (Class<?> classToLook = clazz;
-         classToLook != null && classToLook != Object.class;
-         classToLook = classToLook.getSuperclass()) {
+        classToLook != null && classToLook != Object.class;
+        classToLook = classToLook.getSuperclass()) {
       allFields.add(classToLook.getDeclaredFields());
     }
 
@@ -301,5 +283,42 @@ public final class ObjectIntrospection {
     }
     return str;
   }
-}
 
+  public static class ConversionResult<T> {
+    private final T value;
+    private final boolean truncatedByString;
+    private final boolean truncatedByCollection;
+    private final boolean truncatedByDepth;
+
+    public ConversionResult(
+        T value,
+        boolean truncatedByString,
+        boolean truncatedByCollection,
+        boolean truncatedByDepth) {
+      this.value = value;
+      this.truncatedByString = truncatedByString;
+      this.truncatedByCollection = truncatedByCollection;
+      this.truncatedByDepth = truncatedByDepth;
+    }
+
+    public T getValue() {
+      return value;
+    }
+
+    public boolean isStringTruncated() {
+      return truncatedByString;
+    }
+
+    public boolean isCollectionTruncated() {
+      return truncatedByCollection;
+    }
+
+    public boolean isDepthTruncated() {
+      return truncatedByDepth;
+    }
+
+    public boolean isAnyTruncated() {
+      return truncatedByString || truncatedByCollection || truncatedByDepth;
+    }
+  }
+}
