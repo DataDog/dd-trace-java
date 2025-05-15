@@ -11,7 +11,6 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.config.GeneralConfig
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -114,6 +113,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  BiFunction<RequestContext, StoredBodySupplier, Void> responseBodyStartCB
+  BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> responseBodyDoneCB
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
 
@@ -452,6 +453,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBodyStart(), _) >> { responseBodyStartCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBodyDone(), _) >> { responseBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerMethod(), _) >> { grpcServerMethodCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
@@ -991,7 +994,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       getTraceSegment() >> traceSegment
     }
     final spanInfo = Mock(AgentSpan) {
-      getTags() >> ['http.route':'/']
+      getTags() >> ['http.route': '/']
     }
 
     when:

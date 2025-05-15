@@ -22,6 +22,9 @@ import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_PATH_PARAMS_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_SESSION_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_BODY_CONVERTED_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_BODY_DONE_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_BODY_START_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
@@ -33,6 +36,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.BiConsumer;
@@ -315,6 +319,18 @@ public class InstrumentationGateway {
                 return callback.equals(obj);
               }
             };
+      case RESPONSE_BODY_START_ID:
+        return (C)
+            (BiFunction<RequestContext, OutputStream, Void>)
+                (ctx, outputStream) -> {
+                  try {
+                    return ((BiFunction<RequestContext, OutputStream, Void>) callback)
+                        .apply(ctx, outputStream);
+                  } catch (Throwable t) {
+                    log.warn("Callback for {} threw.", eventType, t);
+                    return null;
+                  }
+                };
       case REQUEST_BODY_START_ID:
         return (C)
             new BiFunction<RequestContext, StoredBodySupplier, Void>() {
@@ -329,6 +345,18 @@ public class InstrumentationGateway {
                 }
               }
             };
+      case RESPONSE_BODY_DONE_ID:
+        return (C)
+            (BiFunction<RequestContext, OutputStream, Flow<Void>>)
+                (ctx, outputStream) -> {
+                  try {
+                    return ((BiFunction<RequestContext, OutputStream, Flow<Void>>) callback)
+                        .apply(ctx, outputStream);
+                  } catch (Throwable t) {
+                    log.warn("Callback for {} threw.", eventType, t);
+                    return Flow.ResultFlow.empty();
+                  }
+                };
       case REQUEST_BODY_DONE_ID:
         return (C)
             new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
@@ -345,6 +373,7 @@ public class InstrumentationGateway {
             };
       case GRPC_SERVER_REQUEST_MESSAGE_ID:
       case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
+      case RESPONSE_BODY_CONVERTED_ID:
       case REQUEST_BODY_CONVERTED_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {

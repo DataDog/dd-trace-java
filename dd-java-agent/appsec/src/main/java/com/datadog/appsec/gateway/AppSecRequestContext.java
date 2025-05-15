@@ -98,6 +98,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private volatile StoredBodySupplier storedResponseBodySupplier;
   private String dbType;
 
   private int responseStatus;
@@ -105,7 +106,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean reqDataPublished;
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
+  private boolean convertedResBodyPublished;
   private boolean respDataPublished;
+  private boolean rawResBodyPublished;
   private boolean pathParamsPublished;
   private volatile Map<String, String> derivatives;
 
@@ -454,6 +457,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  void setStoredResponseBodySupplier(StoredBodySupplier storedResponseBodySupplier) {
+    this.storedResponseBodySupplier = storedResponseBodySupplier;
+  }
+
   public String getDbType() {
     return dbType;
   }
@@ -498,16 +505,32 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return convertedReqBodyPublished;
   }
 
+  public boolean isConvertedResBodyPublished() {
+    return convertedResBodyPublished;
+  }
+
   public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
     this.convertedReqBodyPublished = convertedReqBodyPublished;
+  }
+
+  public void setConvertedResBodyPublished(boolean convertedResBodyPublished) {
+    this.convertedResBodyPublished = convertedResBodyPublished;
   }
 
   public boolean isRespDataPublished() {
     return respDataPublished;
   }
 
+  public boolean isRawResBodyPublished() {
+    return rawResBodyPublished;
+  }
+
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public void setRawResBodyPublished(boolean rawResBodyPublished) {
+    this.rawResBodyPublished = rawResBodyPublished;
   }
 
   /**
@@ -581,6 +604,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       return null;
     }
     return storedRequestBodySupplier.get();
+  }
+
+  /** @return the contents of stream */
+  public CharSequence getStoredResponseBody() {
+    CharSequence storedResponseBody = null;
+    storedResponseBody =
+        this.storedResponseBodySupplier != null ? this.storedResponseBodySupplier.toString() : null;
+    return storedResponseBody;
   }
 
   public void reportEvents(Collection<AppSecEvent> appSecEvents) {
