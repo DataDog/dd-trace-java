@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.jaxrs.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CLIENT_CALL;
 
-import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
