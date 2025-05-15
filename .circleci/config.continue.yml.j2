@@ -183,9 +183,9 @@ commands:
           # The file does not seem to exist when DLC is disabled
           command: |
             # Show cgroupv2 memory usage
-            printf "cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 'not found')"
-            printf "cgroup memory.max : $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 'not found')"
-            printf "cgroup memory.high: $(cat /sys/fs/cgroup/memory.high 2>/dev/null || echo 'not found')"
+            printf "cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 'not found')%s\n"
+            printf "cgroup memory.max : $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 'not found')%s\n"
+            printf "cgroup memory.high: $(cat /sys/fs/cgroup/memory.high 2>/dev/null || echo 'not found')%s\n"
             printf "ram memory        : $(grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f 2)%s\n"
           when: always
 
@@ -983,10 +983,12 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
   - build:
       name: build_latestdep
+      resourceClass: 2xlarge
       gradleTarget: :instrumentationLatestDepTest
       cacheType: latestdep
   - build:
       name: build_smoke
+      resourceClass: 2xlarge
       gradleTarget: :smokeTest
       cacheType: smoke
   - build:
