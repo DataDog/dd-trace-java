@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.trace_annotation;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
-
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
+
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import net.bytebuddy.asm.Advice;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
 public class TraceAdvice {
   private static final String DEFAULT_OPERATION_NAME = "trace.annotation";
@@ -53,11 +53,12 @@ public class TraceAdvice {
     span.setTag("method_name",methodName.toString());
     CharSequence resourceName = traceAnnotation == null ? null : traceAnnotation.resourceName();
     if (resourceName == null || resourceName.length() == 0) {
-      resourceName = DECORATE.spanNameForMethod(method);
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      String className = stackTraceElements[1].getClassName(); // 第一个元素是当前方法
+      resourceName = DECORATE.getMethodName(className)+"."+method.getName();
     }
     span.setResourceName(resourceName);
     DECORATE.afterStart(span);
-
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     return scope;

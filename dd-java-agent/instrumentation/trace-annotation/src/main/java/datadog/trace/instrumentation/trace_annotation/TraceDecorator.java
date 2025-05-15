@@ -107,4 +107,18 @@ public class TraceDecorator extends AsyncResultDecorator {
       return result;
     }
   }
+
+  public String getMethodName(String className) {
+    String[] packageParts = className.substring(0, className.lastIndexOf('.')).split("\\.");
+    StringBuilder abbreviatedPackageName = new StringBuilder();
+    for (String part : packageParts) {
+      if (!part.isEmpty()) {
+        abbreviatedPackageName.append(part.charAt(0)).append(".");
+      }
+    }
+    // 保留最后的类名
+    String simpleClassName = className.substring(className.lastIndexOf('.') + 1);
+    return abbreviatedPackageName + simpleClassName;
+  }
+
 }
