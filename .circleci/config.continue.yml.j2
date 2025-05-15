@@ -287,9 +287,11 @@ commands:
 jobs:
   build:
     <<: *defaults
-    resource_class: 2xlarge
 
     parameters:
+      resourceClass:
+        type: string
+        default: xlarge
       gradleTarget:
         type: string
       cacheType:
@@ -301,6 +303,7 @@ jobs:
         type: string
         default: ".*"
 
+    resource_class: << parameters.resourceClass >>
     steps:
       - setup_code
 
@@ -974,6 +977,7 @@ build_test_jobs: &build_test_jobs
       cacheType: base
   - build:
       name: build_inst
+      resourceClass: 2xlarge
       gradleTarget: :instrumentationTest
       cacheType: inst
       triggeredBy: *instrumentation_modules
