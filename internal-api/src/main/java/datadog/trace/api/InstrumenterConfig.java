@@ -19,6 +19,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHOD_FILE_LENGTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
@@ -64,6 +65,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS_FILE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
@@ -73,12 +75,14 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 
 /**
  * This config is needed before instrumentation is applied
@@ -153,6 +157,7 @@ public class InstrumenterConfig {
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
+  private final String traceMethodsFile;
   private final Map<String, Set<String>> measureMethods;
 
   private final boolean internalExitOnFailure;
@@ -267,9 +272,15 @@ public class InstrumenterConfig {
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceAnnotationAsync =
         configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
-    traceMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+
+    // Step 1: 从配置字符串解析基础 traceMethods
+    String traceMethodsRaw = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
+    Map<String, Set<String>> baseTraceMethods = MethodFilterConfigParser.parse(traceMethodsRaw);
+
+    // Step 2: 如果有文件路径，读取并合并
+    traceMethodsFile = configProvider.getString(TRACE_METHODS_FILE, null);
+    traceMethods = buildTraceMethods(baseTraceMethods, traceMethodsFile);
+
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
@@ -278,6 +289,41 @@ public class InstrumenterConfig {
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
+
+  private Map<String, Set<String>> buildTraceMethods(Map<String, Set<String>> base, String traceMethodsFile) {
+    if (traceMethodsFile == null) {
+      return Collections.unmodifiableMap(base);
+    }
+
+    File file = new File(traceMethodsFile);
+    try {
+      String content = readFileIfSmall(file);
+      if (content == null) {
+        return Collections.unmodifiableMap(base);
+      }
+
+      Map<String, Set<String>> additional = MethodFilterConfigParser.parse(
+          content.replaceAll("\\R", ";"));
+
+      Map<String, Set<String>> combined = new HashMap<>(base);
+      combined.putAll(additional);
+
+      return Collections.unmodifiableMap(combined);
+    } catch (IOException e) {
+      System.err.println("Error reading file: " + file + ", message: " + e.getMessage());
+      return Collections.unmodifiableMap(base);
+    }
+  }
+
+  public static String readFileIfSmall(File file) throws IOException {
+    if (file.length() > DEFAULT_TRACE_METHOD_FILE_LENGTH) {
+      System.out.println("File is larger than 1MB. Not reading contents.");
+      return null; // 文件过大，不读取
+    }
+    byte[] bytes = Files.readAllBytes(Paths.get(file.getAbsolutePath()));
+    return new String(bytes, StandardCharsets.UTF_8);
+  }
+
 
   public boolean isCodeOriginEnabled() {
     return codeOriginEnabled;
@@ -500,6 +546,10 @@ public class InstrumenterConfig {
     return traceAnnotations;
   }
 
+  public String getTraceMethodsFile() {
+    return traceMethodsFile;
+  }
+
   public Collection<String> getAdditionalJaxRsAnnotations() {
     return additionalJaxRsAnnotations;
   }
@@ -628,6 +678,8 @@ public class InstrumenterConfig {
         + traceAnnotationAsync
         + ", traceMethods='"
         + traceMethods
+        + ", traceMethodsFile='"
+        + traceMethodsFile
         + '\''
         + ", measureMethods= '"
         + measureMethods
