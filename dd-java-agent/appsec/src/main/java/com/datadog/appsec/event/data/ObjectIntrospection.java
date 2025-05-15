@@ -1,7 +1,8 @@
 package com.datadog.appsec.event.data;
 
-import datadog.trace.api.Pair;
+import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +38,25 @@ public final class ObjectIntrospection {
 
   private ObjectIntrospection() {}
 
+  /** Functional interface to receive truncation flags. */
+  @FunctionalInterface
+  public interface TruncationCallback {
+
+    /**
+     * Called when the object is converted.
+     *
+     * @param requestContext the request context
+     * @param stringTooLong true if a string was truncated
+     * @param listMapTooLarge true if a list or map was truncated
+     * @param objectTooDeep true if an object was too deep
+     */
+    void onTruncation(
+        AppSecRequestContext requestContext,
+        boolean stringTooLong,
+        boolean listMapTooLarge,
+        boolean objectTooDeep);
+  }
+
   /**
    * Converts arbitrary objects compatible with ddwaf_object. Possible types in the result are:
    *
@@ -63,18 +83,32 @@ public final class ObjectIntrospection {
    * objects and this$0 fields in inner classes.
    *
    * @param obj an arbitrary object
-   * @return the converted object and if the limits were exceeded
+   * @param requestContext the request context
+   * @return the converted object
    */
-  public static Pair<Object, Boolean> convert(Object obj) {
-    State state = new State();
+  public static Object convert(Object obj, AppSecRequestContext requestContext) {
+    State state = new State(requestContext);
     Object converted = guardedConversion(obj, 0, state);
-    return Pair.of(converted, state.limitsExceeded);
+    if (state.stringTooLong || state.listMapTooLarge || state.objectTooDeep) {
+      requestContext.setWafTruncated();
+      //TODO Enable when rebase with master
+//      WafMetricCollector.get()
+//          .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
+    }
+    return converted;
   }
 
   private static class State {
     int elemsLeft = MAX_ELEMENTS;
     int invalidKeyId;
-    boolean limitsExceeded = false;
+    boolean objectTooDeep = false;
+    boolean listMapTooLarge = false;
+    boolean stringTooLong = false;
+    AppSecRequestContext requestContext;
+
+    private State(AppSecRequestContext requestContext) {
+      this.requestContext = requestContext;
+    }
   }
 
   private static Object guardedConversion(Object obj, int depth, State state) {
@@ -111,8 +145,13 @@ public final class ObjectIntrospection {
       return null;
     }
     state.elemsLeft--;
-    if (state.elemsLeft <= 0 || depth > MAX_DEPTH) {
-      state.limitsExceeded = true;
+    if (state.elemsLeft <= 0) {
+      state.listMapTooLarge = true;
+      return null;
+    }
+
+    if (depth > MAX_DEPTH) {
+      state.objectTooDeep = true;
       return null;
     }
 
@@ -160,7 +199,7 @@ public final class ObjectIntrospection {
       }
       for (Object o : ((Iterable<?>) obj)) {
         if (state.elemsLeft <= 0) {
-          state.limitsExceeded = true;
+          state.listMapTooLarge = true;
           break;
         }
         newList.add(guardedConversion(o, depth + 1, state));
@@ -183,8 +222,8 @@ public final class ObjectIntrospection {
     Map<String, Object> newMap = new HashMap<>();
     List<Field[]> allFields = new ArrayList<>();
     for (Class<?> classToLook = clazz;
-        classToLook != null && classToLook != Object.class;
-        classToLook = classToLook.getSuperclass()) {
+         classToLook != null && classToLook != Object.class;
+         classToLook = classToLook.getSuperclass()) {
       allFields.add(classToLook.getDeclaredFields());
     }
 
@@ -192,7 +231,7 @@ public final class ObjectIntrospection {
     for (Field[] fields : allFields) {
       for (Field f : fields) {
         if (state.elemsLeft <= 0) {
-          state.limitsExceeded = true;
+          state.listMapTooLarge = true;
           break outer;
         }
         if (Modifier.isStatic(f.getModifiers())) {
@@ -257,9 +296,10 @@ public final class ObjectIntrospection {
 
   private static String checkStringLength(final String str, final State state) {
     if (str.length() > MAX_STRING_LENGTH) {
-      state.limitsExceeded = true;
+      state.stringTooLong = true;
       return str.substring(0, MAX_STRING_LENGTH);
     }
     return str;
   }
 }
+

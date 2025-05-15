@@ -21,7 +21,6 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import datadog.trace.api.Config;
-import datadog.trace.api.Pair;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
@@ -70,9 +69,9 @@ public class GatewayBridge {
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
-    "appsec.events.users.login.success.track",
-    "appsec.events.users.login.failure.track",
-    "appsec.events.users.signup.track"
+      "appsec.events.users.login.success.track",
+      "appsec.events.users.login.failure.track",
+      "appsec.events.users.signup.track"
   };
 
   private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
@@ -474,7 +473,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj).getLeft();
+      Object convObj = ObjectIntrospection.convert(obj, ctx);
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -574,16 +573,17 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Pair<Object, Boolean> pair = ObjectIntrospection.convert(obj);
-      Object converted = pair.getLeft();
-      if (Config.get().isAppSecRaspCollectRequestBody()) {
-        ctx.setProcessedRequestBody(pair.getLeft());
-        Boolean limitsExceeded = pair.getRight();
-        if (Boolean.TRUE.equals(limitsExceeded)) {
-          ctx_.getTraceSegment().setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
-        }
-      }
-      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
+      Object converted =  ObjectIntrospection.convert(obj, ctx)
+//      if (Config.get().isAppSecRaspCollectRequestBody()) {
+//        ctx.setProcessedRequestBody(pair.getLeft());
+//        Boolean limitsExceeded = pair.getRight();
+//        if (Boolean.TRUE.equals(limitsExceeded)) {
+//          ctx_.getTraceSegment().setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+//        }
+//      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(
+              KnownAddresses.REQUEST_BODY_OBJECT,converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -757,7 +757,7 @@ public class GatewayBridge {
               ctx.isWafRequestBlockFailure(), // blockFailure,
               ctx.isWafRateLimited(), // rateLimited,
               ctx.isWafTruncated() // inputTruncated
-              );
+          );
     }
 
     ctx.close();
@@ -1142,3 +1142,4 @@ public class GatewayBridge {
     }
   }
 }
+
