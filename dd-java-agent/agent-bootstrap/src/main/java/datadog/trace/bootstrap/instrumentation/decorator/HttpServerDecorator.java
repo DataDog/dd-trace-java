@@ -36,6 +36,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
@@ -383,6 +384,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final int status = status(response);
       onResponseStatus(span, status);
 
+      final OutputStream responseBody = responseBody(response);
+
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
         ResponseHeaderTagClassifier tagger =
@@ -393,10 +396,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
 
       if (!isAppSecOnResponseSeparate()) {
-        callIGCallbackResponseAndHeaders(span, response, status);
+        callIGCallbackResponseAndHeaders(span, response, status, responseBody);
       }
     }
     return span;
+  }
+
+  // TODO this should be abstract by the end of developments
+  protected OutputStream responseBody(RESPONSE response) {
+    return null;
   }
 
   //  @Override
@@ -464,7 +472,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           IGKeyClassifier.create(
               requestContext,
               cbp.getCallback(EVENTS.requestHeader()),
-              cbp.getCallback(EVENTS.requestHeaderDone()));
+              cbp.getCallback(EVENTS.requestHeaderDone()),
+              null);
       if (null != igKeyClassifier) {
         getter.forEachKey(carrier, igKeyClassifier);
         return igKeyClassifier.done();
@@ -493,15 +502,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackResponseAndHeaders(
-      AgentSpan span, RESPONSE carrier, int status) {
-    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
+      AgentSpan span, RESPONSE carrier, int status, OutputStream responseBody) {
+    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter(), responseBody);
   }
 
   public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
       AgentSpan span,
       RESP carrier,
       int status,
-      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
+      AgentPropagation.ContextVisitor<RESP> contextVisitor,
+      OutputStream responseBody) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
@@ -520,7 +530,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         IGKeyClassifier.create(
             requestContext,
             cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
+            cbp.getCallback(EVENTS.responseHeaderDone()),
+            cbp.getCallback(EVENTS.responseBodyDone()));
     if (null != igKeyClassifier) {
       contextVisitor.forEachKey(carrier, igKeyClassifier);
       return igKeyClassifier.done();
@@ -604,7 +615,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        Function<RequestContext, Flow<Void>> doneCallback,
+        BiFunction<RequestContext, OutputStream, Flow<Void>> bodyDoneCallback) {
       if (null == requestContext || null == headerCallback) {
         return null;
       }

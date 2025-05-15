@@ -69,7 +69,7 @@ public class JettyCommitResponseHelper {
     Response resp = connection.getResponse();
     Flow<Void> flow =
         JettyDecorator.DECORATE.callIGCallbackResponseAndHeaders(
-            span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
+            span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER, null);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

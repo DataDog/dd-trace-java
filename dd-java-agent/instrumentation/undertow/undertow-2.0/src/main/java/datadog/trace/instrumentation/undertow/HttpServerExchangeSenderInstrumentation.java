@@ -72,7 +72,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       AgentSpan span = continuation.span();
       Flow<Void> flow =
           UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
-              span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);
+              span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER, null);
       Flow.Action action = flow.getAction();
       if (!(action instanceof Flow.Action.RequestBlockingAction)) {
         return false;

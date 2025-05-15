@@ -48,7 +48,7 @@ public interface KnownAddresses {
   Address<Object> RESPONSE_BODY_OBJECT = new Address<>("server.response.body");
 
   /** First chars of HTTP response body */
-  Address<String> RESPONSE_BODY_RAW = new Address<>("server.response.body.raw");
+  Address<CharSequence> RESPONSE_BODY_RAW = new Address<>("server.response.body.raw");
 
   /** Reponse headers excluding cookies */
   Address<Map<String, List<String>>> RESPONSE_HEADERS_NO_COOKIES =

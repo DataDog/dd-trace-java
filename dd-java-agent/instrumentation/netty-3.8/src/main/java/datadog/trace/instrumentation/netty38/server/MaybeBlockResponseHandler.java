@@ -69,7 +69,11 @@ public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
 
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().getCode(), ResponseExtractAdapter.GETTER);
+            span,
+            origResponse,
+            origResponse.getStatus().getCode(),
+            ResponseExtractAdapter.GETTER,
+            null);
     channelTraceContext.setAnalyzedResponse(true);
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {

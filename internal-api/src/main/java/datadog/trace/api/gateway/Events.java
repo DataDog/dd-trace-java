@@ -5,6 +5,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -310,6 +311,28 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> shellCmd() {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
+  }
+
+  static final int RESPONSE_BODY_START_ID = 26;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY_START =
+      new ET<>("response.body.started", RESPONSE_BODY_START_ID);
+  /** The request body has started being read */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, OutputStream, Void>> responseBodyStart() {
+    return (EventType<BiFunction<RequestContext, OutputStream, Void>>) RESPONSE_BODY_START;
+  }
+
+  static final int RESPONSE_BODY_DONE_ID = 27;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY_DONE =
+      new ET<>("response.body.done", RESPONSE_BODY_DONE_ID);
+  /** The request body is done being read */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, OutputStream, Flow<Void>>> responseBodyDone() {
+    return (EventType<BiFunction<RequestContext, OutputStream, Flow<Void>>>) RESPONSE_BODY_DONE;
   }
 
   static final int MAX_EVENTS = nextId.get();
