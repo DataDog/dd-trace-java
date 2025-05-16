@@ -23,8 +23,8 @@ import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
 import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
-import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerRequestTracingHandler;
-import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerResponseTracingHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerInboundTracingHandler;
+import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerOutboundTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
@@ -34,6 +34,8 @@ import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.WebSocketFrameDecoder;
+import io.netty.handler.codec.http.websocketx.WebSocketFrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.Attribute;
 import net.bytebuddy.asm.Advice;
@@ -82,8 +84,8 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.HttpServerTracingHandler",
       packageName + ".server.MaybeBlockResponseHandler",
       packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
-      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
+      packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
+      packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
       packageName + ".NettyHttp2Helper",
       packageName + ".NettyPipelineHelper",
     };
@@ -162,23 +164,31 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               HttpServerResponseTracingHandler.INSTANCE,
               MaybeBlockResponseHandler.INSTANCE);
         } else if (handler instanceof WebSocketServerProtocolHandler) {
-          if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
-            if (pipeline.get(HttpServerTracingHandler.class) != null) {
-              NettyPipelineHelper.addHandlerAfter(
-                  pipeline, "HttpServerTracingHandler#0", new WebSocketServerTracingHandler());
+          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+              && pipeline.get(HttpServerTracingHandler.class) != null) {
+            // remove single websocket handler if added before
+            if (pipeline.get(WebSocketServerInboundTracingHandler.class) != null) {
+              pipeline.remove(WebSocketServerInboundTracingHandler.class);
             }
-            if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
-              NettyPipelineHelper.addHandlerAfter(
-                  pipeline,
-                  "HttpServerRequestTracingHandler#0",
-                  WebSocketServerRequestTracingHandler.INSTANCE);
+            if (pipeline.get(WebSocketServerOutboundTracingHandler.class) != null) {
+              pipeline.remove(WebSocketServerOutboundTracingHandler.class);
             }
-            if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
-              NettyPipelineHelper.addHandlerAfter(
-                  pipeline,
-                  "HttpServerResponseTracingHandler#0",
-                  WebSocketServerResponseTracingHandler.INSTANCE);
-            }
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline,
+                pipeline.get(HttpServerTracingHandler.class),
+                new WebSocketServerTracingHandler());
+          }
+        } else if (handler instanceof WebSocketFrameDecoder) {
+          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+              && pipeline.get(WebSocketServerTracingHandler.class) == null) {
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline, handler, WebSocketServerInboundTracingHandler.INSTANCE);
+          }
+        } else if (handler instanceof WebSocketFrameEncoder) {
+          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+              && pipeline.get(WebSocketServerTracingHandler.class) == null) {
+            NettyPipelineHelper.addHandlerAfter(
+                pipeline, handler, WebSocketServerOutboundTracingHandler.INSTANCE);
           }
         }
         // Client pipeline handlers
