@@ -11,7 +11,6 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.config.GeneralConfig
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -114,6 +113,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  BiFunction<RequestContext, StoredBodySupplier, Void> responseBodyStartCB
+  BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> responseBodyDoneCB
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
 
@@ -452,6 +453,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBodyStart(), _) >> { responseBodyStartCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBodyDone(), _) >> { responseBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerMethod(), _) >> { grpcServerMethodCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
@@ -933,7 +936,7 @@ class GatewayBridgeSpecification extends DDSpecification {
         }
 
         @Override
-        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
           return null
         }
 
@@ -991,7 +994,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       getTraceSegment() >> traceSegment
     }
     final spanInfo = Mock(AgentSpan) {
-      getTags() >> ['http.route':'/']
+      getTags() >> ['http.route': '/']
     }
 
     when:
@@ -1127,7 +1130,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
   }
 
-  void "test onLoginFailure (#mode)"() {
+  void "test onLoginFailure"() {
     setup:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
 
@@ -1220,6 +1223,97 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * requestSampler.preSampleRequest(_) >> true
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+  void 'forwards response body start events and stores the supplier'() {
+    StoredBodySupplier supplier = Stub()
+
+    setup:
+    supplier.get() >> 'response content'
+
+    expect:
+    ctx.data.storedResponseBody == null
+
+    when:
+    responseBodyStartCB.apply(ctx, supplier)
+
+    then:
+    ctx.data.storedResponseBody == 'response content'
+  }
+
+  void 'forwards response body done events and distributes the body contents'() {
+    DataBundle bundle
+    GatewayContext gatewayContext
+    StoredBodySupplier supplier = Stub()
+
+    setup:
+    supplier.get() >> 'response body content'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_BODY_RAW in it }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+
+    when:
+    responseBodyDoneCB.apply(ctx, supplier)
+
+    then:
+    bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT) == 'response body content'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'response body does not get published twice'() {
+    StoredBodySupplier supplier = Stub()
+    Flow flow
+
+    given:
+    supplier.get() >> 'response body content'
+
+    when:
+    ctx.data.setRawResBodyPublished(true)
+    flow = responseBodyDoneCB.apply(ctx, supplier)
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.getDataSubscribers(KnownAddresses.RESPONSE_BODY_RAW)
+  }
+
+  void 'response body with empty content is not published'() {
+    StoredBodySupplier supplier = Stub()
+    Flow flow
+
+    given:
+    supplier.get() >> ''
+
+    when:
+    flow = responseBodyDoneCB.apply(ctx, supplier)
+
+    then:
+    flow == NoopFlow.INSTANCE
+    1 * eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_BODY_RAW in it }) >> nonEmptyDsInfo
+    0 * eventDispatcher.publishDataEvent(_, _, _, _)
+  }
+
+  void 'response data includes response body when available'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
+    ctx.data.responseStatus = 200
+    ctx.data.addResponseHeader('Content-Type', 'application/json')
+
+    StoredBodySupplier supplier = Stub()
+    supplier.get() >> '{"status":"success"}'
+    ctx.data.storedResponseBodySupplier = supplier
+
+    DataBundle bundle
+
+    when:
+    respHeadersDoneCB.apply(ctx)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { dsInfo, appSecCtx, db, gwCtx -> bundle = db; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.RESPONSE_STATUS) == '200'
+    bundle.get(KnownAddresses.RESPONSE_HEADERS_NO_COOKIES) == ['content-type': ['application/json']]
+    bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT) == '{"status":"success"}'
   }
 
 }
