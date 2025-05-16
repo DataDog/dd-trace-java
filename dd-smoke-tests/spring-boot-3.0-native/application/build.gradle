@@ -39,7 +39,6 @@ if (hasProperty('agentPath')) {
         if (withProfiler && property('profiler') == 'true') {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
         }
-        buildArgs.add("--enable-monitoring=jmxserver")
         jvmArgs.add("-Xmx3072M")
       }
     }

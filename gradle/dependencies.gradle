@@ -51,8 +51,8 @@ final class CachedData {
       // cafe_crypto and its transitives
       exclude(dependency('cafe.cryptography::'))
 
-      // snakeyaml and its transitives
-      exclude(dependency('org.yaml:snakeyaml'))
+      // snakeyaml-engine and its transitives
+      exclude(dependency('org.snakeyaml:snakeyaml-engine'))
     }
   ]
 }
