@@ -166,7 +166,57 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
     tracer.close()
   }
 
+  def "update last parent id on child span"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final Map<String, String> carrier = [:]
+
+    when: 'injecting root span context'
+    def rootSpan = tracer.startSpan('test', 'root')
+    def rootSpanId = rootSpan.spanId
+    def rootScope = tracer.activateSpan(rootSpan)
+
+    injector.inject(rootSpan.context() as DDSpanContext, carrier, MapSetter.INSTANCE)
+    def lastParentId = extractLastParentId(carrier)
+
+    then: 'trace state has root span id as last parent'
+    lastParentId == rootSpanId
+
+    when: 'injecting child span context'
+    def childSpan = tracer.startSpan('test', 'child')
+    def childSpanId = childSpan.spanId
+    carrier.clear()
+    injector.inject(childSpan.context() as DDSpanContext, carrier, MapSetter.INSTANCE)
+    lastParentId = extractLastParentId(carrier)
+
+    then: 'trace state has child span id as last parent'
+    lastParentId == childSpanId
+
+    when: 'injecting root span again'
+    childSpan.finish()
+    carrier.clear()
+    injector.inject(rootSpan.context() as DDSpanContext, carrier, MapSetter.INSTANCE)
+    lastParentId = extractLastParentId(carrier)
+
+    then: 'trace state has root span is as last parent again'
+    lastParentId == rootSpanId
+
+    cleanup:
+    rootScope.close()
+    rootSpan.finish()
+  }
+
   static String buildTraceParent(String traceId, String spanId, int samplingPriority) {
     return "00-${DDTraceId.from(traceId).toHexString()}-${DDSpanId.toHexStringPadded(DDSpanId.from(spanId))}-${samplingPriority > 0 ? '01': '00'}"
+  }
+
+  static long extractLastParentId(Map<String, String> carrier) {
+    def traceState = carrier[TRACE_STATE_KEY]
+    def traceStateMembers = traceState.split(',')
+    def ddTraceStateMember = traceStateMembers.find { it.startsWith("dd=")}.substring(3)
+    def parts = ddTraceStateMember.split(';')
+    def spanIdHex = parts.find { it.startsWith('p:')}.substring(2)
+    DDSpanId.fromHex(spanIdHex)
   }
 }
