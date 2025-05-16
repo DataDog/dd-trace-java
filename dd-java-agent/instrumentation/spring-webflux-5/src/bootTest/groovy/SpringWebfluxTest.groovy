@@ -1,8 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.OkHttpWebsocketClient
-import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -24,21 +22,12 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.socket.WebSocketHandler
-import org.springframework.web.reactive.socket.WebSocketSession
-import org.springframework.web.reactive.socket.client.WebSocketClient
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketSendSpan
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static org.junit.Assume.assumeTrue
-import static org.junit.Assume.assumeTrue
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration],
