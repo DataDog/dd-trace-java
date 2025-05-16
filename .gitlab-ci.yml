@@ -103,7 +103,7 @@ default:
   - echo "NORMALIZED_NODE_TOTAL=${NORMALIZED_NODE_TOTAL}, NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-base
+  image: ghcr.io/datadog/dd-trace-java-docker-build:95_merge-${JAVA_BUILD_IMAGE_VERSION}-base
   stage: build
   variables:
     MAVEN_OPTS: "-Xms64M -Xmx512M"
@@ -234,7 +234,7 @@ spotless:
 
 test_published_artifacts:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
+  image: ghcr.io/datadog/dd-trace-java-docker-build:95_merge-${JAVA_BUILD_IMAGE_VERSION}-7 # Needs Java7 for some tests
   stage: tests
   needs: [ build ]
   variables:
@@ -372,7 +372,7 @@ muzzle-dep-report:
 
 .test_job:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
+  image: ghcr.io/datadog/dd-trace-java-docker-build:95_merge-$testJvm
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
   needs: [ build_tests ]
   stage: tests
