@@ -49,7 +49,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
   @Autowired
   WsHandler wsHandler
 
-  WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector(buildClient())).build()
+  WebClient client = WebClient.builder().clientConnector(new ReactorClientHttpConnector(buildClient())).build()
 
   @Override
   protected void configurePreAgent() {
@@ -72,7 +72,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(2) {
         span {
@@ -153,7 +153,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
         span {
@@ -247,7 +247,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
         span {
@@ -295,7 +295,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
       }
       trace(2) {
         span {
@@ -341,7 +341,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     String url = "http://localhost:$port/echo"
 
     when:
-    def response = client.post().uri(url).body(BodyInserters.fromPublisher(Mono.just(echoString),String)).exchange().block()
+    def response = client.post().uri(url).body(BodyInserters.fromPublisher(Mono.just(echoString), String)).exchange().block()
 
     then:
     response.statusCode().value() == 202
@@ -351,7 +351,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
       }
       trace(3) {
         span {
@@ -416,7 +416,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
       }
       trace(2) {
         span {
@@ -505,7 +505,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
 
       trace(2) {
@@ -550,7 +550,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
         sortSpansByStart()
@@ -609,7 +609,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         def traceParent
         trace(2) {
           clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-          traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
         }
         trace(2) {
           span {
@@ -684,7 +684,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, null, false,
-          [ "message":"The subscription was cancelled", "event":"cancelled"])
+          ["message": "The subscription was cancelled", "event": "cancelled"])
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
       }
       trace(2) {
@@ -786,7 +786,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     })
     where:
     message                                 | msgType  | chunks | size
-    RandomString.make(10) | "text" | 1 | 10
+    RandomString.make(10)                   | "text"   | 1      | 10
     RandomString.make(20).getBytes("UTF-8") | "binary" | 1      | 20
   }
 
