@@ -392,6 +392,9 @@ jobs:
     <<: *defaults
 
     parameters:
+      resourceClass:
+        type: string
+        default: medium+
       parallelism:
         type: integer
         default: 1
@@ -403,7 +406,7 @@ jobs:
         type: string
         default: ".*"
 
-    resource_class: medium+
+    resource_class: << parameters.resourceClass >>
 
     parallelism: << parameters.parallelism >>
 
@@ -453,6 +456,8 @@ jobs:
           when: on_fail
           command: .circleci/cancel_workflow.sh
 
+      - display_memory_usage
+
   build_clean_cache:
     <<: *defaults
 
@@ -501,13 +506,13 @@ jobs:
 
   tests: &tests
     <<: *defaults
-    # since tests use test containers, they will use a Linux VM / Remote Docker executor, so there is no medium+ size
-    resource_class: large
-
     docker:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
+      resourceClass:
+        type: string
+        default: large
       environment:
         type: string
         default: ""
@@ -542,6 +547,9 @@ jobs:
         default: false
       cacheType:
         type: string
+
+    # since tests use test containers, they will use a Linux VM / Remote Docker executor, so there is no medium+ size
+    resource_class: << parameters.resourceClass >>
 
     parallelism: << parameters.parallelism >>
 
@@ -660,13 +668,18 @@ jobs:
               exit 1
             fi
 
+  # TODO: merge xlarge_tests and tests? or rename this?
   xlarge_tests:
     <<: *tests
 
     docker:
+      # The first image listed in your configuration for a job is referred to as the primary container image
+      # and this is where all steps in the job will run. Secondary containers can also be specified to run
+      # alongside for running services, such as, databases.
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
+
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
         environment:
           - LOG_LEVEL=DEBUG
@@ -675,8 +688,6 @@ jobs:
           - DD_POOL_TRACE_CHECK_FAILURES=true
           - DD_DISABLE_ERROR_RESPONSES=true
           - ENABLED_CHECKS=trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service
-    # TODO: merge xlarge_tests and tests? or rename this?
-    resource_class: large
 
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
@@ -1012,6 +1023,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_base
+      resourceClass: large
       gradleTarget: ":baseCheck"
       cacheType: base
 
@@ -1019,6 +1031,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
+      resourceClass: large
       parallelism: 5
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
@@ -1028,6 +1041,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_smoke
+      resourceClass: large
       gradleTarget: ":smokeCheck"
       cacheType: smoke
 
@@ -1086,6 +1100,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
+      resourceClass: xlarge
       gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1114,6 +1129,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_8_inst_latest
+      resourceClass: xlarge
       gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1128,6 +1144,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_17_inst_latest
+      resourceClass: xlarge
       gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1315,6 +1332,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_smoke
+      resourceClass: xlarge
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
