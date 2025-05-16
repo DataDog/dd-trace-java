@@ -38,11 +38,6 @@ public interface ConfigurationApi {
             TracerEnvironment tracerEnvironment) {
           return Collections.emptyMap();
         }
-
-        @Override
-        public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) {
-          return ChangedFiles.EMPTY;
-        }
       };
 
   CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException;
@@ -58,6 +53,4 @@ public interface ConfigurationApi {
 
   Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment) throws IOException;
-
-  ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException;
 }
