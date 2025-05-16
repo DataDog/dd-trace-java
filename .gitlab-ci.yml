@@ -377,8 +377,8 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 17Gi
+    KUBERNETES_MEMORY_LIMIT: 17Gi
     KUBERNETES_CPU_REQUEST: 10
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
