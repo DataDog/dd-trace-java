@@ -1611,12 +1611,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
-    assertEquals(7, staticFields.size());
+    // inherited static fields are not collected
+    assertEquals(2, staticFields.size());
     assertEquals("barfoo", MoshiSnapshotTestHelper.getValue(staticFields.get("strValue")));
-    assertEquals("48", MoshiSnapshotTestHelper.getValue(staticFields.get("intValue")));
-    assertEquals("6.28", MoshiSnapshotTestHelper.getValue(staticFields.get("doubleValue")));
-    assertEquals("[1, 2, 3, 4]", MoshiSnapshotTestHelper.getValue(staticFields.get("longValues")));
-    assertEquals("[foo, bar]", MoshiSnapshotTestHelper.getValue(staticFields.get("strValues")));
   }
 
   @Test
