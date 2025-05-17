@@ -87,7 +87,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     jsonBuilder.append('{');
 
     // Inject context
-    datadog.context.Context context = span;
+    datadog.context.Context context = datadog.context.Context.current().with(span);
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(eventBusName));
       context = context.with(dsmContext);

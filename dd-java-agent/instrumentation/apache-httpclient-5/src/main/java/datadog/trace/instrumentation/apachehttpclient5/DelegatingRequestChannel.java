@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecora
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class DelegatingRequestChannel implements RequestChannel {
     DECORATE.onRequest(span, request);
 
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-    defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+    defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
     delegate.sendRequest(request, entityDetails, context);
   }
 }

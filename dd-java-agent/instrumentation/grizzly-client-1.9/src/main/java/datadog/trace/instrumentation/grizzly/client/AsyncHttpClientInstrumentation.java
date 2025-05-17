@@ -14,17 +14,23 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import java.util.Collections;
 import net.bytebuddy.asm.Advice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AsyncHttpClientInstrumentation.class);
 
   public AsyncHttpClientInstrumentation() {
     super("grizzly-client", "ning");
@@ -70,7 +76,8 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      Context current = Java8BytecodeBridge.getCurrentContext();
+      defaultPropagator().inject(current.with(span).with(dsmContext), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }

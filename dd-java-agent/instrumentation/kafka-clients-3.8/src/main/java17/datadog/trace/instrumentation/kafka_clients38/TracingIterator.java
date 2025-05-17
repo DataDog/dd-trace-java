@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -16,6 +15,7 @@ import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapte
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.Iterator;
@@ -80,9 +81,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       closePrevious(true);
       AgentSpan span, queueSpan = null;
       if (val != null) {
+        Context extractedContext = null;
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          extractedContext =
+              Propagators.defaultPropagator()
+                  .extract(Java8BytecodeBridge.getCurrentContext(), val.headers(), GETTER);
+          final AgentSpan extractedSpan = AgentSpan.fromContext(extractedContext);
           final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
+              extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
             span = startSpan(operationName, spanContext);
@@ -124,7 +130,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               // for DSM users
               Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
               DataStreamsContext dsmContext = create(sortedTags, val.timestamp(), payloadSize);
-              dsmPropagator.inject(span.with(dsmContext), val.headers(), SETTER);
+              dsmPropagator.inject(
+                  Context.current().with(span).with(dsmContext), val.headers(), SETTER);
             }
           }
         } else {

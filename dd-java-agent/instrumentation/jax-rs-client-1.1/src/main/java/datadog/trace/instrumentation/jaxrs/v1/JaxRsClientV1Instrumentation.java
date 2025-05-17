@@ -18,6 +18,7 @@ import com.google.auto.service.AutoService;
 import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -77,7 +78,8 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), request.getHeaders(), SETTER);
+        defaultPropagator()
+            .inject(Context.current().with(span).with(dsmContext), request.getHeaders(), SETTER);
         return activateSpan(span);
       }
       return null;
