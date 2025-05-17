@@ -18,6 +18,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -435,7 +436,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           IGKeyClassifier.create(
               requestContext,
               cbp.getCallback(EVENTS.requestHeader()),
-              cbp.getCallback(EVENTS.requestHeaderDone()));
+              cbp.getCallback(EVENTS.requestHeaderDone()),
+              null);
       if (null != igKeyClassifier) {
         getter.forEachKey(carrier, igKeyClassifier);
         return igKeyClassifier.done();
@@ -491,7 +493,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         IGKeyClassifier.create(
             requestContext,
             cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
+            cbp.getCallback(EVENTS.responseHeaderDone()),
+            cbp.getCallback(EVENTS.responseBodyDone()));
     if (null != igKeyClassifier) {
       contextVisitor.forEachKey(carrier, igKeyClassifier);
       return igKeyClassifier.done();
@@ -575,7 +578,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        Function<RequestContext, Flow<Void>> doneCallback,
+        BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> bodyDoneCallback) {
       if (null == requestContext || null == headerCallback) {
         return null;
       }

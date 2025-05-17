@@ -219,6 +219,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    // TODO delete when ure done testing
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
