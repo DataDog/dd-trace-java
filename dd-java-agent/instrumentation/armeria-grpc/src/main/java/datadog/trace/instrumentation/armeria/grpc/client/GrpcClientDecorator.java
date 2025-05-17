@@ -1,9 +1,6 @@
 package datadog.trace.instrumentation.armeria.grpc.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
@@ -18,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -28,16 +24,6 @@ public class GrpcClientDecorator extends ClientDecorator {
           SpanNaming.instance().namingSchema().client().operationForProtocol("grpc"));
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("armeria-grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
-
-  private static LinkedHashMap<String, String> createClientPathwaySortedTags() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
-    result.put(DIRECTION_TAG, DIRECTION_OUT);
-    result.put(TYPE_TAG, "grpc");
-    return result;
-  }
-
-  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
-      createClientPathwaySortedTags();
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 

@@ -8,14 +8,45 @@ import java.util.LinkedHashMap;
 public class DataStreamsContext implements ImplicitContextKeyed {
   private static final ContextKey<DataStreamsContext> CONTEXT_KEY =
       ContextKey.named("dsm-context-key");
+  private static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
+  private static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
 
   final LinkedHashMap<String, String> sortedTags;
   final long defaultTimestamp;
   final long payloadSizeBytes;
   final boolean sendCheckpoint;
 
+  static {
+    CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
+    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    CLIENT_PATHWAY_EDGE_TAGS.put("direction", "out");
+    CLIENT_PATHWAY_EDGE_TAGS.put("type", "http");
+    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
+    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
+    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
+    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
+  }
+
   public static DataStreamsContext fromContext(Context context) {
     return context.get(CONTEXT_KEY);
+  }
+
+  /**
+   * Gets default DSM context for HTTP clients.
+   *
+   * @return The default DSM context for HTTP clients.
+   */
+  public static DataStreamsContext forHttpClient() {
+    return fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+  }
+
+  /**
+   * Gets default DSM context for HTTP servers.
+   *
+   * @return The default DSM context for HTTP servers.
+   */
+  public static DataStreamsContext forHttpServer() {
+    return fromTags(SERVER_PATHWAY_EDGE_TAGS);
   }
 
   /**

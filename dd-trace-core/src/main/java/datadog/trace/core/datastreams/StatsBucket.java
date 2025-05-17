@@ -22,21 +22,16 @@ public class StatsBucket {
     // we want to perform aggregation per dataset, to allow
     // lower-level granularity and unblock dataset name manipulations on the backend
     // without affecting the precision.
-    StatsGroup statsGroup = hashToGroup.get(statsPoint.getAggregationHash());
-
-    // FIXME Java 7
-    if (statsGroup == null) {
-      // stats group remains the same
-      statsGroup =
-          new StatsGroup(
-              statsPoint.getEdgeTags(), statsPoint.getHash(), statsPoint.getParentHash());
-      hashToGroup.put(statsPoint.getAggregationHash(), statsGroup);
-    }
-
-    statsGroup.add(
-        statsPoint.getPathwayLatencyNano(),
-        statsPoint.getEdgeLatencyNano(),
-        statsPoint.getPayloadSizeBytes());
+    hashToGroup
+        .computeIfAbsent(
+            statsPoint.getAggregationHash(),
+            hash ->
+                new StatsGroup(
+                    statsPoint.getEdgeTags(), statsPoint.getHash(), statsPoint.getParentHash()))
+        .add(
+            statsPoint.getPathwayLatencyNano(),
+            statsPoint.getEdgeLatencyNano(),
+            statsPoint.getPayloadSizeBytes());
   }
 
   public void addBacklog(Backlog backlog) {
