@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.HTTP_REQUEST;
@@ -70,7 +71,8 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), httpMethod, SETTER);
+        defaultPropagator()
+            .inject(getCurrentContext().with(span).with(dsmContext), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {

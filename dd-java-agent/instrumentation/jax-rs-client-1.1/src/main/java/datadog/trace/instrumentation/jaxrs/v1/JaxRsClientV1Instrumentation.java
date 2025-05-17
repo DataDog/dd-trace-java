@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
@@ -77,7 +78,8 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), request.getHeaders(), SETTER);
+        defaultPropagator()
+            .inject(getCurrentContext().with(span).with(dsmContext), request.getHeaders(), SETTER);
         return activateSpan(span);
       }
       return null;
