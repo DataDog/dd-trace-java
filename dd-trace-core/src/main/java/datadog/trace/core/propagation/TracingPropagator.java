@@ -65,7 +65,9 @@ public class TracingPropagator implements Propagator {
     if (context == null || carrier == null || visitor == null) {
       return context;
     }
+    System.out.println("before httpcodec extract");
     TagContext spanContext = this.extractor.extract(carrier, toContextVisitor(visitor));
+    System.out.println("span context post tracing extract: " + spanContext);
     // If the extraction fails, return the original context
     if (spanContext == null) {
       return context;

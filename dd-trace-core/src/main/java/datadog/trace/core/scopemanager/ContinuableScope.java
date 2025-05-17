@@ -127,6 +127,7 @@ class ContinuableScope implements AgentScope {
 
   @Override
   public Context context() {
+    System.out.println("Coming here");
     return context;
   }
 

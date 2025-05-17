@@ -180,12 +180,13 @@ public final class ContinuableScopeManager implements ContextManager {
 
     // Inherit the async propagation from the active scope
     boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
-
+    System.out.println("context in activate: " + context);
     final ContinuableScope scope =
         new ContinuableScope(this, context, CONTEXT, asyncPropagation, createScopeState(context));
     scopeStack.push(scope);
     healthMetrics.onActivateScope();
 
+    System.out.println("ContinuableScopeManager");
     return scope;
   }
 
