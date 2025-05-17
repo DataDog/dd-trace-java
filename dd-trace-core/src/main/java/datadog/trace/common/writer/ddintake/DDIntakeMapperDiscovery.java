@@ -6,6 +6,7 @@ import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2;
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.common.writer.RemoteMapperDiscovery;
+import datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper;
 
 /**
  * Mapper discovery logic when a DDIntake is used. The mapper is discovered based on a backend
@@ -40,6 +41,8 @@ public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
       mapper = new CiTestCycleMapperV1(wellKnownTags, compressionEnabled);
     } else if (TrackType.CITESTCOV.equals(trackType)) {
       mapper = new CiTestCovMapperV2(compressionEnabled);
+    } else if (TrackType.LLMOBS.equals(trackType)) {
+      mapper = new LLMObsSpanMapper();
     } else {
       mapper = RemoteMapper.NO_OP;
     }
