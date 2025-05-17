@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.datastreams.StatsPoint
@@ -17,6 +18,7 @@ import java.util.function.Consumer
 
 import static datadog.context.Context.root
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.api.datastreams.DataStreamsContext.create
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags
@@ -426,6 +428,23 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     then:
     firstBaseHash != secondBaseHash
+  }
+
+  def "Process Tags used in hash calculation"() {
+    when:
+    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    ProcessTags.addTag("000", "first")
+    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    then:
+    firstBaseHash != secondBaseHash
+    assert ProcessTags.getTagsForSerialization().startsWithAny("000:first,")
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
   }
 
   def "Check context extractor decorator behavior"() {
