@@ -128,7 +128,7 @@ public class BatchUploader {
       RetryPolicy retryPolicy,
       String containerId,
       String entityId) {
-    instrumentTheWorld = config.isDynamicInstrumentationInstrumentTheWorld();
+    instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
