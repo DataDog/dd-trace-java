@@ -138,7 +138,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
           "committing exception probe id={}, snapshot id={}, exception id={}",
           id,
           snapshot.getId(),
-          snapshot.getExceptionId());
+          snapshot.getExceptionCaptureId());
     }
   }
 
