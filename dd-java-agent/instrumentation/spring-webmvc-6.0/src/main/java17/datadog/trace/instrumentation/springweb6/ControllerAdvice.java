@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecora
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import jakarta.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import org.springframework.web.method.HandlerMethod;
@@ -25,7 +26,8 @@ public class ControllerAdvice {
     // Name the parent span based on the matching pattern
     Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
     if (parentSpan instanceof AgentSpan) {
-      DECORATE.onRequest((AgentSpan) parentSpan, request, request, null);
+      DECORATE.onRequest(
+          (AgentSpan) parentSpan, request, request, (AgentSpanContext.Extracted) null);
     }
 
     if (activeSpan() == null) {
