@@ -23,7 +23,7 @@ public class InitializationTelemetryCheck {
   public static void main(String[] args) throws InterruptedException {
     // Emulates the real application performing work in main().
     // That should give enough time to send initial telemetry from daemon thread.
-    if (args.length > 0 && args[0].equals("sleep")) {
+    if (args.length > 0 && "sleep".equals(args[0])) {
       Thread.sleep(1000);
     }
   }
