@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.apache.spark.executor.Executor;
@@ -27,6 +28,8 @@ public class SparkExecutorDecorator extends BaseDecorator {
   }
 
   public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
+    AgentTracer.get().getDataStreamsMonitoring().addGlobalTag("service_type:spark_task");
+
     span.setTag("task_id", taskRunner.taskId());
     span.setTag("task_thread_name", taskRunner.threadName());
   }

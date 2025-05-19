@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.spark;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.StageInfo;
@@ -19,6 +21,7 @@ import scala.jdk.javaapi.CollectionConverters;
 public class DatadogSpark213Listener extends AbstractDatadogSparkListener {
   public DatadogSpark213Listener(SparkConf sparkConf, String appId, String sparkVersion) {
     super(sparkConf, appId, sparkVersion);
+    AgentTracer.get().getDataStreamsMonitoring().addGlobalTag("service_type:spark_app");
   }
 
   @Override
