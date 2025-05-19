@@ -113,7 +113,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         traceConfigSupplier,
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag(), globalTags),
+            sink,
+            config.getWellKnownTags(),
+            DDTraceCoreInfo.VERSION,
+            config.getPrimaryTag(),
+            globalTags),
         Config.get().getDataStreamsBucketDurationNanoseconds());
   }
 

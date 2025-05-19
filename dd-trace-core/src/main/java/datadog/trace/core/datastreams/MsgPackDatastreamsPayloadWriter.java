@@ -46,7 +46,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final Set<String> globalTags;
 
   public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag, Set<String> globalTags) {
+      Sink sink,
+      WellKnownTags wellKnownTags,
+      String tracerVersion,
+      String primaryTag,
+      Set<String> globalTags) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
