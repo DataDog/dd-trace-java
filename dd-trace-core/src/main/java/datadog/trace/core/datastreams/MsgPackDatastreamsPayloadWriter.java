@@ -12,6 +12,7 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -42,15 +43,17 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private final WellKnownTags wellKnownTags;
   private final byte[] tracerVersionValue;
   private final byte[] primaryTagValue;
+  private final Set<String> globalTags;
 
   public MsgPackDatastreamsPayloadWriter(
-      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag) {
+      Sink sink, WellKnownTags wellKnownTags, String tracerVersion, String primaryTag, Set<String> globalTags) {
     buffer = new GrowableBuffer(INITIAL_CAPACITY);
     writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.wellKnownTags = wellKnownTags;
     tracerVersionValue = tracerVersion.getBytes(ISO_8859_1);
     primaryTagValue = primaryTag == null ? new byte[0] : primaryTag.getBytes(ISO_8859_1);
+    this.globalTags = globalTags;
   }
 
   public void reset() {
@@ -148,7 +151,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      boolean firstNode = group.getEdgeTags().isEmpty();
+      boolean firstNode = group.getEdgeTags().isEmpty() && globalTags.isEmpty();
 
       packer.startMap(firstNode ? 5 : 6);
 
@@ -175,8 +178,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (!firstNode) {
         /* 6 */
         packer.writeUTF8(EDGE_TAGS);
-        packer.startArray(group.getEdgeTags().size());
+        packer.startArray(group.getEdgeTags().size() + globalTags.size());
         for (String tag : group.getEdgeTags()) {
+          packer.writeString(tag, null);
+        }
+        for (String tag : globalTags) {
           packer.writeString(tag, null);
         }
       }
@@ -189,8 +195,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     for (Map.Entry<List<String>, Long> entry : backlogs) {
       packer.startMap(2);
       packer.writeUTF8(BACKLOG_TAGS);
-      packer.startArray(entry.getKey().size());
+      packer.startArray(entry.getKey().size() + globalTags.size());
       for (String tag : entry.getKey()) {
+        packer.writeString(tag, null);
+      }
+      for (String tag : globalTags) {
         packer.writeString(tag, null);
       }
       packer.writeUTF8(BACKLOG_VALUE);

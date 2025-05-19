@@ -48,6 +48,9 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void clearThreadServiceName() {}
 
   @Override
+  public void addGlobalTag(String tag) {}
+
+  @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
 
   @Override

@@ -46,4 +46,7 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
 
   /** clearThreadServiceName clears up service name override for Thread.currentThread() */
   void clearThreadServiceName();
+
+  /** addGlobalTag allows adding global non-hashable tags to DSM payloads */
+  void addGlobalTag(String tag);
 }

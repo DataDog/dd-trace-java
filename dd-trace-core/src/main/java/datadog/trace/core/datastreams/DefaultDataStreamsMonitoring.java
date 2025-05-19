@@ -36,14 +36,8 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -78,6 +72,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+  private static final Set<String> globalTags = ConcurrentHashMap.newKeySet();
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -111,7 +106,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         traceConfigSupplier,
         config.getWellKnownTags(),
         new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
+            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag(), globalTags),
         Config.get().getDataStreamsBucketDurationNanoseconds());
   }
 
@@ -194,6 +189,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clearThreadServiceName() {
     serviceNameOverride.remove();
+  }
+
+  @Override
+  public void addGlobalTag(String tag) {
+    globalTags.add(tag);
   }
 
   private static String getThreadServiceName() {
