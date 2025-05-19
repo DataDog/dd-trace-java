@@ -280,6 +280,39 @@ public class DefaultExceptionDebuggerTest {
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
 
+  @Test
+  public void lambdaTruncatedInnerTraceFallback() {
+    RuntimeException exception = new RuntimeException("lambda");
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    AgentSpan span = mock(AgentSpan.class);
+    doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
+    when(span.getTag(anyString())).thenAnswer(inv -> spanTags.get(inv.getArgument(0)));
+    when(span.getTags()).thenReturn(spanTags);
+
+    exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
+
+    generateSnapshots(exception);
+
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception);
+    List<Snapshot> snapshots = state.getSnapshots();
+    StackTraceElement ste = exception.getStackTrace()[0];
+    CapturedStackFrame dummyFrame = CapturedStackFrame.from(ste);
+    for (Snapshot snap : snapshots) {
+      snap.getStack().add(0, dummyFrame);
+    }
+
+    // This should hit the `currentIdx < 0` branch and fallback to i=0
+    exceptionDebugger.handleException(exception, span);
+
+    String tagName = String.format(SNAPSHOT_ID_TAG_FMT, 0);
+    assertTrue(spanTags.containsKey(tagName));
+    assertEquals(snapshots.get(0).getId(), spanTags.get(tagName));
+  }
+
   private Object recordTags(InvocationOnMock invocationOnMock) {
     Object[] args = invocationOnMock.getArguments();
     String key = (String) args[0];
