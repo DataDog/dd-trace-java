@@ -20,13 +20,6 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     ['single thread pool', ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread")],
   ]
 
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-
-    injectSysConfig("dd.integration.kotlin_coroutine.experimental.enabled", "true")
-  }
-
   def "kotlin cancellation prevents trace #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)

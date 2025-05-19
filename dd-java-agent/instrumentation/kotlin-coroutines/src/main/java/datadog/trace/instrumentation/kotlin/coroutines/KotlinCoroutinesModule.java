@@ -9,12 +9,7 @@ import java.util.List;
 @AutoService(InstrumenterModule.class)
 public class KotlinCoroutinesModule extends InstrumenterModule.Tracing {
   public KotlinCoroutinesModule() {
-    super("kotlin_coroutine.experimental");
-  }
-
-  @Override
-  protected final boolean defaultEnabled() {
-    return false;
+    super("kotlin_coroutine");
   }
 
   @Override
