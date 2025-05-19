@@ -30,7 +30,7 @@ object SprayHelper {
 
   def wrapRoute(route: Route): Route = { ctx =>
     {
-      DECORATE.onRequest(activeSpan(), ctx, ctx.request, null)
+      DECORATE.onRequest(activeSpan(), ctx, ctx.request, (AgentSpanContext.Extracted) null)
       try route(ctx)
       catch {
         case NonFatal(e) =>

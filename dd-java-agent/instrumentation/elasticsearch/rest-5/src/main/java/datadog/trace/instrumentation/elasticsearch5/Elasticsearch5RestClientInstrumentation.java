@@ -15,7 +15,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.elasticsearch.client.ResponseListener;
 
@@ -62,7 +61,7 @@ public class Elasticsearch5RestClientInstrumentation extends InstrumenterModule.
 
       final AgentSpan span = startSpan(OPERATION_NAME);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, method, endpoint, null, (AgentSpanContext.Extracted) null);
+      DECORATE.onRequest(span, method, endpoint, null, null);
 
       responseListener = new RestResponseListener(responseListener, span);
 
