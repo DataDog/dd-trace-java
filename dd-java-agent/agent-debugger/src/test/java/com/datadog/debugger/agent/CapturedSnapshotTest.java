@@ -2617,7 +2617,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Config config = mock(Config.class);
     when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDynamicInstrumentationInstrumentTheWorld()).thenReturn(true);
+    when(config.getDynamicInstrumentationInstrumentTheWorld()).thenReturn("method");
     when(config.getDynamicInstrumentationExcludeFiles()).thenReturn(excludeFileName);
     when(config.getDynamicInstrumentationIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
