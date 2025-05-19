@@ -58,7 +58,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = DECORATE.startSpanFromContext(exchange, context);
       ContextScope scope = context.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequestWithContext(span, exchange, exchange, context);
+      DECORATE.onRequest(span, exchange, exchange, context);
       DECORATE.onPeerConnection(span, exchange.getRemoteAddress());
 
       return scope;

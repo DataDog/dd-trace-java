@@ -44,7 +44,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     try (final ContextScope scope = extractedContext.with(span).attach()) {
       DECORATE.afterStart(span);
-      DECORATE.onRequestWithContext(span, channel, request, extractedContext);
+      DECORATE.onRequest(span, channel, request, extractedContext);
 
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);

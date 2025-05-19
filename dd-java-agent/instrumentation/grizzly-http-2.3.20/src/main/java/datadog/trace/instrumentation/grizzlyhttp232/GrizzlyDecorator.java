@@ -118,7 +118,7 @@ public class GrizzlyDecorator
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onRequestWithContext(span, httpRequest, httpRequest, context);
+    DECORATE.onRequest(span, httpRequest, httpRequest, context);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {

@@ -13,7 +13,7 @@ public class DatadogWrapperHelper {
     final Context extractedContext = DECORATE.extractContext(request);
     final AgentSpan span = DECORATE.startSpanFromContext(request, extractedContext);
     DECORATE.afterStart(span);
-    DECORATE.onRequestWithContext(span, request, request, extractedContext);
+    DECORATE.onRequest(span, request, request, extractedContext);
 
     return extractedContext.with(span).attach();
   }

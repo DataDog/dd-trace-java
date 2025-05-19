@@ -70,7 +70,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
       final Context extractedContext = DECORATE.extractContext(request);
       final AgentSpan span = DECORATE.startSpanFromContext(request, extractedContext);
       DECORATE.afterStart(span, context.getFunctionName());
-      DECORATE.onRequestWithContext(span, request, request, extractedContext);
+      DECORATE.onRequest(span, request, request, extractedContext);
       HTTP_RESOURCE_DECORATOR.withRoute(
           span, request.getHttpMethod().name(), request.getUri().getPath());
       return extractedContext.with(span).attach();

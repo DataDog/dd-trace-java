@@ -32,7 +32,7 @@ public class JettyServerAdvice {
       try (final ContextScope scope = extractedContext.with(span).attach()) {
         span.setMeasured(true);
         JettyDecorator.DECORATE.afterStart(span);
-        JettyDecorator.DECORATE.onRequestWithContext(span, req, req, extractedContext);
+        JettyDecorator.DECORATE.onRequest(span, req, req, extractedContext);
 
         req.setAttribute(DD_SPAN_ATTRIBUTE, span);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

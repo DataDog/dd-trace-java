@@ -74,7 +74,7 @@ public class Servlet3Advice {
     scope = extractedContext.with(span).attach();
 
     DECORATE.afterStart(span);
-    DECORATE.onRequestWithContext(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

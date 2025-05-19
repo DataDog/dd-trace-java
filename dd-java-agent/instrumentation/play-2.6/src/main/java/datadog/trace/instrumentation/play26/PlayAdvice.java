@@ -66,7 +66,7 @@ public class PlayAdvice {
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequestWithContext(playControllerSpan, req, req, extractedContext);
+    DECORATE.onRequest(playControllerSpan, req, req, extractedContext);
 
     if (throwable == null) {
       responseFuture.onComplete(

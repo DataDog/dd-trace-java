@@ -122,7 +122,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         }
       }
       DECORATE.afterStart(span);
-      DECORATE.onRequestWithContext(span, request, request, extractedContext);
+      DECORATE.onRequest(span, request, request, extractedContext);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

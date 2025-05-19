@@ -175,7 +175,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
-  public AgentSpan onRequestWithContext(
+  public AgentSpan onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,

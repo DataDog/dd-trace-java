@@ -98,7 +98,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
           DECORATE.startSpanFromContext(exchange, extractedContext).setMeasured(true);
       scope = extractedContext.with(span).attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequestWithContext(span, exchange, exchange, extractedContext);
+      DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
       exchange.putAttachment(DD_UNDERTOW_CONTINUATION, captureSpan(span));
 

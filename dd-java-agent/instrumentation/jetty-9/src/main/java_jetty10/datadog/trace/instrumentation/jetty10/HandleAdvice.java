@@ -27,7 +27,7 @@ public class HandleAdvice {
     final Context extractedContext = DECORATE.extractContext(req);
     span = DECORATE.startSpanFromContext(req, extractedContext);
     DECORATE.afterStart(span);
-    DECORATE.onRequestWithContext(span, req, req, extractedContext);
+    DECORATE.onRequest(span, req, req, extractedContext);
 
     final ContextScope scope = extractedContext.with(span).attach();
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);

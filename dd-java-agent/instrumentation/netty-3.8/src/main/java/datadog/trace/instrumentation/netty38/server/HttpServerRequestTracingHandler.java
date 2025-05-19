@@ -51,7 +51,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
     try (final ContextScope scope = context.with(span).attach()) {
       DECORATE.afterStart(span);
-      DECORATE.onRequestWithContext(span, ctx.getChannel(), request, context);
+      DECORATE.onRequest(span, ctx.getChannel(), request, context);
 
       channelTraceContext.setServerSpan(span);
 
