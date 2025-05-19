@@ -2,32 +2,30 @@ package datadog.trace.instrumentation.zio.v2_0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 
 public class FiberContext {
-  private final ScopeState scopeState;
+  private Context context;
   private final AgentScope.Continuation continuation;
 
-  private ScopeState oldScopeState;
+  private Context originalContext;
 
   public FiberContext() {
-    // copy scope stack to use for this fiber
-    this.scopeState = AgentTracer.get().oldScopeState().copy();
+    // record context to use for this coroutine
+    this.context = Context.current();
     // stop enclosing trace from finishing early
     this.continuation = captureActiveSpan();
   }
 
   public void onResume() {
-    oldScopeState = AgentTracer.get().oldScopeState();
-    scopeState.activate(); // swap in the fiber's scope stack
+    originalContext = context.swap();
   }
 
   public void onSuspend() {
-    if (oldScopeState != null) {
-      oldScopeState.activate(); // swap bock the original scope stack
-      oldScopeState = null;
+    if (originalContext != null) {
+      context = originalContext.swap();
+      originalContext = null;
     }
   }
 

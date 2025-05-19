@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.kotlin.coroutines;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
-public final class DatadogThreadContextElement implements ThreadContextElement<ScopeState> {
+public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
       new CoroutineContext.Key<DatadogThreadContextElement>() {};
 
@@ -22,7 +22,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<S
     return coroutineContext.plus(new DatadogThreadContextElement());
   }
 
-  private ScopeState scopeState;
+  private Context context;
   private AgentScope.Continuation continuation;
 
   @NotNull
@@ -32,40 +32,38 @@ public final class DatadogThreadContextElement implements ThreadContextElement<S
   }
 
   public static void captureDatadogContext(@NotNull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadogContext = coroutine.getContext().get(DATADOG_KEY);
-    if (datadogContext != null && datadogContext.scopeState == null) {
-      // copy scope stack to use for this coroutine
-      datadogContext.scopeState = AgentTracer.get().oldScopeState().copy();
+    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+    if (datadog != null && datadog.context == null) {
+      // record context to use for this coroutine
+      datadog.context = Context.current();
       // stop enclosing trace from finishing early
-      datadogContext.continuation = AgentTracer.captureActiveSpan();
+      datadog.continuation = AgentTracer.captureActiveSpan();
     }
   }
 
   public static void cancelDatadogContext(@NotNull AbstractCoroutine<?> coroutine) {
-    DatadogThreadContextElement datadogContext = coroutine.getContext().get(DATADOG_KEY);
-    if (datadogContext != null && datadogContext.continuation != null) {
+    DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
+    if (datadog != null && datadog.continuation != null) {
       // release enclosing trace now the coroutine has completed
-      datadogContext.continuation.cancel();
+      datadog.continuation.cancel();
     }
   }
 
   @Override
-  public ScopeState updateThreadContext(@NotNull CoroutineContext coroutineContext) {
-    ScopeState oldState = AgentTracer.get().oldScopeState();
-    if (scopeState == null) {
-      // copy scope stack to use for this coroutine
-      scopeState = oldState.copy();
+  public Context updateThreadContext(@NotNull CoroutineContext coroutineContext) {
+    if (context == null) {
+      // record context to use for this coroutine
+      context = Context.current();
       // stop enclosing trace from finishing early
       continuation = AgentTracer.captureActiveSpan();
     }
-    scopeState.activate(); // swap in the coroutine's scope stack
-    return oldState;
+    return context.swap();
   }
 
   @Override
   public void restoreThreadContext(
-      @NotNull CoroutineContext coroutineContext, ScopeState oldState) {
-    oldState.activate(); // swap bock the original scope stack
+      @NotNull CoroutineContext coroutineContext, Context originalContext) {
+    context = originalContext.swap();
   }
 
   @NotNull
