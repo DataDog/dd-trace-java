@@ -34,7 +34,14 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
   public static final int PROFILING_UPLOAD_TIMEOUT_DEFAULT = 30;
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
-  public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "on";
+  /**
+   * Default compression value. Supported values are: - "on": equivalent to "zstd" - "off": disables
+   * compression - "lz4": uses LZ4 compression (fast with moderate compression ratio) - "gzip": uses
+   * GZIP compression (higher compression ratio but slower) - "zstd": uses ZSTD compression (high
+   * compression ratio with reasonable performance)
+   */
+  public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "zstd";
+
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final int PROFILING_PROXY_PORT_DEFAULT = 8080;

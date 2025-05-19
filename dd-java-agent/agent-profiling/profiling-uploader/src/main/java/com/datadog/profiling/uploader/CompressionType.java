@@ -12,7 +12,9 @@ enum CompressionType {
   /** Lower compression ratio with less CPU overhead * */
   LZ4,
   /** Better compression ratio for the price of higher CPU usage * */
-  GZIP;
+  GZIP,
+  /** High compression ratio with reasonable CPU usage * */
+  ZSTD;
 
   private static final Logger log = LoggerFactory.getLogger(CompressionType.class);
 
@@ -30,9 +32,11 @@ enum CompressionType {
         return LZ4;
       case "gzip":
         return GZIP;
+      case "zstd":
+        return ZSTD;
       default:
-        log.warn("Unrecognizable compression type: {}. Defaulting to 'on'.", type);
-        return ON;
+        log.warn("Unrecognizable compression type: {}. Defaulting to 'zstd'.", type);
+        return ZSTD;
     }
   }
 }
