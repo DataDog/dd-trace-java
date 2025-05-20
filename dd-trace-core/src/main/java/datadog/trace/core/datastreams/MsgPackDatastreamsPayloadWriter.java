@@ -187,6 +187,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
           packer.writeString(tag, null);
         }
         for (String tag : globalTags) {
+          System.out.println("### writing global tag for stats " + tag);
           packer.writeString(tag, null);
         }
       }
@@ -204,6 +205,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         packer.writeString(tag, null);
       }
       for (String tag : globalTags) {
+        System.out.println("### writing global tag for backlogs " + tag);
         packer.writeString(tag, null);
       }
       packer.writeUTF8(BACKLOG_VALUE);

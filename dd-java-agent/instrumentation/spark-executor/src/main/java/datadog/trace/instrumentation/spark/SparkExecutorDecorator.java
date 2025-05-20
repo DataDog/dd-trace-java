@@ -28,6 +28,7 @@ public class SparkExecutorDecorator extends BaseDecorator {
   }
 
   public void onTaskStart(AgentSpan span, Executor.TaskRunner taskRunner) {
+    System.out.println("### Setting global tag in task start");
     AgentTracer.get().getDataStreamsMonitoring().addGlobalTag("service_type:spark_task");
 
     span.setTag("task_id", taskRunner.taskId());
