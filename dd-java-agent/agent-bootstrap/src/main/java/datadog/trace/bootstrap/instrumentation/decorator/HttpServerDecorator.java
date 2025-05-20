@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.context.Context.root;
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -146,7 +144,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /** Deprecated. Use {@link #startSpanFromContext(Object, Context)} instead. */
-  
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
