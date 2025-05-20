@@ -57,7 +57,7 @@ public class HandleRequestVisitor extends MethodVisitor {
       lookForStore =
           !lookForStore
               && opcode == Opcodes.INVOKEVIRTUAL
-              && name.equals("startSpan")
+              && name.equals("startSpanFromContext")
               && descriptor.endsWith("Ldatadog/trace/bootstrap/instrumentation/api/AgentSpan;");
     } else if (opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
