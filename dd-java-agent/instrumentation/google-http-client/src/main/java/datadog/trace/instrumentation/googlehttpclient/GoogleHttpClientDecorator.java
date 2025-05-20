@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapte
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -38,8 +37,7 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-    defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+    defaultPropagator().inject(span, request, SETTER);
     return span;
   }
 
