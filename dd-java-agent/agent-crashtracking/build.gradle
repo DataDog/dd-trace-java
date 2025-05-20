@@ -16,7 +16,6 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:version-utils')
-  implementation project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:ddprof-dependency')
 
   implementation libs.okhttp
