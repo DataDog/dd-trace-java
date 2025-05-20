@@ -1023,7 +1023,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_base
-      resourceClass: large
+      resourceClass: xlarge
       gradleTarget: ":baseCheck"
       cacheType: base
 
