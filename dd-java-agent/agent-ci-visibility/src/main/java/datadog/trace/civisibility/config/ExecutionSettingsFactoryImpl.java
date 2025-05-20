@@ -213,7 +213,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
                 getTestManagementTestsByModule(
                     tracerEnvironment, testManagementSettings.isEnabled()));
     Future<Diff> pullRequestDiffFuture =
-        executor.submit(() -> getPullRequestDiff(tracerEnvironment, impactedTestsEnabled));
+        executor.submit(() -> getPullRequestDiff(impactedTestsEnabled));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
     Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
@@ -402,8 +402,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nonnull
-  private Diff getPullRequestDiff(
-      TracerEnvironment tracerEnvironment, boolean impactedTestsDetectionEnabled) {
+  private Diff getPullRequestDiff(boolean impactedTestsDetectionEnabled) {
     if (!impactedTestsDetectionEnabled) {
       return LineDiff.EMPTY;
     }
@@ -411,7 +410,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     try {
       if (repositoryRoot != null) {
         // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.unshallow();
+        gitRepoUnshallow.startOrObserveUnshallow().get();
         Diff diff =
             gitClient.getGitDiff(
                 pullRequestInfo.getPullRequestBaseBranchSha(),

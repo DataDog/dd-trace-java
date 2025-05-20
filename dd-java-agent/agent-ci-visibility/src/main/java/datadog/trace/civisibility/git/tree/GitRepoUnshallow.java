@@ -3,6 +3,8 @@ package datadog.trace.civisibility.git.tree;
 import datadog.trace.api.Config;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +15,30 @@ public class GitRepoUnshallow {
 
   private final Config config;
   private final GitClient gitClient;
+  private volatile CompletableFuture<Boolean> callback;
 
   public GitRepoUnshallow(Config config, GitClient gitClient) {
     this.config = config;
     this.gitClient = gitClient;
   }
 
-  public boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+  public Future<Boolean> startOrObserveUnshallow() {
+    if (callback == null) {
+      synchronized (this) {
+        if (callback == null) {
+          callback = new CompletableFuture<>();
+          try {
+            callback.complete(unshallow());
+          } catch (Exception e) {
+            callback.completeExceptionally(e);
+          }
+        }
+      }
+    }
+    return callback;
+  }
+
+  private boolean unshallow() throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }
