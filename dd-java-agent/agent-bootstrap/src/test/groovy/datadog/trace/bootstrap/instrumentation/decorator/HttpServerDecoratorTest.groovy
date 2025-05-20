@@ -51,7 +51,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(this.span, null, req, null)
+    decorator.onRequest(this.span, null, req, (AgentSpanContext.Extracted) null)
 
     then:
     if (req) {
@@ -84,7 +84,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(this.span, null, req, null)
+    decorator.onRequest(this.span, null, req, (AgentSpanContext.Extracted) null)
 
     then:
     if (expectedUrl) {
@@ -135,7 +135,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(this.span, null, req, null)
+    decorator.onRequest(this.span, null, req, (AgentSpanContext.Extracted) null)
 
     then:
     1 * this.span.setTag(Tags.HTTP_URL, {it.toString() == expectedUrl})
@@ -165,7 +165,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(this.span, null, [url: new URI('http://host/p%20ath')], null)
+    decorator.onRequest(this.span, null, [url: new URI('http://host/p%20ath')], (AgentSpanContext.Extracted) null)
 
     then:
     1 * this.span.setResourceName({ it as String == '/path' }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
