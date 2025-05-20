@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.scheduler.StageInfo;
