@@ -102,7 +102,7 @@ public class HandleVisitor extends MethodVisitor {
       lookForStore =
           !lookForStore
               && opcode == Opcodes.INVOKEVIRTUAL
-              && name.equals("startSpan")
+              && name.equals("startSpanFromContext")
               && descriptor.endsWith("Ldatadog/trace/bootstrap/instrumentation/api/AgentSpan;");
     } else if (!success
         && opcode == Opcodes.INVOKEVIRTUAL
