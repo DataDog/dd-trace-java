@@ -17,8 +17,30 @@ configurations {
   traceShadowInclude
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+// Support SSI inject for Java 7.
+tasks.named("compileJava", JavaCompile).configure {
+  sourceCompatibility = JavaVersion.VERSION_1_7
+  targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+// Support SSI inject for Java 6.
+sourceSets {
+  java6 {
+    java {
+      srcDirs = ['src/main/java6']
+    }
+  }
+}
+
+tasks.register('compileJava6', JavaCompile) {
+  classpath = sourceSets.main.compileClasspath
+  source = sourceSets.java6.java
+  destinationDirectory = layout.buildDirectory.dir("classes/java/main")
+  sourceCompatibility = JavaVersion.VERSION_1_6
+  targetCompatibility = JavaVersion.VERSION_1_6
+}
+
+tasks.compileJava.dependsOn compileJava6
 
 /*
  * Several shadow jars are created
@@ -176,7 +198,7 @@ shadowJar generalShadowJarConfig >> {
     attributes(
       "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
+      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrapJava6",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
       )
