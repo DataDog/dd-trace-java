@@ -160,7 +160,6 @@ public class ExceptionProbeManager {
     ThrowableState state =
         snapshotsByThrowable.computeIfAbsent(
             throwable, key -> new ThrowableState(RandomUtils.randomUUID().toString()));
-    snapshot.setExceptionId(state.getExceptionId());
     state.addSnapshot(snapshot);
   }
 
