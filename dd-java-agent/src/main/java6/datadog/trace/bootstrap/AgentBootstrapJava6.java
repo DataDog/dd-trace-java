@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -31,6 +32,7 @@ public class AgentBootstrapJava6 {
     log(msg + ": " + e.getMessage());
   }
 
+  @SuppressForbidden
   private static void log(String msg) {
     // We don't have a log manager here, so just print.
     System.out.println(msg);
@@ -110,6 +112,7 @@ public class AgentBootstrapJava6 {
     }
   }
 
+  @SuppressForbidden
   private static void continueBootstrap(final String agentArgs, final Instrumentation inst) {
     try {
       Class<?> clazz = Class.forName("datadog.trace.bootstrap.AgentBootstrap");

@@ -40,6 +40,10 @@ tasks.register('compileJava6', JavaCompile) {
   targetCompatibility = JavaVersion.VERSION_1_6
 }
 
+dependencies {
+  java6CompileOnly 'de.thetaphi:forbiddenapis:3.4'
+}
+
 tasks.compileJava.dependsOn compileJava6
 
 /*
@@ -90,7 +94,7 @@ ext.generalShadowJarConfig = {
   if (!projectName.equals('instrumentation')) {
     relocate 'org.yaml.snakeyaml', 'datadog.snakeyaml'
     relocate 'okhttp3', 'datadog.okhttp3'
-    relocate 'okio',  'datadog.okio'
+    relocate 'okio', 'datadog.okio'
   }
 
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
