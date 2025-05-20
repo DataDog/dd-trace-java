@@ -21,7 +21,7 @@ class InitializationTelemetryTest extends Specification {
 
   def "normal start-up"() {
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(null)
+    def result = InitializationTelemetryCheck.runTestJvm(null, false, "sleep")
 
     then:
     result.exitCode == 0
