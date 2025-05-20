@@ -4,9 +4,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
+
   def "test parse valid"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     injectEnvConfig("DD_SERVICE", "mysvc")
     // From the below yaml, only apm_configuration_default and the second selector should be applied: We use the first matching rule and discard the rest
     String yaml = """
@@ -40,7 +47,6 @@ apm_configuration_rules:
     StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
 
     then:
-    filePath != null
     def keys = cfg.getKeys()
     keys.size() == 3
     cfg.getConfigId().trim() == ("12345")
@@ -86,31 +92,38 @@ apm_configuration_rules:
     "environment_variables" | [null]                | "contains"             | "DD_SERVICE"           | false
   }
 
-  def "test duplicate entries"() {
-    // When duplicate keys are encountered, snakeyaml preserves the last value by default
+  def "test duplicate entries not allowed"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     String yaml = """
   config_id: 12345
   config_id: 67890
-  apm_configuration_default:
-    DD_KEY: value_1
-  apm_configuration_default:
-    DD_KEY: value_2
   """
     Files.write(filePath, yaml.getBytes())
-    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
+    StableConfigParser.parse(filePath.toString())
 
     then:
-    filePath != null
-    cfg != null
-    cfg.getConfigId() == "67890"
-    cfg.get("DD_KEY") == "value_2"
+    def ex = thrown(RuntimeException)
+
+    and:
+    ex.message.contains "found duplicate key config_id"
   }
 
   def "test config_id only"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     String yaml = """
   config_id: 12345
   """
@@ -118,7 +131,6 @@ apm_configuration_rules:
     StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
 
     then:
-    filePath != null
     cfg != null
     cfg.getConfigId() == "12345"
     cfg.getKeys().size() == 0
@@ -128,6 +140,12 @@ apm_configuration_rules:
     // If any piece of the file is invalid, the whole file is rendered invalid and an exception is thrown
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     String yaml = """
   something-irrelevant: ""
   config_id: 12345
@@ -155,7 +173,6 @@ apm_configuration_rules:
     }
 
     then:
-    filePath != null
     exception != null
     cfg == null
     Files.delete(filePath)

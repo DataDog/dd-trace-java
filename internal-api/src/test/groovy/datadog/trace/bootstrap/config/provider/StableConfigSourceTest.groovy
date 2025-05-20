@@ -28,10 +28,14 @@ class StableConfigSourceTest extends DDSpecification {
   def "test empty file"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
-    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
-
     then:
-    filePath != null
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
+    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
+    then:
     config.getKeys().size() == 0
     config.getConfigId() == null
   }
@@ -40,11 +44,16 @@ class StableConfigSourceTest extends DDSpecification {
     // StableConfigSource must handle the exception thrown by StableConfigParser.parse(filePath) gracefully
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     writeFileRaw(filePath, configId, data)
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
-    filePath != null
     stableCfg.getConfigId() == null
     stableCfg.getKeys().size() == 0
     Files.delete(filePath)
@@ -58,12 +67,17 @@ class StableConfigSourceTest extends DDSpecification {
   def "test file valid format"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
     StableConfig stableConfigYaml = new StableConfig(configId, defaultConfigs)
     writeFileYaml(filePath, stableConfigYaml)
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
-    filePath != null
     for (key in defaultConfigs.keySet()) {
       String keyString = (String) key
       keyString = keyString.substring(4) // Cut `DD_`

@@ -1,11 +1,12 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableList;
+import static java.util.Collections.unmodifiableMap;
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public final class StableConfig {
   private final String configId;
@@ -16,19 +17,12 @@ public final class StableConfig {
     Map<Object, Object> map = (Map<Object, Object>) yaml;
     this.configId = String.valueOf(map.get("config_id"));
     this.apmConfigurationDefault =
-        Collections.unmodifiableMap(
-            (Map<String, Object>)
-                map.getOrDefault("apm_configuration_default", new LinkedHashMap<>()));
+        unmodifiableMap(
+            (Map<String, Object>) map.getOrDefault("apm_configuration_default", emptyList()));
     this.apmConfigurationRules =
-        Collections.unmodifiableList(
-            ((List<Object>) map.getOrDefault("apm_configuration_rules", new ArrayList<>()))
-                .stream().map(Rule::new).collect(Collectors.toList()));
-  }
-
-  public StableConfig(String configId, Map<String, Object> apmConfigurationDefault) {
-    this.configId = configId;
-    this.apmConfigurationDefault = apmConfigurationDefault;
-    this.apmConfigurationRules = new ArrayList<>();
+        unmodifiableList(
+            ((List<Object>) map.getOrDefault("apm_configuration_rules", emptyList()))
+                .stream().map(Rule::new).collect(toList()));
   }
 
   public String getConfigId() {
