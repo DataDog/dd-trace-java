@@ -20,7 +20,6 @@ import scala.collection.JavaConverters;
 public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
   public DatadogSpark212Listener(SparkConf sparkConf, String appId, String sparkVersion) {
     super(sparkConf, appId, sparkVersion);
-    System.out.println("### Setting global tag in listener");
     AgentTracer.get().getDataStreamsMonitoring().addGlobalTag("service_type:spark_app");
   }
 
