@@ -46,7 +46,7 @@ public final class AppSecConfig {
   public static final String APPSEC_COLLECT_ALL_HEADERS = "appsec.collect-all-headers";
   public static final String APPSEC_MAX_COLLECTED_HEADERS = "appsec.max-collected-headers";
   public static final String APPSEC_HEADER_COLLECTION_REDACTION_ENABLED =
-      "appsec.header.collection.redaction.enabled";
+      "appsec.header-collection-redaction.enabled";
 
   private AppSecConfig() {}
 }
