@@ -65,7 +65,7 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)) {
       return;
     }
     final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
