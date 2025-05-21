@@ -473,7 +473,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj, ctx).getValue();
+      Object convObj = ObjectIntrospection.convert(obj, ctx);
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -573,16 +573,20 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      ObjectIntrospection.ConversionResult<Object> converted =
-          ObjectIntrospection.convert(obj, ctx);
+      Object converted =
+          ObjectIntrospection.convert(
+              obj,
+              ctx,
+              (rc) -> {
+                if (Config.get().isAppSecRaspCollectRequestBody()) {
+                  ctx_.getTraceSegment()
+                      .setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+                }
+              });
       if (Config.get().isAppSecRaspCollectRequestBody()) {
-        ctx.setProcessedRequestBody(converted.getValue());
-        if (converted.isAnyTruncated()) {
-          ctx_.getTraceSegment().setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
-        }
+        ctx.setProcessedRequestBody(converted);
       }
-      DataBundle bundle =
-          new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted.getValue());
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
