@@ -6,6 +6,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.profiling.RecordingInputStream;
+import io.airlift.compress.zstd.ZstdInputStream;
+import io.airlift.compress.zstd.ZstdOutputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -186,6 +188,15 @@ class CompressingRequestBodyTest {
           assertEquals(compressed.length, instance.getWrittenBytes());
           break;
         }
+      case ZSTD:
+        {
+          assertTrue(CompressingRequestBody.isZstd(compressedStream));
+          byte[] uncompressed = IOUtils.toByteArray(new ZstdInputStream(compressedStream));
+          assertArrayEquals(recordingData, uncompressed);
+          assertEquals(recordingData.length, instance.getReadBytes());
+          assertEquals(compressed.length, instance.getWrittenBytes());
+          break;
+        }
     }
   }
 
@@ -208,6 +219,11 @@ class CompressingRequestBodyTest {
         case GZIP:
           {
             compressedStream = new GZIPOutputStream(baos);
+            break;
+          }
+        case ZSTD:
+          {
+            compressedStream = new ZstdOutputStream(baos);
             break;
           }
       }
