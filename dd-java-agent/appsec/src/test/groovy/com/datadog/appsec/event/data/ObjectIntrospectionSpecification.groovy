@@ -304,4 +304,18 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     expect:
     convert([cs], ctx) == ['error:my exception']
   }
+
+  void 'truncated conversion triggers truncation listener if available '() {
+    setup:
+    def listener = Mock(ObjectIntrospection.TruncationListener)
+    def object = 'A' * 5000
+
+    when:
+    convert(object, ctx, listener)
+
+    then:
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(true, false, false)
+    1 * listener.onTruncation()
+  }
 }

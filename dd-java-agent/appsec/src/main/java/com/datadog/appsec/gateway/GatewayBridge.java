@@ -577,7 +577,7 @@ public class GatewayBridge {
           ObjectIntrospection.convert(
               obj,
               ctx,
-              (rc) -> {
+              () -> {
                 if (Config.get().isAppSecRaspCollectRequestBody()) {
                   ctx_.getTraceSegment()
                       .setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);

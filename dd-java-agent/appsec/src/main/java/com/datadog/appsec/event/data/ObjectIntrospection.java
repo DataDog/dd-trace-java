@@ -44,12 +44,8 @@ public final class ObjectIntrospection {
    */
   @FunctionalInterface
   public interface TruncationListener {
-    /**
-     * Called after default truncation handling if any truncation occurred.
-     *
-     * @param requestContext the request context for this conversion
-     */
-    void onTruncation(AppSecRequestContext requestContext);
+    /** Called after default truncation handling if any truncation occurred. */
+    void onTruncation();
   }
 
   /**
@@ -100,7 +96,7 @@ public final class ObjectIntrospection {
           .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
       // Optional extra per-call logic: only requestContext is passed
       if (listener != null) {
-        listener.onTruncation(requestContext);
+        listener.onTruncation();
       }
     }
     return converted;
