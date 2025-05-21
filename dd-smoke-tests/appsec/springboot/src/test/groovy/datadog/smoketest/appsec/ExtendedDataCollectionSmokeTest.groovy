@@ -283,7 +283,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
       .post(body)
       .build()
     def response = client.newCall(request).execute()
-    def responseBodyStr = response.body().string()
 
     then:
     response.code() == 200
