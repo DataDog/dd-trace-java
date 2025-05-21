@@ -204,7 +204,10 @@ public final class Initializer {
   }
 
   private static String getScript(String scriptName) {
-    return TempLocationManager.getInstance().getTempDir().toString() + "/" + getScriptFileName(scriptName) + " %p";
+    return TempLocationManager.getInstance().getTempDir().toString()
+        + "/"
+        + getScriptFileName(scriptName)
+        + " %p";
   }
 
   private static String getScriptFileName(String scriptName) {
