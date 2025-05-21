@@ -111,7 +111,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   protected final List<AgentSpanLink> links;
 
-  private final List<DDSpanEvent> events;
+  private List<DDSpanEvent> events;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -140,7 +140,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
-    this.events = new CopyOnWriteArrayList<>();
   }
 
   public boolean isFinished() {
@@ -867,6 +866,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   public AgentSpan addEvent(String name, SpanNativeAttributes attributes) {
+    if (this.events == null) {
+      this.events = new CopyOnWriteArrayList<>();
+    }
     if (name != null) {
       events.add(new DDSpanEvent(name, attributes));
     }
@@ -875,6 +877,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   public AgentSpan addEvent(
       String name, SpanNativeAttributes attributes, long timestamp, TimeUnit unit) {
+    if (this.events == null) {
+      this.events = new CopyOnWriteArrayList<>();
+    }
     if (name != null) {
       events.add(new DDSpanEvent(name, attributes, unit.toNanos(timestamp)));
     }

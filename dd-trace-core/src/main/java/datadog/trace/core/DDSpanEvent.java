@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
+import datadog.json.JsonWriter;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.SpanNativeAttributes;
@@ -22,8 +23,7 @@ import org.slf4j.LoggerFactory;
  * event. The `attributes` are normally semantically defined based on the `name` of the event. This
  * data model closely follows the OpenTelemetry specification.
  *
- * @see <a
- *     href="https://github.com/open-telemetry/opentelemetry.io/blob/2b007bc89daf60fe72e25a11f7e7d21887faf4ae/content/en/docs/concepts/signals/traces.md#span-events">OpenTelemetry
+ * @see <a href="https://opentelemetry.io/docs/concepts/signals/traces/#span-links">OpenTelemetry
  *     Span Events</a>
  */
 public class DDSpanEvent {
@@ -89,28 +89,28 @@ public class DDSpanEvent {
     if (events == null || events.isEmpty()) {
       return null;
     }
-    // Manually encode as JSON array
-    StringBuilder builder = new StringBuilder("[");
-    int index = 0;
-    while (index < events.size()) {
-      String eventAsJson = events.get(index).toJson();
-      int arrayCharsNeeded = index == 0 ? 1 : 2; // Closing bracket and comma separator if needed
-      if (eventAsJson.length() + builder.length() + arrayCharsNeeded >= TAG_MAX_LENGTH) {
-        // Do no more fit inside a span tag, stop adding span events
-        break;
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginArray();
+      int index = 0;
+      while (index < events.size()) {
+        String eventAsJson = events.get(index).toJson();
+        int arrayCharsNeeded = index == 0 ? 1 : 2; // Closing bracket and comma separator if needed
+        if (eventAsJson.length() + writer.toString().length() + arrayCharsNeeded
+            >= TAG_MAX_LENGTH) {
+          // Span tag is full, stop adding span events
+          break;
+        }
+        writer.jsonValue(eventAsJson);
+        index++;
       }
-      if (index > 0) {
-        builder.append(',');
+      // Notify of dropped events
+      while (index < events.size()) {
+        LOGGER.debug("Span tag full. Dropping span events {}", events.get(index));
+        index++;
       }
-      builder.append(eventAsJson);
-      index++;
+      writer.endArray();
+      return writer.toString();
     }
-    // Notify of dropped events
-    while (index < events.size()) {
-      LOGGER.debug("Span tag full. Dropping span events {}", events.get(index));
-      index++;
-    }
-    return builder.append(']').toString();
   }
 
   private static JsonAdapter<DDSpanEvent> getAdapter() {
