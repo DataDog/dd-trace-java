@@ -10,7 +10,8 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = "vertx-web"
-    versions = "[3.8.1,5)"
+    versions = "[3.8.1,)" // it won't fail on 5+ since won't apply
+    javaVersion = "11"
     assertInverse = true
   }
 }

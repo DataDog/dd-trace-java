@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORA
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -31,7 +32,7 @@ public class TracingInterceptor implements Interceptor {
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), requestBuilder, SETTER);
+      defaultPropagator().inject(Context.current().with(dsmContext), requestBuilder, SETTER);
 
       final Response response;
       try {
