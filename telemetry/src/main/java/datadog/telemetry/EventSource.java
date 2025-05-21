@@ -19,10 +19,12 @@ interface EventSource {
   boolean hasConfigChangeEvent();
 
   ConfigSetting nextConfigChangeEvent();
+  ArrayList<ConfigSetting> allConfigSettingEvent();
 
   boolean hasIntegrationEvent();
 
   Integration nextIntegrationEvent();
+  ArrayList<Integration> allIntegrationEvent();
 
   boolean hasDependencyEvent();
 
@@ -57,8 +59,8 @@ interface EventSource {
   }
 
   final class Queued implements EventSource {
-    private final Queue<ConfigSetting> configChangeQueue;
-    private final Queue<Integration> integrationQueue;
+    private final ArrayList<ConfigSetting> configChangeQueue;
+    private final ArrayList<Integration> integrationQueue;
     private final ArrayList<Dependency> dependencyQueue;
     private final Queue<Metric> metricQueue;
     private final Queue<DistributionSeries> distributionSeriesQueue;
@@ -66,8 +68,8 @@ interface EventSource {
     private final Queue<ProductChange> productChanges;
 
     Queued(
-        Queue<ConfigSetting> configChangeQueue,
-        Queue<Integration> integrationQueue,
+        ArrayList<ConfigSetting> configChangeQueue,
+        ArrayList<Integration> integrationQueue,
         ArrayList<Dependency> dependencyQueue,
         Queue<Metric> metricQueue,
         Queue<DistributionSeries> distributionSeriesQueue,
@@ -89,7 +91,12 @@ interface EventSource {
 
     @Override
     public ConfigSetting nextConfigChangeEvent() {
-      return configChangeQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<ConfigSetting> allConfigSettingEvent() {
+      return configChangeQueue;
     }
 
     @Override
@@ -99,7 +106,12 @@ interface EventSource {
 
     @Override
     public Integration nextIntegrationEvent() {
-      return integrationQueue.poll();
+      return null;
+    }
+
+    @Override
+    public ArrayList<Integration> allIntegrationEvent() {
+      return integrationQueue;
     }
 
     @Override

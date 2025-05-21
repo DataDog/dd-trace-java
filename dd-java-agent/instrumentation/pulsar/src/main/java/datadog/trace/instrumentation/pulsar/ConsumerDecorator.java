@@ -46,10 +46,6 @@ public class ConsumerDecorator extends BaseDecorator {
     if (log.isDebugEnabled()) {
       log.debug("into startAndEnd");
     }
-    AgentScope extractScope = MessageStore.extract(pr.getMessage());
-    if (extractScope != null) {
-      return;
-    }
     AgentSpanContext parentContext = extractContextAndGetSpanContext(pr, GETTER);
     String topic = pr.getMessage().getTopicName();
     UTF8BytesString spanName = UTF8BytesString.create(topic + " receive");
@@ -75,7 +71,6 @@ public class ConsumerDecorator extends BaseDecorator {
     if (log.isDebugEnabled()) {
       log.debug("out startAndEnd");
     }
-    MessageStore.Inject(pr.getMessage(), scope);
   }
 
   public static CompletableFuture<Message<?>> wrap(

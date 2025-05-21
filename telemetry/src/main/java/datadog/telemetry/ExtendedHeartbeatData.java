@@ -63,6 +63,11 @@ public class ExtendedHeartbeatData {
     }
 
     @Override
+    public ArrayList<ConfigSetting> allConfigSettingEvent() {
+      return configuration;
+    }
+
+    @Override
     public boolean hasIntegrationEvent() {
       return integrationIndex < integrations.size();
     }
@@ -70,6 +75,11 @@ public class ExtendedHeartbeatData {
     @Override
     public Integration nextIntegrationEvent() {
       return integrations.get(integrationIndex++);
+    }
+
+    @Override
+    public ArrayList<Integration> allIntegrationEvent() {
+      return integrations;
     }
 
     @Override

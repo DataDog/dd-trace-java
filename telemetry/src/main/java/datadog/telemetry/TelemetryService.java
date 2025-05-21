@@ -23,8 +23,8 @@ public class TelemetryService {
   private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(15 * 1024 * 1024 * 0.75);
 
   private final TelemetryRouter telemetryRouter;
-  private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
-  private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
+  private final ArrayList<ConfigSetting> configurations = new ArrayList<>();
+  private final ArrayList<Integration> integrations = new ArrayList<>();
   private final ArrayList<Dependency> dependencies = new ArrayList<>();
   private final BlockingQueue<Metric> metrics =
       new LinkedBlockingQueue<>(1024); // recommended capacity?
@@ -83,7 +83,7 @@ public class TelemetryService {
   public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
     for (ConfigSetting cs : configuration.values()) {
       extendedHeartbeatData.pushConfigSetting(cs);
-      if (!this.configurations.offer(cs)) {
+      if (!this.configurations.add(cs)) {
         return false;
       }
     }
@@ -106,7 +106,7 @@ public class TelemetryService {
       warnAboutExclusiveIntegrations();
     }
     extendedHeartbeatData.pushIntegration(integration);
-    return this.integrations.offer(integration);
+    return this.integrations.add(integration);
   }
 
   public boolean addMetric(Metric metric) {
@@ -141,7 +141,6 @@ public class TelemetryService {
   // keeps track of unsent events from the previous attempt
   private BufferedEvents bufferedEvents;
 
-  /** @return true - if an app-started event has been successfully sent, false - otherwise */
   public boolean sendAppStartedEvent() {
     EventSource eventSource;
     EventSink eventSink;
@@ -162,7 +161,7 @@ public class TelemetryService {
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
 
     request.writeProducts();
-    request.writeConfigurations();
+    request.writeConfigurations("trace_tags"); // config 后面会发，这里不再发送。
     request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
       // discard already sent buffered event on the successful attempt
@@ -229,7 +228,9 @@ public class TelemetryService {
     return false;
   }
 
-  /** @return true - if extended heartbeat request sent successfully, otherwise false */
+  /**
+   * @return true - if extended heartbeat request sent successfully, otherwise false
+   */
   public boolean sendExtendedHeartbeat() {
     log.debug("Preparing message-batch request");
     EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();

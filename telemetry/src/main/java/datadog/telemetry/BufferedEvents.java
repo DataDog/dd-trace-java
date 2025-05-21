@@ -96,6 +96,11 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
+  public ArrayList<ConfigSetting> allConfigSettingEvent() {
+    return configChangeEvents;
+  }
+
+  @Override
   public boolean hasIntegrationEvent() {
     return integrationEvents != null && integrationIndex < integrationEvents.size();
   }
@@ -103,6 +108,11 @@ public final class BufferedEvents implements EventSource, EventSink {
   @Override
   public Integration nextIntegrationEvent() {
     return integrationEvents.get(integrationIndex++);
+  }
+
+  @Override
+  public ArrayList<Integration> allIntegrationEvent() {
+    return integrationEvents;
   }
 
   @Override
