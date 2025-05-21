@@ -134,6 +134,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
+    dataStreams.addGlobalTag("global:value")
     dataStreams.start()
     dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
     dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -186,37 +187,33 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Stats"
     assert unpacker.unpackArrayHeader() == 2 // 2 groups in first bucket
 
-    Set availableSizes = [5, 6] // we don't know the order the groups will be reported
     2.times {
-      int mapHeaderSize = unpacker.unpackMapHeader()
-      assert availableSizes.remove(mapHeaderSize)
-      if (mapHeaderSize == 5) {  // empty topic group
-        assert unpacker.unpackString() == "PathwayLatency"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "EdgeLatency"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "PayloadSize"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "Hash"
-        assert unpacker.unpackLong() == 9
+      assert unpacker.unpackMapHeader() == 6
+
+      assert unpacker.unpackString() == "PathwayLatency"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "EdgeLatency"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "PayloadSize"
+      unpacker.skipValue()
+      assert unpacker.unpackString() == "Hash"
+      def hashValue = unpacker.unpackLong()
+      if (hashValue == 9) {
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 0
-      } else { //other group
-        assert unpacker.unpackString() == "PathwayLatency"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "EdgeLatency"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "PayloadSize"
-        unpacker.skipValue()
-        assert unpacker.unpackString() == "Hash"
-        assert unpacker.unpackLong() == 1
+        assert unpacker.unpackString() == "EdgeTags"
+        assert unpacker.unpackArrayHeader() == 1
+        assert unpacker.unpackString() == "global:value"
+      } else {
+        assert hashValue == 1
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 2
         assert unpacker.unpackString() == "EdgeTags"
-        assert unpacker.unpackArrayHeader() == 3
+        assert unpacker.unpackArrayHeader() == 4
         assert unpacker.unpackString() == "type:testType"
         assert unpacker.unpackString() == "group:testGroup"
         assert unpacker.unpackString() == "topic:testTopic"
+        assert unpacker.unpackString() == "global:value"
       }
     }
 
@@ -225,10 +222,11 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackArrayHeader() == 1
     assert unpacker.unpackMapHeader() == 2
     assert unpacker.unpackString() == "Tags"
-    assert unpacker.unpackArrayHeader() == 3
+    assert unpacker.unpackArrayHeader() == 4
     assert unpacker.unpackString() == "partition:1"
     assert unpacker.unpackString() == "topic:testTopic"
     assert unpacker.unpackString() == "type:kafka_produce"
+    assert unpacker.unpackString() == "global:value"
     assert unpacker.unpackString() == "Value"
     assert unpacker.unpackLong() == 130
 
@@ -256,10 +254,11 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackString() == "ParentHash"
       assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
       assert unpacker.unpackString() == "EdgeTags"
-      assert unpacker.unpackArrayHeader() == 3
+      assert unpacker.unpackArrayHeader() == 4
       assert unpacker.unpackString() == "type:testType"
       assert unpacker.unpackString() == "group:testGroup"
       assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
+      assert unpacker.unpackString() == "global:value"
     }
 
     assert unpacker.unpackString() == "ProductMask"
