@@ -195,7 +195,6 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
-  private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -411,7 +410,7 @@ public class Config {
   private final int dynamicInstrumentationUploadBatchSize;
   private final long dynamicInstrumentationMaxPayloadSize;
   private final boolean dynamicInstrumentationVerifyByteCode;
-  private final boolean dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
   private final int dynamicInstrumentationCaptureTimeout;
@@ -1070,8 +1069,6 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
-    traceInferredProxyEnabled =
-        configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
@@ -1688,9 +1685,7 @@ public class Config {
             DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
             DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
     dynamicInstrumentationInstrumentTheWorld =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
     dynamicInstrumentationExcludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
@@ -2369,10 +2364,6 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
-  }
-
-  public boolean isInferredProxyPropagationEnabled() {
-    return traceInferredProxyEnabled;
   }
 
   public boolean isBaggageExtract() {
@@ -3266,7 +3257,7 @@ public class Config {
     return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDynamicInstrumentationInstrumentTheWorld() {
+  public String getDynamicInstrumentationInstrumentTheWorld() {
     return dynamicInstrumentationInstrumentTheWorld;
   }
 

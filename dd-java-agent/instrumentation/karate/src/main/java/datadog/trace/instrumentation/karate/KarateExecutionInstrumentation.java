@@ -78,9 +78,17 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
-      InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-          .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create)
-          .setStartTimestamp(System.currentTimeMillis());
+      ExecutionContext executionContext =
+          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+              .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create);
+
+      // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
+      // rest of the frameworks
+      TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
+      executionContext.setSuppressFailures(executionPolicy.suppressFailures());
+
+      scenarioRuntime.magicVariables.putIfAbsent(
+          KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
     }
 
     @Advice.OnMethodExit
@@ -100,8 +108,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       ScenarioResult finalResult = scenarioRuntime.result;
 
       TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
-      long duration = System.currentTimeMillis() - context.getStartTimestamp();
-      while (executionPolicy.retry(!context.getAndResetFailed(), duration)) {
+      while (!executionPolicy.wasLastExecution()) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
         retry.magicVariables.put(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
@@ -135,10 +142,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
           return;
         }
 
-        executionContext.setFailed(true);
-
-        TestExecutionPolicy retryPolicy = executionContext.getExecutionPolicy();
-        if (retryPolicy.suppressFailures()) {
+        if (executionContext.getAndResetSuppressFailures()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);

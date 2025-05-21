@@ -45,7 +45,7 @@ build-exploration-tests-image:
       - "*_surefire-reports.tar.gz"
       - "*_debugger-dumps.tar.gz"
 
-exploration-tests-jsoup:
+exploration-tests-method-jsoup:
   needs: [ build ]
   dependencies:
     - build
@@ -53,9 +53,19 @@ exploration-tests-jsoup:
   variables:
     PROJECT: jsoup
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-jackson-core:
+exploration-tests-line-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-method-jackson-core:
   needs: [ build ]
   dependencies:
     - build
@@ -63,9 +73,19 @@ exploration-tests-jackson-core:
   variables:
     PROJECT: jackson-core
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
-exploration-tests-jackson-databind:
+exploration-tests-line-jackson-core:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-core
+  script:
+    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-method-jackson-databind:
   needs: [ build ]
   dependencies:
     - build
@@ -73,4 +93,14 @@ exploration-tests-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "$PROJECT" "./mvnw verify" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "method" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+
+exploration-tests-line-jackson-databind:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jackson-databind
+  script:
+    - ./run-exploration-tests.sh "line" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"

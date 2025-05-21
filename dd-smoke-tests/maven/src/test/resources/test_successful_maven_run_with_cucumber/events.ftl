@@ -366,7 +366,7 @@
       "_dd.library_capabilities.auto_test_retries" : "1",
       "_dd.library_capabilities.early_flake_detection" : "1",
       "_dd.library_capabilities.test_impact_analysis" : "1",
-      "_dd.library_capabilities.test_management.attempt_to_fix" : "2",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "4",
       "_dd.library_capabilities.test_management.disable" : "1",
       "_dd.library_capabilities.test_management.quarantine" : "1",
       "_dd.p.tid" : ${content_meta__dd_p_tid_11},

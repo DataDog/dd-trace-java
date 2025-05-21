@@ -422,7 +422,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.DB_TYPE" 'couchbase'
         'db.system' 'couchbase'
-        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" || it == couchbase.getHost() }
         if (isErrored) {
           it.tag(DDTags.ERROR_MSG, { exMessage.length() > 0 && ((String) it).startsWith(exMessage) })
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
