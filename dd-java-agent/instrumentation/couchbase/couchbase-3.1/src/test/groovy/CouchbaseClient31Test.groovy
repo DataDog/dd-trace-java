@@ -358,7 +358,7 @@ abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
           it.tag(DDTags.ERROR_TYPE, ex.class.name)
           it.tag(DDTags.ERROR_STACK, String)
         }
-        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" }
+        "$InstrumentationTags.COUCHBASE_SEED_NODES" { it =="localhost" || it == "127.0.0.1" || it == couchbase.getHost() }
 
         if (isLatestDepTest && extraTags != null) {
           tag('db.system','couchbase')

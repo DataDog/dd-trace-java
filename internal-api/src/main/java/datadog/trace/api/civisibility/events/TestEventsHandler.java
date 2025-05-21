@@ -86,7 +86,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable String reason);
+      @Nullable String reason,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   @Nonnull
   TestExecutionPolicy executionPolicy(

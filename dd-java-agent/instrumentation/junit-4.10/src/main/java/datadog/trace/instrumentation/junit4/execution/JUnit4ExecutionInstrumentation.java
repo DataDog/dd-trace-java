@@ -118,19 +118,13 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
       FailureSuppressingNotifier failureSuppressingNotifier =
           new FailureSuppressingNotifier(executionPolicy, notifier);
-      long duration;
-      boolean testFailed;
       do {
-        long startTimestamp = System.currentTimeMillis();
         try {
           runTest.setAccessible(true);
           runTest.invoke(runner, statement, description, failureSuppressingNotifier);
-          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
-        } catch (Throwable throwable) {
-          testFailed = true;
+        } catch (Throwable ignored) {
         }
-        duration = System.currentTimeMillis() - startTimestamp;
-      } while (executionPolicy.retry(!testFailed, duration));
+      } while (!executionPolicy.wasLastExecution());
 
       // skip original method
       return Boolean.TRUE;

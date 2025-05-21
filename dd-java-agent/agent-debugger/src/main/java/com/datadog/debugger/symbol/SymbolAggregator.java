@@ -38,6 +38,7 @@ public class SymbolAggregator {
   private static final int CLASSFILE_BUFFER_SIZE = 8192;
 
   private final DebuggerContext.ClassNameFilter classNameFilter;
+  private final List<ScopeFilter> scopeFilters;
   private final SymbolSink sink;
   private final int symbolFlushThreshold;
   private final Map<String, Scope> jarScopesByName = new HashMap<>();
@@ -51,8 +52,12 @@ public class SymbolAggregator {
   private final Set<String> alreadyScannedJars = ConcurrentHashMap.newKeySet();
 
   public SymbolAggregator(
-      DebuggerContext.ClassNameFilter classNameFilter, SymbolSink sink, int symbolFlushThreshold) {
+      DebuggerContext.ClassNameFilter classNameFilter,
+      List<ScopeFilter> scopeFilters,
+      SymbolSink sink,
+      int symbolFlushThreshold) {
     this.classNameFilter = classNameFilter;
+    this.scopeFilters = scopeFilters;
     this.sink = sink;
     this.symbolFlushThreshold = symbolFlushThreshold;
   }
@@ -119,8 +124,16 @@ public class SymbolAggregator {
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
+    jarScope = applyFilters(jarScope);
     addJarScope(jarScope, false);
     symDBReport.incClassCount(jarName);
+  }
+
+  private Scope applyFilters(Scope jarScope) {
+    for (ScopeFilter filter : scopeFilters) {
+      jarScope.getScopes().removeIf(filter::filterOut);
+    }
+    return jarScope;
   }
 
   private void flushRemainingScopes(SymbolAggregator symbolAggregator) {

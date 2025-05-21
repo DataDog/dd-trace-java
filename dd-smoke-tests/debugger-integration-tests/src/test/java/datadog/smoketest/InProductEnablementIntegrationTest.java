@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static datadog.smoketest.debugger.TestApplicationHelper.waitForSpecificLine;
-
 import com.datadog.debugger.probe.LogProbe;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -47,7 +45,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 301)
+            .where("ServerDebuggerTestApplication.java", 312)
             .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");

@@ -21,7 +21,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 
 class EventBridgeClientTest extends AgentTestRunner {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "sns,sqs,events")
   .withReuse(true)

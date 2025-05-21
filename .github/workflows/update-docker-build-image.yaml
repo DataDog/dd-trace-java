@@ -55,7 +55,7 @@ jobs:
           sed -i 's|DOCKER_IMAGE_VERSION=.*|DOCKER_IMAGE_VERSION="${{ steps.define-tag.outputs.tag }}"|' .circleci/render_config.py
       - name: Update the Docker build image in GitLab CI config
         run: |
-          sed -i 's|image: ghcr.io/datadog/dd-trace-java-docker-build:.*|image: ghcr.io/datadog/dd-trace-java-docker-build:${{ steps.define-tag.outputs.tag }}-base|' .gitlab-ci.yml
+          sed -i 's|JAVA_BUILD_IMAGE_VERSION:.*|JAVA_BUILD_IMAGE_VERSION:"${{ steps.define-tag.outputs.tag }}"|' .gitlab-ci.yml
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

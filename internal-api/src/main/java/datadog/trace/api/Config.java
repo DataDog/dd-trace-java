@@ -150,6 +150,7 @@ public class Config {
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -291,6 +292,9 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
+  private final boolean appSecCollectAllHeaders;
+  private final boolean appSecHeaderCollectionRedactionEnabled;
+  private final int appSecMaxCollectedHeaders;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
@@ -409,7 +413,7 @@ public class Config {
   private final int dynamicInstrumentationUploadBatchSize;
   private final long dynamicInstrumentationMaxPayloadSize;
   private final boolean dynamicInstrumentationVerifyByteCode;
-  private final boolean dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
   private final int dynamicInstrumentationCaptureTimeout;
@@ -846,6 +850,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1383,6 +1389,12 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
+    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
+    appSecHeaderCollectionRedactionEnabled =
+        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
+    appSecMaxCollectedHeaders =
+        configProvider.getInteger(
+            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1682,9 +1694,7 @@ public class Config {
             DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
             DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
     dynamicInstrumentationInstrumentTheWorld =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
     dynamicInstrumentationExcludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
@@ -2019,7 +2029,7 @@ public class Config {
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
-    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, false);
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
     log.debug("New instance: {}", this);
   }
@@ -2089,6 +2099,10 @@ public class Config {
 
   public Set<String> getExperimentalFeaturesEnabled() {
     return experimentalFeaturesEnabled;
+  }
+
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -3252,7 +3266,7 @@ public class Config {
     return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDynamicInstrumentationInstrumentTheWorld() {
+  public String getDynamicInstrumentationInstrumentTheWorld() {
     return dynamicInstrumentationInstrumentTheWorld;
   }
 
@@ -4188,6 +4202,18 @@ public class Config {
     return appSecMaxStackTraceDepth;
   }
 
+  public boolean isAppSecCollectAllHeaders() {
+    return appSecCollectAllHeaders;
+  }
+
+  public boolean isAppSecHeaderCollectionRedactionEnabled() {
+    return appSecHeaderCollectionRedactionEnabled;
+  }
+
+  public int getAppsecMaxCollectedHeaders() {
+    return appSecMaxCollectedHeaders;
+  }
+
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
     return cloudPayloadTaggingServices.contains(serviceName);
   }
@@ -4902,6 +4928,8 @@ public class Config {
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }

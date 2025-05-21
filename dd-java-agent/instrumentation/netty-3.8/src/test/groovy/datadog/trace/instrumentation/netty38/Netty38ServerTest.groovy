@@ -1,5 +1,21 @@
 package datadog.trace.instrumentation.netty38
 
+import datadog.trace.agent.test.base.WebsocketServer
+import org.jboss.netty.channel.ChannelFutureListener
+import org.jboss.netty.channel.ChannelStateEvent
+import org.jboss.netty.channel.SimpleChannelHandler
+import org.jboss.netty.handler.codec.http.HttpChunkAggregator
+import org.jboss.netty.handler.codec.http.HttpRequestDecoder
+import org.jboss.netty.handler.codec.http.HttpResponseEncoder
+import org.jboss.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.CloseWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.PingWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.PongWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.TextWebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerHandshaker
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -12,6 +28,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.forPath
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.LOCATION
@@ -34,7 +51,6 @@ import org.jboss.netty.channel.DownstreamMessageEvent
 import org.jboss.netty.channel.ExceptionEvent
 import org.jboss.netty.channel.FailedChannelFuture
 import org.jboss.netty.channel.MessageEvent
-import org.jboss.netty.channel.SimpleChannelHandler
 import org.jboss.netty.channel.SucceededChannelFuture
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse
@@ -42,7 +58,6 @@ import org.jboss.netty.handler.codec.http.HttpHeaders
 import org.jboss.netty.handler.codec.http.HttpRequest
 import org.jboss.netty.handler.codec.http.HttpResponse
 import org.jboss.netty.handler.codec.http.HttpResponseStatus
-import org.jboss.netty.handler.codec.http.HttpServerCodec
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.logging.InternalLogLevel
 import org.jboss.netty.logging.InternalLoggerFactory
@@ -62,12 +77,34 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     ChannelPipeline channelPipeline = new DefaultChannelPipeline()
     channelPipeline.addFirst("logger", LOGGING_HANDLER)
 
-    channelPipeline.addLast("http-codec", new HttpServerCodec())
+    channelPipeline.addLast("decoder", new HttpRequestDecoder())
+    channelPipeline.addLast("encoder", new HttpResponseEncoder())
+    channelPipeline.addLast("aggregator", new HttpChunkAggregator(65536))
     channelPipeline.addLast("controller", new SimpleChannelHandler() {
+        WebSocketServerHandshaker handshaker
+
         @Override
         void messageReceived(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
           if (msg.getMessage() instanceof HttpRequest) {
             def request = msg.getMessage() as HttpRequest
+
+            def upgradeHeader = request.headers().get("Upgrade")
+            if (upgradeHeader && upgradeHeader.equalsIgnoreCase("websocket")) {
+              // Handshake
+              def host = request.headers().get("Host")
+              String wsLocation = "ws://" + host + request.uri
+              WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
+                wsLocation, null, false)
+              this.handshaker = wsFactory.newHandshaker(request)
+              if (this.handshaker == null) {
+                wsFactory.sendUnsupportedWebSocketVersionResponse(ctx.getChannel())
+              } else {
+                this.handshaker.handshake(ctx.getChannel(), request)
+                WsEndpoint.onOpen(ctx)
+              }
+              return
+            }
+
             if (HttpHeaders.is100ContinueExpected(request)) {
               ctx.sendDownstream(new DownstreamMessageEvent(ctx.getChannel(),
                 new SucceededChannelFuture(ctx.getChannel()), new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.CONTINUE),
@@ -131,6 +168,20 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                 response,
                 ctx.getChannel().getRemoteAddress())
             }
+          } else if (msg.getMessage() instanceof WebSocketFrame) {
+            def frame = msg.getMessage() as WebSocketFrame
+
+            if (frame instanceof CloseWebSocketFrame) {
+              this.handshaker.close(ctx.getChannel(), (CloseWebSocketFrame) frame)
+            } else if (frame instanceof PingWebSocketFrame) {
+              ctx.getChannel().write(new PongWebSocketFrame(frame.getBinaryData()))
+            } else if (frame instanceof TextWebSocketFrame || frame instanceof BinaryWebSocketFrame || frame instanceof ContinuationWebSocketFrame) {
+              // generate a child span. The websocket test expects this way
+              runUnderTrace("onRead", {})
+            } else {
+              throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass()
+              .getName()))
+            }
           }
         }
 
@@ -148,12 +199,18 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
             response,
             ctx.getChannel().getRemoteAddress()))
         }
+
+        @Override
+        void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+          WsEndpoint.onClose()
+          ctx.sendDownstream(e)
+        }
       })
 
     return channelPipeline
   }
 
-  private class NettyServer implements HttpServer {
+  private class NettyServer implements WebsocketServer {
     final ServerBootstrap server = new ServerBootstrap(new NioServerSocketChannelFactory())
     int port = 0
 
@@ -181,6 +238,46 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     @Override
     URI address() {
       return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    void awaitConnected() {
+      while (WsEndpoint.activeSession == null) {
+        synchronized (WsEndpoint) {
+          WsEndpoint.wait()
+        }
+      }
+    }
+
+    @Override
+    void serverSendText(String[] messages) {
+      WsEndpoint.activeSession.getChannel().write(new TextWebSocketFrame(messages.length == 1, 0, messages[0]))
+      for (def i = 1; i < messages.length; i++) {
+        WsEndpoint.activeSession.getChannel().write(new ContinuationWebSocketFrame(messages.length - 1 == i, 0, messages[i]))
+      }
+    }
+
+    @Override
+    void serverSendBinary(byte[][] binaries) {
+      WsEndpoint.activeSession.getChannel().write(new BinaryWebSocketFrame(binaries.length == 1, 0, ChannelBuffers.copiedBuffer(binaries[0])))
+      for (def i = 1; i < binaries.length; i++) {
+        WsEndpoint.activeSession.getChannel().write(new ContinuationWebSocketFrame(binaries.length - 1 == i, 0, ChannelBuffers.copiedBuffer(binaries[i])))
+      }
+    }
+
+    @Override
+    void serverClose() {
+      WsEndpoint.activeSession.getChannel().write(new CloseWebSocketFrame(1000, null)).addListener(ChannelFutureListener.CLOSE)
+    }
+
+    @Override
+    void setMaxPayloadSize(int size) {
+      // not applicable
+    }
+
+    @Override
+    boolean canSplitLargeWebsocketPayloads() {
+      false
     }
   }
 
@@ -225,4 +322,19 @@ class Netty38ServerV0Test extends Netty38ServerTest implements TestingNettyHttpN
 }
 
 class Netty38ServerV1ForkedTest extends Netty38ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
+}
+
+class WsEndpoint {
+  static volatile ChannelHandlerContext activeSession
+
+  static void onOpen(ChannelHandlerContext session) {
+    activeSession = session
+    synchronized (WsEndpoint) {
+      WsEndpoint.notifyAll()
+    }
+  }
+
+  static void onClose() {
+    activeSession = null
+  }
 }
