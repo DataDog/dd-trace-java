@@ -4,12 +4,12 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
-import com.datadog.profiling.controller.TempLocationManager;
 import com.datadoghq.profiler.JVMAccess;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.TempLocationManager;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;

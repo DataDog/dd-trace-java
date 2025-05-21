@@ -19,7 +19,7 @@ dependencies {
   // Not ideal, but one of these contains the profiler which we wish to avoid shadowing repeatedly
   // while the other contains some utilities that we rely on, like the TempLocationManager
   implementation project(':dd-java-agent:ddprof-dependency')
-  implementation project(':dd-java-agent:agent-profiling')
+  //  implementation project(':dd-java-agent:agent-profiling')
 
   implementation libs.okhttp
   implementation libs.moshi

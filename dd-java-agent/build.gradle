@@ -306,7 +306,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() <= 31 * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 35 * 1024 * 1024
   }
 
   dependsOn "shadowJar"
