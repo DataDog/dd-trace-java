@@ -273,6 +273,7 @@
       "test.source.method" : "test failed()V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailedSpock",
+      "test.test_management.attempt_to_fix_passed" : "false",
       "test.test_management.is_attempt_to_fix" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
