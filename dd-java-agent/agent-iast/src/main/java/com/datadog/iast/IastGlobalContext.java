@@ -46,7 +46,7 @@ public class IastGlobalContext implements IastContext {
 
     @Override
     public IastContext buildRequestContext() {
-      return new IastRequestContext(globalContext.getTaintedObjects());
+      return new IastRequestContext((TaintedObjects) globalContext.getTaintedObjects());
     }
 
     @Override
