@@ -182,7 +182,7 @@ public class MUnitTracingListener extends TracingListener {
           .onTestSkip(testDescriptor, null);
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.MUNIT)
-          .onTestFinish(testDescriptor, null, null);
+          .onTestFinish(testDescriptor, null, executionHistories.get(description));
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -246,7 +246,8 @@ public class MUnitTracingListener extends TracingListener {
             null,
             categories,
             JUnit4Utils.toTestSourceData(description),
-            null);
+            null,
+            executionHistories.get(description));
   }
 
   private static boolean isSuiteContainingChildren(final Description description) {

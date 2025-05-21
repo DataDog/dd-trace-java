@@ -1,7 +1,9 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import java.nio.charset.StandardCharsets
+import com.amazonaws.services.lambda.runtime.Context
 
 abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase {
+  def requestId = "test-request-id"
 
   @Override
   String service() {
@@ -12,7 +14,10 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     when:
     def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
     def output = new ByteArrayOutputStream()
-    new HandlerStreaming().handleRequest(input, output, null)
+    def ctx = Stub(Context) {
+      getAwsRequestId() >> requestId
+    }
+    new HandlerStreaming().handleRequest(input, output, ctx)
 
     then:
     assertTraces(1) {
@@ -29,7 +34,10 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     when:
     def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
     def output = new ByteArrayOutputStream()
-    new HandlerStreamingWithError().handleRequest(input, output, null)
+    def ctx = Stub(Context) {
+      getAwsRequestId() >> requestId
+    }
+    new HandlerStreamingWithError().handleRequest(input, output, ctx)
 
     then:
     thrown(Error)
@@ -39,6 +47,7 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
           operationName operation()
           errored true
           tags {
+            tag "request_id", requestId
             tag "error.type", "java.lang.Error"
             tag "error.message", "Some error"
             tag "error.stack", String
