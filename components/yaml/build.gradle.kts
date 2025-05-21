@@ -1,5 +1,5 @@
 plugins {
-  id("me.champeau.jmh")
+  `java-library`
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
