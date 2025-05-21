@@ -127,7 +127,7 @@ public abstract class ProfilerSettingsSupport {
     uploadCompression =
         configProvider.getString(
             ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
-            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION_DEFAULT,
+            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
             ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
     allocationProfilingEnabled =
         configProvider.getBoolean(
