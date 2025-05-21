@@ -17,9 +17,9 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 @ChannelHandler.Sharable
-public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
-  public static WebSocketServerResponseTracingHandler INSTANCE =
-      new WebSocketServerResponseTracingHandler();
+public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandlerAdapter {
+  public static WebSocketServerOutboundTracingHandler INSTANCE =
+      new WebSocketServerOutboundTracingHandler();
 
   @Override
   public void write(ChannelHandlerContext ctx, Object frame, ChannelPromise promise)

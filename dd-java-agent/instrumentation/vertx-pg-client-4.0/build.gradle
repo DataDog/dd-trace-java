@@ -8,7 +8,13 @@ muzzle {
     // 4.1.1 is the first version where PgConnectionFactory is public
     // see https://github.com/eclipse-vertx/vertx-sql-client/pull/986
     versions = '[4.1.1,5)'
-    assertInverse = true
+  }
+  fail {
+    group = 'io.vertx'
+    module = 'vertx-pg-client'
+    // 4.1.1 is the first version where PgConnectionFactory is public
+    // see https://github.com/eclipse-vertx/vertx-sql-client/pull/986
+    versions = '(,4.1.1)'
   }
 }
 

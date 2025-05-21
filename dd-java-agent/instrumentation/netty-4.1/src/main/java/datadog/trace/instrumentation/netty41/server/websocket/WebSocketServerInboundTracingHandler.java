@@ -17,13 +17,12 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 @ChannelHandler.Sharable
-public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
-  public static WebSocketServerRequestTracingHandler INSTANCE =
-      new WebSocketServerRequestTracingHandler();
+public class WebSocketServerInboundTracingHandler extends ChannelInboundHandlerAdapter {
+  public static WebSocketServerInboundTracingHandler INSTANCE =
+      new WebSocketServerInboundTracingHandler();
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object frame) {
-
     if (frame instanceof WebSocketFrame) {
       Channel channel = ctx.channel();
       HandlerContext.Receiver receiverContext =

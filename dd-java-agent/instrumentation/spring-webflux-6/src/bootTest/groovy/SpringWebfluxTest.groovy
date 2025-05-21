@@ -1,3 +1,11 @@
+import datadog.trace.agent.test.base.OkHttpWebsocketClient
+import dd.trace.instrumentation.springwebflux.server.WsHandler
+import net.bytebuddy.utility.RandomString
+import org.springframework.beans.factory.annotation.Autowired
+
+import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
+import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
+import static datadog.trace.agent.test.base.HttpServerTest.websocketSendSpan
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC
 
 import datadog.trace.agent.test.AgentTestRunner
@@ -38,12 +46,16 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
   @LocalServerPort
   int port
 
-  WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector(buildClient())).build()
+  @Autowired
+  WsHandler wsHandler
+
+  WebClient client = WebClient.builder().clientConnector(new ReactorClientHttpConnector(buildClient())).build()
 
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TRACE_ANNOTATION_ASYNC, "true")
+    injectSysConfig("trace.websocket.messages.enabled", "true")
   }
 
   def "Basic GET test #testName"() {
@@ -60,7 +72,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(2) {
         span {
@@ -141,7 +153,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
         span {
@@ -235,7 +247,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
         span {
@@ -283,7 +295,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
       }
       trace(2) {
         span {
@@ -329,7 +341,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     String url = "http://localhost:$port/echo"
 
     when:
-    def response = client.post().uri(url).body(BodyInserters.fromPublisher(Mono.just(echoString),String)).exchange().block()
+    def response = client.post().uri(url).body(BodyInserters.fromPublisher(Mono.just(echoString), String)).exchange().block()
 
     then:
     response.statusCode().value() == 202
@@ -339,7 +351,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
       }
       trace(3) {
         span {
@@ -404,7 +416,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       def traceParent
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
-        traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
       }
       trace(2) {
         span {
@@ -493,7 +505,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
 
       trace(2) {
@@ -538,7 +550,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       trace(2) {
         sortSpansByStart()
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+        traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
         sortSpansByStart()
@@ -597,7 +609,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         def traceParent
         trace(2) {
           clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
-          traceParent =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
+          traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
         }
         trace(2) {
           span {
@@ -672,7 +684,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       sortSpansByStart()
       trace(2) {
         clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, null, false,
-          [ "message":"The subscription was cancelled", "event":"cancelled"])
+          ["message": "The subscription was cancelled", "event": "cancelled"])
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
       }
       trace(2) {
@@ -710,6 +722,74 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       }
     }
   }
+
+  def 'test websocket server receive #msgType message of size #size and #chunks chunks'() {
+    when:
+    String url = "http://localhost:$port/websocket"
+    def wsClient = new OkHttpWebsocketClient()
+    wsClient.connect(url)
+    wsHandler.awaitConnected()
+    if (message instanceof String) {
+      wsClient.send(message as String)
+    } else {
+      wsClient.send(message as byte[])
+    }
+    wsHandler.awaitExchangeComplete()
+    wsClient.close(1001, "goodbye")
+
+    then:
+    assertTraces(3, {
+      DDSpan handshake
+      trace(2) {
+        sortSpansByStart()
+        handshake = span(0)
+        span {
+          resourceName "GET /websocket"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" url
+            "$Tags.HTTP_HOSTNAME" "localhost"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" 101
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.HTTP_ROUTE" "/websocket"
+            defaultTags()
+          }
+        }
+        span {
+          resourceName "WsHandler.handle"
+          operationName "WsHandler.handle"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "handler.type" WsHandler.getName()
+            defaultTags()
+          }
+        }
+      }
+      trace(2) {
+        sortSpansByStart()
+        websocketReceiveSpan(it, handshake, msgType, size, chunks)
+        websocketSendSpan(it, handshake, msgType, size, chunks)
+      }
+      trace(1) {
+        websocketCloseSpan(it, handshake, false, 1001, "goodbye")
+      }
+    })
+    where:
+    message                                 | msgType  | chunks | size
+    RandomString.make(10)                   | "text"   | 1      | 10
+    RandomString.make(20).getBytes("UTF-8") | "binary" | 1      | 20
+  }
+
 
   def clientSpan(
     TraceAssert trace,

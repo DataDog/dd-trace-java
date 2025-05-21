@@ -32,7 +32,7 @@ class ProcessBuilderHelper {
         Arrays.asList(
             javaPath(),
             // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "512M"),
+            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
             "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
             "-javaagent:" + agentShadowJar(),
             "-XX:ErrorFile=/tmp/hs_err_pid%p.log",

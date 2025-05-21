@@ -472,7 +472,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj);
+      Object convObj = ObjectIntrospection.convert(obj, ctx);
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -574,7 +574,7 @@ public class GatewayBridge {
       }
       DataBundle bundle =
           new SingletonDataBundle<>(
-              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj, ctx));
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);

@@ -408,6 +408,22 @@ public class ASMHelper {
     return opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE;
   }
 
+  public static List<Integer> getLineNumbers(MethodNode methodNode) {
+    List<Integer> lines = new ArrayList<>();
+    if (methodNode == null) {
+      return lines;
+    }
+    AbstractInsnNode current = methodNode.instructions.getFirst();
+    while (current != null) {
+      if (current.getType() == AbstractInsnNode.LINE) {
+        LineNumberNode lineNode = (LineNumberNode) current;
+        lines.add(lineNode.line);
+      }
+      current = current.getNext();
+    }
+    return lines;
+  }
+
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
   public static class Type {
     private final org.objectweb.asm.Type mainType;

@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.getLineNumbers;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
@@ -52,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
@@ -103,6 +105,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private final Set<String> includeMethods;
   private final Trie includeTrie;
   private final Map<String, LogProbe> instrumentTheWorldProbes;
+  private final BiConsumer<MethodInfo, List<ProbeDefinition>> probeCreator;
 
   public interface InstrumentationListener {
     void instrumentationResult(ProbeDefinition definition, InstrumentationResult result);
@@ -119,7 +122,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     this.denyListHelper = new DenyListHelper(configuration.getDenyList());
     this.listener = listener;
     this.debuggerSink = debuggerSink;
-    this.instrumentTheWorld = config.isDynamicInstrumentationInstrumentTheWorld();
+    String itwType = config.getDynamicInstrumentationInstrumentTheWorld();
+    this.instrumentTheWorld = itwType != null;
     if (this.instrumentTheWorld) {
       instrumentTheWorldProbes = new ConcurrentHashMap<>();
       excludeTrie = new Trie();
@@ -138,6 +142,17 @@ public class DebuggerTransformer implements ClassFileTransformer {
           includeTrie,
           includeClasses,
           includeMethods);
+      if (itwType.equals("method")) {
+        probeCreator = this::createMethodProbe;
+      } else if (itwType.equals("line")) {
+        probeCreator = this::createLineProbes;
+      } else {
+        log.warn(
+            "Invalid value for 'dd.debugger.instrument-the-world' property: {}. "
+                + "Valid values are 'method' or 'line'.",
+            itwType);
+        probeCreator = null;
+      }
     } else {
       instrumentTheWorldProbes = null;
       excludeTrie = null;
@@ -146,6 +161,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       includeTrie = null;
       includeClasses = null;
       includeMethods = null;
+      probeCreator = null;
     }
   }
 
@@ -211,8 +227,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
     if (instrumentTheWorld) {
-      return transformTheWorld(
-          loader, classFilePath, classBeingRedefined, protectionDomain, classfileBuffer);
+      return transformTheWorld(loader, classFilePath, protectionDomain, classfileBuffer);
     }
     if (skipInstrumentation(loader, classFilePath)) {
       return null;
@@ -264,7 +279,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private byte[] transformTheWorld(
       ClassLoader loader,
       String classFilePath,
-      Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
     try {
@@ -303,16 +317,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       List<ProbeDefinition> probes = new ArrayList<>();
       Set<String> methodNames = new HashSet<>();
+      ClassFileLines classFileLines = new ClassFileLines(classNode);
       for (MethodNode methodNode : classNode.methods) {
         if (isMethodIncludedForTransformation(methodNode, classNode, methodNames)) {
-          LogProbe probe =
-              LogProbe.builder()
-                  .probeId(RandomUtils.randomUUID().toString(), 0)
-                  .where(classNode.name, methodNode.name)
-                  .captureSnapshot(false)
-                  .build();
-          probes.add(probe);
-          instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
+          MethodInfo methodInfo = new MethodInfo(loader, classNode, methodNode, classFileLines);
+          probeCreator.accept(methodInfo, probes);
         }
       }
       boolean transformed = performInstrumentation(loader, classFilePath, probes, classNode);
@@ -340,6 +349,39 @@ public class DebuggerTransformer implements ClassFileTransformer {
       return false;
     }
     return methodNames.add(methodNode.name);
+  }
+
+  private void createMethodProbe(MethodInfo methodInfo, List<ProbeDefinition> probes) {
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(RandomUtils.randomUUID().toString(), 0)
+            .where(methodInfo.getClassNode().name, methodInfo.getMethodNode().name)
+            .captureSnapshot(false)
+            .build();
+    probes.add(probe);
+    instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
+  }
+
+  private void createLineProbes(MethodInfo methodInfo, List<ProbeDefinition> probes) {
+    if (methodInfo.getMethodName().equals("<init>")) {
+      // skip constructor for now to avoid dealing with code before super calls
+      return;
+    }
+    if ((methodInfo.getMethodNode().access & Opcodes.ACC_SYNTHETIC) != 0) {
+      // skip synthetic methods
+      return;
+    }
+    List<Integer> lineNumbers = getLineNumbers(methodInfo.getMethodNode());
+    for (Integer lineNumber : lineNumbers) {
+      LogProbe probe =
+          LogProbe.builder()
+              .probeId(RandomUtils.randomUUID().toString(), 0)
+              .where(methodInfo.getSourceFileName(), lineNumber)
+              .captureSnapshot(false)
+              .build();
+      probes.add(probe);
+      instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
+    }
   }
 
   private boolean isClassLoaderRelated(ClassNode classNode) {
