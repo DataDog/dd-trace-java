@@ -45,7 +45,7 @@ public final class ProfilingConfig {
    * GZIP compression (higher compression ratio but slower) - "zstd": uses ZSTD compression (high
    * compression ratio with reasonable performance)
    */
-  public static final String PROFILING_UPLOAD_COMPRESSION_DEFAULT = "zstd";
+  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT = "zstd";
 
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
