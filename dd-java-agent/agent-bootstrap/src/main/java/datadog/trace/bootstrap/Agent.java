@@ -201,7 +201,7 @@ public class Agent {
     // We want to have this enabled as soon as possible
     // It entails loading a native library so let's see if it works without regression in startup
     // time
-    initializeErrorTracking();
+    AgentTaskScheduler.INSTANCE.execute(Agent::initializeErrorTracking);
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
