@@ -33,6 +33,11 @@ public final class ProfilingConfig {
       "profiling.jfr-template-override-file";
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
   public static final int PROFILING_UPLOAD_TIMEOUT_DEFAULT = 30;
+  /**
+   * @deprecated Use {@link #PROFILING_DEBUG_UPLOAD_COMPRESSION} instead. This will be removed in a
+   *     future release.
+   */
+  @Deprecated
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
   /**
    * Default compression value. Supported values are: - "on": equivalent to "zstd" - "off": disables
@@ -199,6 +204,14 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
+  /**
+   * Configuration for profile upload compression. Supported values are: - "on": equivalent to
+   * "zstd" - "off": disables compression - "lz4": uses LZ4 compression (fast with moderate
+   * compression ratio) - "gzip": uses GZIP compression (higher compression ratio but slower) -
+   * "zstd": uses ZSTD compression (high compression ratio with reasonable performance)
+   */
+  public static final String PROFILING_DEBUG_UPLOAD_COMPRESSION =
+      "profiling.debug.upload.compression";
 
   public static final String PROFILING_CONTEXT_ATTRIBUTES = "profiling.context.attributes";
 
