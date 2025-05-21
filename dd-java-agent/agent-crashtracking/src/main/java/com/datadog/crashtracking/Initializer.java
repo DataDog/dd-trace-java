@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
+import com.datadog.profiling.controller.TempLocationManager;
 import com.datadoghq.profiler.JVMAccess;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -203,7 +204,7 @@ public final class Initializer {
   }
 
   private static String getScript(String scriptName) {
-    return System.getProperty("java.io.tmpdir") + "/" + getScriptFileName(scriptName) + " %p";
+    return TempLocationManager.getInstance().getTempDir().toString() + "/" + getScriptFileName(scriptName) + " %p";
   }
 
   private static String getScriptFileName(String scriptName) {
