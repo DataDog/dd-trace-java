@@ -31,6 +31,8 @@ dependencies {
   testImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.56'
   testImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '0.42.56'
 
+  testRuntimeOnly project(":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.0")
+
   latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '+'
   latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '+'
 }
