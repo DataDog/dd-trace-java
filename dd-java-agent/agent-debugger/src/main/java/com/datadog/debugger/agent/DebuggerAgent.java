@@ -212,7 +212,8 @@ public class DebuggerAgent {
             configurationUpdater,
             classNameFilter,
             Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond());
+            config.getDebuggerMaxExceptionPerSecond(),
+            config.getDebuggerExceptionMaxCapturedFrames());
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }
