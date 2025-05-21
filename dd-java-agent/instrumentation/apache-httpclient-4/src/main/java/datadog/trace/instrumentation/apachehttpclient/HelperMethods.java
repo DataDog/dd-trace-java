@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDec
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -47,7 +48,7 @@ public class HelperMethods {
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
     }
 
     return scope;
