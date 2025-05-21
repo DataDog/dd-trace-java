@@ -26,7 +26,7 @@ public class PlayAdvice {
     if (activeSpan() == null) {
       Headers headers = req.headers();
       final Context extractedContext = DECORATE.extractContext(headers);
-      span = DECORATE.startSpanFromContext(headers, extractedContext);
+      span = DECORATE.startSpan(headers, extractedContext);
       scope = extractedContext.with(span).attach();
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.

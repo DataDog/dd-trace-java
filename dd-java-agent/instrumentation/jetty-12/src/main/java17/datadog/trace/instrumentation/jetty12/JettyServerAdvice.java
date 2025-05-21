@@ -28,7 +28,7 @@ public class JettyServerAdvice {
       }
 
       final Context extractedContext = JettyDecorator.DECORATE.extractContext(req);
-      final AgentSpan span = JettyDecorator.DECORATE.startSpanFromContext(req, extractedContext);
+      final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, extractedContext);
       try (final ContextScope scope = extractedContext.with(span).attach()) {
         span.setMeasured(true);
         JettyDecorator.DECORATE.afterStart(span);

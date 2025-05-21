@@ -27,7 +27,7 @@ public class JettyServerAdvice {
       }
 
       final Context extractedContext = DECORATE.extractContext(req);
-      span = DECORATE.startSpanFromContext(req, extractedContext);
+      span = DECORATE.startSpan(req, extractedContext);
       final ContextScope scope = extractedContext.with(span).attach();
       span.setMeasured(true);
       DECORATE.afterStart(span);

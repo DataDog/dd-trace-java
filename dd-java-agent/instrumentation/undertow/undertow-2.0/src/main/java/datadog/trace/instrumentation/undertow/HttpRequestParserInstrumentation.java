@@ -75,7 +75,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       try {
         if (span == null) {
           final Context extractedContext = DECORATE.extractContext(exchange);
-          span = DECORATE.startSpanFromContext(exchange, extractedContext).setMeasured(true);
+          span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
           scope = extractedContext.with(span).attach();
           DECORATE.afterStart(span);
           DECORATE.onRequest(span, exchange, exchange, extractedContext);

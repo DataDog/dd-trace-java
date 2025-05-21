@@ -44,7 +44,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final HttpRequest request = (HttpRequest) msg.getMessage();
     final HttpHeaders headers = request.headers();
     final Context context = DECORATE.extractContext(headers);
-    final AgentSpan span = DECORATE.startSpanFromContext(headers, context);
+    final AgentSpan span = DECORATE.startSpan(headers, context);
 
     channelTraceContext.reset();
     channelTraceContext.setRequestHeaders(headers);

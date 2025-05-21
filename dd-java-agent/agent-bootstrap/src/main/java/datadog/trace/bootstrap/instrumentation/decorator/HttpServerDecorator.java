@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.context.Context.root;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -135,15 +136,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
+  /**
+   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentations is complete
+   */
   public Context extractContext(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
-      return null;
+      return root();
     }
-    return Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
+    return Propagators.defaultPropagator().extract(root(), carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpanFromContext(Object, Context)} instead. */
+  /** Deprecated. Use {@link #startSpan(Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
@@ -166,7 +170,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  public AgentSpan startSpanFromContext(REQUEST_CARRIER carrier, Context context) {
+  public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
     return startSpan("http-server", carrier, getExtractedSpanContext(context));
   }
 

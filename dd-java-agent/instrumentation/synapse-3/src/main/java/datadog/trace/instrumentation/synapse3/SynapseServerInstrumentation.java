@@ -73,7 +73,7 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       AgentSpan span;
       if (null != extractedContext) {
-        span = DECORATE.startSpanFromContext(request, extractedContext);
+        span = DECORATE.startSpan(request, extractedContext);
         scope = extractedContext.with(span).attach();
       } else {
         span = startSpan(DECORATE.spanName());

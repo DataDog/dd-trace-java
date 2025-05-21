@@ -53,7 +53,7 @@ public class Servlet2Advice {
     }
 
     final Context extractedContext = DECORATE.extractContext(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpanFromContext(httpServletRequest, extractedContext);
+    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
     scope = extractedContext.with(span).attach();
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);

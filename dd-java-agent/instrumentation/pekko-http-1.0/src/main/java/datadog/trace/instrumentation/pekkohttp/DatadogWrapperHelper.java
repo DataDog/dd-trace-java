@@ -11,7 +11,7 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse;
 public class DatadogWrapperHelper {
   public static ContextScope createSpan(final HttpRequest request) {
     final Context extractedContext = DECORATE.extractContext(request);
-    final AgentSpan span = DECORATE.startSpanFromContext(request, extractedContext);
+    final AgentSpan span = DECORATE.startSpan(request, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);
 

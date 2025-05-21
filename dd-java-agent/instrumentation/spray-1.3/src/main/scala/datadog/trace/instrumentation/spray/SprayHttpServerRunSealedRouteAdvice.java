@@ -23,7 +23,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
       extractedContext = DECORATE.extractContext(request);
-      span = DECORATE.startSpanFromContext(request, extractedContext);
+      span = DECORATE.startSpan(request, extractedContext);
       scope = extractedContext.with(span).attach();
     } else {
       extractedContext = null;
