@@ -36,7 +36,7 @@ enum CompressionType {
         return ZSTD;
       default:
         log.warn("Unrecognizable compression type: {}. Defaulting to 'zstd'.", type);
-        return ZSTD;
+        return ON;
     }
   }
 }
