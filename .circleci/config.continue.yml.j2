@@ -778,8 +778,9 @@ jobs:
       - run:
           name: Copy jar file to system test binaries folder
           command: |
-            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
-            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+            pwd
+            ls -la /home/non-root-user/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp /home/non-root-user/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Build
@@ -849,8 +850,8 @@ jobs:
       - run:
           name: Copy jar file to system test binaries folder
           command: |
-            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
-            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+            ls -la /home/non-root-user/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp /home/non-root-user/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Build
@@ -882,8 +883,8 @@ jobs:
       - run:
           name: Copy jar file to system test binaries folder
           command: |
-            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
-            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+            ls -la /home/non-root-user/dd-trace-java/dd-java-agent/build/libs
+            cp /home/non-root-user/dd-trace-java/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
       - run:
           name: Build
@@ -926,10 +927,10 @@ jobs:
       - run:
           name: Copy jar files to system test binaries folder
           command: |
-            ls -la ~/dd-trace-java/workspace/dd-trace-api/build/libs
-            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
-            cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
-            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+            ls -la /home/non-root-user/dd-trace-api/build/libs
+            ls -la /home/non-root-user/dd-java-agent/build/libs
+            cp /home/non-root-user/dd-trace-api/build/libs/*.jar system-tests/binaries/
+            cp /home/non-root-user/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
 
       - run:
