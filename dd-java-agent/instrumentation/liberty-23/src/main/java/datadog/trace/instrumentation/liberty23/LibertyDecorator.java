@@ -100,7 +100,7 @@ public class LibertyDecorator
     // we may have the status during response blocking, but in that case
     // the status code is not propagated to the servlet layer
     if (currentStatus == null || !span.isError()) {
-      span.setHttpStatusCode(status);
+      super.onResponseStatus(span, status);
     }
     return span;
   }

@@ -1,20 +1,29 @@
 package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
+import static java.lang.String.format;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
 
 import com.datadog.debugger.agent.Generated;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -24,10 +33,14 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
+import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.util.Printer;
+import org.objectweb.asm.util.Textifier;
+import org.objectweb.asm.util.TraceClassVisitor;
 
 /** Helper class for bytecode generation */
 public class ASMHelper {
@@ -35,6 +48,45 @@ public class ASMHelper {
   public static final Type OBJECT_TYPE = new Type(Types.OBJECT_TYPE);
   public static final Type STRING_TYPE = new Type(Types.STRING_TYPE);
   public static final Type LONG_TYPE = new Type(org.objectweb.asm.Type.LONG_TYPE);
+
+  public static void dumpMethod(ClassNode classNode, String method, String suffix) {
+    String content = extractMethod(classNode, method);
+    File output;
+    int count = 0;
+    do {
+      output = new File(format("build/%s-%d-%s.txt", method, count++, suffix));
+    } while (output.exists());
+    output.getParentFile().mkdirs();
+    try (PrintWriter writer = new PrintWriter(output)) {
+      writer.println(content);
+      String absolutePath = output.getAbsolutePath();
+      absolutePath = absolutePath.substring(0, absolutePath.lastIndexOf('.'));
+      absolutePath += ".class";
+      ClassWriter classWriter = new ClassWriter(0);
+      classNode.accept(classWriter);
+      try (FileOutputStream stream = new FileOutputStream(absolutePath)) {
+        stream.write(classWriter.toByteArray());
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @SuppressForbidden
+  static String extractMethod(ClassNode classNode, String method) {
+    StringJoiner joiner = new StringJoiner("\n");
+    joiner.add("Class: " + classNode.name);
+    StringWriter writer = new StringWriter();
+    classNode.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(writer)));
+    List<String> strings = Arrays.asList(writer.toString().split("\n"));
+    for (int i = 0; i < strings.size(); i++) {
+      if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
+        while (!strings.get(i).equals(""))
+          joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
+      }
+    }
+    return joiner.toString();
+  }
 
   public static void invokeInterface(
       InsnList insnList,
@@ -322,6 +374,18 @@ public class ASMHelper {
     return previousSort == currentSort;
   }
 
+  public static String toString(AbstractInsnNode node) {
+    String opcode = node.getOpcode() >= 0 ? Printer.OPCODES[node.getOpcode()] : node.toString();
+    if (node instanceof LineNumberNode) {
+      return String.format("LineNumber: %s", ((LineNumberNode) node).line);
+    } else if (node instanceof MethodInsnNode) {
+      MethodInsnNode method = (MethodInsnNode) node;
+      return String.format("%s: [%s] %s", opcode, method.name, method.desc);
+    } else {
+      return opcode;
+    }
+  }
+
   private static int widenIntType(int sort) {
     switch (sort) {
       case org.objectweb.asm.Type.BOOLEAN:
@@ -342,6 +406,22 @@ public class ASMHelper {
 
   public static boolean isStore(int opcode) {
     return opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE;
+  }
+
+  public static List<Integer> getLineNumbers(MethodNode methodNode) {
+    List<Integer> lines = new ArrayList<>();
+    if (methodNode == null) {
+      return lines;
+    }
+    AbstractInsnNode current = methodNode.instructions.getFirst();
+    while (current != null) {
+      if (current.getType() == AbstractInsnNode.LINE) {
+        LineNumberNode lineNode = (LineNumberNode) current;
+        lines.add(lineNode.line);
+      }
+      current = current.getNext();
+    }
+    return lines;
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

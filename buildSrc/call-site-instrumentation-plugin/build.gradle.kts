@@ -4,7 +4,7 @@ plugins {
   java
   groovy
   id("com.diffplug.spotless") version "6.13.0"
-  id("com.github.johnrengelman.shadow") version "8.1.1"
+  id("com.gradleup.shadow") version "8.3.6"
 }
 
 java {
@@ -36,7 +36,7 @@ dependencies {
   implementation("org.ow2.asm", "asm-tree", "9.8")
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.15.11")
+  testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
   testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")

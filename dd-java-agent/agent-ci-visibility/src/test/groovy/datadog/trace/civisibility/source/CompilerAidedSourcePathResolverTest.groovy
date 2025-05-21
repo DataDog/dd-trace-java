@@ -5,7 +5,7 @@ import spock.lang.Specification
 
 class CompilerAidedSourcePathResolverTest extends Specification {
 
-  public static final String REPO_ROOT = "/repo/root/"
+  public static final String REPO_ROOT = "/repo/root"
   public static final String SOURCE_PATH_VALUE = "/repo/root/path/to/AClassWithSourceInfoInjected.java"
   public static final String SOURCE_PATH_OUTSIDE_REPO_VALUE = "/outside/path/to/AClassWithSourceInfoInjected.java"
 

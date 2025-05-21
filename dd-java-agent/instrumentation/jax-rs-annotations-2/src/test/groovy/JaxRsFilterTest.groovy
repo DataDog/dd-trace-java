@@ -63,6 +63,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
             if (httpRoute) {
               "$Tags.HTTP_ROUTE" httpRoute
             }
+            withCustomIntegrationName(null)
             defaultTags()
           }
         }
@@ -123,6 +124,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jax-rs"
             "$Tags.HTTP_ROUTE" resource
+            withCustomIntegrationName(null)
             defaultTags()
           }
         }
