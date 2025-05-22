@@ -12,11 +12,6 @@ allprojects {
   group = 'com.datadoghq'
   version = versionFromFile
 
-  repositories {
-    mavenLocal()
-    mavenCentral()
-    gradlePluginPortal()
-  }
-
+  apply from: "$sharedConfigDirectory/repositories.gradle"
   apply from: "$sharedConfigDirectory/spotless.gradle"
 }

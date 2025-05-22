@@ -228,9 +228,7 @@ project.afterEvaluate {
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
       tasks.named(type).configure {
-        kotlinOptions {
-          freeCompilerArgs += '-Xmx256m'
-        }
+        kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }
   }
@@ -242,7 +240,7 @@ project.afterEvaluate {
   }
 }
 
-if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   // Remove the no-deps jar from the archives to prevent publication
   configurations.archives.with {
     artifacts.remove artifacts.find {

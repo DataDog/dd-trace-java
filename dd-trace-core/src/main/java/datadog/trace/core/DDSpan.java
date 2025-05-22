@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
@@ -829,16 +830,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
   }
 
-  @Override
-  public boolean isRequiresPostProcessing() {
-    return context.isRequiresPostProcessing();
-  }
-
-  @Override
-  public void setRequiresPostProcessing(boolean requiresPostProcessing) {
-    context.setRequiresPostProcessing(requiresPostProcessing);
-  }
-
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;
@@ -859,6 +850,22 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public boolean isOutbound() {
     Object spanKind = context.getTag(Tags.SPAN_KIND);
     return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+  }
+
+  @Override
+  public void copyPropagationAndBaggage(final AgentSpan source) {
+    if (source instanceof DDSpan) {
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      // align the sampling priority for this span context
+      setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
+      // the sampling mechanism determine the dm tag hence we need to override and lock the current
+      // ptags
+      context
+          .getPropagationTags()
+          .updateAndLockDecisionMaker(sourceSpanContext.getPropagationTags());
+      context.setOrigin(sourceSpanContext.getOrigin());
+      sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
+    }
   }
 
   public AgentSpan addEvent(String name) {

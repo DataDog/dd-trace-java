@@ -161,7 +161,11 @@ public class ShellCommandExecutor {
         throw new TimeoutException(
             "Timeout while waiting for '"
                 + String.join(" ", command)
-                + "'; "
+                + "'; in "
+                + executionFolder
+                + "\n StdOut: \n"
+                + IOUtils.readFully(inputStreamConsumer.read(), Charset.defaultCharset())
+                + "\n StdErr: \n "
                 + IOUtils.readFully(errorStreamConsumer.read(), Charset.defaultCharset()));
       }
     } catch (InterruptedException e) {

@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
 import java.util.List;
-import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -16,7 +15,7 @@ import org.junit.runner.notification.Failure;
 public class JUnit4TracingListener extends TracingListener {
 
   private static final String FRAMEWORK_NAME = "junit4";
-  private static final String FRAMEWORK_VERSION = Version.id();
+  private static final String FRAMEWORK_VERSION = JUnit4Utils.getVersion();
 
   private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
@@ -236,6 +235,7 @@ public class JUnit4TracingListener extends TracingListener {
             testParameters,
             categories,
             testSourceData,
-            reason);
+            reason,
+            executionHistories.get(description));
   }
 }

@@ -43,6 +43,7 @@ public class ServerDebuggerTestApplication {
     methodsByName.put("tracedMethod", ServerDebuggerTestApplication::runTracedMethod);
     methodsByName.put("loopingFullMethod", ServerDebuggerTestApplication::runLoopingFullMethod);
     methodsByName.put("loopingTracedMethod", ServerDebuggerTestApplication::runLoopingTracedMethod);
+    methodsByName.put("topLevelMethod", ServerDebuggerTestApplication::runTopLevelMethod);
   }
 
   public ServerDebuggerTestApplication(String controlServerUrl) {
@@ -76,7 +77,7 @@ public class ServerDebuggerTestApplication {
   }
 
   protected void waitForInstrumentation(String className) {
-    System.out.println("waitForInstrumentation on " + className + " from: " + lastMatchedLine);
+    System.out.println("waitForInstrumentation on " + className);
     try {
       lastMatchedLine =
           TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);
@@ -161,6 +162,10 @@ public class ServerDebuggerTestApplication {
     for (int i = 0; i < Integer.parseInt(arg); i++) {
       runTracedMethod(arg);
     }
+  }
+
+  private static String runTopLevelMethod(String arg) {
+    return TopLevel.process(arg);
   }
 
   private static String fullMethod(
@@ -288,5 +293,11 @@ public class ServerDebuggerTestApplication {
       }
       return EMPTY_HTTP_200;
     }
+  }
+}
+
+class TopLevel {
+  public static String process(String arg) {
+    return "TopLevel.process: " + arg;
   }
 }

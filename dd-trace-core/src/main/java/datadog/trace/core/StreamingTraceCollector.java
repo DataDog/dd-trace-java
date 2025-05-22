@@ -82,7 +82,7 @@ public class StreamingTraceCollector extends TraceCollector {
   }
 
   @Override
-  public void cancelContinuation(AgentScope.Continuation continuation) {
+  public void removeContinuation(AgentScope.Continuation continuation) {
     // do nothing
   }
 }

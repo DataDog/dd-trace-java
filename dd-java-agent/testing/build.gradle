@@ -1,5 +1,5 @@
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -8,13 +8,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-repositories {
-  ivy {
-    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
-  }
-}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
@@ -44,6 +37,10 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration',
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
+
+configurations.api {
+  exclude group: 'org.yaml', module: 'snakeyaml' // we vendor this in the agent jar
+}
 
 dependencies {
   api libs.bytebuddy

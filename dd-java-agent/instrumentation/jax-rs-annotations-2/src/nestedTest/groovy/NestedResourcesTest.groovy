@@ -44,6 +44,7 @@ class NestedResourcesTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jax-rs"
             "$Tags.HTTP_ROUTE" "/admin/realms"
+            withCustomIntegrationName(null)
             defaultTags()
           }
         }

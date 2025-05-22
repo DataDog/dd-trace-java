@@ -169,6 +169,10 @@ class ContextTest extends AgentTestRunner {
     then:
     currentSpan != null
     !currentSpan.spanContext.isValid()
+
+    cleanup:
+    ddScope.close()
+    ddSpan.finish()
   }
 
   def "test clearing context"() {
@@ -238,6 +242,14 @@ class ContextTest extends AgentTestRunner {
         }
       }
     }
+
+    cleanup:
+    otelGrandChildScope?.close()
+    otelGrandChildSpan?.end()
+    ddChildScope?.close()
+    ddChildSpan?.finish()
+    otelParentScope.close()
+    otelParentSpan.end()
   }
 
   def "test context spans retrieval"() {

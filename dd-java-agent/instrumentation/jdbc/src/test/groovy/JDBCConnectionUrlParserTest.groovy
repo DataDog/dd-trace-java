@@ -204,7 +204,9 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     "jdbc:IRIS://dbhostname:1972/namespace"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
     "jdbc:IRIS://dbhostname:1972/namespace/+myjdbc.log"                                                                                                                                                                                                     | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
     "jdbc:IRIS://dbhostname:1972/namespace/::false"                                                                                                                                                                                             | null     | "iris"       | null          | null          | "dbhostname"  | 1972  | null               | "namespace"
-
+    // sybase
+    "jdbc:sybase:Tds:dbhostname:2638?ServiceName=demo"                                                                                                                                                                                          | null     | "sybase"     | "tds"         | null     | "dbhostname"                                                          | 2638    | "demo"                               | null
+    "jdbc:sybase:Tds:dbhostname:2638/dbname"                                                                                                                                                                                                    | null     | "sybase"     | "tds"         | null     | "dbhostname"                                                          | 2638    | null                                 | "dbname"
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }
 }

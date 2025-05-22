@@ -22,7 +22,6 @@ import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -121,6 +120,9 @@ public class KarateTracingHook implements RuntimeHook {
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
               && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
+        TestExecutionHistory executionHistory =
+            (TestExecutionHistory)
+                sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -130,7 +132,8 @@ public class KarateTracingHook implements RuntimeHook {
             parameters,
             categories,
             TestSourceData.UNKNOWN,
-            skipReason.getDescription());
+            skipReason.getDescription(),
+            executionHistory);
         return false;
       }
     }
@@ -198,10 +201,11 @@ public class KarateTracingHook implements RuntimeHook {
       return true;
     }
     AgentSpan span = AgentTracer.startSpan("karate", KARATE_STEP_SPAN_NAME);
-    AgentScope scope = AgentTracer.activateSpan(span);
+    AgentTracer.activateSpanWithoutScope(span);
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
     span.setTag(Tags.COMPONENT, "karate");
+    span.context().setIntegrationName("karate");
     span.setTag("step.name", stepName);
     span.setTag("step.startLine", step.getLine());
     span.setTag("step.endLine", step.getEndLine());

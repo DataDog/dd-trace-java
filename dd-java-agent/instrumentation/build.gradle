@@ -2,6 +2,20 @@
 buildscript {
 
   repositories {
+    mavenLocal()
+    if (project.rootProject.hasProperty("gradlePluginProxy")) {
+      maven {
+        url project.rootProject.property("gradlePluginProxy")
+        allowInsecureProtocol true
+      }
+    }
+    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url project.rootProject.property("mavenRepositoryProxy")
+        allowInsecureProtocol true
+      }
+    }
+    gradlePluginPortal()
     mavenCentral()
   }
 
@@ -10,7 +24,7 @@ buildscript {
   }
 }
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
 }
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -44,6 +58,9 @@ subprojects { Project subProj ->
       def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
       def name = "java$version.majorVersion"
       jdkCompile = "main_${name}Implementation"
+    }
+    configurations.muzzleBootstrap {
+      exclude group: 'org.yaml', module : 'snakeyaml' // we vendor this in the agent jar
     }
     dependencies {
       // Apply common dependencies for instrumentation.

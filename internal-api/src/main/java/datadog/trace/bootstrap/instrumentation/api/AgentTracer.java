@@ -88,6 +88,16 @@ public class AgentTracer {
   }
 
   /**
+   * Activate a span which will be closed by {@link #closeActive()} instead of a scope.
+   *
+   * @deprecated This should only be used when the instrumented code doesn't align with a scope.
+   */
+  @Deprecated
+  public static void activateSpanWithoutScope(final AgentSpan span) {
+    get().activateSpanWithoutScope(span);
+  }
+
+  /**
    * When asynchronous propagation is enabled, prevent the currently active trace from reporting
    * until the returned Continuation is either activated (and the returned scope is closed) or the
    * continuation is canceled.
@@ -142,8 +152,8 @@ public class AgentTracer {
   /**
    * Closes the scope for the currently active span.
    *
-   * @deprecated This should only be used when an instrumentation does not have access to the
-   *     original scope returned by {@link #activateSpan}.
+   * @deprecated This should only be used when the span was previously activated with {@link
+   *     #activateSpanWithoutScope} because the instrumented code didn't align with a scope.
    */
   @Deprecated
   public static void closeActive() {
@@ -177,12 +187,6 @@ public class AgentTracer {
 
   public static AgentSpan activeSpan() {
     return get().activeSpan();
-  }
-
-  /** @deprecated To be removed, do not use. */
-  @Deprecated
-  public static AgentScope activeScope() {
-    return get().activeScope();
   }
 
   /**
@@ -286,7 +290,7 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI
-      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer, ScopeStateAware {
+      extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
 
     /**
      * Create and start a new span.
@@ -338,6 +342,9 @@ public class AgentTracer {
     /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
     AgentScope activateManualSpan(AgentSpan span);
 
+    /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
+    void activateSpanWithoutScope(AgentSpan span);
+
     @Override
     AgentScope.Continuation captureActiveSpan();
 
@@ -354,8 +361,6 @@ public class AgentTracer {
     AgentScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
-
-    AgentScope activeScope();
 
     default AgentSpan blackholeSpan() {
       final AgentSpan active = activeSpan();
@@ -407,6 +412,8 @@ public class AgentTracer {
      * @param serviceName The service name to use as default.
      */
     void updatePreferredServiceName(String serviceName);
+
+    void addShutdownListener(Runnable listener);
   }
 
   public interface SpanBuilder {
@@ -484,6 +491,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void activateSpanWithoutScope(final AgentSpan span) {}
+
+    @Override
     public AgentScope.Continuation captureActiveSpan() {
       return NoopContinuation.INSTANCE;
     }
@@ -521,11 +531,6 @@ public class AgentTracer {
     @Override
     public AgentSpan activeSpan() {
       return NoopSpan.INSTANCE;
-    }
-
-    @Override
-    public AgentScope activeScope() {
-      return null;
     }
 
     @Override
@@ -597,6 +602,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void addShutdownListener(Runnable listener) {}
+
+    @Override
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
@@ -631,11 +639,6 @@ public class AgentTracer {
     public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
 
     @Override
-    public ScopeState newScopeState() {
-      return null;
-    }
-
-    @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
       return NoopDataStreamsMonitoring.INSTANCE;
     }
@@ -663,7 +666,7 @@ public class AgentTracer {
     public void registerContinuation(final AgentScope.Continuation continuation) {}
 
     @Override
-    public void cancelContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final AgentScope.Continuation continuation) {}
   }
 
   public static class NoopAgentHistogram implements AgentHistogram {

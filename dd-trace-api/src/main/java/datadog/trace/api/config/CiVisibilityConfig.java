@@ -79,6 +79,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY =
       "civisibility.remote.env.vars.provider.key";
   public static final String CIVISIBILITY_TEST_ORDER = "civisibility.test.order";
+  public static final String CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED =
+      "civisibility.scalatest.fork.monitor.enabled";
   public static final String TEST_MANAGEMENT_ENABLED = "test.management.enabled";
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";

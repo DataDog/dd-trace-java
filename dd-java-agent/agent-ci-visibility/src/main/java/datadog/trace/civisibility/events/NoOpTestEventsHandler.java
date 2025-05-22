@@ -89,7 +89,8 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable String reason) {
+      @Nullable String reason,
+      @Nullable TestExecutionHistory testExecutionHistory) {
     // do nothing
   }
 
@@ -103,16 +104,6 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   public TestExecutionPolicy executionPolicy(
       TestIdentifier test, TestSourceData source, Collection<String> testTags) {
     return Regular.INSTANCE;
-  }
-
-  @Override
-  public boolean isNew(@Nonnull TestIdentifier test) {
-    return false;
-  }
-
-  @Override
-  public boolean isFlaky(@Nonnull TestIdentifier test) {
-    return false;
   }
 
   @Override

@@ -260,7 +260,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
-    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
@@ -356,7 +356,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60
     config.dynamicInstrumentationVerifyByteCode == true
-    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
     config.jdkSocketEnabled == false
@@ -451,7 +451,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
-    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
@@ -543,7 +543,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60
     config.dynamicInstrumentationVerifyByteCode == true
-    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128
@@ -1938,7 +1938,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"].toSet()
   }
 
   def "detect if agent is configured using default values"() {
@@ -2677,20 +2677,6 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
-  }
-
-  def "specify overrides for PROPAGATION_STYLE_EXTRACT when TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
-    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "ignore")
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.IGNORE
-    config.tracePropagationStylesToExtract.toList() == []
   }
 
   def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {

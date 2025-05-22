@@ -24,6 +24,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ public class WriterFactory {
         config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
   }
 
+  @SuppressForbidden
   public static Writer createWriter(
       final Config config,
       final SharedCommunicationObjects commObjects,

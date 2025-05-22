@@ -160,11 +160,6 @@ class ExtractedSpan extends ImmutableSpan {
   }
 
   @Override
-  public boolean isRequiresPostProcessing() {
-    return false;
-  }
-
-  @Override
   public String toString() {
     return "ExtractedSpan{spanContext=" + this.spanContext + '}';
   }

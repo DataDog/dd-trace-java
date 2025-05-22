@@ -1,7 +1,7 @@
 package com.datadog.appsec.report;
 
-import static com.datadog.appsec.powerwaf.PowerWAFResultData.Rule;
-import static com.datadog.appsec.powerwaf.PowerWAFResultData.RuleMatch;
+import static com.datadog.appsec.ddwaf.WAFResultData.Rule;
+import static com.datadog.appsec.ddwaf.WAFResultData.RuleMatch;
 
 import java.util.ArrayList;
 import java.util.List;

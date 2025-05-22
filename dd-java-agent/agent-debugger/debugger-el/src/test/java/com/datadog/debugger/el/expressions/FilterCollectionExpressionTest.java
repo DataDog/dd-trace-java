@@ -28,7 +28,7 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
-    assertEquals("filter(int[], @it < 2)", print(expression));
+    assertEquals("filter(int[], {@it < 2})", print(expression));
   }
 
   @Test
@@ -41,7 +41,7 @@ class FilterCollectionExpressionTest {
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
-    assertEquals("filter(int[], @it < 2)", print(expression));
+    assertEquals("filter(int[], {@it < 2})", print(expression));
   }
 
   @Test
@@ -52,7 +52,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
   }
 
   @Test
@@ -63,7 +63,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
   }
 
   @Test
@@ -74,7 +74,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isUndefined());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
   }
 
   @Test
@@ -104,7 +104,7 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
-    assertEquals("filter(Map, @it.value < 2)", print(expression));
+    assertEquals("filter(Map, {@it.value < 2})", print(expression));
   }
 
   @Test
@@ -117,7 +117,7 @@ class FilterCollectionExpressionTest {
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
-    assertEquals("filter(Map, @it < 2)", print(expression));
+    assertEquals("filter(Map, {@it < 2})", print(expression));
   }
 
   @Test
@@ -128,7 +128,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
   }
 
   @Test
@@ -139,7 +139,7 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isNull());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
   }
 
   @Test
@@ -150,6 +150,29 @@ class FilterCollectionExpressionTest {
     CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
     assertEquals(collection, filtered);
     assertTrue(filtered.isUndefined());
-    assertEquals("filter(null, @it < 2)", print(expression));
+    assertEquals("filter(null, {@it < 2})", print(expression));
+  }
+
+  @Test
+  void keyValueMap() {
+    Map<String, Integer> map = new HashMap<>();
+    map.put("a", 1);
+    map.put("b", 2);
+    map.put("c", 3);
+    MapValue collection = new MapValue(map);
+
+    FilterCollectionExpression expression =
+        new FilterCollectionExpression(collection, eq(ref(ValueReferences.KEY_REF), value("b")));
+    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    assertNotEquals(collection, filtered);
+    assertEquals(1, filtered.count());
+    assertEquals("filter(Map, {@key == \"b\"})", print(expression));
+
+    expression =
+        new FilterCollectionExpression(collection, eq(ref(ValueReferences.VALUE_REF), value(2)));
+    filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    assertNotEquals(collection, filtered);
+    assertEquals(1, filtered.count());
+    assertEquals("filter(Map, {@value == 2})", print(expression));
   }
 }

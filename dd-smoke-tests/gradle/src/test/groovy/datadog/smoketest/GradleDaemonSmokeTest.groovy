@@ -6,18 +6,21 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.util.Strings
+import java.nio.file.Files
+import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
-import org.gradle.wrapper.*
+import org.gradle.wrapper.Download
+import org.gradle.wrapper.GradleUserHomeLookup
+import org.gradle.wrapper.Install
+import org.gradle.wrapper.PathAssembler
+import org.gradle.wrapper.WrapperConfiguration
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
-
-import java.nio.file.Files
-import java.nio.file.Path
 
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
@@ -75,6 +78,50 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     LATEST_GRADLE_VERSION | "test-succeed-junit-5"                          | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                     | false              | false           | true         | 8              | 0
     LATEST_GRADLE_VERSION | "test-succeed-gradle-plugin-test"               | false              | true            | false        | 5              | 0
+  }
+
+  def "test junit4 class ordering v#gradleVersion"() {
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
+    givenGradleProjectFiles(projectName)
+    ensureDependenciesDownloaded(gradleVersion)
+
+    mockBackend.givenKnownTests(true)
+    for (flakyTest in flakyTests) {
+      mockBackend.givenFlakyTest(":test", flakyTest.getSuite(), flakyTest.getName())
+      mockBackend.givenKnownTest(":test", flakyTest.getSuite(), flakyTest.getName())
+    }
+
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false)
+    assertBuildSuccessful(buildResult)
+
+    verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
+
+    where:
+    gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
+    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
+      test("datadog.smoke.TestSucceedB", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed")
+    ]                                                                          | [
+      test("datadog.smoke.TestSucceedC", "test_succeed"),
+      test("datadog.smoke.TestSucceedC", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed_another")
+    ]                                                                                          | 15
+    LATEST_GRADLE_VERSION | "test-succeed-junit-4-class-ordering" | [
+      test("datadog.smoke.TestSucceedB", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed")
+    ]                                                                          | [
+      test("datadog.smoke.TestSucceedC", "test_succeed"),
+      test("datadog.smoke.TestSucceedC", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed_another"),
+      test("datadog.smoke.TestSucceedA", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed"),
+      test("datadog.smoke.TestSucceedB", "test_succeed_another")
+    ]                                                                                          | 15
   }
 
   private runGradleTest(String gradleVersion, String projectName, boolean configurationCache, boolean successExpected, boolean flakyRetries, int expectedTraces, int expectedCoverages) {

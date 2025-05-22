@@ -11,8 +11,12 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
+import com.datadog.debugger.symbol.AvroFilter;
+import com.datadog.debugger.symbol.ProtoFilter;
+import com.datadog.debugger.symbol.ScopeFilter;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
+import com.datadog.debugger.symbol.WireFilter;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.DebuggerMetrics;
@@ -41,7 +45,9 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.zip.ZipOutputStream;
@@ -74,10 +80,7 @@ public class DebuggerAgent {
     Config config = Config.get();
     DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
-    if (config.isDynamicInstrumentationEnabled() || config.isDebuggerExceptionEnabled()) {
-      // only activate Source File Tracking if DI or ER is enabled from the start
-      setupSourceFileTracking(instrumentation, classesToRetransformFinder);
-    }
+    setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
@@ -86,7 +89,7 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
-      if (config.isDynamicInstrumentationInstrumentTheWorld()) {
+      if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
     }
@@ -158,9 +161,14 @@ public class DebuggerAgent {
     if (configurationPoller != null) {
       if (config.isSymbolDatabaseEnabled()) {
         initClassNameFilter();
+        List<ScopeFilter> scopeFilters =
+            Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
         SymbolAggregator symbolAggregator =
             new SymbolAggregator(
-                classNameFilter, sink.getSymbolSink(), config.getSymbolDatabaseFlushThreshold());
+                classNameFilter,
+                scopeFilters,
+                sink.getSymbolSink(),
+                config.getSymbolDatabaseFlushThreshold());
         symbolAggregator.start();
         symDBEnablement =
             new SymDBEnablement(instrumentation, config, symbolAggregator, classNameFilter);
@@ -172,6 +180,7 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
+    LOGGER.info("Started Dynamic Instrumentation");
   }
 
   public static void stopDynamicInstrumentation() {
@@ -205,6 +214,7 @@ public class DebuggerAgent {
             Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
             config.getDebuggerMaxExceptionPerSecond());
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
+    LOGGER.info("Started Exception Replay");
   }
 
   public static void stopExceptionReplay() {
@@ -230,6 +240,7 @@ public class DebuggerAgent {
     initClassNameFilter();
     DebuggerContext.initClassNameFilter(classNameFilter);
     DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));
+    LOGGER.info("Started Code Origin for spans");
   }
 
   public static void stopCodeOriginForSpans() {
@@ -311,7 +322,10 @@ public class DebuggerAgent {
 
   private static void setupSourceFileTracking(
       Instrumentation instrumentation, ClassesToRetransformFinder finder) {
-    instrumentation.addTransformer(new SourceFileTrackingTransformer(finder));
+    SourceFileTrackingTransformer sourceFileTrackingTransformer =
+        new SourceFileTrackingTransformer(finder);
+    sourceFileTrackingTransformer.start();
+    instrumentation.addTransformer(sourceFileTrackingTransformer);
   }
 
   private static void loadFromFile(

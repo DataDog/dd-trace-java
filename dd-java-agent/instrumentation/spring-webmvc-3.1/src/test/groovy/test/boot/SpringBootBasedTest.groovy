@@ -9,6 +9,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -19,6 +20,7 @@ import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.http.MediaType
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
 import org.springframework.web.servlet.view.RedirectView
 import test.SetupSpecHelper
@@ -27,6 +29,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -127,6 +130,22 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   boolean testUserBlocking() {
     true
+  }
+
+  @Override
+  boolean testEndpointDiscovery() {
+    true
+  }
+
+  @Override
+  void assertEndpointDiscovery(final List<?> endpoints) {
+    final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
+    assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])
+    discovered.values().each {
+      assert it.requestBodyType.containsAll([MediaType.APPLICATION_JSON_VALUE])
+      assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
+      assert it.metadata['handler'] == 'public org.springframework.http.ResponseEntity test.boot.TestController.discovery()'
+    }
   }
 
   @Override
@@ -330,7 +349,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN
+    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == LOGIN || endpoint == FORWARDED
   }
 
   @Override
@@ -378,6 +397,18 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         childOfPrevious()
         tags {
           "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    }  else if (endpoint == FORWARDED) {
+      trace.span {
+        serviceName expectedServiceName()
+        operationName 'servlet.dispatch'
+        resourceName 'servlet.dispatch'
+        tags {
+          "$Tags.COMPONENT" 'java-web-servlet-async-dispatcher'
+          'servlet.context' "/$servletContext"
+          'servlet.path' '/forwarded'
           defaultTags()
         }
       }

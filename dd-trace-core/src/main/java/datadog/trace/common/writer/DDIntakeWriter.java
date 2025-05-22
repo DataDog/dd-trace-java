@@ -122,8 +122,7 @@ public class DDIntakeWriter extends RemoteWriter {
               prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
-              singleSpanSampler,
-              null);
+              singleSpanSampler);
 
       return new DDIntakeWriter(
           traceProcessingWorker,

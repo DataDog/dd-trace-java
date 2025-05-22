@@ -26,7 +26,11 @@ public final class AppSecConfig {
   public static final String API_SECURITY_ENABLED = "api-security.enabled";
   public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
       "experimental.api-security.enabled";
-  public static final String API_SECURITY_REQUEST_SAMPLE_RATE = "api-security.request.sample.rate";
+  public static final String API_SECURITY_SAMPLE_DELAY = "api-security.sample.delay";
+  public static final String API_SECURITY_ENDPOINT_COLLECTION_ENABLED =
+      "api-security.endpoint.collection.enabled";
+  public static final String API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT =
+      "api-security.endpoint.collection.message.limit";
 
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
   public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
@@ -39,6 +43,10 @@ public final class AppSecConfig {
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
   public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
       "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
+  public static final String APPSEC_COLLECT_ALL_HEADERS = "appsec.collect.all.headers";
+  public static final String APPSEC_MAX_COLLECTED_HEADERS = "appsec.max.collected.headers";
+  public static final String APPSEC_HEADER_COLLECTION_REDACTION_ENABLED =
+      "appsec.header.collection.redaction.enabled";
 
   private AppSecConfig() {}
 }

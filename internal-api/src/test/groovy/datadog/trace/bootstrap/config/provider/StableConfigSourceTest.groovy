@@ -1,13 +1,23 @@
 package datadog.trace.bootstrap.config.provider
 
+import static java.util.Collections.singletonMap
+
 import datadog.trace.api.ConfigOrigin
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationValue
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector
+import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml
 import datadog.trace.test.util.DDSpecification
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
-import spock.lang.Shared
+import org.yaml.snakeyaml.introspector.Property
+import org.yaml.snakeyaml.nodes.NodeTuple
+import org.yaml.snakeyaml.nodes.Tag
+import org.yaml.snakeyaml.representer.Representer
 
-import java.nio.file.Path
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
 class StableConfigSourceTest extends DDSpecification {
@@ -23,7 +33,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test empty file"() {
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
@@ -34,42 +44,16 @@ class StableConfigSourceTest extends DDSpecification {
     config.getConfigId() == null
   }
 
-  def "test get"() {
-    when:
-    Path filePath = tempFile()
-    if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
-    }
-
-    def configs = new HashMap<>() << ["DD_SERVICE": "svc", "DD_ENV": "env", "CONFIG_NO_DD": "value123"]
-
-    try {
-      writeFileYaml(filePath, "12345", configs)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
-    }
-
-    StableConfigSource cfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
-
-    then:
-    cfg.get("service") == "svc"
-    cfg.get("env") == "env"
-    cfg.get("config_no_dd") == null
-    cfg.get("config_nonexistent") == null
-    cfg.getKeys().size() == 3
-    cfg.getConfigId() == "12345"
-    Files.delete(filePath)
-  }
-
   def "test file invalid format"() {
+    // StableConfigSource must handle the exception thrown by StableConfigParser.parse(filePath) gracefully
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
 
     try {
-      writeFileRaw(filePath, configId, configs)
+      writeFileRaw(filePath, configId, data)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -82,20 +66,23 @@ class StableConfigSourceTest extends DDSpecification {
     Files.delete(filePath)
 
     where:
-    configId | configs
+    configId | data
     null     | corruptYaml
     "12345"  | "this is not yaml format!"
   }
 
   def "test file valid format"() {
     when:
-    Path filePath = tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
     if (filePath == null) {
       throw new AssertionError("Failed to create test file")
     }
+    StableConfigYaml stableConfigYaml = new StableConfigYaml()
+    stableConfigYaml.setConfig_id(configId)
+    stableConfigYaml.setApm_configuration_default(defaultConfigs as ConfigurationMap)
 
     try {
-      writeFileYaml(filePath, configId, configs)
+      writeFileYaml(filePath, stableConfigYaml)
     } catch (IOException e) {
       throw new AssertionError("Failed to write to file: ${e.message}")
     }
@@ -103,67 +90,82 @@ class StableConfigSourceTest extends DDSpecification {
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
-    for (key in configs.keySet()) {
+    for (key in defaultConfigs.keySet()) {
       String keyString = (String) key
       keyString = keyString.substring(4) // Cut `DD_`
-      stableCfg.get(keyString) == configs.get(key)
+      stableCfg.get(keyString) == defaultConfigs.get(key)
+    }
+    // All configs from MatchingRule should be applied
+    if (ruleConfigs.contains(sampleMatchingRule)) {
+      for (key in sampleMatchingRule.getConfiguration().keySet()) {
+        String keyString = (String) key
+        keyString = keyString.substring(4) // Cut `DD_`
+        stableCfg.get(keyString) == defaultConfigs.get(key)
+      }
+    }
+    // None of the configs from NonMatchingRule should be applied
+    if (ruleConfigs.contains(sampleNonMatchingRule)) {
+      Set<String> cfgKeys = stableCfg.getKeys()
+      for (key in sampleMatchingRule.getConfiguration().keySet()) {
+        String keyString = (String) key
+        keyString = keyString.substring(4) // Cut `DD_`
+        !cfgKeys.contains(keyString)
+      }
     }
     Files.delete(filePath)
 
     where:
-    configId | configs
-    ""       | new HashMap<>()
-    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"]
+    configId | defaultConfigs | ruleConfigs
+    ""       | new HashMap<>() | Arrays.asList(new Rule())
+    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
-  @Shared
-  def corruptYaml = ''' 
+  def static corruptYaml = ''' 
         abc: 123
         def:
           ghi: "jkl"
           lmn: 456
     '''
 
-  static Path tempFile() {
-    try {
-      return Files.createTempFile("testFile_", ".yaml")
-    } catch (IOException e) {
-      println "Error creating file: ${e.message}"
-      e.printStackTrace()
-      return null // or throw new RuntimeException("File creation failed", e)
-    }
+  // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
+  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap(singletonMap("DD_KEY_THREE", new ConfigurationValue("three"))))
+  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap(singletonMap("DD_KEY_FOUR", new ConfigurationValue("four"))))
+
+  // Helper functions
+  def stableConfigYamlWriter = getStableConfigYamlWriter()
+
+  Yaml getStableConfigYamlWriter() {
+    DumperOptions options = new DumperOptions()
+    // Create the Representer, configure it to omit nulls
+    Representer representer = new Representer(options) {
+        @Override
+        protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
+          if (propertyValue == null) {
+            return null // Skip null values
+          } else {
+            return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag)
+          }
+        }
+      }
+    // Exclude class tag from the resulting yaml string
+    representer.addClassTag(StableConfigYaml.class, Tag.MAP)
+
+    // YAML instance with custom Representer
+    return new Yaml(representer, options)
   }
 
-  static writeFileYaml(Path filePath, String configId, Map configs) {
-    DumperOptions options = new DumperOptions()
-    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
-
-    // Prepare to write the data map to the file in yaml format
-    Yaml yaml = new Yaml(options)
-    String yamlString
-    Map<String, Object> data = new HashMap<>()
-    if (configId != null) {
-      data.put("config_id", configId)
+  def writeFileYaml(Path filePath, StableConfigYaml stableConfigs) {
+    try (FileWriter writer = new FileWriter(filePath.toString())) {
+      stableConfigYamlWriter.dump(stableConfigs, writer)
+    } catch (IOException e) {
+      e.printStackTrace()
     }
-    if (configs instanceof HashMap<?, ?>) {
-      data.put("apm_configuration_default", configs)
-    }
-
-    yamlString = yaml.dump(data)
-
-    StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
-    Files.write(filePath, yamlString.getBytes(), openOpts)
   }
 
   // Use this if you want to explicitly write/test configId
-  def writeFileRaw(Path filePath, String configId, String configs) {
-    String data = configId + "\n" + configs
-    StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
-    Files.write(filePath, data.getBytes(), openOpts)
-  }
-
-  static writeFileRaw(Path filePath, String data) {
+  def writeFileRaw(Path filePath, String configId, String data) {
+    data = configId + "\n" + data
     StandardOpenOption[] openOpts = [StandardOpenOption.WRITE] as StandardOpenOption[]
     Files.write(filePath, data.getBytes(), openOpts)
   }

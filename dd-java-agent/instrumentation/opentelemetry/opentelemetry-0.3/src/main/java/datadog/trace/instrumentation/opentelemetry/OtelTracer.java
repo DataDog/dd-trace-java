@@ -162,7 +162,9 @@ public class OtelTracer implements Tracer {
 
     @Override
     public Span startSpan() {
-      return converter.toSpan(delegate.start());
+      final AgentSpan agentSpan = delegate.start();
+      agentSpan.context().setIntegrationName("otel");
+      return converter.toSpan(agentSpan);
     }
   }
 }

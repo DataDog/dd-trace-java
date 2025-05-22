@@ -170,7 +170,7 @@ public class CIInfo {
     this.ciPipelineNumber = ciPipelineNumber;
     this.ciPipelineUrl = ciPipelineUrl;
     this.ciJobUrl = ciJobUrl;
-    this.ciWorkspace = ciWorkspace;
+    this.ciWorkspace = sanitizeWorkspace(ciWorkspace);
     this.ciNodeName = ciNodeName;
     this.ciNodeLabels = ciNodeLabels;
     this.ciEnvVars = ciEnvVars;
@@ -209,20 +209,18 @@ public class CIInfo {
     return ciJobUrl;
   }
 
-  /**
-   * @deprecated This method is here only to satisfy CI spec tests. Use {@link
-   *     #getNormalizedCiWorkspace()}
-   */
-  @Deprecated
-  public String getCiWorkspace() {
-    return ciWorkspace;
+  private String sanitizeWorkspace(String workspace) {
+    String realCiWorkspace = FileUtils.toRealPath(workspace);
+    return (realCiWorkspace == null
+            || !realCiWorkspace.endsWith(File.separator)
+            || realCiWorkspace.length() == 1) // root path "/"
+        ? realCiWorkspace
+        : (realCiWorkspace.substring(0, realCiWorkspace.length() - 1));
   }
 
-  public String getNormalizedCiWorkspace() {
-    String realCiWorkspace = FileUtils.toRealPath(ciWorkspace);
-    return (realCiWorkspace == null || realCiWorkspace.endsWith(File.separator))
-        ? realCiWorkspace
-        : (realCiWorkspace + File.separator);
+  /** @return Workspace path without the trailing separator */
+  public String getCiWorkspace() {
+    return ciWorkspace;
   }
 
   public String getCiNodeName() {

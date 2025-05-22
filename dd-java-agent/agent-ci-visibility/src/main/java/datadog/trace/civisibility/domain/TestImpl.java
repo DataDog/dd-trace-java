@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -30,6 +31,7 @@ import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -45,6 +47,7 @@ import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,6 +67,7 @@ public class TestImpl implements DDTest {
   private final Consumer<AgentSpan> onSpanFinish;
   private final TestContext context;
   private final TestIdentifier identifier;
+  private final long startMicros;
 
   public TestImpl(
       AgentSpanContext moduleSpanContext,
@@ -111,12 +115,15 @@ public class TestImpl implements DDTest {
             .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {
+      startMicros = startTime;
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
+    } else {
+      startMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
     }
 
     span = spanBuilder.start();
 
-    activateSpan(span);
+    activateSpanWithoutScope(span);
 
     span.setSpanType(InternalSpanTypes.TEST);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST);
@@ -201,10 +208,6 @@ public class TestImpl implements DDTest {
     return identifier;
   }
 
-  public boolean hasFailed() {
-    return span.isError();
-  }
-
   @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
@@ -229,6 +232,17 @@ public class TestImpl implements DDTest {
         executionResults.incrementTestsSkippedByItr();
       }
     }
+  }
+
+  public TestStatus getStatus() {
+    return (TestStatus) span.getTag(Tags.TEST_STATUS);
+  }
+
+  public long getDuration(@Nullable Long endMicros) {
+    if (endMicros == null) {
+      endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
+    }
+    return TimeUnit.MICROSECONDS.toMillis(endMicros - startMicros);
   }
 
   @Override

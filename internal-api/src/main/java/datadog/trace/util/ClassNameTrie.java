@@ -117,9 +117,17 @@ public final class ClassNameTrie {
     return apply(trieData, longJumps, key);
   }
 
+  public int apply(String key, int fromIndex) {
+    return apply(trieData, longJumps, key, fromIndex);
+  }
+
   public static int apply(char[] data, int[] longJumps, String key) {
+    return apply(data, longJumps, key, 0);
+  }
+
+  public static int apply(char[] data, int[] longJumps, String key, int fromIndex) {
     int keyLength = key.length();
-    int keyIndex = 0;
+    int keyIndex = fromIndex;
     int dataIndex = 0;
     int result = -1;
 
@@ -837,6 +845,14 @@ public final class ClassNameTrie {
         lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key);");
       } else {
         lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key);");
+      }
+      lines.add("  }");
+      lines.add("");
+      lines.add("  public static int apply(String key, int fromIndex) {");
+      if (hasLongJumps) {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key, fromIndex);");
+      } else {
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key, fromIndex);");
       }
       lines.add("  }");
       lines.add("");

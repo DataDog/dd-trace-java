@@ -8,6 +8,7 @@ import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import groovy.json.JsonSlurper
 import okhttp3.Request
@@ -265,6 +266,36 @@ class TestTelemetryRouter extends TelemetryRouter {
         (name) : [enabled: product.isEnabled()]
       ]
       assert this.payload['products'] == expected
+      return this
+    }
+
+    PayloadAssertions endpoint(final Endpoint... endpoints) {
+      def expected = []
+      endpoints.each {
+        final item = [
+          'type'          : it.type,
+          'method'        : it.method,
+          'path'          : it.path,
+          'operation-name': it.operation
+        ] as Map<String, Object>
+        if (it.requestBodyType) {
+          item['request-body-type'] = it.requestBodyType
+        }
+        if (it.responseBodyType) {
+          item['response-body-type'] = it.responseBodyType
+        }
+        if (it.authentication) {
+          item['authentication'] = it.authentication
+        }
+        if (it.responseCode) {
+          item['response-code'] = it.responseCode
+        }
+        if (it.metadata) {
+          item['metadata'] = it.metadata
+        }
+        expected.add(item)
+      }
+      assert this.payload['endpoints'] == expected
       return this
     }
 

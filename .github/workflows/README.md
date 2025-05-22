@@ -110,11 +110,20 @@ _Trigger:_ When pushing commits to `master` or any pull request targeting `maste
 
 _Action:_
 
-* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
 * Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only when pushing to `master`,
 * Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
 
 _Notes:_ Results are sent on both production and staging environments.
+
+### check-ci-pipelines [🔗](check-ci-pipelines.yaml)
+
+_Trigger:_ When opening or updating a PR.
+
+_Action:_ This action will check all other continuous integration jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails.
+The purpose of this job is to be required for PR merges, achieving Green CI Policy.
+It got an `ignored` parameters to exclude some jobs if they are temprorary failing.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
@@ -130,6 +139,13 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
+### run-system-tests [🔗](run-system-tests.yaml)
+
+_Trigger:_ When pushing commits to `master` or manually.
+
+_Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 ## Maintenance
 

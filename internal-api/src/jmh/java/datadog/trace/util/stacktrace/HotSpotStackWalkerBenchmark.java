@@ -2,6 +2,7 @@ package datadog.trace.util.stacktrace;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import external.util.stacktrace.RecursiveRunner;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,6 +60,7 @@ public class HotSpotStackWalkerBenchmark {
 
     Runnable runnable =
         new Runnable() {
+          @SuppressForbidden
           @Override
           public void run() {
             stackWalker.walk(this::toLimitedList).forEach(System.out::println);

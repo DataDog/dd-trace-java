@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -14,8 +15,6 @@ import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.postprocessor.SpanPostProcessor;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -53,8 +52,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SingleSpanSampler singleSpanSampler,
-      final SpanPostProcessor spanPostProcessor) {
+      final SingleSpanSampler singleSpanSampler) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
@@ -75,13 +73,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue,
-            secondaryQueue,
-            healthMetrics,
-            dispatcher,
-            flushInterval,
-            timeUnit,
-            spanPostProcessor);
+            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -142,7 +134,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final SpanPostProcessor spanPostProcessor;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
@@ -150,8 +141,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
-        final TimeUnit timeUnit,
-        final SpanPostProcessor spanPostProcessor) {
+        final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
@@ -163,7 +153,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       } else {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
-      this.spanPostProcessor = spanPostProcessor;
     }
 
     @Override
@@ -262,36 +251,26 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
-      // Filter spans that need post-processing
-      List<DDSpan> spansToPostProcess = null;
-      for (DDSpan span : trace) {
-        if (span.isRequiresPostProcessing()) {
-          if (spansToPostProcess == null) {
-            spansToPostProcess = new ArrayList<>();
-          }
-          spansToPostProcess.add(span);
-        }
-      }
-
-      if (spansToPostProcess == null) {
-        return;
-      }
-
+      final SpanPostProcessor postProcessor = SpanPostProcessor.Holder.INSTANCE;
       try {
-        long timeout = Config.get().getTracePostProcessingTimeout();
-        long deadline = System.currentTimeMillis() + timeout;
-        BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
-
-        for (DDSpan span : spansToPostProcess) {
-          if (!spanPostProcessor.process(span, timeoutCheck)) {
-            log.debug("Span post-processing interrupted due to timeout.");
-            break;
-          }
+        final long timeout = Config.get().getTracePostProcessingTimeout();
+        final long deadline = System.currentTimeMillis() + timeout;
+        final boolean[] timedOut = {false};
+        final BooleanSupplier timeoutCheck =
+            () -> {
+              if (timedOut[0]) {
+                return true;
+              }
+              if (System.currentTimeMillis() > deadline) {
+                timedOut[0] = true;
+              }
+              return timedOut[0];
+            };
+        for (DDSpan span : trace) {
+          postProcessor.process(span, timeoutCheck);
         }
       } catch (Throwable e) {
-        if (log.isDebugEnabled()) {
-          log.debug("Error while trace post-processing", e);
-        }
+        log.debug("Error while trace post-processing", e);
       }
     }
   }

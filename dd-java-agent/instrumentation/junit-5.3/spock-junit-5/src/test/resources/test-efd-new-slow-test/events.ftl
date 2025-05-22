@@ -103,7 +103,7 @@
       "test.is_retry" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test success",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test success()V",
       "test.status" : "pass",

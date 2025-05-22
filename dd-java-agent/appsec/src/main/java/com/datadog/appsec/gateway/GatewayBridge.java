@@ -7,7 +7,7 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_AL
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -69,8 +69,12 @@ public class GatewayBridge {
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
-    "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
+    "appsec.events.users.login.success.track",
+    "appsec.events.users.login.failure.track",
+    "appsec.events.users.signup.track"
   };
+
+  private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
 
   private static final Map<LoginEvent, Address<?>> EVENT_MAPPINGS = new EnumMap<>(LoginEvent.class);
 
@@ -84,7 +88,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecurityRequestSampler requestSampler;
+  private final ApiSecuritySampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -110,7 +114,7 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecurityRequestSampler requestSampler,
+      ApiSecuritySampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
@@ -468,7 +472,7 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object convObj = ObjectIntrospection.convert(obj);
+      Object convObj = ObjectIntrospection.convert(obj, ctx);
       DataBundle bundle =
           new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
       try {
@@ -570,7 +574,7 @@ public class GatewayBridge {
       }
       DataBundle bundle =
           new SingletonDataBundle<>(
-              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj, ctx));
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -661,12 +665,17 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
-    maybeExtractSchemas(ctx);
-
-    // WAF call
-    ctx.closeAdditive();
-
     TraceSegment traceSeg = ctx_.getTraceSegment();
+    Map<String, Object> tags = spanInfo.getTags();
+
+    if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
+      if (!Config.get().isApmTracingEnabled()) {
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
+    } else {
+      ctx.closeWafContext();
+    }
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
@@ -688,7 +697,7 @@ public class GatewayBridge {
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
         // Reflect client_ip as actor.ip for backward compatibility
-        Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+        Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
           traceSeg.setTagTop("actor.ip", clientIp);
         }
@@ -698,8 +707,15 @@ public class GatewayBridge {
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
-        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-        writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+        boolean collectAll =
+            Config.get().isAppSecCollectAllHeaders()
+                // Until redaction is defined we don't want to collect all headers due to risk of
+                // leaking sensitive data
+                && !Config.get().isAppSecHeaderCollectionRedactionEnabled();
+        writeRequestHeaders(
+            traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), collectAll);
+        writeResponseHeaders(
+            traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), collectAll);
 
         // Report collected stack traces
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
@@ -707,29 +723,44 @@ public class GatewayBridge {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
-      } else if (hasUserTrackingEvent(traceSeg)) {
+      } else if (hasUserInfo(traceSeg)) {
         // Report all collected request headers on user tracking event
-        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       } else {
         // Report minimum set of collected request headers
-        writeRequestHeaders(traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+        writeRequestHeaders(
+            traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
       }
 
-      if (ctx.isBlocked()) {
-        WafMetricCollector.get().wafRequestBlocked();
-      } else if (!collectedEvents.isEmpty()) {
-        WafMetricCollector.get().wafRequestTriggered();
-      } else {
-        WafMetricCollector.get().wafRequest();
-      }
+      WafMetricCollector.get()
+          .wafRequest(
+              !collectedEvents.isEmpty(), // ruleTriggered
+              ctx.isWafBlocked(), // requestBlocked
+              ctx.hasWafErrors(), // wafError
+              ctx.getWafTimeouts() > 0, // wafTimeout,
+              ctx.isWafRequestBlockFailure(), // blockFailure,
+              ctx.isWafRateLimited(), // rateLimited,
+              ctx.isWafTruncated() // inputTruncated
+              );
     }
 
-    ctx.close(spanInfo.isRequiresPostProcessing());
+    ctx.close();
     return NoopFlow.INSTANCE;
+  }
+
+  private boolean maybeSampleForApiSecurity(
+      AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
+    log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
+    // API Security sampling requires http.route tag.
+    final Object route = tags.get(Tags.HTTP_ROUTE);
+    if (route != null) {
+      ctx.setRoute(route.toString());
+    }
+    return requestSampler.preSampleRequest(ctx);
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
@@ -791,6 +822,10 @@ public class GatewayBridge {
     subscriptionService.reset();
   }
 
+  private static boolean hasUserInfo(final TraceSegment traceSegment) {
+    return hasUserTrackingEvent(traceSegment) || hasUserCollectionEvent(traceSegment);
+  }
+
   private static boolean hasUserTrackingEvent(final TraceSegment traceSeg) {
     for (String tagName : USER_TRACKING_TAGS) {
       final Object value = traceSeg.getTagTop(tagName);
@@ -801,35 +836,83 @@ public class GatewayBridge {
     return false;
   }
 
+  private static boolean hasUserCollectionEvent(final TraceSegment traceSeg) {
+    return traceSeg.getTagTop(USER_COLLECTION_MODE_TAG) != null;
+  }
+
   private static void writeRequestHeaders(
       final TraceSegment traceSeg,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.request.headers.", allowed, headers);
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
+    writeHeaders(
+        traceSeg, "http.request.headers.", "_dd.appsec.request.", allowed, headers, collectAll);
   }
 
   private static void writeResponseHeaders(
       final TraceSegment traceSeg,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.response.headers.", allowed, headers);
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
+    writeHeaders(
+        traceSeg, "http.response.headers.", "_dd.appsec.response.", allowed, headers, collectAll);
   }
 
   private static void writeHeaders(
       final TraceSegment traceSeg,
       final String prefix,
+      final String discardedPrefix,
       final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    if (headers != null) {
-      headers.forEach(
-          (name, value) -> {
-            if (allowed.contains(name)) {
-              String v = String.join(",", value);
-              if (!v.isEmpty()) {
-                traceSeg.setTagTop(prefix + name, v);
-              }
-            }
-          });
+      final Map<String, List<String>> headers,
+      final boolean collectAll) {
+
+    if (headers == null || headers.isEmpty()) {
+      return;
+    }
+
+    final int headerLimit = Config.get().getAppsecMaxCollectedHeaders();
+    final Set<String> added = new HashSet<>();
+    int excluded = 0;
+
+    // Try to add allowed headers (prioritized)
+    for (String name : allowed) {
+      if (added.size() >= headerLimit) {
+        break;
+      }
+      List<String> values = headers.get(name);
+      if (values != null) {
+        String joined = String.join(",", values);
+        if (!joined.isEmpty()) {
+          traceSeg.setTagTop(prefix + name, joined);
+          added.add(name);
+        }
+      }
+    }
+
+    if (collectAll) {
+      // Add other headers (non-allowed) until total reaches the limit
+      for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+        String name = entry.getKey();
+        if (added.contains(name)) {
+          continue;
+        }
+
+        if (added.size() >= headerLimit) {
+          excluded++;
+          continue;
+        }
+
+        List<String> values = entry.getValue();
+        String joined = String.join(",", values);
+        if (!joined.isEmpty()) {
+          traceSeg.setTagTop(prefix + name, joined);
+          added.add(name);
+        }
+      }
+
+      if (excluded > 0) {
+        traceSeg.setTagTop(discardedPrefix + "header_collection.discarded", excluded);
+      }
     }
   }
 
@@ -948,40 +1031,6 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
-      }
-    }
-  }
-
-  private void maybeExtractSchemas(AppSecRequestContext ctx) {
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
-    }
-
-    if (!extractSchema) {
-      return;
-    }
-
-    while (true) {
-      DataSubscriberInfo subInfo = requestEndSubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
-        requestEndSubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
-        return;
-      }
-
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.WAF_CONTEXT_PROCESSOR,
-              Collections.singletonMap("extract-schema", true));
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-        return;
-      } catch (ExpiredSubscriberInfoException e) {
-        requestEndSubInfo = null;
       }
     }
   }

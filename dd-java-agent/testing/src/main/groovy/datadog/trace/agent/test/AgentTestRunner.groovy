@@ -27,6 +27,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -272,6 +273,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     return false
   }
 
+  protected boolean isDataJobsEnabled() {
+    return false
+  }
+
   protected long dataStreamsBucketDuration() {
     TimeUnit.MILLISECONDS.toNanos(50)
   }
@@ -363,8 +368,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_WRITER = new ListWriter()
 
     if (isTestAgentEnabled()) {
+      String agentHost = System.getenv("CI_AGENT_HOST")
+      if (agentHost == null) {
+        agentHost = DEFAULT_AGENT_HOST
+      }
+
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
-      HttpUrl agentUrl = HttpUrl.get("http://" + DEFAULT_AGENT_HOST + ":" + DEFAULT_TRACE_AGENT_PORT)
+      HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
       OkHttpClient client = buildHttpClient(agentUrl, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
       DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())
@@ -464,6 +474,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected void configurePreAgent() {
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
+    injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
   }
 
   void setup() {
@@ -504,6 +515,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
     InstrumentationErrors.resetErrorCount()
+    ProcessTags.reset()
   }
 
   @Override

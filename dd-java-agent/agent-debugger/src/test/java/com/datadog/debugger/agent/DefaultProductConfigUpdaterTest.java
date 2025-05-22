@@ -24,6 +24,11 @@ class DefaultProductConfigUpdaterTest {
     assertTrue(productConfigUpdater.isExceptionReplayEnabled());
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
+    productConfigUpdater.updateConfig(null, null, null, null);
+    assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
+    assertTrue(productConfigUpdater.isExceptionReplayEnabled());
+    assertTrue(productConfigUpdater.isCodeOriginEnabled());
+    assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
     productConfigUpdater.updateConfig(false, false, false, false);
     assertFalse(productConfigUpdater.isDynamicInstrumentationEnabled());
     assertFalse(productConfigUpdater.isExceptionReplayEnabled());

@@ -15,6 +15,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
@@ -41,6 +42,7 @@ import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -101,10 +103,13 @@ public class CiVisibilitySystem {
 
       CiVisibilityCoverageServices.Child coverageServices =
           new CiVisibilityCoverageServices.Child(services, repoServices, executionSettings);
-      InstrumentationBridge.registerTestEventsHandlerFactory(
-          new TestEventsHandlerFactory(
-              services, repoServices, coverageServices, executionSettings));
+      TestEventsHandlerFactory testEventsHandlerFactory =
+          new TestEventsHandlerFactory(services, repoServices, coverageServices, executionSettings);
+      InstrumentationBridge.registerTestEventsHandlerFactory(testEventsHandlerFactory);
       CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
+
+      AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
+      tracerAPI.addShutdownListener(testEventsHandlerFactory::shutdown);
     } else {
       InstrumentationBridge.registerTestEventsHandlerFactory(new NoOpTestEventsHandler.Factory());
     }
@@ -147,6 +152,8 @@ public class CiVisibilitySystem {
     private final CiVisibilityRepoServices repoServices;
     private final TestFrameworkSession.Factory sessionFactory;
 
+    private final Collection<TestEventsHandler<?, ?>> handlers = new CopyOnWriteArrayList<>();
+
     private TestEventsHandlerFactory(
         CiVisibilityServices services,
         CiVisibilityRepoServices repoServices,
@@ -174,12 +181,21 @@ public class CiVisibilitySystem {
       TestFrameworkSession testSession =
           sessionFactory.startSession(repoServices.moduleName, component, null, capabilities);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
-      return new TestEventsHandlerImpl<>(
-          services.metricCollector,
-          testSession,
-          testModule,
-          suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-          testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
+      TestEventsHandlerImpl<SuiteKey, TestKey> handler =
+          new TestEventsHandlerImpl<>(
+              services.metricCollector,
+              testSession,
+              testModule,
+              suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+              testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
+      handlers.add(handler);
+      return handler;
+    }
+
+    public void shutdown() {
+      for (TestEventsHandler<?, ?> handler : handlers) {
+        handler.close();
+      }
     }
   }
 

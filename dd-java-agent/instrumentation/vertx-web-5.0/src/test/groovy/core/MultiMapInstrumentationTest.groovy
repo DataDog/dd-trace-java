@@ -168,7 +168,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
   private List<MultiMap> multiMaps() {
     return [
-      new HeadersMultiMap(),
+      HeadersMultiMap.caseInsensitive(),
       new HeadersAdaptor(new DefaultHttpHeaders()),
       new Http2HeadersAdaptor(new DefaultHttp2Headers())
     ]

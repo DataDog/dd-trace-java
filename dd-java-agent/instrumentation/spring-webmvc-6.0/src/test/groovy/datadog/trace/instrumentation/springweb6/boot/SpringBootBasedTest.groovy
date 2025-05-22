@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springweb6.boot
 
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -26,6 +27,7 @@ import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.http.MediaType
 import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.socket.BinaryMessage
 import org.springframework.web.socket.TextMessage
@@ -70,7 +72,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     void start() {
       app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
         "spring.mvc.throw-exception-if-no-handler-found": false,
-        "spring.web.resources.add-mappings"             : false])
+        "spring.web.resources.add-mappings"             : false,
+        "server.forward-headers-strategy": "NONE"])
       context = app.run()
       port = (context as ServletWebServerApplicationContext).webServer.port
       try {
@@ -273,6 +276,22 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String testPathParam() {
     "/path/{id}/param"
+  }
+
+  @Override
+  boolean testEndpointDiscovery() {
+    true
+  }
+
+  @Override
+  void assertEndpointDiscovery(final List<?> endpoints) {
+    final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
+    assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])
+    discovered.values().each {
+      assert it.requestBodyType.containsAll([MediaType.APPLICATION_JSON_VALUE])
+      assert it.responseBodyType.containsAll([MediaType.TEXT_PLAIN_VALUE])
+      assert it.metadata['handler'] == 'datadog.trace.instrumentation.springweb6.boot.TestController#discovery()'
+    }
   }
 
   def "test character encoding of #testPassword"() {

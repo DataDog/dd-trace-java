@@ -31,7 +31,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
       "datadog.smoketest.debugger.ServerDebuggerTestApplication";
   protected static final String CONTROL_URL = "/control";
   protected static final ProbeId PROBE_ID = new ProbeId("123356536", 0);
-  protected static final ProbeId PROBE_ID2 = new ProbeId("1233565367", 12);
+  protected static final ProbeId LINE_PROBE_ID1 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000001", 0);
   protected static final String TEST_APP_CLASS_NAME = "ServerDebuggerTestApplication";
   protected static final String FULL_METHOD_NAME = "fullMethod";
   protected static final String TRACED_METHOD_NAME = "tracedMethod";
@@ -106,9 +107,11 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForInstrumentation(String appUrl) throws Exception {
-    String url =
-        String.format(
-            appUrl + "/waitForInstrumentation?classname=%s", SERVER_DEBUGGER_TEST_APP_CLASS);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS);
+  }
+
+  protected void waitForInstrumentation(String appUrl, String className) throws Exception {
+    String url = String.format(appUrl + "/waitForInstrumentation?classname=%s", className);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
     AtomicBoolean received = new AtomicBoolean();
@@ -136,9 +139,11 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {
-    String url =
-        String.format(
-            appUrl + "/waitForReTransformation?classname=%s", SERVER_DEBUGGER_TEST_APP_CLASS);
+    waitForReTransformation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS);
+  }
+
+  protected void waitForReTransformation(String appUrl, String className) throws IOException {
+    String url = String.format(appUrl + "/waitForReTransformation?classname=%s", className);
     sendRequest(url);
     LOG.info("re-transformation done");
   }

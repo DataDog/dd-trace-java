@@ -4,10 +4,12 @@ import com.datadog.crashtracking.CrashUploader;
 import com.datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import datadog.trace.agent.tooling.profiler.EnvironmentChecker;
 import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +40,7 @@ public final class AgentCLI {
   }
 
   /** Prints all known integrations in alphabetical order. */
+  @SuppressForbidden
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
     for (InstrumenterModule module : InstrumenterIndex.readIndex().modules()) {
@@ -54,6 +57,7 @@ public final class AgentCLI {
    * @param count how many traces to send, negative means send forever
    * @param interval the interval (in seconds) to wait for each trace
    */
+  @SuppressForbidden
   public static void sendSampleTraces(final int count, final double interval) throws Exception {
     Agent.startDatadogTracer(InitializationTelemetry.noOpInstance());
 
@@ -92,6 +96,7 @@ public final class AgentCLI {
     OOMENotifier.sendOomeEvent(taglist);
   }
 
+  @SuppressForbidden
   public static void scanDependencies(final String[] args) throws Exception {
     Class depClass =
         Class.forName(
@@ -124,6 +129,12 @@ public final class AgentCLI {
     }
 
     System.out.println("Scan finished");
+  }
+
+  public static void checkProfilerEnv(String temp) {
+    if (!EnvironmentChecker.checkEnvironment(temp)) {
+      System.exit(1);
+    }
   }
 
   private static void recursiveDependencySearch(Consumer<File> invoker, File origin)

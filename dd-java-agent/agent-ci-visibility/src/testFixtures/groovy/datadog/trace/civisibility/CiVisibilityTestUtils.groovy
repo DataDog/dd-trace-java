@@ -9,6 +9,7 @@ import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.config.LibraryCapability
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
@@ -54,7 +55,8 @@ abstract class CiVisibilityTestUtils {
   ]
 
   // ignored tags on assertion and fixture build
-  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList())
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList()) +
+  ["content.meta.['_dd.integration']"]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
@@ -134,6 +136,25 @@ abstract class CiVisibilityTestUtils {
     }
 
     return replacementMap
+  }
+
+  static boolean assertTestsOrder(List<Map<?, ?>> events, List<TestFQN> expectedOrder) {
+    def identifiers = getTestIdentifiers(events)
+    if (identifiers != expectedOrder) {
+      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
+    }
+    return true
+  }
+
+  static List<TestFQN> getTestIdentifiers(List<Map<?,?>> events) {
+    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    def testIdentifiers = []
+    for (Map event : events) {
+      if (event['content']['meta']['test.name']) {
+        testIdentifiers.add(new TestFQN(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
+      }
+    }
+    return testIdentifiers
   }
 
   static List<Map<?, ?>> removeTags(List<Map<?, ?>> events, List<String> tags) {

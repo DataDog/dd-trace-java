@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 69a5e874384dd256e2e3f42fc1c95807a67efbe6
+default_system_tests_commit: &default_system_tests_commit 9049791de92dcb72b104e99a80f6f9914c1b96fb
 
 parameters:
   nightly:
@@ -179,9 +179,14 @@ commands:
   display_memory_usage:
     steps:
       - run:
-          name: Max Memory Used
+          name: Runner Memory Usage
           # The file does not seem to exist when DLC is disabled
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes || true
+          command: |
+            # Show cgroupv2 memory usage
+            printf "cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo 'not found')%s\n"
+            printf "cgroup memory.max : $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo 'not found')%s\n"
+            printf "cgroup memory.high: $(cat /sys/fs/cgroup/memory.high 2>/dev/null || echo 'not found')%s\n"
+            printf "ram memory        : $(grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f 2)%s\n"
           when: always
 
 
@@ -282,9 +287,11 @@ commands:
 jobs:
   build:
     <<: *defaults
-    resource_class: xlarge
 
     parameters:
+      resourceClass:
+        type: string
+        default: xlarge
       gradleTarget:
         type: string
       cacheType:
@@ -296,6 +303,7 @@ jobs:
         type: string
         default: ".*"
 
+    resource_class: << parameters.resourceClass >>
     steps:
       - setup_code
 
@@ -304,15 +312,15 @@ jobs:
 
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
-
+          
       - run:
           name: Build Project
           command: >-
 {% if is_nightly %}
-            ./gradlew resolveAndLockAll --write-locks &&
+            ./gradlew resolveAndLockAll --write-locks --no-daemon &&
 {% endif %}
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
@@ -384,6 +392,9 @@ jobs:
     <<: *defaults
 
     parameters:
+      resourceClass:
+        type: string
+        default: medium+
       parallelism:
         type: integer
         default: 1
@@ -395,7 +406,7 @@ jobs:
         type: string
         default: ".*"
 
-    resource_class: medium+
+    resource_class: << parameters.resourceClass >>
 
     parallelism: << parameters.parallelism >>
 
@@ -445,6 +456,8 @@ jobs:
           when: on_fail
           command: .circleci/cancel_workflow.sh
 
+      - display_memory_usage
+
   build_clean_cache:
     <<: *defaults
 
@@ -493,13 +506,13 @@ jobs:
 
   tests: &tests
     <<: *defaults
-    # since tests use test containers, they will use a Linux VM / Remote Docker executor, so there is no medium+ size
-    resource_class: large
-
     docker:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
+      resourceClass:
+        type: string
+        default: large
       environment:
         type: string
         default: ""
@@ -534,6 +547,9 @@ jobs:
         default: false
       cacheType:
         type: string
+
+    # since tests use test containers, they will use a Linux VM / Remote Docker executor, so there is no medium+ size
+    resource_class: << parameters.resourceClass >>
 
     parallelism: << parameters.parallelism >>
 
@@ -652,13 +668,18 @@ jobs:
               exit 1
             fi
 
+  # TODO: merge xlarge_tests and tests? or rename this?
   xlarge_tests:
     <<: *tests
 
     docker:
+      # The first image listed in your configuration for a job is referred to as the primary container image
+      # and this is where all steps in the job will run. Secondary containers can also be specified to run
+      # alongside for running services, such as, databases.
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
         environment:
           - CI_USE_TEST_AGENT=true
+
       - image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
         environment:
           - LOG_LEVEL=DEBUG
@@ -667,8 +688,6 @@ jobs:
           - DD_POOL_TRACE_CHECK_FAILURES=true
           - DD_DISABLE_ERROR_RESPONSES=true
           - ENABLED_CHECKS=trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service
-    # TODO: merge xlarge_tests and tests? or rename this?
-    resource_class: large
 
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
@@ -744,79 +763,6 @@ jobs:
           path: ./reports
 
       - display_memory_usage
-  muzzle-dep-report:
-    <<: *defaults
-    resource_class: medium
-    steps:
-      - setup_code
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-      - run:
-          name: Generate muzzle dep report
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew generateMuzzleReport muzzleInstrumentationReport
-      - run:
-          name: Collect Reports
-          command: .circleci/collect_muzzle_deps.sh
-      - store_artifacts:
-          path: ./reports
-
-  muzzle:
-    <<: *defaults
-    resource_class: medium+
-    parallelism: 4
-    steps:
-      - setup_code
-
-      - skip_unless_matching_files_changed:
-          pattern: "dd-java-agent/instrumentation"
-
-      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
-      # ends up taking more time restoring/saving than the actual increase in time it takes just
-      # downloading the artifacts each time.
-      #
-      # Let's at least restore the build cache to have something to start from.
-      - restore_dependency_cache:
-          cacheType: inst
-      - restore_build_cache:
-          cacheType: inst
-
-      - run:
-          name: Gather muzzle tasks
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew writeMuzzleTasksToFile
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=3
-
-      - run:
-          name: Verify Muzzle
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=4
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
-
-      - display_memory_usage
 
   system-tests:
     machine:
@@ -850,8 +796,6 @@ jobs:
             (
             echo "
             DEFAULT
-            APM_TRACING_E2E
-            APM_TRACING_E2E_SINGLE_SPAN
             TRACING_CONFIG_NONDEFAULT
             TRACING_CONFIG_NONDEFAULT_2
             TRACING_CONFIG_NONDEFAULT_3
@@ -875,14 +819,8 @@ jobs:
               "
             fi
             ) | circleci tests split > scenarios.list
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
             for scenario in $(<scenarios.list); do
-              if [[ $scenario =~ .*_E2E.* ]]; then
-                export DD_SITE=datadoghq.com
-                export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY
-                export DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY
-              else
-                export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
-              fi
               echo "Running scenario $scenario"
               ./run.sh $scenario
             done
@@ -922,27 +860,11 @@ jobs:
 
       - run:
           name: Run APM Integrations tests
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
-        
-      - run:
-          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
 
       - store_test_results:
           path: system-tests/logs_integrations
@@ -975,7 +897,7 @@ jobs:
           no_output_timeout: 5m
           command: |
             cd system-tests
-            export DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY 
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
             ./run.sh DEBUGGER_SCENARIOS
 
       - run:
@@ -1066,15 +988,18 @@ build_test_jobs: &build_test_jobs
       cacheType: base
   - build:
       name: build_inst
+      resourceClass: 2xlarge
       gradleTarget: :instrumentationTest
       cacheType: inst
       triggeredBy: *instrumentation_modules
   - build:
       name: build_latestdep
+      resourceClass: 2xlarge
       gradleTarget: :instrumentationLatestDepTest
       cacheType: latestdep
   - build:
       name: build_smoke
+      resourceClass: 2xlarge
       gradleTarget: :smokeTest
       cacheType: smoke
   - build:
@@ -1098,6 +1023,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_base
+      resourceClass: xlarge
       gradleTarget: ":baseCheck"
       cacheType: base
 
@@ -1105,7 +1031,8 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_inst
-      parallelism: 4
+      resourceClass: 2xlarge
+      parallelism: 5
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
       triggeredBy: *instrumentation_modules
@@ -1114,6 +1041,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: check_smoke
+      resourceClass: large
       gradleTarget: ":smokeCheck"
       cacheType: smoke
 
@@ -1172,6 +1100,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_<< matrix.testJvm >>_inst
+      resourceClass: xlarge
       gradleTarget: ":instrumentationTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1200,6 +1129,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_8_inst_latest
+      resourceClass: xlarge
       gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1214,6 +1144,7 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
         - build_latestdep
       name: test_17_inst_latest
+      resourceClass: xlarge
       gradleTarget: ":instrumentationLatestDepTest"
       gradleParameters: "-PskipFlakyTests"
       triggeredBy: *instrumentation_modules
@@ -1333,6 +1264,7 @@ build_test_jobs: &build_test_jobs
       matrix:
         <<: *test_matrix
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1346,6 +1278,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       matrix:
         <<: *test_matrix
+{% endif %}
 
   - tests:
       requires:
@@ -1358,6 +1291,24 @@ build_test_jobs: &build_test_jobs
       stage: debugger
       cacheType: smoke
       testJvm: "semeru8"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm17_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm17"
+
+  - tests:
+      requires:
+        - ok_to_test
+      name: test_graalvm21_smoke
+      gradleTarget: "stageMainDist :dd-smoke-test:quarkus-native:test"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "graalvm21"
 
   - tests:
       requires:
@@ -1381,6 +1332,7 @@ build_test_jobs: &build_test_jobs
       requires:
         - ok_to_test
       name: z_test_8_smoke
+      resourceClass: xlarge
       gradleTarget: "stageMainDist :smokeTest"
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
@@ -1389,6 +1341,7 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+{% if ssi_smoke %}
   - tests:
       requires:
         - ok_to_test
@@ -1401,13 +1354,16 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       maxWorkers: 3
       testJvm: "8"
+{% endif %}
 
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+{% if ssi_smoke %}
         - z_test_<< matrix.testJvm >>_ssi_smoke
+{% endif %}
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1418,7 +1374,9 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+{% if ssi_smoke %}
         - z_test_8_ssi_smoke
+{% endif %}
       name: test_8
       stage: tracing
       testJvm: "8"
@@ -1440,20 +1398,6 @@ build_test_jobs: &build_test_jobs
       testJvm: "8"
 
   - test_published_artifacts:
-      requires:
-        - ok_to_test
-
-  - muzzle:
-      requires:
-        - ok_to_test
-      filters:
-        branches:
-          ignore:
-            - master
-            - project/*
-            - release/*
-
-  - muzzle-dep-report:
       requires:
         - ok_to_test
 
@@ -1504,7 +1448,6 @@ build_test_jobs: &build_test_jobs
         - "test_{{ jdk }}"
 {% endfor %}
         - test_inst_latest
-        - muzzle
         - profiling
         - debugger
         - system-tests
@@ -1512,6 +1455,14 @@ build_test_jobs: &build_test_jobs
       stage: required
 
 workflows:
+{% if skip_circleci %}
+  build_test:
+    jobs:
+      # Just a "required" job to make GitHub PR checks happy, and run nothing else.
+      - fan_in:
+          name: required
+          stage: required
+{% else %}
 {% if is_regular %}
   build_test:
     jobs:
@@ -1551,4 +1502,5 @@ workflows:
           name: build_cache_profiling
           gradleTarget: :profilingTest
           cacheType: profiling
+{% endif %}
 {% endif %}

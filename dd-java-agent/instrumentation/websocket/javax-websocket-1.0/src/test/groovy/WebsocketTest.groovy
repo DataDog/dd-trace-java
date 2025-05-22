@@ -1,3 +1,23 @@
+import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDTags
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
+import datadog.trace.core.propagation.ExtractedContext
+import net.bytebuddy.utility.RandomString
+import org.glassfish.tyrus.container.inmemory.InMemoryClientContainer
+import org.glassfish.tyrus.server.TyrusServerConfiguration
+
+import javax.websocket.ClientEndpointConfig
+import javax.websocket.CloseReason
+import javax.websocket.ContainerProvider
+import javax.websocket.Endpoint
+import javax.websocket.server.ServerApplicationConfig
+import javax.websocket.server.ServerEndpointConfig
+import java.nio.ByteBuffer
+
 import static datadog.trace.agent.test.base.HttpServerTest.someBytes
 import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
@@ -11,24 +31,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKE
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
-import net.bytebuddy.utility.RandomString
-import org.glassfish.tyrus.container.inmemory.InMemoryClientContainer
-import org.glassfish.tyrus.server.TyrusServerConfiguration
-
-import javax.websocket.ClientEndpointConfig
-import javax.websocket.CloseReason
-import javax.websocket.ContainerProvider
-import javax.websocket.Endpoint
-import javax.websocket.server.ServerApplicationConfig
-import javax.websocket.server.ServerEndpointConfig
-import java.nio.ByteBuffer
-
 class WebsocketTest extends AgentTestRunner {
 
   @Override
@@ -38,8 +40,8 @@ class WebsocketTest extends AgentTestRunner {
     injectSysConfig(TRACE_CLASSES_EXCLUDE, "EndpointWrapper")
   }
 
-  def createHandshakeSpan(String spanName, String url) {
-    def span = TEST_TRACER.startSpan("test", spanName, null)
+  def createHandshakeSpan(String spanName, String url, Object parentContext = null) {
+    def span = TEST_TRACER.startSpan("test", spanName, parentContext)
     handshakeTags(url).each { span.setTag(it.key, it.value) }
     span.finish()
     span
@@ -573,5 +575,61 @@ class WebsocketTest extends AgentTestRunner {
         websocketCloseSpan(it, serverHandshake, false, 1000, { it == null || it == 'no reason given' })
       }
     })
+  }
+
+  def "test trace state is inherited"() {
+    when:
+    String url = "ws://inmemory/test"
+    def clientHandshake = createHandshakeSpan("http.request", url)  //simulate client span
+    clientHandshake.setSamplingPriority(PrioritySampling.SAMPLER_DROP) // simulate sampler drop
+    def serverHandshake = createHandshakeSpan("servlet.request", url,
+    new ExtractedContext(clientHandshake.context().getTraceId(), clientHandshake.context().getSpanId(), clientHandshake.context().getSamplingPriority(),
+    "test", 0, ["example_baggage": "test"], null, null, null, null, null)) // simulate server span
+    def session = deployEndpointAndConnect(new Endpoints.TestEndpoint(new Endpoints.FullStringHandler()),
+    clientHandshake, serverHandshake, url)
+
+    runUnderTrace("parent") {
+      session.getBasicRemote().sendText("Hello")
+      session.close()
+    }
+    then:
+    def ht = handshakeTags(url)
+    assertTraces(5, {
+      trace(1) {
+        basicSpan(it, "http.request", "GET /test", null, null, ht)
+      }
+      trace(1) {
+        span {
+          operationName "servlet.request"
+          resourceName "GET /test"
+          childOf(clientHandshake as DDSpan)
+          tags {
+            for (def entry : ht) {
+              tag(entry.key, entry.value)
+            }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(3) {
+        sortSpansByStart()
+        basicSpan(it, "parent")
+        websocketSendSpan(it, clientHandshake as DDSpan, "text", 5, 1, span(0))
+        websocketCloseSpan(it, clientHandshake as DDSpan, true, 1000, null, span(0))
+      }
+      trace(1) {
+        websocketReceiveSpan(it, serverHandshake as DDSpan, "text", 5, 1)
+      }
+      trace(1) {
+        websocketCloseSpan(it, serverHandshake as DDSpan, false, 1000, { it == null || it == 'no reason given' })
+      }
+    })
+    // check that the handshake trace state is inherited
+    TEST_WRITER.flatten().findAll { span -> (span as DDSpan).getSpanType() == "websocket"  && (span as DDSpan).getParentId() == 0}.each {
+      assert (it as DDSpan).getSamplingPriority() == serverHandshake.getSamplingPriority()
+      assert (it as DDSpan).getOrigin() == serverHandshake.context().getOrigin()
+      assert (it as DDSpan).getBaggage() == serverHandshake.context().getBaggageItems()
+      assert !(it as DDSpan).getBaggage().isEmpty()
+    }
   }
 }

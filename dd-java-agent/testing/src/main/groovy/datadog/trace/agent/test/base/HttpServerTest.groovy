@@ -26,6 +26,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -46,8 +48,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.WebSocketListener
-import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -82,6 +82,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_B
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -161,6 +162,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
+    // allow endpoint discover for the tests
+    injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -404,6 +407,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     server instanceof WebsocketServer
   }
 
+  WebsocketClient websocketClient() {
+    new OkHttpWebsocketClient()
+  }
+
+  boolean testEndpointDiscovery() {
+    false
+  }
+
+  /**
+   * To be set if the integration name (_dd.integration) differs from the component.
+   * This happen when the controller integration modify the parent component name (i.e. jaxrs)
+   * @return
+   */
+  String expectedIntegrationName() {
+    null
+  }
+
   @Override
   int version() {
     return 0
@@ -456,7 +476,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
-    WEBSOCKET("websocket", 101, null)
+    WEBSOCKET("websocket", 101, null),
+
+    ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
     private final String path
     private final String rawPath
@@ -554,7 +576,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responses
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
-      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      // Limit pool size. Too many threads overwhelm the server and starve the host
+      def availableProcessorsOverride = System.getenv().get("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+      def poolSize = availableProcessorsOverride == null ? Runtime.getRuntime().availableProcessors() : Integer.valueOf(availableProcessorsOverride)
+      def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
         completionService.submit {
@@ -1275,7 +1300,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
@@ -1923,12 +1948,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-
+    def client = websocketClient()
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     runUnderTrace("parent", {
       if (messages[0] instanceof String) {
@@ -1970,21 +1992,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads())
+    def client = websocketClient()
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads() || client.supportMessageChunks())
 
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    def ws = client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     wsServer.setMaxPayloadSize(10)
+    // in case the client can also send partial fragments
+    client.setSplitChunksAfter(10)
     if (message instanceof String) {
-      ws.send(message as String)
+      client.send(message as String)
     } else {
-      ws.send(ByteString.of(message as byte[]))
+      client.send(message as byte[])
     }
-    ws.close(1000, "goodbye")
+    client.close(1000, "goodbye")
 
     then:
     assertTraces(3, {
@@ -2100,6 +2122,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  void 'test endpoint discovery'() {
+    setup:
+    assumeTrue(testEndpointDiscovery())
+
+    when:
+    final endpoints = EndpointCollector.get().drain().toList()
+    final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+
+    then:
+    !endpoints.isEmpty()
+    endpoints.eachWithIndex { Endpoint entry, int i ->
+      assert entry.first == (i == 0)
+    }
+
+    !discovered.isEmpty()
+    discovered.eachWithIndex { endpoint, index ->
+      assert endpoint.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert endpoint.type == Endpoint.Type.REST
+      assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
+    }
+    assertEndpointDiscovery(discovered)
+  }
+
+  // to be overridden for more specific asserts
+  void assertEndpointDiscovery(final List<?> endpoints) { }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -2152,6 +2200,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
+    def expectedIntegrationName = expectedIntegrationName()
     trace.span {
       serviceName expectedServiceName()
       operationName operation()
@@ -2171,8 +2220,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+          } else {
+            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
@@ -2198,6 +2252,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
+        }
+        if (expectedIntegrationName != null) {
+          withCustomIntegrationName(expectedIntegrationName)
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {

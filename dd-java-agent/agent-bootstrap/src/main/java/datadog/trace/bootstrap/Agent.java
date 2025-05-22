@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -31,6 +32,8 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.git.EmbeddedGitInfoBuilder;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -42,6 +45,7 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -180,13 +184,11 @@ public class Agent {
 
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
-      jmxFetchEnabled = false;
       remoteConfigEnabled = false;
       telemetryEnabled = false;
-      // apply trace instrumentation, but skip starting other services
+      // apply trace instrumentation, but skip other products at native-image build time
       startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
-
       return;
     }
 
@@ -225,6 +227,12 @@ public class Agent {
       }
     }
 
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
+    }
+
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
       log.info("Data Jobs Monitoring enabled, enabling spark integrations");
@@ -241,6 +249,11 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if (Config.get().isDataJobsOpenLineageEnabled()) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
 
       String javaCommand = System.getProperty("sun.java.command");
       String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
@@ -277,6 +290,8 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+
+    patchJPSAccess(inst);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -404,6 +419,23 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  @SuppressForbidden
+  public static void patchJPSAccess(Instrumentation inst) {
+    if (Platform.isJavaVersionAtLeast(9)) {
+      // Unclear if supported for J9, may need to revisit
+      try {
+        Class.forName("datadog.trace.util.JPMSJPSAccess")
+            .getMethod("patchModuleAccess", Instrumentation.class)
+            .invoke(null, inst);
+      } catch (Exception e) {
+        log.debug(
+            SEND_TELEMETRY,
+            "Failed to patch module access for jvmstat and Java version "
+                + Platform.getRuntimeVersion());
+      }
     }
   }
 

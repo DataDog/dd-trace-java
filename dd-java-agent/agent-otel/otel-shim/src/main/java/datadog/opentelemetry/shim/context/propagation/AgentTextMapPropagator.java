@@ -1,21 +1,16 @@
 package datadog.opentelemetry.shim.context.propagation;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
-import static datadog.opentelemetry.shim.trace.OtelSpanContext.fromRemote;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
-import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -46,27 +41,25 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (carrier == null) {
       return context;
     }
-    Extracted extracted =
-        extractContextAndGetSpanContext(
-            carrier,
-            (carrier1, classifier) -> {
-              for (String key : getter.keys(carrier1)) {
-                classifier.accept(key, getter.get(carrier1, key));
-              }
-            });
-    if (extracted == null) {
-      return context;
-    } else {
-      TraceState traceState = extractTraceState(extracted, carrier, getter);
-      SpanContext spanContext = fromRemote(extracted, traceState);
-      return new OtelContext(Span.wrap(spanContext), OtelSpan.invalid());
-    }
+    datadog.context.Context extracted =
+        defaultPropagator()
+            .extract(
+                convertContext(context),
+                carrier,
+                (carrier1, classifier) -> {
+                  for (String key : getter.keys(carrier1)) {
+                    classifier.accept(key, getter.get(carrier1, key));
+                  }
+                });
+    return new OtelContext(extracted);
   }
 
   private static datadog.context.Context convertContext(Context context) {
-    // TODO Extract baggage too
-    // TODO Create fast path from OtelSpan --> AgentSpan delegate --> with() to inflate as full
-    // context if baggage
+    // Try to get the underlying context when injecting a Datadog context
+    if (context instanceof OtelContext) {
+      return ((OtelContext) context).asContext();
+    }
+    // Otherwise, fallback to extracting limited tracing context and recreating an OTel context from
     AgentSpanContext extract = OtelExtractedContext.extract(context);
     return AgentSpan.fromSpanContext(extract);
   }

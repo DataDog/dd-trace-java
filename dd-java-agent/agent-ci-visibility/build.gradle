@@ -1,5 +1,19 @@
 buildscript {
   repositories {
+    mavenLocal()
+    if (project.rootProject.hasProperty("gradlePluginProxy")) {
+      maven {
+        url project.rootProject.property("gradlePluginProxy")
+        allowInsecureProtocol true
+      }
+    }
+    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+      maven {
+        url project.rootProject.property("mavenRepositoryProxy")
+        allowInsecureProtocol true
+      }
+    }
+    gradlePluginPortal()
     mavenCentral()
   }
 
@@ -9,7 +23,7 @@ buildscript {
 }
 
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
   id 'java-test-fixtures'
 }
 

@@ -58,19 +58,6 @@ public class TypeConverter {
     if (scope == null) {
       return null;
     }
-    if (scope instanceof AttachableWrapper) {
-      AttachableWrapper attachableScopeWrapper = (AttachableWrapper) scope;
-      Object wrapper = attachableScopeWrapper.getWrapper();
-      if (wrapper instanceof OTScopeManager.OTScope) {
-        OTScopeManager.OTScope attachedScopeWrapper = (OTScopeManager.OTScope) wrapper;
-        if (attachedScopeWrapper.isFinishSpanOnClose() == finishSpanOnClose) {
-          return (Scope) wrapper;
-        }
-      }
-      Scope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
-      attachableScopeWrapper.attachWrapper(otScope);
-      return otScope;
-    }
     if (scope == noopScope()) {
       return noopScopeWrapper;
     }

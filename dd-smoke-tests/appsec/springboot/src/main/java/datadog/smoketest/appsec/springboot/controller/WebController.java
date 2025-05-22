@@ -16,6 +16,7 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -203,6 +204,32 @@ public class WebController {
       @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(cmd, params, new File("")));
     return "EXECUTED";
+  }
+
+  @GetMapping("/api_security/sampling/{status_code}")
+  public ResponseEntity<String> apiSecuritySampling(@PathVariable("status_code") int statusCode) {
+    return ResponseEntity.status(statusCode).body("EXECUTED");
+  }
+
+  @GetMapping("/custom-headers")
+  public ResponseEntity<String> customHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("X-Test-Header-1", "value1");
+    headers.add("X-Test-Header-2", "value2");
+    headers.add("X-Test-Header-3", "value3");
+    headers.add("X-Test-Header-4", "value4");
+    headers.add("X-Test-Header-5", "value5");
+    return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @GetMapping("/exceedResponseHeaders")
+  public ResponseEntity<String> exceedResponseHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    for (int i = 1; i <= 50; i++) {
+      headers.add("X-Test-Header-" + i, "value" + i);
+    }
+    headers.add("content-language", "en-US");
+    return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
   private void withProcess(final Operation<Process> op) {

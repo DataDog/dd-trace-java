@@ -86,7 +86,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
-      @Nullable String reason);
+      @Nullable String reason,
+      @Nullable TestExecutionHistory testExecutionHistory);
 
   @Nonnull
   TestExecutionPolicy executionPolicy(
@@ -106,10 +107,6 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
    */
   @Nullable
   SkipReason skipReason(TestIdentifier test);
-
-  boolean isNew(@Nonnull TestIdentifier test);
-
-  boolean isFlaky(@Nonnull TestIdentifier test);
 
   @Override
   void close();

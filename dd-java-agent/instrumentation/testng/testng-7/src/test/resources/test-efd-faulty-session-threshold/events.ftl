@@ -37,7 +37,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_2},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -56,7 +56,7 @@
       "test.name" : "test_another_succeed",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_another_succeed()V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedAndSucceed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -85,7 +85,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_3},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -103,10 +103,10 @@
       "test.is_retry" : "true",
       "test.module" : "testng-7",
       "test.name" : "test_another_succeed",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_another_succeed()V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedAndSucceed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -153,7 +153,7 @@
       "test.is_retry" : "true",
       "test.module" : "testng-7",
       "test.name" : "test_another_succeed",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_another_succeed()V",
       "test.status" : "pass",
@@ -253,12 +253,11 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.is_new" : "true",
       "test.is_retry" : "true",
       "test.module" : "testng-7",
       "test.name" : "test_failed",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
@@ -307,11 +306,12 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.has_failed_all_retries" : "true",
       "test.is_new" : "true",
       "test.is_retry" : "true",
       "test.module" : "testng-7",
       "test.name" : "test_failed",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
