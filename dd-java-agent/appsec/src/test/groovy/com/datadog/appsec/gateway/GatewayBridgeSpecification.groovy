@@ -1222,4 +1222,96 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
 
+
+  void 'test default writeRequestHeaders'(){
+    given:
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, false)
+
+    then:
+    1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.request.headers.x-multiple-allowed-header', 'value1A,value1B')
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test default writeResponseHeaders'(){
+    given:
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, false)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.response.headers.x-multiple-allowed-header', 'value1A,value1B')
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test  writeRequestHeaders collecting all headers '(){
+    setup:
+    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.request.headers.x-multiple-allowed-header', 'value1A,value1B')
+    1 * traceSegment.setTagTop('http.request.headers.x-other-header-1', 'value2')
+    1 * traceSegment.setTagTop('http.request.headers.x-other-header-2', 'value3')
+    1 * traceSegment.setTagTop('_dd.appsec.request.header_collection.discarded', 1)
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test  writeResponseHeaders collecting all headers '(){
+    setup:
+    injectEnvConfig('DD_APPSEC_COLLECT_ALL_HEADERS' , 'true')
+    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.response.headers.x-multiple-allowed-header', 'value1A,value1B')
+    1 * traceSegment.setTagTop('http.response.headers.x-other-header-1', 'value2')
+    1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
+    1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
+    0 * traceSegment.setTagTop(_, _)
+  }
+
 }
