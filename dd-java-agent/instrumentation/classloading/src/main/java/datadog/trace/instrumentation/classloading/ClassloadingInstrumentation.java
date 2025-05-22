@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.Constants;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -31,12 +32,17 @@ import net.bytebuddy.matcher.ElementMatcher;
  * for the classes that we have put in the bootstrap class loader.
  */
 @AutoService(InstrumenterModule.class)
-public final class ClassloadingInstrumentation extends InstrumenterModule.Tracing
+public final class ClassloadingInstrumentation extends InstrumenterModule
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice {
   public ClassloadingInstrumentation() {
     super("classloading");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return true;
   }
 
   @Override

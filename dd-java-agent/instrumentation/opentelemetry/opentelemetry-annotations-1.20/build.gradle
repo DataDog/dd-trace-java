@@ -10,7 +10,8 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuite('latestDepTest')
+addTestSuiteForDir('latest1xDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
@@ -19,5 +20,7 @@ dependencies {
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: openTelemetryVersion
-  latestDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1+'
+  latest1xDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1+'
+  latestDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '+'
+  latestDepTestImplementation sourceSets.test.output
 }
