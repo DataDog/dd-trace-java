@@ -83,7 +83,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
-    writer.startMap(8);
+    final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
+    final boolean hasProcessTags = processTags != null;
+    writer.startMap(8 + (hasProcessTags ? 1 : 0));
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -143,8 +145,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     writer.writeLong(getProductsMask());
 
     /* 9 */
-    final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
-    if (processTags != null) {
+    if (hasProcessTags) {
       writer.writeUTF8(PROCESS_TAGS);
       writer.startArray(processTags.size());
       processTags.forEach(writer::writeUTF8);
