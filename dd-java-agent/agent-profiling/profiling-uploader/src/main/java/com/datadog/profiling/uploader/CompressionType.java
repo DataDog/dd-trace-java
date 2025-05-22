@@ -35,7 +35,7 @@ enum CompressionType {
       case "zstd":
         return ZSTD;
       default:
-        log.warn("Unrecognizable compression type: {}. Defaulting to 'zstd'.", type);
+        log.warn("Unrecognizable compression type: {}. Defaulting to 'lz4'.", type);
         return ON;
     }
   }
