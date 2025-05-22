@@ -197,7 +197,8 @@ public class Agent {
     }
 
     // We want to have this enabled as soon as possible
-    // It entails loading a native library - in order to avoid increasing startup latency we run the initialization in background
+    // It entails loading a native library - in order to avoid increasing startup latency we run the
+    // initialization in background
     AgentTaskScheduler.INSTANCE.execute(Agent::initializeErrorTracking);
 
     // Retro-compatibility for the old way to configure CI Visibility
