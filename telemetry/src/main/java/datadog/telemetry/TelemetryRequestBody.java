@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
@@ -87,6 +88,10 @@ public class TelemetryRequestBody extends RequestBody {
       bodyWriter.name("runtime_name").value(commonData.runtimeName);
       bodyWriter.name("runtime_version").value(commonData.runtimeVersion);
       bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
+      final CharSequence processTags = ProcessTags.getTagsForSerialization();
+      if (processTags != null) {
+        bodyWriter.name("process_tags").value(processTags.toString());
+      }
       bodyWriter.endObject();
 
       if (debug) {
