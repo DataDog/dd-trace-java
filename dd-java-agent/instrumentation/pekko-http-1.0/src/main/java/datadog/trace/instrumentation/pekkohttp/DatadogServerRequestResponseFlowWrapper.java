@@ -112,8 +112,8 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onPush() throws Exception {
                 final HttpResponse response = grab(responseInlet);
                 final ContextScope scope = scopes.poll();
-                AgentSpan span = AgentSpan.fromContext(scope.context());
                 if (scope != null) {
+                  AgentSpan span = AgentSpan.fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
