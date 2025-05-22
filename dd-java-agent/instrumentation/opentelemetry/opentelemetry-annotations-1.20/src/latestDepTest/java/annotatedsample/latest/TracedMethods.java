@@ -1,4 +1,4 @@
-package annotatedsample;
+package annotatedsample.latest;
 
 import static datadog.trace.api.DDTags.SERVICE_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;

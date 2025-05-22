@@ -22,4 +22,5 @@ dependencies {
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: openTelemetryVersion
   latest1xDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1+'
   latestDepTestImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '+'
+  latestDepTestImplementation sourceSets.test.output
 }
