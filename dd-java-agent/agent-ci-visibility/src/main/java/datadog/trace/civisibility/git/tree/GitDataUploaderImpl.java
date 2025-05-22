@@ -91,7 +91,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       LOGGER.debug("Starting git data upload, {}", gitClient);
 
       if (!config.isCiVisibilityGitUnshallowDefer()) {
-        gitRepoUnshallow.startOrObserveUnshallow().get();
+        gitRepoUnshallow.unshallow();
       }
 
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
@@ -113,7 +113,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
       }
 
       if (config.isCiVisibilityGitUnshallowDefer()
-          && gitRepoUnshallow.startOrObserveUnshallow().get()) {
+          && gitRepoUnshallow.unshallow()) {
         latestCommits = gitClient.getLatestCommits();
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }

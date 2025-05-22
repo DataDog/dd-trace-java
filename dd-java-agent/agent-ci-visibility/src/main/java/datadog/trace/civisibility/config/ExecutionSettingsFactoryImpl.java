@@ -410,7 +410,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     try {
       if (repositoryRoot != null) {
         // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.startOrObserveUnshallow().get();
+        gitRepoUnshallow.unshallow();
         Diff diff =
             gitClient.getGitDiff(
                 pullRequestInfo.getPullRequestBaseBranchSha(),

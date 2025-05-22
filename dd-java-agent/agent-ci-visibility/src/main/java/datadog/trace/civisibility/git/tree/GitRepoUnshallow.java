@@ -15,30 +15,14 @@ public class GitRepoUnshallow {
 
   private final Config config;
   private final GitClient gitClient;
-  private volatile CompletableFuture<Boolean> callback;
 
   public GitRepoUnshallow(Config config, GitClient gitClient) {
     this.config = config;
     this.gitClient = gitClient;
   }
 
-  public Future<Boolean> startOrObserveUnshallow() {
-    if (callback == null) {
-      synchronized (this) {
-        if (callback == null) {
-          callback = new CompletableFuture<>();
-          try {
-            callback.complete(unshallow());
-          } catch (Exception e) {
-            callback.completeExceptionally(e);
-          }
-        }
-      }
-    }
-    return callback;
-  }
-
-  private boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+  public synchronized boolean unshallow()
+      throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }
