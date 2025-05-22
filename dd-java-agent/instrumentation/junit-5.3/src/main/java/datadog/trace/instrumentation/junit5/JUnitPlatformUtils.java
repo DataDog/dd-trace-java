@@ -22,6 +22,8 @@ import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.EngineExecutionListener;
+import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
@@ -104,6 +106,74 @@ public abstract class JUnitPlatformUtils {
       METHOD_HANDLES.method(MethodSource.class, "getJavaClass");
   private static final MethodHandle GET_JAVA_METHOD =
       METHOD_HANDLES.method(MethodSource.class, "getJavaMethod");
+
+  /*
+   * From 5.13.0-RC1 onwards ExecutionRequest requires two additional arguments on creation.
+   * - OutputDirectoryProvider outputDirectoryProvider
+   * - NamespacedHierarchicalStore<Namespace> requestLevelStore
+   */
+  private static final MethodHandle GET_OUTPUT_DIRECTORY_PROVIDER =
+      METHOD_HANDLES.method(ExecutionRequest.class, "getOutputDirectoryProvider");
+  private static final MethodHandle GET_STORE =
+      METHOD_HANDLES.method(ExecutionRequest.class, "getStore");
+  private static final String[] CREATE_FALLBACK_PARAMETER_TYPES =
+      new String[] {
+        "org.junit.platform.engine.TestDescriptor",
+        "org.junit.platform.engine.EngineExecutionListener",
+        "org.junit.platform.engine.ConfigurationParameters"
+      };
+  private static final String[] CREATE_PARAMETER_TYPES =
+      new String[] {
+        "org.junit.platform.engine.TestDescriptor",
+        "org.junit.platform.engine.EngineExecutionListener",
+        "org.junit.platform.engine.ConfigurationParameters",
+        "org.junit.platform.engine.reporting.OutputDirectoryProvider",
+        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore"
+      };
+  private static final MethodHandle EXECUTION_REQUEST_CREATE = createExecutionRequestHandle();
+
+  private static MethodHandle createExecutionRequestHandle() {
+    if (GET_STORE != null && GET_OUTPUT_DIRECTORY_PROVIDER != null) {
+      return METHOD_HANDLES.method(
+          ExecutionRequest.class,
+          m ->
+              "create".equals(m.getName())
+                  && m.getParameterCount() == 5
+                  && Arrays.equals(
+                      Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
+                      CREATE_PARAMETER_TYPES));
+    } else {
+      return METHOD_HANDLES.method(
+          ExecutionRequest.class,
+          m ->
+              "create".equals(m.getName())
+                  && m.getParameterCount() == 3
+                  && Arrays.equals(
+                      Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
+                      CREATE_FALLBACK_PARAMETER_TYPES));
+    }
+  }
+
+  public static ExecutionRequest createExecutionRequest(
+      ExecutionRequest request, EngineExecutionListener listener) {
+    if (GET_STORE != null && GET_OUTPUT_DIRECTORY_PROVIDER != null) {
+      Object provider = METHOD_HANDLES.invoke(GET_OUTPUT_DIRECTORY_PROVIDER, request);
+      Object store = METHOD_HANDLES.invoke(GET_STORE, request);
+      return METHOD_HANDLES.invoke(
+          EXECUTION_REQUEST_CREATE,
+          request.getRootTestDescriptor(),
+          listener,
+          request.getConfigurationParameters(),
+          provider,
+          store);
+    } else {
+      return METHOD_HANDLES.invoke(
+          EXECUTION_REQUEST_CREATE,
+          request.getRootTestDescriptor(),
+          listener,
+          request.getConfigurationParameters());
+    }
+  }
 
   private static Class<?> getTestClass(MethodSource methodSource) {
     Class<?> javaClass = METHOD_HANDLES.invoke(GET_JAVA_CLASS, methodSource);
