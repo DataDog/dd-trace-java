@@ -6,9 +6,10 @@ import datadog.trace.util.TraceUtils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -19,12 +20,14 @@ public class ProcessTags {
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
 
   private static class Lazy {
-    static final Map<String, String> TAGS = loadTags();
+    // the tags are used to compute a hash for dsm hence that map must be sorted.
+    static final SortedMap<String, String> TAGS = loadTags();
     static volatile UTF8BytesString serializedForm;
-    static volatile List<String> listForm;
+    static volatile List<UTF8BytesString> utf8ListForm;
+    static volatile List<String> stringListForm;
 
-    private static Map<String, String> loadTags() {
-      Map<String, String> tags = new LinkedHashMap<>();
+    private static SortedMap<String, String> loadTags() {
+      SortedMap<String, String> tags = new TreeMap<>();
       if (enabled) {
         try {
           fillBaseTags(tags);
@@ -86,15 +89,21 @@ public class ProcessTags {
     }
 
     static void calculate() {
-      if (listForm != null || TAGS.isEmpty()) {
+      if (serializedForm != null || TAGS.isEmpty()) {
         return;
       }
       synchronized (Lazy.TAGS) {
-        final Stream<String> tagStream =
+        final Stream<UTF8BytesString> tagStream =
             TAGS.entrySet().stream()
-                .map(entry -> entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue()));
-        listForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
-        serializedForm = UTF8BytesString.create(String.join(",", listForm));
+                .map(
+                    entry ->
+                        UTF8BytesString.create(
+                            entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue())));
+        utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
+        stringListForm =
+            Collections.unmodifiableList(
+                utf8ListForm.stream().map(UTF8BytesString::toString).collect(Collectors.toList()));
+        serializedForm = UTF8BytesString.create(String.join(",", utf8ListForm));
       }
     }
   }
@@ -107,21 +116,34 @@ public class ProcessTags {
       synchronized (Lazy.TAGS) {
         Lazy.TAGS.put(key, value);
         Lazy.serializedForm = null;
-        Lazy.listForm = null;
+        Lazy.stringListForm = null;
+        Lazy.utf8ListForm = null;
       }
     }
   }
 
-  public static List<String> getTagsAsList() {
+  public static List<UTF8BytesString> getTagsAsUTF8ByteStringList() {
     if (!enabled) {
       return null;
     }
-    final List<String> listForm = Lazy.listForm;
+    final List<UTF8BytesString> listForm = Lazy.utf8ListForm;
     if (listForm != null) {
       return listForm;
     }
     Lazy.calculate();
-    return Lazy.listForm;
+    return Lazy.utf8ListForm;
+  }
+
+  public static List<String> getTagsAsStringList() {
+    if (!enabled) {
+      return null;
+    }
+    final List<String> listForm = Lazy.stringListForm;
+    if (listForm != null) {
+      return listForm;
+    }
+    Lazy.calculate();
+    return Lazy.stringListForm;
   }
 
   public static UTF8BytesString getTagsForSerialization() {
@@ -141,7 +163,8 @@ public class ProcessTags {
     synchronized (Lazy.TAGS) {
       Lazy.TAGS.clear();
       Lazy.serializedForm = null;
-      Lazy.listForm = null;
+      Lazy.stringListForm = null;
+      Lazy.utf8ListForm = null;
     }
   }
 
