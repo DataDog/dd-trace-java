@@ -107,7 +107,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
   def "Write bucket to mock server with process tags enabled #processTagsEnabled"() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, processTagsEnabled)
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "$processTagsEnabled")
     ProcessTags.reset()
 
     def conditions = new PollingConditions(timeout: 2)
@@ -157,23 +157,23 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert requestBodies.size() == 1
     }
 
-    validateMessage(requestBodies[0])
+    validateMessage(requestBodies[0], processTagsEnabled)
 
     cleanup:
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
 
     where:
-    processTagsEnabled << ["true", "false"]
+    processTagsEnabled << [true, false]
   }
 
-  def validateMessage(byte[] message) {
+  def validateMessage(byte[] message, boolean processTagsEnabled) {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
 
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 8
+    assert unpacker.unpackMapHeader() == 8 + (processTagsEnabled ? 1 : 0)
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
