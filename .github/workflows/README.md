@@ -57,7 +57,7 @@ _Notes:_ This action will not apply to release candidate versions using `-RC` ta
 
 _Trigger:_ Quarterly released, loosely [a day after the new image tag is created](https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml).
 
-_Action:_ Update the Docker build image used in CircleCI and GitLab CI with the latest tag.
+_Action:_ Update the Docker build image used in GitLab CI with the latest tag.
 
 _Recovery:_ Download artifacts and upload them manually to the related _download release_.
 
