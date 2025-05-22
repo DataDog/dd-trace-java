@@ -142,6 +142,9 @@ public class Agent {
 
   private static final AtomicBoolean jmxStarting = new AtomicBoolean();
 
+  // Mutex to synchronize profiling initialization and error tracking
+  private static final Object INIT_MUTEX = new Object();
+
   // fields must be managed under class lock
   private static ClassLoader AGENT_CLASSLOADER = null;
 
@@ -198,7 +201,8 @@ public class Agent {
 
     // We want to have this enabled as soon as possible
     // It entails loading a native library - in order to avoid increasing startup latency we run the
-    // initialization in background
+    // initialization in background (will synchronize using INIT_MUTEX to prevent concurrent
+    // execution with profiling)
     AgentTaskScheduler.INSTANCE.execute(Agent::initializeErrorTracking);
 
     // Retro-compatibility for the old way to configure CI Visibility
@@ -1025,11 +1029,16 @@ public class Agent {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
-    try {
-      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.Initializer");
-      clz.getMethod("initialize").invoke(null);
-    } catch (Throwable t) {
-      log.debug("Unable to initialize crash uploader", t);
+    synchronized (INIT_MUTEX) {
+      log.debug("Acquired INIT_MUTEX for error tracking initialization");
+      try {
+        Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.Initializer");
+        clz.getMethod("initialize").invoke(null);
+      } catch (Throwable t) {
+        log.debug("Unable to initialize crash uploader", t);
+      } finally {
+        log.debug("Releasing INIT_MUTEX after error tracking initialization");
+      }
     }
   }
 
@@ -1104,34 +1113,38 @@ public class Agent {
       return;
     }
 
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
-      final Class<?> profilingAgentClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod(
-              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
-      /*
-       * Install the tracer hooks only when not using 'early start'.
-       * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
-       */
-      if (!isStartingFirst) {
-        log.debug("Scheduling scope event factory registration");
-        WithGlobalTracer.registerOrExecute(
-            new WithGlobalTracer.Callback() {
-              @Override
-              public void withTracer(TracerAPI tracer) {
-                log.debug("Initializing profiler tracer integrations");
-                tracer.getProfilingContext().onStart();
-              }
-            });
+    synchronized (INIT_MUTEX) {
+      log.debug("Acquired INIT_MUTEX for profiling initialization");
+      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+      try {
+        Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+        final Class<?> profilingAgentClass =
+            AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+        final Method profilingInstallerMethod =
+            profilingAgentClass.getMethod(
+                "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
+        profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
+        /*
+         * Install the tracer hooks only when not using 'early start'.
+         * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
+         */
+        if (!isStartingFirst) {
+          log.debug("Scheduling scope event factory registration");
+          WithGlobalTracer.registerOrExecute(
+              new WithGlobalTracer.Callback() {
+                @Override
+                public void withTracer(TracerAPI tracer) {
+                  log.debug("Initializing profiler tracer integrations");
+                  tracer.getProfilingContext().onStart();
+                }
+              });
+        }
+      } catch (final Throwable ex) {
+        log.error("Throwable thrown while starting profiling agent", ex);
+      } finally {
+        Thread.currentThread().setContextClassLoader(contextLoader);
+        log.debug("Releasing INIT_MUTEX after profiling initialization");
       }
-    } catch (final Throwable ex) {
-      log.error("Throwable thrown while starting profiling agent", ex);
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
     }
 
     StaticEventLogger.end("ProfilingAgent");
