@@ -328,7 +328,7 @@ class ConfigTest extends DDSpecification {
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
-    config.profilingUploadCompression == "off"
+    config.profilingDebugUploadCompression == "lz4"
     config.profilingTemplateOverrideFile == "/path"
     config.profilingUploadTimeout == 1116
     config.profilingProxyHost == "proxy-host"
@@ -518,7 +518,7 @@ class ConfigTest extends DDSpecification {
     config.profilingUploadPeriod == 1112
     config.profilingTemplateOverrideFile == "/path"
     config.profilingUploadTimeout == 1116
-    config.profilingUploadCompression == "off"
+    config.profilingDebugUploadCompression == "lz4"
     config.profilingProxyHost == "proxy-host"
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
