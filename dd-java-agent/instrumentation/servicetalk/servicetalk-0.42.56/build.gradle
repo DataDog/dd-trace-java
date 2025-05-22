@@ -22,7 +22,8 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest', 'test')
+//addTestSuiteForDir('latestDepTest', 'test')
+// TODO currently 0.42.56 is the latest version. Enable this once the next (0.42.57) is out, add 'latestDepTest'
 
 dependencies {
   compileOnly group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '0.42.56'
@@ -33,7 +34,8 @@ dependencies {
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.0")
 
-  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '+'
-  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '+'
+  // TODO currently 0.42.56 is the latest version. Enable this once the next (0.42.57) is out, add 'latestDepTest'
+  //  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-concurrent-api', version: '+'
+  //  latestDepTestImplementation group: 'io.servicetalk', name: 'servicetalk-context-api', version: '+'
 }
 
