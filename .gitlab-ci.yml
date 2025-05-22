@@ -84,12 +84,6 @@ variables:
 default:
   tags: [ "arch:amd64" ]
 
-.fan_in:
-  stage: tests
-  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204-slim:release
-  script:
-    - echo "done"
-
 .set_datadog_api_keys: &set_datadog_api_keys
   - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
 
@@ -592,28 +586,6 @@ test_smoke_semeru8_debugger:
     CACHE_TYPE: "smoke"
     NON_DEFAULT_JVMS: "true"
     testJvm: "semeru8"
-
-required:
-  extends: .fan_in
-  needs:
-    - job: spotless
-      optional: true
-    - job: muzzle
-      optional: true
-    - job: test_published_artifacts
-      optional: true
-    - job: agent_integration_tests
-      optional: true
-    - job: check_base
-      optional: true
-    - job: check_inst
-      optional: true
-    - job: check_smoke
-      optional: true
-    - job: check_profiling
-      optional: true
-    - job: check_debugger
-      optional: true
 
 deploy_to_profiling_backend:
   stage: publish
