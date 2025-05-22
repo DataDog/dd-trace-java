@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.servicetalk.concurrent.api.CapturedContextProvider;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ public class CapturedContextProvidersInstrumentation extends InstrumenterModule.
   }
 
   private static final class LoadProvidersAdvice {
+    @SuppressFBWarnings("UC_USELESS_OBJECT")
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(@Advice.Return(readOnly = false) java.util.List loadedProviders) {
       List<CapturedContextProvider> providers = new ArrayList<>(loadedProviders.size() + 1);
