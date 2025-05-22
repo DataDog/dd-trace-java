@@ -44,6 +44,7 @@ public class CapturedContextProvidersInstrumentation extends InstrumenterModule.
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DatadogCapturedContextProvider",
+      packageName + ".DatadogCapturedContextProvider$WithDatadogCapturedContext",
     };
   }
 }
