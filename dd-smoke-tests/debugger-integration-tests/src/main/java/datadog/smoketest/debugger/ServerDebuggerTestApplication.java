@@ -153,6 +153,8 @@ public class ServerDebuggerTestApplication {
       tracedMethodWithDeepException1(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else if ("lambdaOops".equals(arg)) {
       tracedMethodWithLambdaException(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    } else if ("recursiveOops".equals(arg)) {
+      tracedMethodWithRecursiveException(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else {
       tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
     }
@@ -237,6 +239,15 @@ public class ServerDebuggerTestApplication {
   private static void tracedMethodWithLambdaException(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     throw toRuntimeException("lambdaOops");
+  }
+
+  private static void tracedMethodWithRecursiveException(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    if (argInt > 0) {
+      tracedMethodWithRecursiveException(argInt - 8, argStr, argDouble, argMap, argVar);
+    } else {
+      throw new RuntimeException("recursiveOops");
+    }
   }
 
   private static RuntimeException toRuntimeException(String msg) {
