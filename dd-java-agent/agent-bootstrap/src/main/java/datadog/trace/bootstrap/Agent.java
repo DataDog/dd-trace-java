@@ -1140,9 +1140,9 @@ public class Agent {
                 }
               });
         }
-      } catch (IllegalAccessException e) {
+      } catch (InvocationTargetException e) {
         log.error(
-            "IllegalAccessException raised while starting profiling agent "
+            "InvocationTargetException raised while starting profiling agent "
                 + e.getMessage()
                 + " "
                 + e.getClass()
