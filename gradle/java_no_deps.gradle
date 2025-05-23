@@ -40,6 +40,12 @@ if (applyCodeCoverage) {
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 // when building with Java 9+, lazily set compiler --release flag to match target
 def skipSettingCompilerRelease = project.findProperty('skipSettingCompilerRelease')
 if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
