@@ -4,12 +4,12 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  // need access to sun.misc package
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tasks.withType(JavaCompile).configureEach {
+  // need access to sun.misc package
+  setJavaVersion(it, 8)
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5

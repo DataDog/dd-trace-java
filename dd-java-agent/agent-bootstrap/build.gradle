@@ -4,13 +4,13 @@ plugins {
   id 'me.champeau.jmh'
 }
 
-ext {
-  // need access to sun.* packages
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
+
+tasks.named("compileJava", JavaCompile).configure {
+  // need access to sun.* packages
+  setJavaVersion(it, 8)
+}
 
 // FIXME: Improve test coverage.
 minimumBranchCoverage = 0.0
