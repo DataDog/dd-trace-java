@@ -15,3 +15,13 @@ function gitlab_section_end () {
 
   echo -e "section_end:`date +%s`:${section_title}\r\e[0K"
 }
+
+# A subset of ansi color/formatting codes https://misc.flogisoft.com/bash/tip_colors_and_formatting
+export TEXT_RED="\e[31m"
+export TEXT_GREEN="\e[32m"
+export TEXT_YELLOW="\e[33m"
+export TEXT_BLUE="\e[34m"
+export TEXT_MAGENTA="\e[35m"
+export TEXT_CYAN="\e[36m"
+export TEXT_CLEAR="\e[0m"
+export TEXT_BOLD="\e[1m"

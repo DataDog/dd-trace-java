@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akkahttp106;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 
 import akka.http.scaladsl.HttpExt;
@@ -30,7 +31,7 @@ public class SingleRequestAdvice {
 
     if (request != null) {
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(span.with(dsmContext), request, headers);
+      defaultPropagator().inject(getCurrentContext().with(span).with(dsmContext), request, headers);
       // Request is immutable, so we have to assign new value once we update headers
       request = headers.getRequest();
     }
