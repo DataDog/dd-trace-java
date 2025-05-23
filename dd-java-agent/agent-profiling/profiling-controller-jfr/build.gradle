@@ -4,9 +4,6 @@ ext {
   // of ByteBuffer.position(int) which is binary incompatible with Java 8 ¯\_(ツ)_/¯
   minJavaVersionForTests = JavaVersion.VERSION_11
 
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
-
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 

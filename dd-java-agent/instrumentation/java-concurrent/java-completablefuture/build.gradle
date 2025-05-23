@@ -5,9 +5,6 @@ muzzle {
   }
 }
 
-ext {
-  skipSettingCompilerRelease = true
-}
 apply from: "${rootDir}/gradle/java.gradle"
 
 compileJava {

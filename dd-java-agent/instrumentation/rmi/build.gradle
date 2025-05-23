@@ -1,6 +1,4 @@
 ext {
-  // need access to sun.rmi package
-  skipSettingCompilerRelease = true
   // TODO Java 17: The necessary packages are not opened on Java 17
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
@@ -12,6 +10,11 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+tasks.withType(JavaCompile).configureEach {
+  // need access to sun.rmi package
+  setJavaVersion(it, 8)
+}
 
 def rmic = tasks.register('rmic', Exec) {
   dependsOn testClasses
