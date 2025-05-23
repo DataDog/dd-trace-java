@@ -54,6 +54,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1139,15 +1140,21 @@ public class Agent {
                 }
               });
         }
+      } catch (IllegalAccessException e) {
+        log.error(
+            "IllegalAccessException raised while starting profiling agent "
+                + e.getMessage()
+                + " "
+                + e.getClass()
+                + " "
+                + Arrays.toString(e.getCause().getStackTrace()));
+        e.printStackTrace();
       } catch (final Throwable ex) {
         log.error(
             "Throwable thrown while starting profiling agent "
                 + ex.getMessage()
                 + " "
                 + ex.getClass());
-      } finally {
-        Thread.currentThread().setContextClassLoader(contextLoader);
-        log.debug("Releasing INIT_MUTEX after profiling initialization");
       }
     }
 
