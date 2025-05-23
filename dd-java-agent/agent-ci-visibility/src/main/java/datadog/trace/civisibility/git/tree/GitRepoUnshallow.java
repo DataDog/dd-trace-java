@@ -3,8 +3,6 @@ package datadog.trace.civisibility.git.tree;
 import datadog.trace.api.Config;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
