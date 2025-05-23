@@ -225,6 +225,7 @@ tasks.register('extractLatestMuleServices', Sync) {
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
   workingDir "$appDir"
+  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
   commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")
