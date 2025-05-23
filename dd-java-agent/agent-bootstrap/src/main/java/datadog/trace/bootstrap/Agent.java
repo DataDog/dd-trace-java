@@ -1140,7 +1140,7 @@ public class Agent {
               });
         }
       } catch (final Throwable ex) {
-        log.error("Throwable thrown while starting profiling agent", ex);
+        log.error("Throwable thrown while starting profiling agent " + ex.getMessage());
       } finally {
         Thread.currentThread().setContextClassLoader(contextLoader);
         log.debug("Releasing INIT_MUTEX after profiling initialization");
