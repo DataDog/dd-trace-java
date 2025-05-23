@@ -106,17 +106,18 @@ class AgentPreCheckTest extends Specification {
       'echo "$1	$(cat -)" >>' + outputFile.getAbsolutePath(),
       ''
     ]
-
     forwarderFile << script.join('\n')
 
     when:
     AgentPreCheck.sendTelemetry(forwarderPath, '1.6.0_45', '1.50')
 
     then:
+    // Await completion of the external process handling the payload.
     new PollingConditions().within(5) {
       assert outputFile.exists()
     }
     String payload = outputFile.text
+
     String expectedPayload = '''
 {
   "metadata": {
@@ -135,6 +136,8 @@ class AgentPreCheckTest extends Specification {
     }
   ]
 '''.replaceAll(/\s+/, '')
+
+    // Assert that the actual payload contains the expected data.
     payload.contains(expectedPayload)
   }
 }

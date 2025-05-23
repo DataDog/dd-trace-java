@@ -17,30 +17,27 @@ configurations {
   traceShadowInclude
 }
 
-// The special pre-check should be compiled with Java 6 to detect unsupported Java versions and
-// prevent issues for users that still using them.
+// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
+// and prevent issues for users that still using them.
 sourceSets {
-  java6 {
-    java {
-      srcDirs = ['src/main/java6']
-    }
+  "main_java6" {
+    java.srcDirs "${project.projectDir}/src/main/java6"
   }
 }
 
-tasks.register('compileJava6', JavaCompile) {
-  classpath = sourceSets.main.compileClasspath
-  source = sourceSets.java6.java
-  destinationDirectory = layout.buildDirectory.dir("classes/java/main")
+compileMain_java6Java.configure {
+  setJavaVersion(it, 8)
   sourceCompatibility = JavaVersion.VERSION_1_6
   targetCompatibility = JavaVersion.VERSION_1_6
+  destinationDirectory = layout.buildDirectory.dir("classes/java/main")
 }
+
+tasks.compileJava.dependsOn compileMain_java6Java
 
 dependencies {
-  java6CompileOnly 'de.thetaphi:forbiddenapis:3.4'
-  testImplementation sourceSets.java6.output
+  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.4'
+  testImplementation sourceSets.main_java6.output
 }
-
-tasks.compileJava.dependsOn compileJava6
 
 /*
  * Several shadow jars are created
