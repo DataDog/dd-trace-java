@@ -1,11 +1,9 @@
-package com.datadog.profiling.controller;
+package datadog.trace.util;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;

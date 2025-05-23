@@ -16,10 +16,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:version-utils')
-  // Not ideal, but one of these contains the profiler which we wish to avoid shadowing repeatedly
-  // while the other contains some utilities that we rely on, like the TempLocationManager
   implementation project(':dd-java-agent:ddprof-dependency')
-  implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
   implementation libs.okhttp
   implementation libs.moshi

@@ -1,9 +1,9 @@
 package com.datadog.profiling.ddprof;
 
-import com.datadog.profiling.controller.TempLocationManager;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.TempLocationManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
