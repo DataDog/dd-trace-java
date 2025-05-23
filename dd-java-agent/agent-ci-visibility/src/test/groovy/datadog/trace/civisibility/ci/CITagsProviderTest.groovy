@@ -158,7 +158,27 @@ abstract class CITagsProviderTest extends Specification {
     }
   }
 
+  def "test pull request info building"() {
+    setup:
+    setupPullRequestInfoBuild()
+
+    expect:
+    if (isCi()) {
+      CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
+      def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
+      def actualPullRequestInfo = ciProviderInfo.buildPullRequestInfo()
+
+      actualPullRequestInfo == expectedPullRequestInfo()
+    }
+  }
+
   abstract String getProviderName()
+
+  void setupPullRequestInfoBuild() {}
+
+  PullRequestInfo expectedPullRequestInfo() {
+    return PullRequestInfo.EMPTY
+  }
 
   Map<String, String> buildRemoteGitInfoEmpty() {
     return new HashMap<String, String>()

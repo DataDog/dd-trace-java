@@ -22,6 +22,20 @@ class BuddyInfoTest extends CITagsProviderTest {
     return map
   }
 
+  @Override
+  void setupPullRequestInfoBuild() {
+    environmentVariables.set(BuddyInfo.BUDDY_RUN_PR_BASE_BRANCH, "base-branch")
+  }
+
+  @Override
+  PullRequestInfo expectedPullRequestInfo() {
+    return new PullRequestInfo(
+      "base-branch",
+      null,
+      null
+      )
+  }
+
   boolean isWorkspaceAwareCi() {
     false
   }

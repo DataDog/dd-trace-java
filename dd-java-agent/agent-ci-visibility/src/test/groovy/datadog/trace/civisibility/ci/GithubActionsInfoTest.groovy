@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.ci
 
-import datadog.trace.civisibility.ci.env.CiEnvironmentImpl
 
 import java.nio.file.Paths
 
@@ -28,20 +27,20 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     return map
   }
 
-  def "test pull request info parsing"() {
-    setup:
+  @Override
+  void setupPullRequestInfoBuild() {
     def githubEvent = GithubActionsInfoTest.getResource("/ci/github-event.json")
     def githubEventPath = Paths.get(githubEvent.toURI())
 
     environmentVariables.set(GithubActionsInfo.GITHUB_BASE_REF, "base-ref")
     environmentVariables.set(GithubActionsInfo.GITHUB_EVENT_PATH, githubEventPath.toString())
+  }
 
-    when:
-    def pullRequestInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildPullRequestInfo()
-
-    then:
-    pullRequestInfo.pullRequestBaseBranch == "base-ref"
-    pullRequestInfo.pullRequestBaseBranchSha == "52e0974c74d41160a03d59ddc73bb9f5adab054b"
-    pullRequestInfo.gitCommitHeadSha == "df289512a51123083a8e6931dd6f57bb3883d4c4"
+  @Override
+  PullRequestInfo expectedPullRequestInfo() {
+    return new PullRequestInfo(
+      "base-ref",
+      "52e0974c74d41160a03d59ddc73bb9f5adab054b",
+      "df289512a51123083a8e6931dd6f57bb3883d4c4")
   }
 }

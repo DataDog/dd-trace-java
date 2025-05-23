@@ -24,4 +24,18 @@ class AppVeyorInfoTest extends CITagsProviderTest {
     map.put(AppVeyorInfo.APPVEYOR_REPO_COMMIT, "0000000000000000000000000000000000000000")
     return map
   }
+
+  @Override
+  void setupPullRequestInfoBuild() {
+    environmentVariables.set(AppVeyorInfo.APPVEYOR_REPO_BRANCH, "base-branch")
+  }
+
+  @Override
+  PullRequestInfo expectedPullRequestInfo() {
+    return new PullRequestInfo(
+      "base-branch",
+      null,
+      null,
+      )
+  }
 }
