@@ -11,8 +11,6 @@ import java.lang.reflect.Method;
 
 /** Special lightweight pre-main class that skips installation on incompatible JVMs. */
 public class AgentPreCheck {
-  public static final String AGENT_BOOTSTRAP_CLASS = "datadog.trace.bootstrap.AgentBootstrap";
-
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
@@ -20,7 +18,7 @@ public class AgentPreCheck {
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
       if (compatible()) {
-        agentBootstrapPreMain(agentArgs, inst);
+        continueBootstrap(agentArgs, inst);
       }
     } catch (Throwable e) {
       // If agent failed we should not fail the application.
@@ -146,16 +144,11 @@ public class AgentPreCheck {
     }
   }
 
-  @SuppressForbidden
-  private static void agentBootstrapPreMain(final String agentArgs, final Instrumentation inst) {
-    try {
-      Class<?> clazz = Class.forName(AGENT_BOOTSTRAP_CLASS);
-      Method agentMain = clazz.getMethod("agentmain", String.class, Instrumentation.class);
-      agentMain.invoke(null, agentArgs, inst);
-    } catch (Throwable e) {
-      System.err.printf(
-          "Failed to execute %s.agentmain(): %s%n", AGENT_BOOTSTRAP_CLASS, e.getMessage());
-    }
+  private static void continueBootstrap(final String agentArgs, final Instrumentation inst)
+      throws Exception {
+    Class<?> clazz = Class.forName("datadog.trace.bootstrap.AgentBootstrap");
+    Method agentMain = clazz.getMethod("agentmain", String.class, Instrumentation.class);
+    agentMain.invoke(null, agentArgs, inst);
   }
 
   public static final class ForwarderJsonSenderThread extends Thread {
