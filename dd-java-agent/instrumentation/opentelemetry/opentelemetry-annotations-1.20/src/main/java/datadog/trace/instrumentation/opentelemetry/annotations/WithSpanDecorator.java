@@ -4,16 +4,19 @@ import static datadog.trace.api.DDSpanTypes.HTTP_CLIENT;
 import static datadog.trace.api.DDSpanTypes.HTTP_SERVER;
 import static datadog.trace.api.DDSpanTypes.MESSAGE_CONSUMER;
 import static datadog.trace.api.DDSpanTypes.MESSAGE_PRODUCER;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.lang.Math.min;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
+import datadog.trace.util.MethodHandles;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
@@ -21,6 +24,18 @@ public class WithSpanDecorator extends AsyncResultDecorator {
   public static final WithSpanDecorator DECORATE = new WithSpanDecorator();
   private static final String INSTRUMENTATION_NAME = "opentelemetry-annotations";
   private static final CharSequence OPENTELEMETRY = UTF8BytesString.create("opentelemetry");
+  private static final MethodHandle INHERIT_CONTEXT_MH = maybeGetInheritContextHandle();
+
+  private static MethodHandle maybeGetInheritContextHandle() {
+    try {
+      return new MethodHandles(WithSpan.class.getClassLoader())
+          .method(WithSpan.class, "inheritContext")
+          .asType(MethodType.methodType(boolean.class, WithSpan.class));
+    } catch (Throwable ignored) {
+      // not available before 2.14.0
+    }
+    return null;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -40,18 +55,31 @@ public class WithSpanDecorator extends AsyncResultDecorator {
   public AgentSpan startMethodSpan(Method method) {
     CharSequence operationName = null;
     CharSequence spanType = null;
+    boolean inheritContext = true;
 
     WithSpan withSpanAnnotation = method.getAnnotation(WithSpan.class);
     if (withSpanAnnotation != null) {
       operationName = withSpanAnnotation.value();
       spanType = convertToSpanType(withSpanAnnotation.kind());
+      if (INHERIT_CONTEXT_MH != null) {
+        try {
+          inheritContext = (boolean) INHERIT_CONTEXT_MH.invokeExact(withSpanAnnotation);
+        } catch (Throwable ignored) {
+        }
+      }
     }
 
     if (operationName == null || operationName.length() == 0) {
       operationName = DECORATE.spanNameForMethod(method);
     }
 
-    AgentSpan span = startSpan(INSTRUMENTATION_NAME, operationName);
+    AgentTracer.SpanBuilder spanBuilder =
+        AgentTracer.get().buildSpan(INSTRUMENTATION_NAME, operationName);
+
+    if (!inheritContext) {
+      spanBuilder = spanBuilder.ignoreActiveSpan();
+    }
+    final AgentSpan span = spanBuilder.start();
     DECORATE.afterStart(span);
 
     if (spanType != null) {
