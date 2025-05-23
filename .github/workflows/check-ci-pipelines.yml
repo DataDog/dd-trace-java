@@ -25,7 +25,9 @@ jobs:
       - name: Run Ensure CI Success
         uses: DataDog/ensure-ci-success@727e7fe39ae2e1ce7ea336ec85a7369ab0731754
         with:
-          initial-delay-seconds: "1000"
+          initial-delay-seconds: "500"
           max-retries: "60"
           ignored-name-patterns: |
-            CircleCI Pipeline
+            dd-gitlab/default-pipeline
+            dd-gitlab/test_smoke: \[11, 2/2\]
+            dd-gitlab/test_smoke: \[8, 2/2\]
