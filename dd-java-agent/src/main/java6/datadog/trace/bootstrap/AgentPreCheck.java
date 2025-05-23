@@ -15,6 +15,7 @@ public class AgentPreCheck {
     agentmain(agentArgs, inst);
   }
 
+  @SuppressForbidden
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
       if (compatible()) {
@@ -144,6 +145,7 @@ public class AgentPreCheck {
     }
   }
 
+  @SuppressForbidden
   private static void continueBootstrap(final String agentArgs, final Instrumentation inst)
       throws Exception {
     Class<?> clazz = Class.forName("datadog.trace.bootstrap.AgentBootstrap");
@@ -162,6 +164,7 @@ public class AgentPreCheck {
       this.payload = payload;
     }
 
+    @SuppressForbidden
     @Override
     public void run() {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
