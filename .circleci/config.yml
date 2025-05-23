@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  donothing:
+    resource_class: small
+    docker:
+      - image: alpine
+    steps:
+      - run:
+          command: echo 'Done'
+
+workflows:
+  build_test:
+    jobs:
+      - donothing:
+          name: required
