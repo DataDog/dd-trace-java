@@ -5,8 +5,6 @@ plugins {
   id("me.champeau.jmh")
 }
 
-val skipSettingCompilerRelease by extra(true) // need access to sun.misc.SharedSecrets
-
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/tries.gradle")
 
@@ -16,13 +14,8 @@ java {
   }
 }
 
-tasks.compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
-}
-
-tasks.compileTestJava {
+tasks.withType<JavaCompile>().configureEach {
+  // need access to sun.misc.SharedSecrets
   setJavaVersion(8)
 }
 
