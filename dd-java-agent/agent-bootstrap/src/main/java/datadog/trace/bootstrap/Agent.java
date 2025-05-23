@@ -1148,6 +1148,10 @@ public class Agent {
                 + e.getClass()
                 + " "
                 + Arrays.toString(e.getCause().getStackTrace()));
+        log.error(
+            "Causal chain  "
+                + e.getCause().getMessage()
+                + Arrays.toString(e.getCause().getStackTrace()));
         e.printStackTrace();
       } catch (final Throwable ex) {
         log.error(
