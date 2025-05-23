@@ -35,6 +35,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.BiConsumer;
@@ -318,6 +319,17 @@ public class InstrumentationGateway {
               }
             };
       case RESPONSE_BODY_START_ID:
+        return (C)
+            (BiFunction<RequestContext, OutputStream, Void>)
+                (ctx, outputStream) -> {
+                  try {
+                    return ((BiFunction<RequestContext, OutputStream, Void>) callback)
+                        .apply(ctx, outputStream);
+                  } catch (Throwable t) {
+                    log.warn("Callback for {} threw.", eventType, t);
+                    return null;
+                  }
+                };
       case REQUEST_BODY_START_ID:
         return (C)
             new BiFunction<RequestContext, StoredBodySupplier, Void>() {
@@ -333,6 +345,17 @@ public class InstrumentationGateway {
               }
             };
       case RESPONSE_BODY_DONE_ID:
+        return (C)
+            (BiFunction<RequestContext, OutputStream, Flow<Void>>)
+                (ctx, outputStream) -> {
+                  try {
+                    return ((BiFunction<RequestContext, OutputStream, Flow<Void>>) callback)
+                        .apply(ctx, outputStream);
+                  } catch (Throwable t) {
+                    log.warn("Callback for {} threw.", eventType, t);
+                    return Flow.ResultFlow.empty();
+                  }
+                };
       case REQUEST_BODY_DONE_ID:
         return (C)
             new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {

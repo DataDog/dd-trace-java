@@ -518,6 +518,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return Flow.ResultFlow.empty();
     }
 
+    BiFunction<RequestContext, OutputStream, Flow<Void>> responseBodyDone =
+        cbp.getCallback(EVENTS.responseBodyDone());
+    if (null != responseBodyDone) {
+      responseBodyDone.apply(requestContext, responseBody);
+    }
     BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
         cbp.getCallback(EVENTS.responseStarted());
     if (null != addrCallback) {
