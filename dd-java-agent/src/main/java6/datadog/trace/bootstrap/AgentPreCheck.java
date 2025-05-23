@@ -29,13 +29,19 @@ public class AgentPreCheck {
   }
 
   private static void reportIncompatibleJava(
-      String javaVersion, int majorJavaVersion, String agentVersion, PrintStream output) {
+      String javaVersion,
+      int majorJavaVersion,
+      String javaHome,
+      String agentVersion,
+      PrintStream output) {
     output.println(
         "Warning: "
             + (agentVersion == null ? "This version" : "Version " + agentVersion)
             + " of dd-java-agent is not compatible with Java "
             + javaVersion
-            + " and will not be installed.");
+            + " in '"
+            + javaHome
+            + "' and will not be installed.");
 
     String msg = "Please upgrade your Java version to 8+";
     if (majorJavaVersion == 7) {
@@ -71,13 +77,24 @@ public class AgentPreCheck {
     t.start();
   }
 
+  private static String tryGetProperty(String property) {
+    try {
+      return System.getProperty(property);
+    } catch (SecurityException e) {
+      return null;
+    }
+  }
+
   @SuppressForbidden
   private static boolean compatible() {
-    return compatible(System.getProperty("java.version"), System.err);
+    String javaVersion = tryGetProperty("java.version");
+    String javaHome = tryGetProperty("java.home");
+
+    return compatible(javaVersion, javaHome, System.err);
   }
 
   // Reachable for testing
-  static boolean compatible(String javaVersion, PrintStream output) {
+  static boolean compatible(String javaVersion, String javaHome, PrintStream output) {
     int majorJavaVersion = parseJavaMajorVersion(javaVersion);
 
     if (majorJavaVersion >= 8) {
@@ -86,7 +103,7 @@ public class AgentPreCheck {
 
     String agentVersion = getAgentVersion();
 
-    reportIncompatibleJava(javaVersion, majorJavaVersion, agentVersion, output);
+    reportIncompatibleJava(javaVersion, majorJavaVersion, javaHome, agentVersion, output);
 
     String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath != null) {

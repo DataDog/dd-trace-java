@@ -35,7 +35,7 @@ compileMain_java6Java.configure {
 tasks.compileJava.dependsOn compileMain_java6Java
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.4'
+  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
   testImplementation sourceSets.main_java6.output
 }
 

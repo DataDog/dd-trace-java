@@ -61,7 +61,7 @@ class AgentPreCheckTest extends Specification {
     def logStream = new PrintStream(output)
 
     when:
-    boolean compatible = AgentPreCheck.compatible(javaVersion, logStream)
+    boolean compatible = AgentPreCheck.compatible(javaVersion, "/Library/$javaVersion", logStream)
     String log = output.toString()
     def logLines = log.isEmpty() ? [] : Arrays.asList(log.split('\n'))
 
@@ -73,7 +73,7 @@ class AgentPreCheckTest extends Specification {
     } else {
       logLines.size() == 2
       def expectedLogLines = [
-        "Warning: Version ${AgentJar.getAgentVersion()} of dd-java-agent is not compatible with Java ${javaVersion} and will not be installed.",
+        "Warning: Version ${AgentJar.getAgentVersion()} of dd-java-agent is not compatible with Java $javaVersion in '/Library/$javaVersion' and will not be installed.",
         "Please upgrade your Java version to 8+" + (AgentPreCheck.parseJavaMajorVersion(javaVersion) == 7 ? " or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0" : "")
       ]
       assert logLines == expectedLogLines
