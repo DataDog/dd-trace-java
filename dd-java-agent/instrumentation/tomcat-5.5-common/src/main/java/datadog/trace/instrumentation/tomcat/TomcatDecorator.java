@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.io.OutputStream;
 import java.util.Map;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -141,6 +142,10 @@ public class TomcatDecorator
   protected BlockResponseFunction createBlockResponseFunction(
       final Request request, Request connection) {
     return new TomcatBlockResponseFunction(request);
+  }
+
+  protected OutputStream responseBody(Response response) {
+    return response.getStream();
   }
 
   public static class TomcatBlockResponseFunction implements BlockResponseFunction {
