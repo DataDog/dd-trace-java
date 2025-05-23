@@ -43,14 +43,6 @@ if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
 }
 
-// when building with Java 9+, lazily set compiler --release flag to match target
-def skipSettingCompilerRelease = project.findProperty('skipSettingCompilerRelease')
-if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
-  compileJava.options.release = project.provider {
-    JavaVersion.toVersion(targetCompatibility).majorVersion as Integer
-  }
-}
-
 if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
   def name = "java$version.majorVersion"

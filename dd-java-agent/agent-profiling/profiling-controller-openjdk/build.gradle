@@ -7,8 +7,6 @@ ext {
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ZULU8
   skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -39,6 +37,10 @@ dependencies {
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
     setJavaVersion(it, 11)
+    if (it instanceof JavaCompile) {
+      // need access to jdk.jfr package
+      options.release = null
+    }
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
     // Disable '-processing' because some annotations are not claimed.
