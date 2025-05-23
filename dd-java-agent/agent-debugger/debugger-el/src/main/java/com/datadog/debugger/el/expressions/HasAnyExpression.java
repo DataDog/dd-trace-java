@@ -1,7 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.PrettyPrintVisitor.print;
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedList;
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedSet;
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.evaluateTargetCollection;
+
 import com.datadog.debugger.el.EvaluationException;
-import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
@@ -9,7 +14,6 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
-import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,21 +34,10 @@ public final class HasAnyExpression extends MatchingExpression {
 
   @Override
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    if (valueExpression == null) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
-    }
-    Value<?> value = valueExpression.evaluate(valueRefResolver);
-    if (value.isUndefined()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
-    }
-    if (value.isNull()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
-    }
+    Value<?> value = evaluateTargetCollection(valueExpression, this, valueRefResolver);
     if (value instanceof ListValue) {
       ListValue collection = (ListValue) value;
+      checkSupportedList(collection, this);
       if (collection.isEmpty()) {
         // always return FALSE for empty collection
         return Boolean.FALSE;
@@ -62,6 +55,7 @@ public final class HasAnyExpression extends MatchingExpression {
     }
     if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
+      checkSupportedMap(map, this);
       if (map.isEmpty()) {
         return Boolean.FALSE;
       }
@@ -81,28 +75,22 @@ public final class HasAnyExpression extends MatchingExpression {
     }
     if (value instanceof SetValue) {
       SetValue set = (SetValue) value;
+      Set<?> setHolder = checkSupportedSet(set, this);
       if (set.isEmpty()) {
         return Boolean.FALSE;
       }
-      Set<?> setHolder = (Set<?>) set.getSetHolder();
-      if (WellKnownClasses.isSafe(setHolder)) {
-        for (Object val : setHolder) {
-          if (filterPredicateExpression.evaluate(
-              valueRefResolver.withExtensions(
-                  Collections.singletonMap(
-                      ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val))))) {
-            return Boolean.TRUE;
-          }
+      for (Object val : setHolder) {
+        if (filterPredicateExpression.evaluate(
+            valueRefResolver.withExtensions(
+                Collections.singletonMap(
+                    ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val))))) {
+          return Boolean.TRUE;
         }
-        return Boolean.FALSE;
       }
-      throw new EvaluationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName(),
-          PrettyPrintVisitor.print(this));
+      return Boolean.FALSE;
     }
-    return filterPredicateExpression.evaluate(
-        valueRefResolver.withExtensions(
-            Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
+    throw new EvaluationException(
+        "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
   }
 
   @Override
