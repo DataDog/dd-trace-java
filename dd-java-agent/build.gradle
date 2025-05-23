@@ -17,13 +17,8 @@ configurations {
   traceShadowInclude
 }
 
-// Support SSI inject for Java 7.
-tasks.named("compileJava", JavaCompile).configure {
-  sourceCompatibility = JavaVersion.VERSION_1_7
-  targetCompatibility = JavaVersion.VERSION_1_7
-}
-
-// Support SSI inject for Java 6.
+// The special pre-check should be compiled with Java 6 to detect unsupported Java versions and
+// prevent issues for users that still using them.
 sourceSets {
   java6 {
     java {
@@ -42,6 +37,7 @@ tasks.register('compileJava6', JavaCompile) {
 
 dependencies {
   java6CompileOnly 'de.thetaphi:forbiddenapis:3.4'
+  testImplementation sourceSets.java6.output
 }
 
 tasks.compileJava.dependsOn compileJava6
@@ -202,7 +198,7 @@ shadowJar generalShadowJarConfig >> {
     attributes(
       "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrapJava6",
+      "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
       )
