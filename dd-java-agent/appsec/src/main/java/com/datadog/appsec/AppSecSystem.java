@@ -143,7 +143,6 @@ public class AppSecSystem {
       RESET_SUBSCRIPTION_SERVICE = null;
     }
     Blocking.setBlockingService(BlockingService.NOOP);
-
     APP_SEC_CONFIG_SERVICE.close();
   }
 
@@ -155,9 +154,10 @@ public class AppSecSystem {
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {
-        AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject;
-        cfgObject = APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
-        module.config(cfgObject);
+        AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject =
+            APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
+        module.setRuleVersion(APP_SEC_CONFIG_SERVICE.getCurrentRuleVersion());
+        module.config(cfgObject, APP_SEC_CONFIG_SERVICE.getWafBuilder());
         cfgObject.commit();
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
         log.error("Startup of appsec module {} failed", module.getName(), t);
@@ -181,6 +181,7 @@ public class AppSecSystem {
 
     EventDispatcher newEd = new EventDispatcher();
     for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
+      module.setRuleVersion(APP_SEC_CONFIG_SERVICE.getCurrentRuleVersion());
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
