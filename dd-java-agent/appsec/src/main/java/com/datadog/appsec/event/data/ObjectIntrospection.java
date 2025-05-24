@@ -39,6 +39,16 @@ public final class ObjectIntrospection {
   private ObjectIntrospection() {}
 
   /**
+   * Listener interface for optional per-call truncation logic. Single-method invoked when any
+   * truncation occurs, receiving only the request context.
+   */
+  @FunctionalInterface
+  public interface TruncationListener {
+    /** Called after default truncation handling if any truncation occurred. */
+    void onTruncation();
+  }
+
+  /**
    * Converts arbitrary objects compatible with ddwaf_object. Possible types in the result are:
    *
    * <ul>
@@ -68,12 +78,26 @@ public final class ObjectIntrospection {
    * @return the converted object
    */
   public static Object convert(Object obj, AppSecRequestContext requestContext) {
+    return convert(obj, requestContext, null);
+  }
+
+  /**
+   * Core conversion method with an optional per-call truncation listener. Always applies default
+   * truncation logic, then invokes listener if provided.
+   */
+  public static Object convert(
+      Object obj, AppSecRequestContext requestContext, TruncationListener listener) {
     State state = new State(requestContext);
     Object converted = guardedConversion(obj, 0, state);
     if (state.stringTooLong || state.listMapTooLarge || state.objectTooDeep) {
+      // Default truncation handling: always run
       requestContext.setWafTruncated();
       WafMetricCollector.get()
           .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
+      // Optional extra per-call logic: only requestContext is passed
+      if (listener != null) {
+        listener.onTruncation();
+      }
     }
     return converted;
   }

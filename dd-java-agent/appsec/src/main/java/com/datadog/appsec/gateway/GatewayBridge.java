@@ -77,6 +77,7 @@ public class GatewayBridge {
   private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
 
   private static final Map<LoginEvent, Address<?>> EVENT_MAPPINGS = new EnumMap<>(LoginEvent.class);
+  private static final String METASTRUCT_REQUEST_BODY = "http.request.body";
 
   static {
     EVENT_MAPPINGS.put(LoginEvent.LOGIN_SUCCESS, KnownAddresses.LOGIN_SUCCESS);
@@ -572,9 +573,20 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj, ctx));
+      Object converted =
+          ObjectIntrospection.convert(
+              obj,
+              ctx,
+              () -> {
+                if (Config.get().isAppSecRaspCollectRequestBody()) {
+                  ctx_.getTraceSegment()
+                      .setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+                }
+              });
+      if (Config.get().isAppSecRaspCollectRequestBody()) {
+        ctx.setProcessedRequestBody(converted);
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -721,6 +733,12 @@ public class GatewayBridge {
         List<StackTraceEvent> stackTraces = ctx.getStackTraces();
         if (stackTraces != null && !stackTraces.isEmpty()) {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
+        }
+
+        // Report collected parsed request body if there is a RASP event
+        if (ctx.isRaspMatched() && ctx.getProcessedRequestBody() != null) {
+          ctx_.getOrCreateMetaStructTop(
+              METASTRUCT_REQUEST_BODY, k -> ctx.getProcessedRequestBody());
         }
 
       } else if (hasUserInfo(traceSeg)) {
