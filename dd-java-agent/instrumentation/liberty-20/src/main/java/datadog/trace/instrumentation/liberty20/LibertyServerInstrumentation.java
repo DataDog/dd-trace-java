@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_ATTRIBUTE;
@@ -14,6 +14,8 @@ import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebApp;
 import com.ibm.wsspi.webcontainer.webapp.IWebAppDispatcherContext;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
@@ -24,9 +26,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -88,7 +88,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     public static boolean /* skip */ onEnter(
-        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Local("contextScope") ContextScope scope,
         @Advice.Argument(0) ServletRequest req,
         @Advice.Argument(1) ServletResponse resp) {
       if (!(req instanceof SRTServletRequest)) return false;
@@ -99,16 +99,16 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       try {
         Object existingSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
         if (existingSpan instanceof AgentSpan) {
-          scope = activateSpan((AgentSpan) existingSpan);
+          scope = ((AgentSpan) existingSpan).attach();
           return false;
         }
       } catch (NullPointerException e) {
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
+      final Context extractedContext = DECORATE.extractContext(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
-      scope = activateSpan(span);
+      scope = extractedContext.with(span).attach();
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {
@@ -152,7 +152,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(
-        @Advice.Local("agentScope") final AgentScope scope,
+        @Advice.Local("contextScope") final ContextScope scope,
         @Advice.Argument(value = 0) ServletRequest req) {
       if (!(req instanceof SRTServletRequest)) return;
       SRTServletRequest request = (SRTServletRequest) req;
@@ -163,7 +163,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         // this has the unfortunate consequence that service name (as set via the tag interceptor)
         // of the top span won't match that of its child spans, because it's instead the original
         // one that will propagate
-        DECORATE.getPath(scope.span(), request);
+        DECORATE.getPath(spanFromContext(scope.context()), request);
         scope.close();
       }
     }
