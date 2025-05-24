@@ -93,12 +93,17 @@ abstract class MuzzleTask @Inject constructor(
       val javaLauncher = javaToolchainService.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
       }.get()
+      // Note process isolation leaks gradle dependencies to the child process
+      // and may need additional code on muzzle plugin to filter those out
+      // See https://github.com/gradle/gradle/issues/33987
       workerExecutor.processIsolation {
         forkOptions {
           executable(javaLauncher.executablePath)
         }
       }
     } else {
+      // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
+      // and should not be impacted by the actual running JDK.
       workerExecutor.noIsolation()
     }
     workQueue.submit(MuzzleAction::class.java) {
