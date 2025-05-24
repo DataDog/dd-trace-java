@@ -144,7 +144,7 @@ public class Agent {
   private static final AtomicBoolean jmxStarting = new AtomicBoolean();
 
   // Mutex to synchronize profiling initialization and error tracking
-  private static final Object INIT_MUTEX = new Object();
+  private static final Object PROFILER_INIT_MUTEX = new Object();
 
   // fields must be managed under class lock
   private static ClassLoader AGENT_CLASSLOADER = null;
@@ -1030,7 +1030,7 @@ public class Agent {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
-    synchronized (INIT_MUTEX) {
+    synchronized (PROFILER_INIT_MUTEX) {
       log.debug("Acquired INIT_MUTEX for error tracking initialization");
       try {
         Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.Initializer");
@@ -1114,7 +1114,7 @@ public class Agent {
       return;
     }
 
-    synchronized (INIT_MUTEX) {
+    synchronized (PROFILER_INIT_MUTEX) {
       log.debug("Acquired INIT_MUTEX for profiling initialization");
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
@@ -1140,25 +1140,10 @@ public class Agent {
                 }
               });
         }
-      } catch (InvocationTargetException e) {
-        log.error(
-            "InvocationTargetException raised while starting profiling agent "
-                + e.getMessage()
-                + " "
-                + e.getClass()
-                + " "
-                + Arrays.toString(e.getCause().getStackTrace()));
-        log.error(
-            "Causal chain  "
-                + e.getCause().getMessage()
-                + Arrays.toString(e.getCause().getStackTrace()));
-        e.printStackTrace();
-      } catch (final Throwable ex) {
+      } catch (final Throwable t) {
         log.error(
             "Throwable thrown while starting profiling agent "
-                + ex.getMessage()
-                + " "
-                + ex.getClass());
+                + Arrays.toString(t.getCause().getStackTrace()));
       }
     }
 
