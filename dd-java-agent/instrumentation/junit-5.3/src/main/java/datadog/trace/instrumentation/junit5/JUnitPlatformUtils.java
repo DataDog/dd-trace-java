@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
@@ -116,12 +117,6 @@ public abstract class JUnitPlatformUtils {
       METHOD_HANDLES.method(ExecutionRequest.class, "getOutputDirectoryProvider");
   private static final MethodHandle GET_STORE =
       METHOD_HANDLES.method(ExecutionRequest.class, "getStore");
-  private static final String[] CREATE_FALLBACK_PARAMETER_TYPES =
-      new String[] {
-        "org.junit.platform.engine.TestDescriptor",
-        "org.junit.platform.engine.EngineExecutionListener",
-        "org.junit.platform.engine.ConfigurationParameters"
-      };
   private static final String[] CREATE_PARAMETER_TYPES =
       new String[] {
         "org.junit.platform.engine.TestDescriptor",
@@ -143,14 +138,11 @@ public abstract class JUnitPlatformUtils {
                       Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
                       CREATE_PARAMETER_TYPES));
     } else {
-      return METHOD_HANDLES.method(
+      return METHOD_HANDLES.constructor(
           ExecutionRequest.class,
-          m ->
-              "create".equals(m.getName())
-                  && m.getParameterCount() == 3
-                  && Arrays.equals(
-                      Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
-                      CREATE_FALLBACK_PARAMETER_TYPES));
+          TestDescriptor.class,
+          EngineExecutionListener.class,
+          ConfigurationParameters.class);
     }
   }
 

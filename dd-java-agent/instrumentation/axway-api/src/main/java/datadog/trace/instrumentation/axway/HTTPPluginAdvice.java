@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVE
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 
 public class HTTPPluginAdvice {
@@ -17,7 +18,8 @@ public class HTTPPluginAdvice {
     final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
-    DECORATE.onRequest(span, serverTransaction, serverTransaction, null);
+    DECORATE.onRequest(
+        span, serverTransaction, serverTransaction, (AgentSpanContext.Extracted) null);
     final AgentScope scope = activateSpan(span);
     return scope;
   }
