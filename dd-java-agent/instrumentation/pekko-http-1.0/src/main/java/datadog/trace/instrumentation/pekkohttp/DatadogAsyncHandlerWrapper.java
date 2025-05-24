@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.pekkohttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
@@ -24,8 +26,8 @@ public class DatadogAsyncHandlerWrapper
   @Override
   public Future<HttpResponse> apply(final HttpRequest request) {
     final ContextScope scope = DatadogWrapperHelper.createSpan(request);
-    AgentSpan span = AgentSpan.fromContext(scope.context());
-    Future<HttpResponse> futureResponse = null;
+    AgentSpan span = fromContext(scope.context());
+    Future<HttpResponse> futureResponse;
     try {
       futureResponse = userHandler.apply(request);
     } catch (final Throwable t) {

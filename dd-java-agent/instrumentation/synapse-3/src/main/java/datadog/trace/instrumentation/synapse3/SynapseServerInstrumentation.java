@@ -68,20 +68,20 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      Context extractedContext = DECORATE.extractContext(request);
-      ContextScope scope;
+      Context context = DECORATE.extractContext(request);
 
       AgentSpan span;
-      if (null != extractedContext) {
-        span = DECORATE.startSpan(request, extractedContext);
-        scope = extractedContext.with(span).attach();
+      if (null != context) {
+        span = DECORATE.startSpan(request, context);
+        context = context.with(span);
       } else {
         span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
-        scope = span.attach();
+        context = span;
       }
+      ContextScope scope = context.attach();
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, connection, request, extractedContext);
+      DECORATE.onRequest(span, connection, request, context);
 
       // capture span to be finished by one of the various server response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);

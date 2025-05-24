@@ -24,12 +24,12 @@ public class HandleAdvice {
       return ((AgentSpan) existingSpan).attach();
     }
 
-    final Context extractedContext = DECORATE.extractContext(req);
-    span = DECORATE.startSpan(req, extractedContext);
+    final Context context = DECORATE.extractContext(req);
+    span = DECORATE.startSpan(req, context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, req, req, extractedContext);
+    DECORATE.onRequest(span, req, req, context);
 
-    final ContextScope scope = extractedContext.with(span).attach();
+    final ContextScope scope = context.with(span).attach();
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
     req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

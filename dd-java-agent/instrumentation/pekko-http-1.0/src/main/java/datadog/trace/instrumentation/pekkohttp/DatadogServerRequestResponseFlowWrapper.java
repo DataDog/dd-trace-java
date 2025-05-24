@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.pekkohttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.context.ContextScope;
@@ -113,7 +114,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 final HttpResponse response = grab(responseInlet);
                 final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  AgentSpan span = AgentSpan.fromContext(scope.context());
+                  AgentSpan span = fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
@@ -132,7 +133,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 // remaining spans
                 ContextScope scope = scopes.poll();
                 while (scope != null) {
-                  AgentSpan.fromContext(scope.context()).finish();
+                  fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 completeStage();
@@ -143,14 +144,14 @@ public class DatadogServerRequestResponseFlowWrapper
                 ContextScope scope = scopes.poll();
                 if (scope != null) {
                   // Mark the span as failed
-                  AgentSpan span = AgentSpan.fromContext(scope.context());
+                  AgentSpan span = fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  AgentSpan.fromContext(scope.context()).finish();
+                  fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);

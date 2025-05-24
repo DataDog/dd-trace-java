@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import akka.http.scaladsl.model.HttpRequest;
@@ -67,7 +68,7 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
                 final ContextScope scope = DatadogWrapperHelper.createSpan(request);
-                final AgentSpan span = AgentSpan.fromContext(scope.context());
+                final AgentSpan span = fromContext(scope.context());
                 RequestContext requestContext = span.getRequestContext();
                 if (requestContext != null) {
                   HttpResponse response =
@@ -133,7 +134,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 HttpResponse response = grab(responseInlet);
                 final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  AgentSpan span = AgentSpan.fromContext(scope.context());
+                  AgentSpan span = fromContext(scope.context());
                   HttpResponse newResponse =
                       BlockingResponseHelper.handleFinishForWaf(span, response);
                   if (newResponse != response) {
@@ -159,7 +160,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 // remaining spans
                 ContextScope scope = scopes.poll();
                 while (scope != null) {
-                  AgentSpan.fromContext(scope.context()).finish();
+                  fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 completeStage();
@@ -170,14 +171,14 @@ public class DatadogServerRequestResponseFlowWrapper
                 ContextScope scope = scopes.poll();
                 if (scope != null) {
                   // Mark the span as failed
-                  AgentSpan span = AgentSpan.fromContext(scope.context());
+                  AgentSpan span = fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  AgentSpan.fromContext(scope.context()).finish();
+                  fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);
