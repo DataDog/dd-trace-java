@@ -715,18 +715,14 @@ abstract class MuzzleTask extends DefaultTask {
                     Project instrumentationProject,
                     MuzzleDirective muzzleDirective = null) {
     def workQueue
-    String javaVersion = muzzleDirective?.javaVersion
-    if (javaVersion) {
-      def javaLauncher = javaToolchainService.launcherFor { spec ->
-        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
-      }.get()
-      workQueue = workerExecutor.processIsolation { spec ->
-        spec.forkOptions { fork ->
-          fork.executable = javaLauncher.executablePath
-        }
+    String javaVersion = muzzleDirective?.javaVersion ?: "8"
+    def javaLauncher = javaToolchainService.launcherFor { spec ->
+      spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+    }.get()
+    workQueue = workerExecutor.processIsolation { spec ->
+      spec.forkOptions { fork ->
+        fork.executable = javaLauncher.executablePath
       }
-    } else {
-      workQueue = workerExecutor.noIsolation()
     }
     workQueue.submit(MuzzleAction.class, parameters -> {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
