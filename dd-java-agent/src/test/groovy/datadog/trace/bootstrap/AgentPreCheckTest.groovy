@@ -141,22 +141,21 @@ class AgentPreCheckTest extends Specification {
     payload.contains(expectedPayload)
   }
 
-  private DataInputStream classStream(Class clazz) {
-    String resource = clazz.getName().replace('.', '/') + '.class'
-    new DataInputStream(this.getClass().getClassLoader().getResourceAsStream(resource))
-  }
-
   def 'check #clazz compiled with Java #javaVersion'() {
-    expect:
-    classStream(clazz).withCloseable { stream ->
-      def magic = Integer.toUnsignedLong(stream.readInt())
-      def minor = (int) stream.readShort()
-      def major = (int) stream.readShort()
+    setup:
+    def resource = clazz.getName().replace('.', '/') + '.class'
+    def stream = new DataInputStream(this.getClass().getClassLoader().getResourceAsStream(resource))
 
-      magic == 0xCAFEBABEL
-      minor == 0
-      major == expectedMajor
-    }
+    expect:
+    stream.withCloseable {
+      def magic = Integer.toUnsignedLong(it.readInt())
+      def minor = (int) it.readShort()
+      def major = (int) it.readShort()
+
+      assert magic == 0xCAFEBABE
+      assert minor == 0
+      assert major == expectedMajor
+    } == null
 
     where:
     clazz          | javaVersion | expectedMajor
