@@ -2,6 +2,7 @@ package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.Json;
 import datadog.trace.api.civisibility.config.Configurations;
+import datadog.trace.util.Strings;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -111,6 +112,7 @@ public class TracerEnvironment {
     private String env;
     private String repositoryUrl;
     private String branch;
+    private String tag; // will act as fallback if no branch is provided
     private String sha;
     private String commitMessage;
     private String osPlatform;
@@ -140,6 +142,11 @@ public class TracerEnvironment {
 
     public Builder branch(String branch) {
       this.branch = branch;
+      return this;
+    }
+
+    public Builder tag(String tag) {
+      this.tag = tag;
       return this;
     }
 
@@ -203,7 +210,7 @@ public class TracerEnvironment {
           service,
           env,
           repositoryUrl,
-          branch,
+          Strings.isNotBlank(branch) ? branch : tag,
           sha,
           commitMessage,
           new Configurations(
