@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -89,11 +91,13 @@ public class CrashUploaderTest {
     when(config.getApiKey()).thenReturn(null);
   }
 
-  @Test
-  public void testLogsHappyPath() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testLogsHappyPath(boolean collectProcessTags) throws Exception {
     // Given
-
     // When
+    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(collectProcessTags);
+    ProcessTags.reset(config);
     uploader = new CrashUploader(config);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(CRASH, new PrintStream(out));
@@ -107,6 +111,13 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("service").asText());
     assertEquals(CRASH, event.get("message").asText());
     assertEquals("ERROR", event.get("level").asText());
+    if (collectProcessTags) {
+      assertNotNull(ProcessTags.getTagsForSerialization());
+      assertEquals(
+          ProcessTags.getTagsForSerialization().toString(), event.get("process_tags").asText());
+    } else {
+      assertNull(event.get("process_tags"));
+    }
   }
 
   @Test
@@ -143,14 +154,15 @@ public class CrashUploaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "sample-crash-for-telemetry.txt",
-        "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt"
-      })
-  public void testTelemetryHappyPath(String log) throws Exception {
+  @CsvSource({
+    "sample-crash-for-telemetry.txt,true",
+    "sample-crash-for-telemetry-2.txt,false",
+    "sample-crash-for-telemetry-3.txt,false"
+  })
+  public void testTelemetryHappyPath(String log, boolean collectProcessTags) throws Exception {
     // Given
+    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(collectProcessTags);
+    ProcessTags.reset(config);
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
 
     // When
@@ -192,6 +204,14 @@ public class CrashUploaderTest {
     // host
     assertEquals(HOSTNAME, event.get("host").get("hostname").asText());
     assertEquals(ENV, event.get("host").get("env").asText());
+    if (collectProcessTags) {
+      assertNotNull(ProcessTags.getTagsForSerialization());
+      assertEquals(
+          ProcessTags.getTagsForSerialization().toString(),
+          event.get("application").get("process_tags").asText());
+    } else {
+      assertNull(event.get("application").get("process_tags"));
+    }
   }
 
   @Test
