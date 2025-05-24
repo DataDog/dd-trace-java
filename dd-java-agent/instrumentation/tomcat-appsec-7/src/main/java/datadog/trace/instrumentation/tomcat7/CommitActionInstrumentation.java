@@ -106,7 +106,8 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
               agentSpan,
               coyoteResponse,
               coyoteResponse.getStatus(),
-              ExtractAdapter.CoyoteResponse.GETTER);
+              ExtractAdapter.CoyoteResponse.GETTER,
+              null);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

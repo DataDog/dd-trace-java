@@ -15,6 +15,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import java.io.Closeable;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -98,6 +99,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private volatile OutputStream storedResponseBodySupplier;
   private String dbType;
 
   private int responseStatus;
@@ -106,6 +108,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private boolean rawResBodyPublished;
   private boolean pathParamsPublished;
   private volatile Map<String, String> derivatives;
 
@@ -451,6 +454,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  void setStoredResponseBodySupplier(OutputStream storedResponseBodySupplier) {
+    this.storedResponseBodySupplier = storedResponseBodySupplier;
+  }
+
   public String getDbType() {
     return dbType;
   }
@@ -503,8 +510,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return respDataPublished;
   }
 
+  public boolean isRawResBodyPublished() {
+    return rawResBodyPublished;
+  }
+
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public void setRawResBodyPublished(boolean rawResBodyPublished) {
+    this.rawResBodyPublished = rawResBodyPublished;
   }
 
   /**
@@ -578,6 +593,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       return null;
     }
     return storedRequestBodySupplier.get();
+  }
+
+  /** @return the contents of stream */
+  public CharSequence getStoredResponseBody() {
+    CharSequence storedResponseBody = null;
+    storedResponseBody =
+        this.storedResponseBodySupplier != null ? this.storedResponseBodySupplier.toString() : null;
+    return storedResponseBody;
   }
 
   public void reportEvents(Collection<AppSecEvent> appSecEvents) {

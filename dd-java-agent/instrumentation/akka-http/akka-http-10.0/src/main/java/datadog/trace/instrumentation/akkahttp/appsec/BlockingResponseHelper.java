@@ -37,7 +37,11 @@ public class BlockingResponseHelper {
     }
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
-            span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+            span,
+            response,
+            response.status().intValue(),
+            AkkaHttpServerHeaders.responseGetter(),
+            null);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
