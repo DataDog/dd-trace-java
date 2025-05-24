@@ -45,6 +45,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -181,7 +182,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final AgentSpanContext.Extracted context) {
+      @Nullable final AgentSpanContext.Extracted context) {
     Config config = Config.get();
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled()
