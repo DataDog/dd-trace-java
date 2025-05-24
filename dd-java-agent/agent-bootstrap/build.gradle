@@ -23,6 +23,7 @@ dependencies {
   api project(':dd-java-agent:agent-logging')
   api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   api project(':components:json')
+
   api libs.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
