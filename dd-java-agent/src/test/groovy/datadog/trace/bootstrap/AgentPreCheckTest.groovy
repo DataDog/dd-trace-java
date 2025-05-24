@@ -73,7 +73,7 @@ class AgentPreCheckTest extends Specification {
     } else {
       logLines.size() == 2
       def expectedLogLines = [
-        "Warning: Version ${AgentJar.getAgentVersion()} of dd-java-agent is not compatible with Java $javaVersion in '/Library/$javaVersion' and will not be installed.",
+        "Warning: Version ${AgentJar.getAgentVersion()} of dd-java-agent is not compatible with Java $javaVersion found at '/Library/$javaVersion' and will not be installed.",
         "Please upgrade your Java version to 8+" + (AgentPreCheck.parseJavaMajorVersion(javaVersion) == 7 ? " or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0" : "")
       ]
       assert logLines == expectedLogLines
@@ -139,5 +139,28 @@ class AgentPreCheckTest extends Specification {
 
     // Assert that the actual payload contains the expected data.
     payload.contains(expectedPayload)
+  }
+
+  private DataInputStream classStream(Class clazz) {
+    String resource = clazz.getName().replace('.', '/') + '.class'
+    new DataInputStream(this.getClass().getClassLoader().getResourceAsStream(resource))
+  }
+
+  def 'check #clazz compiled with Java #javaVersion'() {
+    expect:
+    classStream(clazz).withCloseable { stream ->
+      def magic = Integer.toUnsignedLong(stream.readInt())
+      def minor = (int) stream.readShort()
+      def major = (int) stream.readShort()
+
+      magic == 0xCAFEBABEL
+      minor == 0
+      major == expectedMajor
+    }
+
+    where:
+    clazz          | javaVersion | expectedMajor
+    AgentPreCheck  | 6           | 50
+    AgentBootstrap | 8           | 52
   }
 }

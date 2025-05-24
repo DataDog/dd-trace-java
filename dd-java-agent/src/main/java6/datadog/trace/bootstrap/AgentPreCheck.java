@@ -39,7 +39,7 @@ public class AgentPreCheck {
             + (agentVersion == null ? "This version" : "Version " + agentVersion)
             + " of dd-java-agent is not compatible with Java "
             + javaVersion
-            + " in '"
+            + " found at '"
             + javaHome
             + "' and will not be installed.");
 
