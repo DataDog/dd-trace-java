@@ -19,3 +19,4 @@
 {"dsl": "", "json": {"contains": [{"ref": "str"}, "ll"]}}
 {"dsl": "", "json": {"matches": [{"ref": "str"}, "[helo]+"]}}
 {"dsl": "", "json": {"instanceof": [{"ref": "str"}, "java.lang.String"]}}
+{"dsl": "", "json": {"isDefined": {"ref": "str"}}}
