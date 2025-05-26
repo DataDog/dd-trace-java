@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
@@ -109,6 +110,7 @@ public class AgentInstaller {
 
     if (InstrumenterConfig.get().isResolverMemoizingEnabled()) {
       MemoizedMatchers.registerAsSupplier();
+      Memoizer.registerAsSupplier();
     } else {
       DDElementMatchers.registerAsSupplier();
     }
