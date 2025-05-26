@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
-import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -38,7 +37,7 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    defaultPropagator().inject(Context.current().with(span), request, SETTER);
+    DECORATE.injectContext(current().with(span), request, SETTER);
     return span;
   }
 

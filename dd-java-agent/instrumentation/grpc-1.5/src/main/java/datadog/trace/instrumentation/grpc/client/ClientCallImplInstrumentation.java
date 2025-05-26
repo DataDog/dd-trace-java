@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grpc.client;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
@@ -91,7 +90,7 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         @Advice.Local("$$ddSpan") AgentSpan span) {
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
-        defaultPropagator().inject(span, headers, SETTER);
+        DECORATE.injectContext(span, headers, SETTER);
         return activateSpan(span);
       }
       return null;

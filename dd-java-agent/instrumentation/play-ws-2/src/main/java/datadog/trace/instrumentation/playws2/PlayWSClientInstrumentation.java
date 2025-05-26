@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.playws2;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
@@ -29,7 +28,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      defaultPropagator().inject(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

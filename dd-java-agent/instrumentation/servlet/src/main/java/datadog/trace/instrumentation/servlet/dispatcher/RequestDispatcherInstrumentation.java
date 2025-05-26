@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -120,7 +119,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
       // In case we lose context, inject trace into to the request.
-      defaultPropagator().inject(span, request, SETTER);
+      DECORATE.injectContext(span, request, SETTER);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
