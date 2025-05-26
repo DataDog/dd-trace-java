@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.akkahttp106;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
 
 import akka.http.scaladsl.HttpExt;
 import akka.http.scaladsl.model.HttpRequest;
@@ -23,12 +24,11 @@ public class SingleRequestAdvice {
       return null;
     }
 
-    final AgentSpan span = startSpan(AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST);
-    AkkaHttpClientDecorator.DECORATE.afterStart(span);
-    AkkaHttpClientDecorator.DECORATE.onRequest(span, request);
-
+    final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
+    DECORATE.afterStart(span);
+    DECORATE.onRequest(span, request);
     if (request != null) {
-      defaultPropagator().inject(getCurrentContext().with(span), request, headers);
+      DECORATE.injectContext(getCurrentContext().with(span), request, headers);
       // Request is immutable, so we have to assign new value once we update headers
       request = headers.getRequest();
     }
@@ -51,8 +51,8 @@ public class SingleRequestAdvice {
       responseFuture.onComplete(
           new AkkaHttpClientHelpers.OnCompleteHandler(span), thiz.system().dispatcher());
     } else {
-      AkkaHttpClientDecorator.DECORATE.onError(span, throwable);
-      AkkaHttpClientDecorator.DECORATE.beforeFinish(span);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       span.finish();
     }
     scope.close();

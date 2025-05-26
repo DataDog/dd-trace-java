@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akkahttp;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -73,12 +72,12 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         return null;
       }
 
-      final AgentSpan span = startSpan(AKKA_CLIENT_REQUEST);
+      final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
 
       if (request != null) {
-        defaultPropagator().inject(getCurrentContext().with(span), request, headers);
+        DECORATE.injectContext(getCurrentContext().with(span), request, headers);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

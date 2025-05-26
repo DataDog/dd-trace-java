@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.grizzly.client;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -68,7 +67,7 @@ public final class AsyncHttpClientInstrumentation extends InstrumenterModule.Tra
       AgentSpan span = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      defaultPropagator().inject(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
     }
   }

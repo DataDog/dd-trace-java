@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.armeria.grpc.client;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -134,7 +134,7 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
       if (null != responseListener && null != headers) {
         span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
         if (null != span) {
-          defaultPropagator().inject(span, headers, SETTER);
+          DECORATE.injectContext(current().with(span), headers, SETTER);
           return activateSpan(span);
         }
       }

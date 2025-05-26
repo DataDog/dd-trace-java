@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
 
-import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.apache.http.HttpException;
@@ -33,7 +32,7 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   public HttpRequest generateRequest() throws IOException, HttpException {
     final HttpRequest request = delegate.generateRequest();
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
-    defaultPropagator().inject(Context.current().with(span), request, SETTER);
+    DECORATE.injectContext(current().with(span), request, SETTER);
     return request;
   }
 

@@ -2,14 +2,6 @@ package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
-import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.HTTP_CLIENT;
-import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.RPC;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -23,9 +15,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.core.DDSpanContext;
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -55,19 +45,15 @@ public class DataStreamsPropagator implements Propagator {
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     // TODO Pathway context needs to be stored into its own context element instead of span context
-    AgentSpan span = AgentSpan.fromContext(context);
+    AgentSpan span;
     PathwayContext pathwayContext;
-    if (span == null
+    DataStreamsContext dsmContext;
+    TraceConfig traceConfig;
+    if ((span = AgentSpan.fromContext(context)) == null
         || (pathwayContext = span.context().getPathwayContext()) == null
-        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
-      return;
-    }
-    // Get current DSM context, or try to create a new one to inject if missing from context
-    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
-    if (dsmContext == null) {
-      dsmContext = createDataStreamsContext(span);
-    }
-    if (dsmContext == null) {
+        || (dsmContext = DataStreamsContext.fromContext(context)) == null
+        || (traceConfig = span.traceConfig()) == null
+        || !traceConfig.isDataStreamsEnabled()) {
       return;
     }
 
@@ -78,35 +64,6 @@ public class DataStreamsPropagator implements Propagator {
     if (injected && pathwayContext.getHash() != 0) {
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
     }
-  }
-
-  private static DataStreamsContext createDataStreamsContext(AgentSpan span) {
-    if (SPAN_KIND_CLIENT.equals(span.getTag(SPAN_KIND))) {
-      LinkedHashMap<String, String> tags = new LinkedHashMap<>(2);
-      tags.put(DIRECTION_TAG, DIRECTION_OUT);
-      Object componentTag = span.getTag(COMPONENT);
-      String component =
-          componentTag instanceof CharSequence ? ((CharSequence) componentTag).toString() : "";
-      CharSequence spanType =
-          span.context() instanceof DDSpanContext
-              ? ((DDSpanContext) span.context()).getSpanType()
-              : "";
-      // System.out.println(">>> component: " + component);
-      // System.out.println(">>> type: " + spanType);
-      if (spanType == HTTP_CLIENT) {
-        tags.put(TYPE_TAG, "http");
-      } else if (spanType == RPC && component.contains("grpc")) {
-        tags.put(TYPE_TAG, "grpc");
-      }
-      return DataStreamsContext.fromTags(tags);
-    }
-    if (span.getTag("servlet.context") != null
-        && span.getTag(COMPONENT) instanceof CharSequence
-        && "java-web-servlet-dispatcher"
-            .equals(((CharSequence) span.getTag(COMPONENT)).toString())) {
-      return DataStreamsContext.forHttpClient();
-    }
-    return null;
   }
 
   private <C> boolean injectPathwayContext(

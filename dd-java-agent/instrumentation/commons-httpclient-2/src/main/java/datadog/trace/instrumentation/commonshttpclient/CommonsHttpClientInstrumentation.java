@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -68,7 +67,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
 
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
-        defaultPropagator().inject(getCurrentContext().with(span), httpMethod, SETTER);
+        DECORATE.injectContext(getCurrentContext().with(span), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {

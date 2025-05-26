@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty_client91;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -91,7 +90,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
       responseListeners.add(0, new SpanFinishingCompleteListener(span));
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      defaultPropagator().inject(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
       return span;
     }
 

@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.okhttp3;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
 
-import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
@@ -29,7 +28,7 @@ public class TracingInterceptor implements Interceptor {
       DECORATE.onRequest(span, chain.request());
 
       final Request.Builder requestBuilder = chain.request().newBuilder();
-      defaultPropagator().inject(Context.current(), requestBuilder, SETTER);
+      DECORATE.injectContext(current(), requestBuilder, SETTER);
 
       final Response response;
       try {

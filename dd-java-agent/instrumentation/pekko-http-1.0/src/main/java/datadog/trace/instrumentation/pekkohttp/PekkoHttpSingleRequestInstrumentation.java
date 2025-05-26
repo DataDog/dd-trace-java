@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -79,7 +78,7 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
       DECORATE.onRequest(span, request);
 
       if (request != null) {
-        defaultPropagator().inject(getCurrentContext().with(span), request, headers);
+        DECORATE.injectContext(getCurrentContext().with(span), request, headers);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }
