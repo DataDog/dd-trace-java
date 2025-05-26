@@ -13,6 +13,7 @@
       }
     },
     "profiling": {
+      "iterations": 20,
       "env": {
         "VARIANT": "profiling",
         "JAVA_OPTS": "-Ddd.profiling.enabled=true"
