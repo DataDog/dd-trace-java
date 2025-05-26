@@ -61,6 +61,33 @@ class ProcessTagsForkedTest extends DDSpecification {
     null                  | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
   }
 
+  def 'should load websphere tags (#expected)'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.envGetter = key -> {
+      switch (key) {
+        case "WAS_CELL":
+        return cellName
+        case "SERVER_NAME":
+        return serverName
+        default:
+        return null
+      }
+    }
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsForSerialization()
+    then:
+    assert tags =~ expected
+    cleanup:
+    ProcessTags.envGetter = System::getenv
+    ProcessTags.reset()
+    where:
+    cellName | serverName | expected
+    "cell1"  | "server1"  | "cluster.name:cell1,.+,server.name:server1.*"
+    null     | "server1"  | "^((?!cluster.name|server.name).)*\$"
+  }
+
   def 'should not calculate process tags by default'() {
     when:
     ProcessTags.reset()
