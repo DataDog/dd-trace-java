@@ -2,6 +2,15 @@ import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
 
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
@@ -32,15 +41,6 @@ def applyCodeCoverage = !(
 
 if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
-}
-
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
-java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
 }
 
 // when building with Java 9+, lazily set compiler --release flag to match target
