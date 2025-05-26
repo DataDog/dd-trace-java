@@ -45,6 +45,7 @@ compileMain_java11Java.configure {
 dependencies {
   main_java11CompileOnly project(':internal-api')
   main_java11CompileOnly sourceSets.main.output
+  main_java11CompileOnly libs.bytebuddy
 }
 
 jar {

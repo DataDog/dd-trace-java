@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mule4;
+package datadog.trace.bootstrap.instrumentation.jpms;
 
 import datadog.trace.api.GenericClassValue;
 import java.util.concurrent.atomic.AtomicBoolean;
