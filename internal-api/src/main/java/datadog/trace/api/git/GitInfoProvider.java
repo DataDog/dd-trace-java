@@ -55,6 +55,7 @@ public class GitInfoProvider {
     if (repositoryPath == null) {
       repositoryPath = NULL_PATH_STRING;
     }
+
     return gitInfoCache.computeIfAbsent(repositoryPath, this::buildGitInfo);
   }
 

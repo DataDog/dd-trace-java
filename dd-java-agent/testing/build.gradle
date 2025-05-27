@@ -1,5 +1,5 @@
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -39,7 +39,7 @@ excludedClassesCoverage += [
 ]
 
 configurations.api {
-  exclude group: 'org.yaml', module: 'snakeyaml' // we vendor this in the agent jar
+  exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
 }
 
 dependencies {

@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecora
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -17,6 +18,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHandler {
 
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
+  private static final String UPGRADE_HEADER = "upgrade";
 
   public HttpServerResponseTracingHandler(
       final ContextStore<Channel, ChannelTraceContext> contextStore) {
@@ -45,7 +47,16 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }
-      if (response.getStatus() != HttpResponseStatus.CONTINUE) {
+      final boolean isWebsocketUpgrade =
+          response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
+              && "websocket".equals(response.headers().get(UPGRADE_HEADER));
+      if (isWebsocketUpgrade) {
+        String channelId = ctx.getChannel().getId().toString();
+        channelTraceContext.setSenderHandlerContext(new HandlerContext.Sender(span, channelId));
+      }
+      if (response.getStatus() != HttpResponseStatus.CONTINUE
+          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
+              || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
         span.finish(); // Finish the span manually since finishSpanOnClose was false

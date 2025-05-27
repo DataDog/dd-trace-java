@@ -37,7 +37,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_2},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -56,7 +56,7 @@
       "test.name" : "test_another_succeed",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_another_succeed()V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedAndSucceed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -85,7 +85,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_3},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -106,7 +106,7 @@
       "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_another_succeed()V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestFailedAndSucceed",
       "test.type" : "test",
       "test_session.name" : "session-name"
