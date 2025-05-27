@@ -1066,7 +1066,8 @@ public class Agent {
       if (rslt) {
         log.debug("Crashtracking initialized");
       } else {
-        log.debug(SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
+        log.debug(
+            SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
       }
     } catch (Throwable t) {
       log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);

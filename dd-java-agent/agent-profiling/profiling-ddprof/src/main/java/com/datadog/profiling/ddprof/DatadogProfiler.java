@@ -123,11 +123,10 @@ public final class DatadogProfiler {
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
-    Throwable reasonNotLoaded =
-        DdprofLibraryLoader.javaProfiler().getReasonNotLoaded();
+    Throwable reasonNotLoaded = DdprofLibraryLoader.javaProfiler().getReasonNotLoaded();
     if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
-          "Unable to instantiate datadog profiler", reasonNotLoaded );
+          "Unable to instantiate datadog profiler", reasonNotLoaded);
     }
 
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
