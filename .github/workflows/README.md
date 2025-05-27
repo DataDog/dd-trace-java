@@ -106,7 +106,7 @@ _Recovery:_ Manually trigger the action again.
 
 ### analyze-changes [🔗](analyze-changes.yaml)
 
-_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
+_Trigger:_ When pushing commits to `master`.
 
 _Action:_
 
