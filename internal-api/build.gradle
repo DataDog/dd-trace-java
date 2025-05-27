@@ -244,8 +244,8 @@ dependencies {
   api project(':dd-trace-api')
   api libs.slf4j
   api project(':components:context')
+  api project(':components:environment')
   api project(':components:yaml')
-  api project(':components:cli')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:

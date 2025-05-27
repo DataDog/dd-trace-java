@@ -163,7 +163,9 @@ class SymDBEnablementTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void noDuplicateSymbolExtraction() {
     final String CLASS_NAME_PATH = "com/datadog/debugger/symbol/SymbolExtraction01";
     SymbolSink mockSymbolSink = mock(SymbolSink.class);
