@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Comparator;
@@ -63,7 +63,7 @@ public class ExceptionHistogramTest {
 
   @BeforeAll
   public static void precheck() {
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
   }
 
   @BeforeEach

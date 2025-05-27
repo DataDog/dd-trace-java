@@ -1,8 +1,8 @@
 package datadog.trace.common.writer;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.Platform;
 import datadog.trace.core.DDSpan;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.FileOutputStream;
@@ -81,7 +81,7 @@ public class TraceStructureWriter implements Writer {
   private static String[] parseArgs(String outputFile) {
     String[] args = ARGS_DELIMITER.split(outputFile);
     // Check Windows absolute paths (<drive>:<path>) as column is used as arg delimiter
-    if (Platform.isWindows()
+    if (OperatingSystem.isWindows()
         && args.length > 1
         && args[0].length() == 1
         && (args[1].startsWith("\\") || args[1].startsWith("/"))) {
