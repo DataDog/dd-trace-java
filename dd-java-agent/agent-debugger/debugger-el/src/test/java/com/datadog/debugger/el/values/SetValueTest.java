@@ -47,4 +47,14 @@ class SetValueTest {
     assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
     assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
   }
+
+  @Test
+  void nullSet() {
+    SetValue setValue = new SetValue(null);
+    assertTrue(setValue.isEmpty());
+    assertTrue(setValue.isNull());
+    setValue = new SetValue(Values.NULL_OBJECT);
+    assertTrue(setValue.isEmpty());
+    assertTrue(setValue.isNull());
+  }
 }
