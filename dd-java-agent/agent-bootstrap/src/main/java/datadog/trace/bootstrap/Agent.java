@@ -20,6 +20,7 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -96,6 +97,9 @@ public class Agent {
     TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
     JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
     STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    CRASH_TRACKING(
+        CrashTrackingConfig.CRASH_TRACKING_ENABLED,
+        CrashTrackingConfig.CRASH_TRACKING_ENABLED_DEFAULT),
     PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
     APPSEC(AppSecConfig.APPSEC_ENABLED, false),
     IAST(IastConfig.IAST_ENABLED, false),
@@ -143,16 +147,15 @@ public class Agent {
 
   private static final AtomicBoolean jmxStarting = new AtomicBoolean();
 
-  // Mutex to synchronize profiling initialization and error tracking
-  private static final Object PROFILER_INIT_MUTEX = new Object();
-
   // fields must be managed under class lock
   private static ClassLoader AGENT_CLASSLOADER = null;
 
   private static volatile Runnable PROFILER_INIT_AFTER_JMX = null;
+  private static volatile Runnable CRASHTRACKER_INIT_AFTER_JMX = null;
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
+  private static boolean crashTrackingEnabled = false;
   private static boolean appSecEnabled;
   private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
@@ -199,12 +202,6 @@ public class Agent {
     if (agentArgs != null && !agentArgs.isEmpty()) {
       injectAgentArgsConfig(agentArgs);
     }
-
-    // We want to have this enabled as soon as possible
-    // It entails loading a native library - in order to avoid increasing startup latency we run the
-    // initialization in background (will synchronize using INIT_MUTEX to prevent concurrent
-    // execution with profiling)
-    AgentTaskScheduler.INSTANCE.execute(Agent::initializeErrorTracking);
 
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -286,6 +283,7 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
+    crashTrackingEnabled = isFeatureEnabled(AgentFeature.CRASH_TRACKING);
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
@@ -303,6 +301,18 @@ public class Agent {
 
     patchJPSAccess(inst);
 
+    // We need to run the crashtracking initialization after all the config has been resolved
+    if (crashTrackingEnabled) {
+      if (Platform.isJavaVersionAtLeast(9)) {
+        // it is safe to initialize crashtracking 'in-line'
+        initializeCrashTracking();
+      } else {
+        // for Java 8 we are relying on JMX to give us the process PID
+        // we need to delay the crash tracking initialization until JMX is available
+        CRASHTRACKER_INIT_AFTER_JMX = Agent::initializeCrashTracking;
+      }
+    }
+
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
         // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
@@ -315,13 +325,7 @@ public class Agent {
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
         // deadlock.
         // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
-        PROFILER_INIT_AFTER_JMX =
-            new Runnable() {
-              @Override
-              public void run() {
-                startProfilingAgent(false, inst);
-              }
-            };
+        PROFILER_INIT_AFTER_JMX = () -> startProfilingAgent(false, inst);
       }
     }
 
@@ -771,19 +775,29 @@ public class Agent {
       startJmxFetch();
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
+    if (crashTrackingEnabled && CRASHTRACKER_INIT_AFTER_JMX != null) {
+      try {
+        CRASHTRACKER_INIT_AFTER_JMX.run();
+      } finally {
+        CRASHTRACKER_INIT_AFTER_JMX = null;
+      }
+    }
     if (profilingEnabled) {
       registerDeadlockDetectionEvent();
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
-        if (getJmxStartDelay() == 0) {
-          log.debug("Waiting for profiler initialization");
-          AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-              PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
-        } else {
-          log.debug("Initializing profiler");
-          PROFILER_INIT_AFTER_JMX.run();
+        try {
+          if (getJmxStartDelay() == 0) {
+            log.debug("Waiting for profiler initialization");
+            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+                PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
+          } else {
+            log.debug("Initializing profiler");
+            PROFILER_INIT_AFTER_JMX.run();
+          }
+        } finally {
+          PROFILER_INIT_AFTER_JMX = null;
         }
-        PROFILER_INIT_AFTER_JMX = null;
       }
     }
   }
@@ -1025,21 +1039,37 @@ public class Agent {
     }
   }
 
-  private static void initializeErrorTracking() {
+  private static void initializeCrashTracking() {
+    initializeCrashTracking(true);
+  }
+
+  private static void initializeCrashTracking(boolean delayed) {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
-    synchronized (PROFILER_INIT_MUTEX) {
-      log.debug("Acquired INIT_MUTEX for error tracking initialization");
-      try {
-        Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.Initializer");
-        clz.getMethod("initialize").invoke(null);
-      } catch (Throwable t) {
-        log.debug("Unable to initialize crash uploader", t);
-      } finally {
-        log.debug("Releasing INIT_MUTEX after error tracking initialization");
+    log.debug("Initializing crashtracking");
+    try {
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
+      // first try to use the JVMAccess using the native library
+      boolean rslt = (boolean) clz.getMethod("initialize", boolean.class).invoke(null, false);
+      if (!rslt) {
+        if (delayed) {
+          // already delayed initialization, so no need to reschedule it again
+          // just call initialize and force JMX
+          rslt = (boolean) clz.getMethod("initialize", boolean.class).invoke(null, true);
+        } else {
+          // delayed initialization, so we need to reschedule it and mark as delayed
+          CRASHTRACKER_INIT_AFTER_JMX = Agent::initializeCrashTracking;
+        }
       }
+      if (rslt) {
+        log.debug("Crashtracking initialized");
+      } else {
+        log.debug(SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
+      }
+    } catch (Throwable t) {
+      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);
     }
   }
 
@@ -1114,37 +1144,37 @@ public class Agent {
       return;
     }
 
-    synchronized (PROFILER_INIT_MUTEX) {
-      log.debug("Acquired INIT_MUTEX for profiling initialization");
-      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-      try {
-        Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
-        final Class<?> profilingAgentClass =
-            AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-        final Method profilingInstallerMethod =
-            profilingAgentClass.getMethod(
-                "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
-        profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
-        /*
-         * Install the tracer hooks only when not using 'early start'.
-         * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
-         */
-        if (!isStartingFirst) {
-          log.debug("Scheduling scope event factory registration");
-          WithGlobalTracer.registerOrExecute(
-              new WithGlobalTracer.Callback() {
-                @Override
-                public void withTracer(TracerAPI tracer) {
-                  log.debug("Initializing profiler tracer integrations");
-                  tracer.getProfilingContext().onStart();
-                }
-              });
-        }
-      } catch (final Throwable t) {
-        log.error(
-            "Throwable thrown while starting profiling agent "
-                + Arrays.toString(t.getCause().getStackTrace()));
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> profilingAgentClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod(
+              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
+      /*
+       * Install the tracer hooks only when not using 'early start'.
+       * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
+       */
+      if (!isStartingFirst) {
+        log.debug("Scheduling scope event factory registration");
+        WithGlobalTracer.registerOrExecute(
+            new WithGlobalTracer.Callback() {
+              @Override
+              public void withTracer(TracerAPI tracer) {
+                log.debug("Initializing profiler tracer integrations");
+                tracer.getProfilingContext().onStart();
+              }
+            });
       }
+    } catch (final Throwable t) {
+      log.error(
+          SEND_TELEMETRY,
+          "Throwable thrown while starting profiling agent "
+              + Arrays.toString(t.getCause().getStackTrace()));
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
     }
 
     StaticEventLogger.end("ProfilingAgent");

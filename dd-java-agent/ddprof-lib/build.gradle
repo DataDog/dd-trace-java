@@ -1,0 +1,30 @@
+plugins {
+  id "com.gradleup.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  // This module provides the ddprof library as an api dependency
+  // so that other modules can easily depend on it.
+  implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+  api project(':internal-api')
+  api project(':dd-trace-api')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+  archiveClassifier = 'all'
+  include {
+    def rslt = false
+    rslt |= it.path == 'datadog' || it.path == "com" || it.path == "com/datadog"
+    || it.path.startsWith("datadog/") || it.path == "com/datadoghq" || it.path == "com/datadoghq/profiler"
+    || it.path.startsWith("com/datadoghq/profiler")
+    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/") || it.path.startsWith("META-INF/native-libs/")
+    rslt |= (it.path.contains("ddprof") && it.path.endsWith(".jar"))
+    println("Checking ${it.path} = ${rslt}")
+    return rslt
+  }
+}
+
+build.dependsOn shadowJar

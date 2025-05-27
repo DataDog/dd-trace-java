@@ -28,6 +28,7 @@ final class CachedData {
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))
       exclude(project(':dd-java-agent:agent-crashtracking'))
+      exclude(project(':dd-java-agent:ddprof-lib'))
       exclude(dependency('org.slf4j::'))
 
       // okhttp and its transitives (both fork and non-fork)

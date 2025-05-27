@@ -1,7 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  // This module provides the ddprof library as an api dependency
-  // so that other modules can easily depend on it.
-  api project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
-}
