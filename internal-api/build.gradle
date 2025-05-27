@@ -139,6 +139,7 @@ excludedClassesCoverage += [
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
+  "datadog.trace.api.git.GitInfoProvider.ShaDiscrepancy",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO

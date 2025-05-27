@@ -14,6 +14,10 @@ import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
@@ -101,6 +105,14 @@ public enum CiVisibilityCountMetric {
   GIT_COMMAND("git.command", Command.class),
   /** The number of git commands that errored */
   GIT_COMMAND_ERRORS("git.command_errors", Command.class, ExitCode.class),
+  /** Number of commit sha comparisons and if they matched when building git info for a repo */
+  GIT_COMMIT_SHA_MATCH("git.commit_sha_match", GitShaMatch.class),
+  /** Number of sha mismatches when building git info for a repo */
+  GIT_COMMIT_SHA_DISCREPANCY(
+      "git.commit_sha_discrepancy",
+      GitProviderExpected.class,
+      GitProviderDiscrepant.class,
+      GitShaDiscrepancyType.class),
   /** The number of requests sent to the search commit endpoint */
   GIT_REQUESTS_SEARCH_COMMITS("git_requests.search_commits", RequestCompressed.class),
   /** The number of search commit requests sent to the endpoint that errored */

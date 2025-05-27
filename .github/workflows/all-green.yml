@@ -1,0 +1,36 @@
+name: Check Pull Request CI Status
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  checks: read
+  statuses: read
+
+jobs:
+  all-jobs-are-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Ensure CI Success
+        uses: DataDog/ensure-ci-success@f40e6ffd8e60280d478b9b92209aaa30d3d56895
+        with:
+          initial-delay-seconds: "1000"
+          max-retries: "60"
+          ignored-name-patterns: |
+            dd-gitlab/default-pipeline
+            dd-gitlab/check_inst 4/4
+            dd-gitlab/muzzle .*
+
+# ignored jobs : 
+#
+# * dd-gitlab/default-pipeline => success rate of 70% (needs an owner)
+# * dd-gitlab/check_inst 4/4   => success rate of 78% (needs an owner)
+# * dd-gitlab/muzzle .*        => success rate of ~85% (needs an owner)
