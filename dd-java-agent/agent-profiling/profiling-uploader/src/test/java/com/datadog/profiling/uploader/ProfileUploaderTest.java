@@ -52,6 +52,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
+import io.airlift.compress.zstd.ZstdInputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -337,7 +338,7 @@ public class ProfileUploaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
+  @ValueSource(strings = {"on", "lz4", "gzip", "zstd", "off", "invalid"})
   public void testCompression(final String compression) throws Exception {
     when(config.getApiKey()).thenReturn(null);
     when(config.getProfilingUploadCompression()).thenReturn(compression);
@@ -372,6 +373,8 @@ public class ProfileUploaderTest {
     byte[] uploadedBytes = rawJfr.get();
     if (compression.equals("gzip")) {
       uploadedBytes = unGzip(uploadedBytes);
+    } else if (compression.equals("zstd")) {
+      uploadedBytes = unZstd(uploadedBytes);
     } else if (compression.equals("on")
         || compression.equals("lz4")
         || compression.equals("invalid")) {
@@ -890,6 +893,13 @@ public class ProfileUploaderTest {
 
   private static byte[] unLz4(final byte[] compressed) throws IOException {
     final InputStream stream = new LZ4FrameInputStream(new ByteArrayInputStream(compressed));
+    final ByteArrayOutputStream result = new ByteArrayOutputStream();
+    ByteStreams.copy(stream, result);
+    return result.toByteArray();
+  }
+
+  private static byte[] unZstd(final byte[] compressed) throws IOException {
+    final InputStream stream = new ZstdInputStream(new ByteArrayInputStream(compressed));
     final ByteArrayOutputStream result = new ByteArrayOutputStream();
     ByteStreams.copy(stream, result);
     return result.toByteArray();

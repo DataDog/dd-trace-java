@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.domain;
+package datadog.trace.api.civisibility.execution;
 
 public enum TestStatus {
   pass,

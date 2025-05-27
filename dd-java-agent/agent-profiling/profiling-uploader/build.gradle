@@ -31,6 +31,7 @@ dependencies {
 
   implementation libs.okhttp
   implementation libs.lz4
+  implementation group: 'io.airlift', name: 'aircompressor', version: '2.0.2'
 
   testImplementation libs.bundles.junit5
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
