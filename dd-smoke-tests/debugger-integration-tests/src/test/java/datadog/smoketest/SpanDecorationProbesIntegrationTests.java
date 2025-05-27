@@ -49,7 +49,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   @Test
   @DisplayName("testMethodSimpleTagNoCondition")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testMethodSimpleTagNoCondition() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
@@ -79,7 +79,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   @Test
   @DisplayName("testMethodMultiTagsMultiConditions")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testMethodMultiTagsMultiConditions() throws Exception {
     List<SpanDecorationProbe.Decoration> decorations =
@@ -125,7 +125,9 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodSimpleTagValueError")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testMethodSimpleTagValueError() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
@@ -162,7 +164,9 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodSimpleTagConditionError")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testMethodSimpleTagConditionError() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()
@@ -201,7 +205,9 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testMethodMultiTagValueError")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testMethodMultiTagValueError() throws Exception {
     List<SpanDecorationProbe.Decoration> decorations =
         Arrays.asList(
@@ -246,7 +252,9 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
 
   @Test
   @DisplayName("testSamplingSpanDecoration")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingSpanDecoration() throws Exception {
     SpanDecorationProbe spanDecorationProbe =
         SpanDecorationProbe.builder()

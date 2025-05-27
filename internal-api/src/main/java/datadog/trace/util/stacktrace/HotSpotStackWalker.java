@@ -1,6 +1,6 @@
 package datadog.trace.util.stacktrace;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -19,7 +19,7 @@ public class HotSpotStackWalker extends AbstractStackWalker {
   @Override
   public boolean isEnabled() {
     try {
-      if (Platform.isJavaVersion(8) && access != null) {
+      if (JavaVirtualMachine.isJavaVersion(8) && access != null) {
         access.getStackTraceElement(new Throwable(), 0);
         return true;
       }
