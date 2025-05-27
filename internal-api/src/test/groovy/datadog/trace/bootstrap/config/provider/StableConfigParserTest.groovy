@@ -201,7 +201,7 @@ apm_configuration_rules:
       KEY_TWO: "value_two"
 """
     String bigYaml = baseYaml
-    while(bigYaml.size() < StableConfigParser.getMaxFileSizeBytes()) {
+    while(bigYaml.size() < StableConfigParser.MAX_FILE_SIZE_BYTES) {
       bigYaml += builderYaml
     }
 
