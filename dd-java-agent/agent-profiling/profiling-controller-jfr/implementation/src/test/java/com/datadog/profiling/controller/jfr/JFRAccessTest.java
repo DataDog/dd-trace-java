@@ -1,10 +1,12 @@
 package com.datadog.profiling.controller.jfr;
 
+import static datadog.environment.JavaVirtualMachine.isJ9;
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import datadog.trace.api.Platform;
 import org.junit.jupiter.api.Test;
 
 public class JFRAccessTest {
@@ -12,7 +14,7 @@ public class JFRAccessTest {
   void testJava8JFRAccess() {
     // For Java 9 and above, the JFR access requires instrumentation in order to patch the module
     // access
-    assumeTrue(Platform.isJavaVersion(8) && !Platform.isJ9() && !Platform.isOracleJDK8());
+    assumeTrue(isJavaVersion(8) && !isJ9() && !isOracleJDK8());
 
     // just do a sanity check that it is possible to instantiate the class and call
     // 'setStackDepth()'
@@ -22,7 +24,7 @@ public class JFRAccessTest {
 
   @Test
   void testJ9JFRAccess() {
-    assumeTrue(Platform.isJ9());
+    assumeTrue(isJ9());
 
     // need to run a bogus setup first
     JFRAccess.setup(null);

@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.Platform.isJavaVersion
+import static datadog.environment.JavaVirtualMachine.isJavaVersion
 
 class URIUtilsTest extends DDSpecification {
   static boolean java7 = isJavaVersion(7)

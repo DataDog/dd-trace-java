@@ -5,8 +5,8 @@ import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.NEVER_CHECKED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.util.ProcessSupervisor;
 import java.io.Closeable;
 import java.io.File;
@@ -17,7 +17,7 @@ public class ExternalAgentLauncher implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(ExternalAgentLauncher.class);
 
   private static final ProcessBuilder.Redirect DISCARD =
-      ProcessBuilder.Redirect.to(new File((Platform.isWindows() ? "NUL" : "/dev/null")));
+      ProcessBuilder.Redirect.to(new File((OperatingSystem.isWindows() ? "NUL" : "/dev/null")));
 
   private ProcessSupervisor traceProcessSupervisor;
   private ProcessSupervisor dogStatsDProcessSupervisor;

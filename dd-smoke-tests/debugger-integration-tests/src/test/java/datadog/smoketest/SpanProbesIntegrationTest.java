@@ -70,7 +70,9 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testSingleLineSpan")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSingleLineSpan() throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS = "2"; // 2 probe statuses: RECEIVED + ERROR
