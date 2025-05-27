@@ -16,7 +16,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:version-utils')
-  implementation project(':dd-java-agent:ddprof-dependency')
+  implementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
   implementation libs.okhttp
   implementation libs.moshi
