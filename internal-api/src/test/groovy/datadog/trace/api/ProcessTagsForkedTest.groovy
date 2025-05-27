@@ -30,9 +30,9 @@ class ProcessTagsForkedTest extends DDSpecification {
     tags =~ expected
     where:
     jar                                     | cls             | expected
-    Paths.get("my test", "my.jar").toFile() | null            | "entrypoint.basedir:my_test,entrypoint.name:my,entrypoint.workdir:[^,]+"
-    Paths.get("my.jar").toFile()            | null            | "entrypoint.name:my,entrypoint.workdir:[^,]+"
-    null                                    | "com.test.Main" | "entrypoint.name:com.test.main,entrypoint.workdir:[^,]+"
+    Paths.get("my test", "my.jar").toFile() | null            | "entrypoint.basedir:my_test,entrypoint.name:my,entrypoint.type:jar,entrypoint.workdir:[^,]+"
+    Paths.get("my.jar").toFile()            | null            | "entrypoint.name:my,entrypoint.type:jar,entrypoint.workdir:[^,]+"
+    null                                    | "com.test.Main" | "entrypoint.name:com.test.main,entrypoint.type:class,entrypoint.workdir:[^,]+"
     null                                    | null            | "entrypoint.workdir:[^,]+"
   }
 
@@ -56,9 +56,9 @@ class ProcessTagsForkedTest extends DDSpecification {
     System.clearProperty("jboss.server.name")
     where:
     jbossHome             | mode              | serverName   | expected
-    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:standalone,server.name:standalone"
-    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:domain,server.name:server1"
-    null                  | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
+    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:standalone,server.name:standalone"
+    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:domain,server.name:server1"
+    null                  | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
   }
 
   def 'should not calculate process tags by default'() {
