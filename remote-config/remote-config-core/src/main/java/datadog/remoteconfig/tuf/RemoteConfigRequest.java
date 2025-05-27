@@ -34,7 +34,7 @@ public class RemoteConfigRequest {
             serviceEnv,
             serviceVersion,
             tags,
-            ProcessTags.getTagsAsList());
+            ProcessTags.getTagsAsStringList());
 
     ClientInfo clientInfo =
         new RemoteConfigRequest.ClientInfo(

@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.coverage.CoverageStore
+import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.civisibility.codeowners.Codeowners
@@ -24,21 +25,26 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     def retryPolicy1 = headlessTestModule.executionPolicy(new TestIdentifier("suite", "test-1", null), TestSourceData.UNKNOWN, [])
 
     then:
-    retryPolicy1.retry(false, 1L) // 2nd test execution, 1st retry globally
-    !retryPolicy1.retry(false, 1L) // asking for 3rd test execution - local limit reached
+    retryPolicy1.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    !retryPolicy1.wasLastExecution()
+    retryPolicy1.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
+    retryPolicy1.wasLastExecution() // asking for 3rd test execution - local limit reached
 
     when:
     def retryPolicy2 = headlessTestModule.executionPolicy(new TestIdentifier("suite", "test-2", null), TestSourceData.UNKNOWN, [])
 
     then:
-    retryPolicy2.retry(false, 1L) // 2nd test execution, 2nd retry globally (since previous test was retried too)
-    !retryPolicy2.retry(false, 1L) // asking for 3rd test execution - local limit reached
+    retryPolicy2.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    !retryPolicy2.wasLastExecution()
+    retryPolicy2.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
+    retryPolicy2.wasLastExecution() // asking for 3rd test execution - local limit reached
 
     when:
     def retryPolicy3 = headlessTestModule.executionPolicy(new TestIdentifier("suite", "test-3", null), TestSourceData.UNKNOWN, [])
 
     then:
-    !retryPolicy3.retry(false, 1L) // asking for 3rd retry globally - global limit reached
+    retryPolicy3.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    retryPolicy3.wasLastExecution() // asking for 3rd retry globally - global limit reached
   }
 
   private HeadlessTestModule givenAHeadlessTestModule() {

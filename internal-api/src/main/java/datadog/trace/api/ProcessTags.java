@@ -6,9 +6,10 @@ import datadog.trace.util.TraceUtils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -19,12 +20,14 @@ public class ProcessTags {
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
 
   private static class Lazy {
-    static final Map<String, String> TAGS = loadTags();
+    // the tags are used to compute a hash for dsm hence that map must be sorted.
+    static final SortedMap<String, String> TAGS = loadTags();
     static volatile UTF8BytesString serializedForm;
-    static volatile List<String> listForm;
+    static volatile List<UTF8BytesString> utf8ListForm;
+    static volatile List<String> stringListForm;
 
-    private static Map<String, String> loadTags() {
-      Map<String, String> tags = new LinkedHashMap<>();
+    private static SortedMap<String, String> loadTags() {
+      SortedMap<String, String> tags = new TreeMap<>();
       if (enabled) {
         try {
           fillBaseTags(tags);
@@ -65,10 +68,12 @@ public class ProcessTags {
           CapturedEnvironment.get().getProcessInfo();
       if (processInfo.mainClass != null) {
         tags.put("entrypoint.name", processInfo.mainClass);
+        tags.put("entrypoint.type", "class");
       }
       if (processInfo.jarFile != null) {
         final String jarName = processInfo.jarFile.getName();
         tags.put("entrypoint.name", jarName.substring(0, jarName.length() - 4)); // strip .jar
+        tags.put("entrypoint.type", "jar");
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), "entrypoint.basedir");
       }
 
@@ -86,15 +91,21 @@ public class ProcessTags {
     }
 
     static void calculate() {
-      if (listForm != null || TAGS.isEmpty()) {
+      if (serializedForm != null || TAGS.isEmpty()) {
         return;
       }
       synchronized (Lazy.TAGS) {
-        final Stream<String> tagStream =
+        final Stream<UTF8BytesString> tagStream =
             TAGS.entrySet().stream()
-                .map(entry -> entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue()));
-        listForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
-        serializedForm = UTF8BytesString.create(String.join(",", listForm));
+                .map(
+                    entry ->
+                        UTF8BytesString.create(
+                            entry.getKey() + ":" + TraceUtils.normalizeTag(entry.getValue())));
+        utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
+        stringListForm =
+            Collections.unmodifiableList(
+                utf8ListForm.stream().map(UTF8BytesString::toString).collect(Collectors.toList()));
+        serializedForm = UTF8BytesString.create(String.join(",", utf8ListForm));
       }
     }
   }
@@ -102,24 +113,39 @@ public class ProcessTags {
   private ProcessTags() {}
 
   // need to be synchronized on writing. As optimization, it does not need to be sync on read.
-  public static synchronized void addTag(String key, String value) {
+  public static void addTag(String key, String value) {
     if (enabled) {
-      Lazy.TAGS.put(key, value);
-      Lazy.serializedForm = null;
-      Lazy.listForm = null;
+      synchronized (Lazy.TAGS) {
+        Lazy.TAGS.put(key, value);
+        Lazy.serializedForm = null;
+        Lazy.stringListForm = null;
+        Lazy.utf8ListForm = null;
+      }
     }
   }
 
-  public static List<String> getTagsAsList() {
+  public static List<UTF8BytesString> getTagsAsUTF8ByteStringList() {
     if (!enabled) {
       return null;
     }
-    final List<String> listForm = Lazy.listForm;
+    final List<UTF8BytesString> listForm = Lazy.utf8ListForm;
     if (listForm != null) {
       return listForm;
     }
     Lazy.calculate();
-    return Lazy.listForm;
+    return Lazy.utf8ListForm;
+  }
+
+  public static List<String> getTagsAsStringList() {
+    if (!enabled) {
+      return null;
+    }
+    final List<String> listForm = Lazy.stringListForm;
+    if (listForm != null) {
+      return listForm;
+    }
+    Lazy.calculate();
+    return Lazy.stringListForm;
   }
 
   public static UTF8BytesString getTagsForSerialization() {
@@ -136,15 +162,25 @@ public class ProcessTags {
 
   /** Visible for testing. */
   static void empty() {
-    Lazy.TAGS.clear();
-    Lazy.serializedForm = null;
-    Lazy.listForm = null;
+    synchronized (Lazy.TAGS) {
+      Lazy.TAGS.clear();
+      Lazy.serializedForm = null;
+      Lazy.stringListForm = null;
+      Lazy.utf8ListForm = null;
+    }
   }
 
   /** Visible for testing. */
   static void reset() {
-    empty();
-    enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
-    Lazy.TAGS.putAll(Lazy.loadTags());
+    reset(Config.get());
+  }
+
+  /** Visible for testing. */
+  public static void reset(Config config) {
+    synchronized (Lazy.TAGS) {
+      empty();
+      enabled = config.isExperimentalPropagateProcessTagsEnabled();
+      Lazy.TAGS.putAll(Lazy.loadTags());
+    }
   }
 }

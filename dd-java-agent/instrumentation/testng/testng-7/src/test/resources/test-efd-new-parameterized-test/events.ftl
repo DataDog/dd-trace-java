@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -37,7 +37,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_2},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -57,7 +57,7 @@
       "test.parameters" : "{\"arguments\":{\"0\":\"hello\",\"1\":\"true\"}}",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -86,7 +86,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_3},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -108,7 +108,7 @@
       "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -188,7 +188,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_5},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -208,7 +208,7 @@
       "test.parameters" : "{\"arguments\":{\"0\":\"\\\"goodbye\\\"\",\"1\":\"false\"}}",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -237,7 +237,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_6},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -259,7 +259,7 @@
       "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestParameterized",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -356,7 +356,7 @@
       "test.early_flake.enabled" : "true",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -390,7 +390,7 @@
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

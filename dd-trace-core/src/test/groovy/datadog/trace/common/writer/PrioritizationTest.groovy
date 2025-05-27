@@ -230,7 +230,7 @@ class PrioritizationTest extends DDSpecification {
     []    | USER_KEEP    | 1             | 0                | ENQUEUED_FOR_SERIALIZATION
   }
 
-  def "drop strategy respects force keep" () {
+  def "span sampling drop strategy respects force keep" () {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> spanSampling = Mock(Queue)

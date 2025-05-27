@@ -27,7 +27,7 @@ import java.time.Duration
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
 
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566) // Default LocalStack port
   .withEnv("SERVICES", "sns,sqs") // Enable SNS and SQS service
   .withReuse(true)

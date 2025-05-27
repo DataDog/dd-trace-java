@@ -30,9 +30,9 @@ class ProcessTagsForkedTest extends DDSpecification {
     tags =~ expected
     where:
     jar                                     | cls             | expected
-    Paths.get("my test", "my.jar").toFile() | null            | "entrypoint.name:my,entrypoint.basedir:my_test,entrypoint.workdir:[^,]+"
-    Paths.get("my.jar").toFile()            | null            | "entrypoint.name:my,entrypoint.workdir:[^,]+"
-    null                                    | "com.test.Main" | "entrypoint.name:com.test.main,entrypoint.workdir:[^,]+"
+    Paths.get("my test", "my.jar").toFile() | null            | "entrypoint.basedir:my_test,entrypoint.name:my,entrypoint.type:jar,entrypoint.workdir:[^,]+"
+    Paths.get("my.jar").toFile()            | null            | "entrypoint.name:my,entrypoint.type:jar,entrypoint.workdir:[^,]+"
+    null                                    | "com.test.Main" | "entrypoint.name:com.test.main,entrypoint.type:class,entrypoint.workdir:[^,]+"
     null                                    | null            | "entrypoint.workdir:[^,]+"
   }
 
@@ -56,9 +56,9 @@ class ProcessTagsForkedTest extends DDSpecification {
     System.clearProperty("jboss.server.name")
     where:
     jbossHome             | mode              | serverName   | expected
-    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:.+,jboss.home:myserver,server.name:standalone,jboss.mode:standalone"
-    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:.+,jboss.home:myserver,server.name:server1,jboss.mode:domain"
-    null                  | "[Standalone]"    | "standalone" | "entrypoint.name:jboss-modules,entrypoint.basedir:somewhere,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
+    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:standalone,server.name:standalone"
+    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:domain,server.name:server1"
+    null                  | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
   }
 
   def 'should not calculate process tags by default'() {
@@ -72,7 +72,8 @@ class ProcessTagsForkedTest extends DDSpecification {
     ProcessTags.addTag("test", "value")
     then:
     assert ProcessTags.tagsForSerialization == null
-    assert ProcessTags.tagsAsList == null
+    assert ProcessTags.tagsAsStringList == null
+    assert ProcessTags.tagsAsUTF8ByteStringList == null
   }
 
   def 'should lazily recalculate when a tag is added'() {
@@ -81,18 +82,24 @@ class ProcessTagsForkedTest extends DDSpecification {
     ProcessTags.reset()
     when:
     def processTags = ProcessTags.tagsForSerialization
-    def tagsAsList = ProcessTags.tagsAsList
+    def tagsAsList = ProcessTags.tagsAsStringList
+    def tagsAsUtf8List = ProcessTags.tagsAsUTF8ByteStringList
     then:
     assert ProcessTags.enabled
     assert processTags != null
     assert tagsAsList != null
     assert tagsAsList.size() > 0
+    assert tagsAsUtf8List != null
+    assert tagsAsUtf8List.size() == tagsAsList.size()
     when:
-    ProcessTags.addTag("test", "value")
+    // add it as first pos since 0 < any other a-z
+    ProcessTags.addTag("0test", "value")
     then:
-    assert ProcessTags.tagsForSerialization.toString() == "$processTags,test:value"
-    def size = ProcessTags.tagsAsList.size()
+    assert ProcessTags.tagsForSerialization.toString() == "0test:value,$processTags"
+    def size = ProcessTags.tagsAsStringList.size()
     assert size == tagsAsList.size() + 1
-    assert ProcessTags.tagsAsList[size - 1] == "test:value"
+    assert size == ProcessTags.tagsAsUTF8ByteStringList.size()
+    assert ProcessTags.tagsAsStringList[0] == "0test:value"
+    assert ProcessTags.tagsAsUTF8ByteStringList[0].toString() == "0test:value"
   }
 }

@@ -56,7 +56,7 @@ class SamplerTest extends DDSpecification{
     !(sampler instanceof AsmStandaloneSampler)
   }
 
-  void "test that AsmStandaloneSampler is not selected when apm tracing and asm not enabled"() {
+  void "test that AsmStandaloneSampler is not selected when apm tracing enabled and asm not enabled"() {
     setup:
     Config config = new Config()
 

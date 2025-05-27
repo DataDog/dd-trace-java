@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
 }
 
 description = 'dd-java-agent'
@@ -38,7 +38,7 @@ ext.generalShadowJarConfig = {
   // used to report our own dependencies, but we should remove the top-level metadata
   // of vendored packages because those could trigger unwanted framework checks.
   exclude '/META-INF/maven/org.slf4j/**'
-  exclude '/META-INF/maven/org.yaml/**'
+  exclude '/META-INF/maven/org.snakeyaml/**'
   exclude '**/META-INF/maven/**/pom.xml'
   exclude '**/META-INF/proguard/'
   exclude '**/META-INF/*.kotlin_module'
@@ -66,7 +66,7 @@ ext.generalShadowJarConfig = {
 
   // Prevents conflict with other instances, but doesn't relocate instrumentation
   if (!projectName.equals('instrumentation')) {
-    relocate 'org.yaml.snakeyaml', 'datadog.snakeyaml'
+    relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
     relocate 'okhttp3', 'datadog.okhttp3'
     relocate 'okio',  'datadog.okio'
   }
@@ -306,7 +306,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() <= 31 * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 32 * 1024 * 1024
   }
 
   dependsOn "shadowJar"

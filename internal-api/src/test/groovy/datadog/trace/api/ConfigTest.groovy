@@ -260,7 +260,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
-    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
@@ -356,7 +356,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60
     config.dynamicInstrumentationVerifyByteCode == true
-    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
     config.jdkSocketEnabled == false
@@ -451,7 +451,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
-    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
@@ -543,7 +543,7 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationPollInterval == 10
     config.dynamicInstrumentationDiagnosticsInterval == 60
     config.dynamicInstrumentationVerifyByteCode == true
-    config.dynamicInstrumentationInstrumentTheWorld == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128

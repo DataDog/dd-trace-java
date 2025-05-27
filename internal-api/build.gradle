@@ -126,6 +126,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   "datadog.trace.api.civisibility.events.TestDescriptor",
   "datadog.trace.api.civisibility.events.TestSuiteDescriptor",
+  "datadog.trace.api.civisibility.execution.TestStatus",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric.IndexHolder",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
@@ -251,7 +252,7 @@ dependencies {
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
-  testImplementation("org.yaml:snakeyaml:2.4")
+  testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5

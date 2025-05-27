@@ -3,9 +3,11 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.context.Context;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
@@ -56,12 +58,12 @@ public class HttpServerDecoratorBenchmark {
             .build();
     GlobalTracer.forceRegister(tracer);
     decorator = new BenchmarkHttpServerDecorator();
-    span = decorator.startSpan(Collections.emptyMap(), null);
+    span = decorator.startSpan(Collections.emptyMap(), (Context) null);
   }
 
   @Benchmark
   public AgentSpan onRequest() {
-    return decorator.onRequest(span, null, request, null);
+    return decorator.onRequest(span, null, request, (AgentSpanContext.Extracted) null);
   }
 
   public static class Request {

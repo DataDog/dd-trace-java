@@ -48,8 +48,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.WebSocketListener
-import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -409,6 +407,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     server instanceof WebsocketServer
   }
 
+  WebsocketClient websocketClient() {
+    new OkHttpWebsocketClient()
+  }
+
   boolean testEndpointDiscovery() {
     false
   }
@@ -574,7 +576,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responses
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
-      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      // Limit pool size. Too many threads overwhelm the server and starve the host
+      def availableProcessorsOverride = System.getenv().get("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+      def poolSize = availableProcessorsOverride == null ? Runtime.getRuntime().availableProcessors() : Integer.valueOf(availableProcessorsOverride)
+      def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
         completionService.submit {
@@ -1295,7 +1300,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
@@ -1943,12 +1948,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-
+    def client = websocketClient()
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     runUnderTrace("parent", {
       if (messages[0] instanceof String) {
@@ -1990,21 +1992,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads())
+    def client = websocketClient()
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads() || client.supportMessageChunks())
 
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    def ws = client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     wsServer.setMaxPayloadSize(10)
+    // in case the client can also send partial fragments
+    client.setSplitChunksAfter(10)
     if (message instanceof String) {
-      ws.send(message as String)
+      client.send(message as String)
     } else {
-      ws.send(ByteString.of(message as byte[]))
+      client.send(message as byte[])
     }
-    ws.close(1000, "goodbye")
+    client.close(1000, "goodbye")
 
     then:
     assertTraces(3, {
@@ -2218,8 +2220,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+          } else {
+            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
