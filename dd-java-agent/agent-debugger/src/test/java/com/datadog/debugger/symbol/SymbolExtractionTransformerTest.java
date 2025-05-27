@@ -58,7 +58,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction01() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
@@ -123,7 +125,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction02() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
@@ -150,7 +154,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction03() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
@@ -217,7 +223,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction04() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
@@ -288,7 +296,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction05() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
@@ -333,7 +343,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction06() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
@@ -378,7 +390,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction07() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
@@ -409,7 +423,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction08() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
@@ -442,7 +458,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction09() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
@@ -533,7 +551,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction10() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
@@ -583,7 +603,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction11() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
@@ -616,7 +638,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction12() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
@@ -689,7 +713,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction13() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -751,7 +777,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction14() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
@@ -829,7 +857,9 @@ class SymbolExtractionTransformerTest {
 
   @Test
   @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21})
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void symbolExtraction15() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction15";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction15.java";
@@ -901,7 +931,9 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void duplicateClassThroughDifferentClassLoader() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);

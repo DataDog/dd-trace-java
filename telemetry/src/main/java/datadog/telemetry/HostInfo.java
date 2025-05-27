@@ -1,7 +1,7 @@
 package datadog.telemetry;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -36,7 +36,7 @@ public class HostInfo {
 
   public static String getOsName() {
     if (osName == null) {
-      if (Platform.isMac()) {
+      if (OperatingSystem.isMacOs()) {
         // os.name == Mac OS X, while uanme -s == Darwin. We'll hardcode it to Darwin.
         osName = "Darwin";
       } else {

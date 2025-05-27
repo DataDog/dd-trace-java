@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
@@ -33,7 +33,7 @@ public class OpenJdkControllerTest {
 
   @BeforeAll
   static void setupSpec() {
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
   }
 
   @Test

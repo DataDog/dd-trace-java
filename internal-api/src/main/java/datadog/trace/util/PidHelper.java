@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -41,7 +42,7 @@ public final class PidHelper {
 
   private static String findPid() {
     String pid = "";
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         pid =
             Strings.trim(
@@ -70,20 +71,20 @@ public final class PidHelper {
   }
 
   private static String getTempDir() {
-    if (!Platform.isJ9()) {
+    if (!JavaVirtualMachine.isJ9()) {
       // See
       // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
       // and
       // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
       // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
-      if (Platform.isLinux()) {
+      if (OperatingSystem.isLinux()) {
         return "/tmp";
-      } else if (Platform.isWindows()) {
+      } else if (OperatingSystem.isWindows()) {
         return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
             .filter(String::isEmpty)
             .findFirst()
             .orElse("C:\\Windows");
-      } else if (Platform.isMac()) {
+      } else if (OperatingSystem.isMacOs()) {
         return System.getenv("TMPDIR");
       } else {
         return System.getProperty("java.io.tmpdir");
@@ -100,7 +101,7 @@ public final class PidHelper {
         String tmpDir = System.getProperty("java.io.tmpdir");
         if (tmpDir != null && !tmpDir.isEmpty()) {
           return tmpDir;
-        } else if (Platform.isWindows()) {
+        } else if (OperatingSystem.isWindows()) {
           return "C:\\Documents";
         } else {
           return "/tmp";
@@ -110,7 +111,7 @@ public final class PidHelper {
   }
 
   private static Path getJavaProcessesDir() {
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // J9 uses a different temporary directory AND subdirectory for storing jps / attach-related
       // info
       // https://github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/CommonDirectory.java#L94
