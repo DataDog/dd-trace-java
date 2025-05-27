@@ -29,11 +29,7 @@ public class AgentPreCheck {
   }
 
   private static void reportIncompatibleJava(
-      String javaVersion,
-      int majorJavaVersion,
-      String javaHome,
-      String agentVersion,
-      PrintStream output) {
+      String javaVersion, String javaHome, String agentVersion, PrintStream output) {
     output.println(
         "Warning: "
             + (agentVersion == null ? "This version" : "Version " + agentVersion)
@@ -42,13 +38,7 @@ public class AgentPreCheck {
             + " found at '"
             + javaHome
             + "' and will not be installed.");
-
-    String msg = "Please upgrade your Java version to 8+";
-    if (majorJavaVersion == 7) {
-      msg +=
-          " or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0";
-    }
-    output.println(msg);
+    output.println("Please upgrade your Java version to 8+");
   }
 
   static void sendTelemetry(String forwarderPath, String javaVersion, String agentVersion) {
@@ -103,7 +93,7 @@ public class AgentPreCheck {
 
     String agentVersion = getAgentVersion();
 
-    reportIncompatibleJava(javaVersion, majorJavaVersion, javaHome, agentVersion, output);
+    reportIncompatibleJava(javaVersion, javaHome, agentVersion, output);
 
     String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath != null) {

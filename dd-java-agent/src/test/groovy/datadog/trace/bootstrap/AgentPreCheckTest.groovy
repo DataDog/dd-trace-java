@@ -74,7 +74,7 @@ class AgentPreCheckTest extends Specification {
       logLines.size() == 2
       def expectedLogLines = [
         "Warning: Version ${AgentJar.getAgentVersion()} of dd-java-agent is not compatible with Java $javaVersion found at '/Library/$javaVersion' and will not be installed.",
-        "Please upgrade your Java version to 8+" + (AgentPreCheck.parseJavaMajorVersion(javaVersion) == 7 ? " or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0" : "")
+        "Please upgrade your Java version to 8+"
       ]
       assert logLines == expectedLogLines
     }
@@ -152,7 +152,7 @@ class AgentPreCheckTest extends Specification {
       def minor = (int) it.readShort()
       def major = (int) it.readShort()
 
-      assert magic == 0xCAFEBABE
+      assert magic == 0xCAFEBABEL
       assert minor == 0
       assert major == expectedMajor
     } == null
