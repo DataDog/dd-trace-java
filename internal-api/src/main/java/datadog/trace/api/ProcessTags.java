@@ -68,10 +68,12 @@ public class ProcessTags {
           CapturedEnvironment.get().getProcessInfo();
       if (processInfo.mainClass != null) {
         tags.put("entrypoint.name", processInfo.mainClass);
+        tags.put("entrypoint.type", "class");
       }
       if (processInfo.jarFile != null) {
         final String jarName = processInfo.jarFile.getName();
         tags.put("entrypoint.name", jarName.substring(0, jarName.length() - 4)); // strip .jar
+        tags.put("entrypoint.type", "jar");
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), "entrypoint.basedir");
       }
 
