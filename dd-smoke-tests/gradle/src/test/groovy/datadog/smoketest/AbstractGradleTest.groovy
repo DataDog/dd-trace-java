@@ -2,7 +2,7 @@ package datadog.smoketest
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -126,7 +126,7 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   protected void givenConfigurationCacheIsCompatibleWithCurrentPlatform(boolean configurationCacheEnabled) {
     if (configurationCacheEnabled) {
-      Assumptions.assumeFalse(Platform.isIbm8(), "Configuration cache is not compatible with IBM 8")
+      Assumptions.assumeFalse(JavaVirtualMachine.isIbm8(), "Configuration cache is not compatible with IBM 8")
     }
   }
 

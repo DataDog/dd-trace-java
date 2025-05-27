@@ -15,10 +15,13 @@
  */
 package com.datadog.profiling.controller;
 
+import static datadog.environment.OperatingSystem.isLinux;
+import static datadog.environment.OperatingSystem.isMacOs;
+import static datadog.environment.OperatingSystem.isWindows;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
@@ -164,12 +167,10 @@ public final class ProfilingSystem {
           SEND_TELEMETRY,
           "Datadog Profiling was enabled on an unsupported JVM, will not profile application. "
               + "(OS: {}, JVM: lang={}, runtime={}, vendor={}) See {} for more details about supported JVMs.",
-          Platform.isLinux()
-              ? "Linux"
-              : Platform.isWindows() ? "Windows" : Platform.isMac() ? "MacOS" : "Other",
-          Platform.getLangVersion(),
-          Platform.getRuntimeVersion(),
-          Platform.getRuntimeVendor(),
+          isLinux() ? "Linux" : isWindows() ? "Windows" : isMacOs() ? "MacOS" : "Other",
+          JavaVirtualMachine.getLangVersion(),
+          JavaVirtualMachine.getRuntimeVersion(),
+          JavaVirtualMachine.getRuntimeVendor(),
           "https://docs.datadoghq.com/profiler/enabling/java/?tab=commandarguments#requirements");
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {

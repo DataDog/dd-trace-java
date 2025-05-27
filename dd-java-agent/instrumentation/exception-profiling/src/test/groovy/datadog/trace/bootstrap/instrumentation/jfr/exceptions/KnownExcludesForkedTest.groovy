@@ -1,6 +1,6 @@
 import com.zaxxer.hikari.pool.ProxyLeakTask
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.Recording
 import org.openjdk.jmc.common.item.Attribute
@@ -14,7 +14,7 @@ import spock.lang.Shared
 import java.nio.file.Files
 
 @Requires({
-  !Platform.isJ9()
+  !JavaVirtualMachine.isJ9()
 })
 class KnownExcludesForkedTest extends AgentTestRunner {
   private static final IAttribute<String> TYPE =
