@@ -8,7 +8,7 @@ import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 
 class AgentPreCheckTest extends Specification {
-  def 'parse java.version of #versionƒ as #expected'() {
+  def 'parse java.version of #version as #expected'() {
     when:
     def major = AgentPreCheck.parseJavaMajorVersion(version)
 
