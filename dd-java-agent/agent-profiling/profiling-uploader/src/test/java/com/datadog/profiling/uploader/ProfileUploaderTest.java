@@ -305,7 +305,7 @@ public class ProfileUploaderTest {
   @Test
   public void testZippedInput() throws Exception {
     when(config.getApiKey()).thenReturn(null);
-    when(config.getProfilingDebugUploadCompression()).thenReturn("on");
+    when(config.getProfilingUploadCompression()).thenReturn("on");
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
 
@@ -341,7 +341,7 @@ public class ProfileUploaderTest {
   @ValueSource(strings = {"on", "lz4", "gzip", "zstd", "off", "invalid"})
   public void testCompression(final String compression) throws Exception {
     when(config.getApiKey()).thenReturn(null);
-    when(config.getProfilingDebugUploadCompression()).thenReturn(compression);
+    when(config.getProfilingUploadCompression()).thenReturn(compression);
     when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config, configProvider);
 

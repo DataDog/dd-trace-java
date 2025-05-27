@@ -211,7 +211,7 @@ public final class ProfileUploader {
             config.getProfilingProxyPassword(),
             uploadTimeout.toMillis());
 
-    compressionType = CompressionType.of(config.getProfilingDebugUploadCompression());
+    compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
 
   /**

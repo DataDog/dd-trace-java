@@ -255,7 +255,7 @@ public class Config {
   private final int profilingUploadPeriod;
   private final String profilingTemplateOverrideFile;
   private final int profilingUploadTimeout;
-  private final String profilingDebugUploadCompression;
+  private final String profilingUploadCompression;
   private final String profilingProxyHost;
   private final int profilingProxyPort;
   private final String profilingProxyUsername;
@@ -1258,7 +1258,7 @@ public class Config {
     profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
-    profilingDebugUploadCompression =
+    profilingUploadCompression =
         configProvider.getString(
             PROFILING_DEBUG_UPLOAD_COMPRESSION,
             PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
@@ -2599,8 +2599,8 @@ public class Config {
     return profilingUploadTimeout;
   }
 
-  public String getProfilingDebugUploadCompression() {
-    return profilingDebugUploadCompression;
+  public String getProfilingUploadCompression() {
+    return profilingUploadCompression;
   }
 
   public String getProfilingProxyHost() {
@@ -4704,8 +4704,8 @@ public class Config {
         + '\''
         + ", profilingUploadTimeout="
         + profilingUploadTimeout
-        + ", profilingDebugUploadCompression='"
-        + profilingDebugUploadCompression
+        + ", profilingUploadCompression='"
+        + profilingUploadCompression
         + '\''
         + ", profilingProxyHost='"
         + profilingProxyHost
