@@ -95,9 +95,7 @@ public class GatewayBridge {
   // subscriber cache
   private volatile DataSubscriberInfo initialReqDataSubInfo;
   private volatile DataSubscriberInfo rawRequestBodySubInfo;
-  private volatile DataSubscriberInfo rawResponseBodySubInfo;
   private volatile DataSubscriberInfo requestBodySubInfo;
-  private volatile DataSubscriberInfo responseBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerMethodSubInfo;
@@ -144,8 +142,6 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.responseStarted(), this::onResponseStarted);
     subscriptionService.registerCallback(EVENTS.responseHeader(), this::onResponseHeader);
     subscriptionService.registerCallback(EVENTS.responseHeaderDone(), this::onResponseHeaderDone);
-    subscriptionService.registerCallback(EVENTS.responseBodyStart(), this::onResponseBodyStart);
-    subscriptionService.registerCallback(EVENTS.responseBodyDone(), this::onResponseBodyDone);
     subscriptionService.registerCallback(EVENTS.grpcServerMethod(), this::onGrpcServerMethod);
     subscriptionService.registerCallback(
         EVENTS.grpcServerRequestMessage(), this::onGrpcServerRequestMessage);
@@ -168,10 +164,6 @@ public class GatewayBridge {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
     }
-    if (additionalIGEvents.contains(EVENTS.responseBodyProcessed())) {
-      subscriptionService.registerCallback(
-          EVENTS.responseBodyProcessed(), this::onResponseBodyProcessed);
-    }
   }
 
   /**
@@ -181,9 +173,7 @@ public class GatewayBridge {
   public void reset() {
     initialReqDataSubInfo = null;
     rawRequestBodySubInfo = null;
-    rawResponseBodySubInfo = null;
     requestBodySubInfo = null;
-    responseBodySubInfo = null;
     pathParamsSubInfo = null;
     respDataSubInfo = null;
     grpcServerMethodSubInfo = null;
@@ -606,40 +596,6 @@ public class GatewayBridge {
     }
   }
 
-  private Flow<Void> onResponseBodyProcessed(RequestContext ctx_, Object obj) {
-    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null) {
-      return NoopFlow.INSTANCE;
-    }
-
-    if (ctx.isConvertedResBodyPublished()) {
-      log.debug(
-          "Response body already published; will ignore new value of type {}", obj.getClass());
-      return NoopFlow.INSTANCE;
-    }
-    ctx.setConvertedResBodyPublished(true);
-
-    while (true) {
-      DataSubscriberInfo subInfo = responseBodySubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT);
-        responseBodySubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
-        return NoopFlow.INSTANCE;
-      }
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.RESPONSE_BODY_OBJECT, ObjectIntrospection.convert(obj, ctx));
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-      } catch (ExpiredSubscriberInfoException e) {
-        responseBodySubInfo = null;
-      }
-    }
-  }
-
   private Flow<Void> onRequestBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null || ctx.isRawReqBodyPublished()) {
@@ -658,7 +614,7 @@ public class GatewayBridge {
       }
 
       CharSequence bodyContent = supplier.get();
-      if (bodyContent.length() == 0) {
+      if (bodyContent == null || bodyContent.length() == 0) {
         return NoopFlow.INSTANCE;
       }
       DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
@@ -667,38 +623,6 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         rawRequestBodySubInfo = null;
-      }
-    }
-  }
-
-  private Flow<Void> onResponseBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
-    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null || ctx.isRawResBodyPublished()) {
-      return NoopFlow.INSTANCE;
-    }
-    ctx.setRawResBodyPublished(true);
-
-    while (true) {
-      DataSubscriberInfo subInfo = responseBodySubInfo;
-      if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT);
-        responseBodySubInfo = subInfo;
-      }
-      if (subInfo == null || subInfo.isEmpty()) {
-        return NoopFlow.INSTANCE;
-      }
-
-      CharSequence bodyContent = supplier.toString();
-      if (bodyContent.length() == 0) {
-        return NoopFlow.INSTANCE;
-      }
-      DataBundle bundle =
-          new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_OBJECT, bodyContent);
-      try {
-        GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-      } catch (ExpiredSubscriberInfoException e) {
-        responseBodySubInfo = null;
       }
     }
   }
@@ -736,16 +660,6 @@ public class GatewayBridge {
     }
 
     ctx.setStoredRequestBodySupplier(supplier);
-    return null;
-  }
-
-  private Void onResponseBodyStart(RequestContext ctx_, StoredBodySupplier supplier) {
-    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null) {
-      return null;
-    }
-
-    ctx.setStoredResponseBodySupplier(supplier);
     return null;
   }
 
@@ -1118,10 +1032,8 @@ public class GatewayBridge {
 
     MapDataBundle bundle =
         MapDataBundle.of(
-            KnownAddresses.RESPONSE_STATUS,
-            String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES,
-            ctx.getResponseHeaders());
+            KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;
@@ -1216,10 +1128,6 @@ public class GatewayBridge {
           KnownAddresses.REQUEST_BODY_RAW, l(EVENTS.requestBodyStart(), EVENTS.requestBodyDone()));
       DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_PATH_PARAMS, l(EVENTS.requestPathParams()));
       DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_BODY_OBJECT, l(EVENTS.requestBodyProcessed()));
-      DATA_DEPENDENCIES.put(
-          KnownAddresses.RESPONSE_BODY_RAW,
-          l(EVENTS.responseBodyStart(), EVENTS.responseBodyDone()));
-      DATA_DEPENDENCIES.put(KnownAddresses.RESPONSE_BODY_OBJECT, l(EVENTS.responseBodyProcessed()));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(
