@@ -98,7 +98,8 @@ class WAFModuleSpecification extends DDSpecification {
     AgentTracer.forceRegister(tracer)
 
     final configurationPoller = Stub(ConfigurationPoller) {
-      addListener(Product.ASM_DD, _ as ProductListener) >> { Product _, ProductListener l ->
+      addListener(Product.ASM_DD, _ as ProductListener) >> {
+        Product _, ProductListener l ->
         listener = l
       }
     }
