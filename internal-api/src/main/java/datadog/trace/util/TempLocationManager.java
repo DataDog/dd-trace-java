@@ -17,9 +17,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -220,8 +218,6 @@ public final class TempLocationManager {
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
 
-  private final Map<Path, Path> ignoredPaths = new ConcurrentHashMap<>();
-
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
    * background.
@@ -352,18 +348,6 @@ public final class TempLocationManager {
       createTempDir(rslt);
     }
     return rslt;
-  }
-
-  public void ignore(Path path) {
-    if (path.startsWith(baseTempDir)) {
-      // ignore the path if it is a child of the base temp directory
-      ignoredPaths.put(path, path);
-    } else {
-      log.debug(
-          "Path {} which is not a child of the base temp directory {} can not be ignored",
-          path,
-          baseTempDir);
-    }
   }
 
   /**
