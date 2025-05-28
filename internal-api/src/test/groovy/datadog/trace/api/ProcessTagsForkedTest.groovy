@@ -56,9 +56,36 @@ class ProcessTagsForkedTest extends DDSpecification {
     System.clearProperty("jboss.server.name")
     where:
     jbossHome             | mode              | serverName   | expected
-    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:standalone,server.name:standalone"
-    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:domain,server.name:server1"
+    "/opt/jboss/myserver" | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:standalone,server.name:standalone,server.type:jboss"
+    "/opt/jboss/myserver" | "[server1:12345]" | "server1"    | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:.+,jboss.home:myserver,jboss.mode:domain,server.name:server1,server.type:jboss"
     null                  | "[Standalone]"    | "standalone" | "entrypoint.basedir:somewhere,entrypoint.name:jboss-modules,entrypoint.type:jar,entrypoint.workdir:[^,]+" // don't expect jboss tags since home is missing
+  }
+
+  def 'should load websphere tags (#expected)'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.envGetter = key -> {
+      switch (key) {
+        case "WAS_CELL":
+        return cellName
+        case "SERVER_NAME":
+        return serverName
+        default:
+        return null
+      }
+    }
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsForSerialization()
+    then:
+    assert tags =~ expected
+    cleanup:
+    ProcessTags.envGetter = System::getenv
+    ProcessTags.reset()
+    where:
+    cellName | serverName | expected
+    "cell1"  | "server1"  | "cluster.name:cell1,.+,server.name:server1,server.type:websphere.*"
+    null     | "server1"  | "^((?!cluster.name|server.name|server.type).)*\$"
   }
 
   def 'should not calculate process tags by default'() {

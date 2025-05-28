@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -18,6 +19,15 @@ import org.slf4j.LoggerFactory;
 public class ProcessTags {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessTags.class);
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
+  public static final String CLUSTER_NAME = "cluster.name";
+  public static final String SERVER_NAME = "server.name";
+  public static final String SERVER_TYPE = "server.type";
+  public static final String ENTRYPOINT_NAME = "entrypoint.name";
+  public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
+  public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
+
+  // visible for testing
+  static Function<String, String> envGetter = System::getenv;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -31,7 +41,7 @@ public class ProcessTags {
       if (enabled) {
         try {
           fillBaseTags(tags);
-          fillJbossTags(tags);
+          fillJeeTags(tags);
         } catch (Throwable t) {
           LOGGER.debug("Unable to calculate default process tags", t);
         }
@@ -39,12 +49,40 @@ public class ProcessTags {
       return tags;
     }
 
-    private static void insertSysPropIfPresent(
+    private static void fillJeeTags(SortedMap<String, String> tags) {
+      if (fillJbossTags(tags)) {
+        return;
+      }
+      fillWebsphereTags(tags);
+    }
+
+    private static void insertTagFromSysPropIfPresent(
         Map<String, String> tags, String propKey, String tagKey) {
-      String value = System.getProperty(propKey);
+      String value = maybeGetSystemProperty(propKey);
       if (value != null) {
         tags.put(tagKey, value);
       }
+    }
+
+    private static String maybeGetSystemProperty(String propKey) {
+      try {
+        return System.getProperty(propKey);
+      } catch (Throwable ignored) {
+      }
+      return null;
+    }
+
+    private static boolean insertTagFromEnvIfPresent(
+        Map<String, String> tags, String envKey, String tagKey) {
+      try {
+        String value = envGetter.apply(envKey);
+        if (value != null) {
+          tags.put(tagKey, value);
+          return true;
+        }
+      } catch (Throwable ignored) {
+      }
+      return false;
     }
 
     private static boolean insertLastPathSegmentIfPresent(
@@ -63,31 +101,49 @@ public class ProcessTags {
       return false;
     }
 
+    private static boolean hasSystemProperty(String propKey) {
+      try {
+        return System.getProperties().containsKey(propKey);
+      } catch (Throwable ignored) {
+      }
+      return false;
+    }
+
     private static void fillBaseTags(Map<String, String> tags) {
       final CapturedEnvironment.ProcessInfo processInfo =
           CapturedEnvironment.get().getProcessInfo();
       if (processInfo.mainClass != null) {
-        tags.put("entrypoint.name", processInfo.mainClass);
+        tags.put(ENTRYPOINT_NAME, processInfo.mainClass);
         tags.put("entrypoint.type", "class");
       }
       if (processInfo.jarFile != null) {
         final String jarName = processInfo.jarFile.getName();
-        tags.put("entrypoint.name", jarName.substring(0, jarName.length() - 4)); // strip .jar
+        tags.put(ENTRYPOINT_NAME, jarName.substring(0, jarName.length() - 4)); // strip .jar
         tags.put("entrypoint.type", "jar");
-        insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), "entrypoint.basedir");
+        insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), ENTRYPOINT_BASEDIR);
       }
 
-      insertLastPathSegmentIfPresent(tags, System.getProperty("user.dir"), "entrypoint.workdir");
+      insertLastPathSegmentIfPresent(tags, maybeGetSystemProperty("user.dir"), ENTRYPOINT_WORKDIR);
     }
 
-    private static void fillJbossTags(Map<String, String> tags) {
+    private static boolean fillJbossTags(Map<String, String> tags) {
       if (insertLastPathSegmentIfPresent(
-          tags, System.getProperty("jboss.home.dir"), "jboss.home")) {
-        insertSysPropIfPresent(tags, "jboss.server.name", "server.name");
-        tags.put(
-            "jboss.mode",
-            System.getProperties().containsKey("[Standalone]") ? "standalone" : "domain");
+          tags, maybeGetSystemProperty("jboss.home.dir"), "jboss.home")) {
+        insertTagFromSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
+        tags.put("jboss.mode", hasSystemProperty("[Standalone]") ? "standalone" : "domain");
+        tags.put(SERVER_TYPE, "jboss");
+        return true;
       }
+      return false;
+    }
+
+    private static boolean fillWebsphereTags(Map<String, String> tags) {
+      if (insertTagFromEnvIfPresent(tags, "WAS_CELL", CLUSTER_NAME)) {
+        insertTagFromEnvIfPresent(tags, "SERVER_NAME", SERVER_NAME);
+        tags.put(SERVER_TYPE, "websphere");
+        return true;
+      }
+      return false;
     }
 
     static void calculate() {
