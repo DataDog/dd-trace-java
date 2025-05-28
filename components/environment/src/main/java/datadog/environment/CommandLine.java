@@ -13,12 +13,9 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
-public class CommandLine {
-  private static final List<String> VM_ARGUMENTS = findVmArgs();
-
-  public static List<String> getVmArguments() {
-    return VM_ARGUMENTS;
-  }
+/** Fetches and captures the JVM runtime CLI arguments. */
+class CommandLine {
+  static final List<String> VM_ARGUMENTS = findVmArgs();
 
   @SuppressForbidden
   private static List<String> findVmArgs() {
