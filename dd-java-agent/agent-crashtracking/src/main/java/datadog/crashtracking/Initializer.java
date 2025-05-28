@@ -176,12 +176,12 @@ public final class Initializer {
                       LOG.debug("Deleting config file: {}", cfgPath);
                       Files.deleteIfExists(cfgPath);
                     } catch (IOException e) {
-                      LOG.warn("Failed deleting config file: {}", cfgPath, e);
+                      LOG.warn(SEND_TELEMETRY, "Failed deleting config file: {}", cfgPath, e);
                     }
                   }));
       LOG.debug("Config file written: {}", cfgPath);
     } catch (IOException e) {
-      LOG.warn("Failed writing config file: {}", cfgPath);
+      LOG.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgPath);
       try {
         Files.deleteIfExists(cfgPath);
       } catch (IOException ignored) {
@@ -229,7 +229,10 @@ public final class Initializer {
       // set the JVM flag
       boolean rslt = flags.setValue("OnError", onErrorVal);
       if (!rslt && LOG.isDebugEnabled()) {
-        LOG.debug("Unable to set OnError flag to {}. Crash-tracking may not work.", onErrorVal);
+        LOG.debug(
+            SEND_TELEMETRY,
+            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+            onErrorVal);
       }
 
       CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
@@ -261,13 +264,11 @@ public final class Initializer {
         }
       }
 
-      System.out.println("===> Initializing OOME notifier script: " + notifierScript);
-      System.out.flush();
-
       // set the JVM flag
       boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
       if (!rslt && LOG.isDebugEnabled()) {
         LOG.debug(
+            SEND_TELEMETRY,
             "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
             onOutOfMemoryVal);
       }
@@ -292,9 +293,10 @@ public final class Initializer {
 
   private static void logInitializationError(String msg, Throwable t) {
     if (LOG.isDebugEnabled()) {
-      LOG.warn("{}", msg, t);
+      LOG.warn(SEND_TELEMETRY, "{}", msg, t);
     } else {
       LOG.warn(
+          SEND_TELEMETRY,
           "{} [{}] (Change the logging level to debug to see the full stacktrace)",
           msg,
           t.getMessage());

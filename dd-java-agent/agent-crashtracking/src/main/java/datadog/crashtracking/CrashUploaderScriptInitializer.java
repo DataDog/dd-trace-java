@@ -6,6 +6,7 @@ import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
 import static datadog.crashtracking.Initializer.writeConfig;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 import static java.util.Locale.ROOT;
@@ -30,7 +31,8 @@ public final class CrashUploaderScriptInitializer {
   // @VisibleForTests
   static void initialize(String onErrorVal, String onErrorFile) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
-      LOG.debug("'-XX:OnError' argument was not provided. Crash tracking is disabled.");
+      LOG.debug(
+          SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
       return;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
@@ -42,7 +44,7 @@ public final class CrashUploaderScriptInitializer {
 
     String agentJar = findAgentJar();
     if (agentJar == null) {
-      LOG.warn("Unable to locate the agent jar. {}", SETUP_FAILURE_MESSAGE);
+      LOG.warn(SEND_TELEMETRY, "Unable to locate the agent jar. {}", SETUP_FAILURE_MESSAGE);
       return;
     }
 
@@ -63,6 +65,7 @@ public final class CrashUploaderScriptInitializer {
       Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
     } catch (UnsupportedOperationException e) {
       LOG.warn(
+          SEND_TELEMETRY,
           "Unsupported permissions {} for {}. {}",
           RWXRWXRWX,
           scriptDirectory,
@@ -71,11 +74,13 @@ public final class CrashUploaderScriptInitializer {
     } catch (FileAlreadyExistsException ignored) {
       // can be safely ignored; if the folder exists we will just reuse it
       if (!Files.isWritable(scriptDirectory)) {
-        LOG.warn("Read only directory {}. {}", scriptDirectory, SETUP_FAILURE_MESSAGE);
+        LOG.warn(
+            SEND_TELEMETRY, "Read only directory {}. {}", scriptDirectory, SETUP_FAILURE_MESSAGE);
         return false;
       }
     } catch (IOException e) {
       LOG.warn(
+          SEND_TELEMETRY,
           "Failed to create writable crash tracking script folder {}. {}",
           scriptDirectory,
           SETUP_FAILURE_MESSAGE);

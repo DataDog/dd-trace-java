@@ -7,6 +7,7 @@ import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.writeConfig;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
@@ -37,20 +38,24 @@ public final class OOMENotifierScriptInitializer {
   // @VisibleForTests
   static void initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
-      LOG.debug("'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
+      LOG.debug(
+          SEND_TELEMETRY,
+          "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
       return;
     }
     Path scriptPath = getOOMEScripPath(onOutOfMemoryVal);
-    System.out.println("===> OOME notifier script path: " + scriptPath);
     if (scriptPath == null) {
       LOG.debug(
+          SEND_TELEMETRY,
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
       return;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
-      LOG.warn("Unable to locate the agent jar. OOME notification will not work properly.");
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Unable to locate the agent jar. OOME notification will not work properly.");
       return;
     }
     if (!copyOOMEscript(scriptPath)) {
@@ -85,6 +90,7 @@ public final class OOMENotifierScriptInitializer {
       Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
     } catch (UnsupportedOperationException e) {
       LOG.warn(
+          SEND_TELEMETRY,
           "Unsupported permissions {} for {}. OOME notification will not work properly.",
           RWXRWXRWX,
           scriptDirectory);
@@ -93,11 +99,14 @@ public final class OOMENotifierScriptInitializer {
       // can be safely ignored; if the folder exists we will just reuse it
       if (!Files.isWritable(scriptDirectory)) {
         LOG.warn(
-            "Read only directory {}. OOME notification will not work properly.", scriptDirectory);
+            SEND_TELEMETRY,
+            "Read only directory {}. OOME notification will not work properly.",
+            scriptDirectory);
         return false;
       }
     } catch (IOException e) {
       LOG.warn(
+          SEND_TELEMETRY,
           "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
           scriptDirectory);
       return false;
@@ -108,7 +117,9 @@ public final class OOMENotifierScriptInitializer {
       Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
     } catch (IOException e) {
       LOG.warn(
-          "Failed to copy OOME script {}. OOME notification will not work properly.", scriptPath);
+          SEND_TELEMETRY,
+          "Failed to copy OOME script {}. OOME notification will not work properly.",
+          scriptPath);
       return false;
     }
     return true;
