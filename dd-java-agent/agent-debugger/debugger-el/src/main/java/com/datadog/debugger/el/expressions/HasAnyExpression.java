@@ -14,9 +14,6 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,15 +40,17 @@ public final class HasAnyExpression extends MatchingExpression {
         return Boolean.FALSE;
       }
       int len = collection.count();
-      for (int i = 0; i < len; i++) {
-        Value<?> val = collection.get(i);
-        if (filterPredicateExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, val)))) {
-          return Boolean.TRUE;
+      try {
+        for (int i = 0; i < len; i++) {
+          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, collection.get(i));
+          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+            return Boolean.TRUE;
+          }
         }
+        return Boolean.FALSE;
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
-      return Boolean.FALSE;
     }
     if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
@@ -59,19 +58,23 @@ public final class HasAnyExpression extends MatchingExpression {
       if (map.isEmpty()) {
         return Boolean.FALSE;
       }
-      for (Value<?> key : map.getKeys()) {
-        Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
-        Map<String, Object> valueRefExtensions = new HashMap<>();
-        valueRefExtensions.put(ValueReferences.KEY_EXTENSION_NAME, key);
-        valueRefExtensions.put(ValueReferences.VALUE_EXTENSION_NAME, val);
-        valueRefExtensions.put(
-            ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, val));
-        if (filterPredicateExpression.evaluate(
-            valueRefResolver.withExtensions(valueRefExtensions))) {
-          return Boolean.TRUE;
+      try {
+        for (Value<?> key : map.getKeys()) {
+          Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
+          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, key);
+          valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, val);
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, val));
+          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+            return Boolean.TRUE;
+          }
         }
+        return Boolean.FALSE;
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+        valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
+        valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
       }
-      return Boolean.FALSE;
     }
     if (value instanceof SetValue) {
       SetValue set = (SetValue) value;
@@ -79,15 +82,17 @@ public final class HasAnyExpression extends MatchingExpression {
       if (set.isEmpty()) {
         return Boolean.FALSE;
       }
-      for (Object val : setHolder) {
-        if (filterPredicateExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(
-                    ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val))))) {
-          return Boolean.TRUE;
+      try {
+        for (Object val : setHolder) {
+          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val));
+          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+            return Boolean.TRUE;
+          }
         }
+        return Boolean.FALSE;
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
-      return Boolean.FALSE;
     }
     throw new EvaluationException(
         "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
