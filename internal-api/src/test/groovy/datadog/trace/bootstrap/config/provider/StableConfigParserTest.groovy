@@ -42,6 +42,12 @@ apm_configuration_rules:
       matches: ["mysvc"]
     configuration:
       KEY_FOUR: "ignored"
+  - selectors:
+    - origin: process_arguments
+      key: "-Darg1"
+      operator: exists
+    configuration:
+      KEY_FIVE: "ignored"
 """
     Files.write(filePath, yaml.getBytes())
     StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
