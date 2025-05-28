@@ -21,6 +21,7 @@ public class ProcessTags {
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
   public static final String CLUSTER_NAME = "cluster.name";
   public static final String SERVER_NAME = "server.name";
+  public static final String SERVER_TYPE = "server.type";
   public static final String ENTRYPOINT_NAME = "entrypoint.name";
   public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
@@ -130,6 +131,7 @@ public class ProcessTags {
           tags, maybeGetSystemProperty("jboss.home.dir"), "jboss.home")) {
         insertTagFromSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
         tags.put("jboss.mode", hasSystemProperty("[Standalone]") ? "standalone" : "domain");
+        tags.put(SERVER_TYPE, "jboss");
         return true;
       }
       return false;
@@ -138,6 +140,7 @@ public class ProcessTags {
     private static boolean fillWebsphereTags(Map<String, String> tags) {
       if (insertTagFromEnvIfPresent(tags, "WAS_CELL", CLUSTER_NAME)) {
         insertTagFromEnvIfPresent(tags, "SERVER_NAME", SERVER_NAME);
+        tags.put(SERVER_TYPE, "websphere");
         return true;
       }
       return false;
