@@ -52,9 +52,10 @@ dependencies {
   test_spark32Implementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "3.2.4"
 
   // FIXME: Currently not working on Spark 4.0.0 preview releases.
-  latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '3.+'
-  latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '3.+'
-  latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '3.+'
+  // FIXME: 3.6.0 seems missing from central
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: '3.5.5'
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: '3.5.5'
+  latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '3.5.5'
 }
 
 tasks.named("test").configure {
