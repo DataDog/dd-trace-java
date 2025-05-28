@@ -29,6 +29,11 @@ public class ContainerBaseInstrumentation extends InstrumenterModule.Tracing
         isMethod().and(named("setName")), getClass().getName() + "$SetNameAdvice");
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "tomcat-processtags";
+  }
+
   public static class SetNameAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterSetName(@Advice.This final ContainerBase engine) {
