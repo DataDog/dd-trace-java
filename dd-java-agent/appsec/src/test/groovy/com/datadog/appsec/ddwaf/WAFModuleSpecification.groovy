@@ -30,6 +30,7 @@ import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.communication.monitor.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
@@ -96,10 +97,15 @@ class WAFModuleSpecification extends DDSpecification {
     WafMetricCollector.INSTANCE = wafMetricCollector
     AgentTracer.forceRegister(tracer)
 
-    final configurationPoller = Stub(ConfigurationPoller)
+    final configurationPoller = Stub(ConfigurationPoller) {
+      addListener(Product.ASM_DD, _ as ProductListener) >> { Product _, ProductListener l ->
+        listener = l
+      }
+    }
     service = new AppSecConfigServiceImpl(Config.get(), configurationPoller, () -> {})
     service.init()
-    listener = service.asmDDTypedListener
+    service.maybeSubscribeConfigPolling()
+    assert listener != null
 
     cfg = service.createAppSecModuleConfigurer()
     cfg.commit()

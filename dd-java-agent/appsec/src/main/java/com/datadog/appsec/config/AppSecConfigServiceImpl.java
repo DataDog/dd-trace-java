@@ -97,7 +97,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private boolean defaultConfigActivated;
   private final Set<String> usedDDWafConfigKeys = new HashSet<>();
   private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
-  private final AsmDDTypedListener asmDDTypedListener;
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
 
@@ -112,7 +111,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (tracerConfig.isAppSecWafMetrics()) {
       traceSegmentPostProcessors.add(statsReporter);
     }
-    asmDDTypedListener = new AsmDDTypedListener();
   }
 
   private void subscribeConfigurationPoller() {
@@ -156,7 +154,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void subscribeRulesAndData() {
-    this.configurationPoller.addListener(Product.ASM_DD, asmDDTypedListener);
+    this.configurationPoller.addListener(Product.ASM_DD, new AsmDDTypedListener());
     this.configurationPoller.addListener(
         Product.ASM_DATA, new AppSecConfigConfigurationChangesTypedListener());
     this.configurationPoller.addListener(
