@@ -37,7 +37,7 @@ public class AgentPreCheck {
             + javaVersion
             + " found at '"
             + javaHome
-            + "' and will not be installed.");
+            + "' and is effectively disabled.");
     output.println("Please upgrade your Java version to 8+");
   }
 
