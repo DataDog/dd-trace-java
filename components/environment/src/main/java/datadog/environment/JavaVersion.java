@@ -3,19 +3,25 @@ package datadog.environment;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This class represents a Java version according the String Naming Convention.
+ *
+ * @see <a href="https://www.oracle.com/java/technologies/javase/versioning-naming.html">String
+ *     Naming Convention</a>
+ */
 final class JavaVersion {
   final int major;
   final int minor;
   final int update;
 
-  public JavaVersion(int major, int minor, int update) {
+  JavaVersion(int major, int minor, int update) {
     this.major = major;
     this.minor = minor;
     this.update = update;
   }
 
   static JavaVersion getRuntimeVersion() {
-    return parseJavaVersion(System.getProperty("java.version"));
+    return parseJavaVersion(SystemProperties.getOrDefault("java.version", ""));
   }
 
   private static JavaVersion parseJavaVersion(String javaVersion) {

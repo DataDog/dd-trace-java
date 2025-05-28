@@ -1,5 +1,9 @@
 package datadog.environment;
 
+import static datadog.environment.CommandLine.VM_ARGUMENTS;
+
+import java.util.List;
+
 public class JavaVirtualMachine {
   private static final JavaVersion JAVA_VERSION = JavaVersion.getRuntimeVersion();
   private static final Runtime RUNTIME = new Runtime();
@@ -29,7 +33,7 @@ public class JavaVirtualMachine {
   }
 
   /**
-   * Check if the Java version is between {@code fromMajor} (inclusive) and {@code toMajor}
+   * Checks if the Java version is between {@code fromMajor} (inclusive) and {@code toMajor}
    * (exclusive).
    *
    * @param fromMajor major from version (inclusive)
@@ -42,7 +46,7 @@ public class JavaVirtualMachine {
   }
 
   /**
-   * Check if the Java version is between {@code fromMajor.fromMinor} (inclusive) and {@code
+   * Checks if the Java version is between {@code fromMajor.fromMinor} (inclusive) and {@code
    * toMajor.toMinor} (exclusive).
    *
    * @param fromMajor major from version (inclusive)
@@ -58,7 +62,7 @@ public class JavaVirtualMachine {
   }
 
   /**
-   * Check if the Java version is between {@code fromMajor.fromMinor.fromUpdate} (inclusive) and
+   * Checks if the Java version is between {@code fromMajor.fromMinor.fromUpdate} (inclusive) and
    * {@code toMajor.toMinor.toUpdate} (exclusive).
    *
    * @param fromMajor major from version (inclusive)
@@ -76,7 +80,7 @@ public class JavaVirtualMachine {
   }
 
   /**
-   * Check whether the current JVM is an Oracle JDK 8.
+   * Checks whether the current JVM is an Oracle JDK 8.
    *
    * @return {@code true} if the current JVM is an Oracle JDK 8, {@code false} otherwise.
    */
@@ -112,6 +116,15 @@ public class JavaVirtualMachine {
 
   public static String getRuntimePatches() {
     return RUNTIME.patches;
+  }
+
+  /**
+   * Gets the JVM CLI arguments.
+   *
+   * @return The JVM CLI arguments, an empty collection if they can't be retrieved.
+   */
+  public static List<String> getVmArguments() {
+    return VM_ARGUMENTS;
   }
 
   static final class Runtime {
