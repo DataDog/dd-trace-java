@@ -55,7 +55,7 @@ public class ProcessTags {
       fillWebsphereTags(tags);
     }
 
-    private static void insertSysPropIfPresent(
+    private static void insertTagFromSysPropIfPresent(
         Map<String, String> tags, String propKey, String tagKey) {
       String value = maybeGetSystemProperty(propKey);
       if (value != null) {
@@ -71,7 +71,7 @@ public class ProcessTags {
       return null;
     }
 
-    private static boolean insertEnvIfPresent(
+    private static boolean insertTagFromEnvIfPresent(
         Map<String, String> tags, String envKey, String tagKey) {
       try {
         String value = envGetter.apply(envKey);
@@ -128,7 +128,7 @@ public class ProcessTags {
     private static boolean fillJbossTags(Map<String, String> tags) {
       if (insertLastPathSegmentIfPresent(
           tags, maybeGetSystemProperty("jboss.home.dir"), "jboss.home")) {
-        insertSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
+        insertTagFromSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
         tags.put("jboss.mode", hasSystemProperty("[Standalone]") ? "standalone" : "domain");
         return true;
       }
@@ -136,8 +136,8 @@ public class ProcessTags {
     }
 
     private static boolean fillWebsphereTags(Map<String, String> tags) {
-      if (insertEnvIfPresent(tags, "WAS_CELL", CLUSTER_NAME)) {
-        insertEnvIfPresent(tags, "SERVER_NAME", SERVER_NAME);
+      if (insertTagFromEnvIfPresent(tags, "WAS_CELL", CLUSTER_NAME)) {
+        insertTagFromEnvIfPresent(tags, "SERVER_NAME", SERVER_NAME);
         return true;
       }
       return false;
