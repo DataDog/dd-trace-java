@@ -19,6 +19,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.StringTokenizer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -217,7 +218,9 @@ public final class Initializer {
         // uploader
         onErrorVal = uploadScript + "; " + onErrorVal;
       } else {
-        for (String part : onErrorVal.split(";")) {
+        StringTokenizer st = new StringTokenizer(onErrorVal, ";");
+        while (st.hasMoreTokens()) {
+          String part = st.nextToken();
           if (part.trim().contains("dd_crash_uploader")) {
             // reuse the existing script name
             uploadScript = part.trim().replace(" %p", "");
@@ -255,7 +258,9 @@ public final class Initializer {
         // we can chain scripts so let's preserve the original value in addition to our oome tracker
         onOutOfMemoryVal = notifierScript + "; " + onOutOfMemoryVal;
       } else {
-        for (String part : onOutOfMemoryVal.split(";")) {
+        StringTokenizer st = new StringTokenizer(onOutOfMemoryVal, ";");
+        while (st.hasMoreTokens()) {
+          String part = st.nextToken();
           if (part.trim().contains("dd_oome_notifier")) {
             // reuse the existing script name
             notifierScript = part.trim();
