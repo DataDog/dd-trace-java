@@ -28,8 +28,8 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
-import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.monitor.Monitoring
+import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
@@ -44,7 +44,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.stacktrace.StackTraceEvent
-import okhttp3.OkHttpClient
 import okio.Okio
 import spock.lang.Shared
 import spock.lang.Unroll
@@ -97,11 +96,8 @@ class WAFModuleSpecification extends DDSpecification {
     WafMetricCollector.INSTANCE = wafMetricCollector
     AgentTracer.forceRegister(tracer)
 
-    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects()
-    sharedCommunicationObjects.monitoring = Monitoring.DISABLED
-    sharedCommunicationObjects.okHttpClient = Mock(OkHttpClient)
-    service = new AppSecConfigServiceImpl(Config.get(), sharedCommunicationObjects.configurationPoller(Config.get()),
-    () -> {})
+    final configurationPoller = Stub(ConfigurationPoller)
+    service = new AppSecConfigServiceImpl(Config.get(), configurationPoller, () -> {})
     service.init()
     listener = service.asmDDTypedListener
 
