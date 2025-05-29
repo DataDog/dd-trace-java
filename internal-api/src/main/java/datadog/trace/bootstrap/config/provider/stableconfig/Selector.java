@@ -21,7 +21,9 @@ public final class Selector {
     Map map = (Map) yaml;
     origin = (String) map.get("origin");
     key = (String) map.get("key");
-    matches = Collections.unmodifiableList((List<String>) map.get("matches"));
+    List<String> rawMatches = (List<String>) map.get("matches");
+    matches =
+        rawMatches != null ? Collections.unmodifiableList(rawMatches) : Collections.emptyList();
     operator = (String) map.get("operator");
   }
 
