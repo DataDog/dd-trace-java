@@ -151,7 +151,7 @@ public class TagMapTest {
             .set("floatObj", Float.valueOf(0F))
             .set("double", 0D)
             .set("doubleObj", Double.valueOf(0D))
-            .build();
+            .build(mapType.factory);
 
     assertEquals(false, map.getBoolean("int"));
     assertEquals(false, map.getBoolean("intObj"));
@@ -176,7 +176,7 @@ public class TagMapTest {
             .set("floatObj", Float.valueOf(1F))
             .set("double", 1D)
             .set("doubleObj", Double.valueOf(1D))
-            .build();
+            .build(mapType.factory);
 
     assertEquals(true, map.getBoolean("int"));
     assertEquals(true, map.getBoolean("intObj"));
@@ -196,11 +196,45 @@ public class TagMapTest {
             .set("obj", new Object())
             .set("trueStr", "true")
             .set("falseStr", "false")
-            .build();
+            .build(mapType.factory);
 
     assertEquals(true, map.getBoolean("obj"));
     assertEquals(true, map.getBoolean("trueStr"));
     assertEquals(true, map.getBoolean("falseStr"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void booleanToNumericCoercion_true(TagMapType mapType) {
+    TagMap map = TagMap.ledger().set("true", true).build(mapType.factory);
+
+    assertEquals(1, map.getInt("true"));
+    assertEquals(1L, map.getLong("true"));
+    assertEquals(1F, map.getFloat("true"));
+    assertEquals(1D, map.getDouble("true"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void booleanToNumericCoercion_false(TagMapType mapType) {
+    TagMap map = TagMap.ledger().set("false", false).build(mapType.factory);
+
+    assertEquals(0, map.getInt("false"));
+    assertEquals(0L, map.getLong("false"));
+    assertEquals(0F, map.getFloat("false"));
+    assertEquals(0D, map.getDouble("false"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void emptyToPrimitiveCoercion(TagMapType mapType) {
+    TagMap map = mapType.empty();
+
+    assertEquals(false, map.getBoolean("dne"));
+    assertEquals(0, map.getInt("dne"));
+    assertEquals(0L, map.getLong("dne"));
+    assertEquals(0F, map.getFloat("dne"));
+    assertEquals(0D, map.getDouble("dne"));
   }
 
   @ParameterizedTest
