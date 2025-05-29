@@ -24,7 +24,8 @@
           {"endsWith": [{"ref": "str"}, "llo"]},
           {"contains": [{"ref": "str"}, "ll"]},
           {"matches": [{"ref": "str"}, "[helo]+"]},
-          {"instanceof": [{"ref": "str"}, "java.lang.String"]}
+          {"instanceof": [{"ref": "str"}, "java.lang.String"]},
+          {"isDefined": {"ref": "str"}}
         ]
       }
     ]

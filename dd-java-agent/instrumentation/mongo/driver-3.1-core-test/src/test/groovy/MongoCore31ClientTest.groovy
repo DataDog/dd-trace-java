@@ -25,7 +25,7 @@ abstract class MongoCore31ClientTest extends MongoBaseTest {
   MongoClient client
 
   def setup() throws Exception {
-    client = new MongoClient(new ServerAddress("localhost", port),
+    client = new MongoClient(new ServerAddress(mongoDbContainer.getHost(), port),
       MongoClientOptions.builder()
       .description("some-description")
       .addCommandListener(new CommandListener() {
@@ -70,7 +70,7 @@ abstract class MongoCore31ClientTest extends MongoBaseTest {
   def "test create collection no description"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = new MongoClient("localhost", port).getDatabase(databaseName)
+    MongoDatabase db = new MongoClient(mongoDbContainer.getHost(), port).getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName)
@@ -218,7 +218,7 @@ abstract class MongoCore31ClientTest extends MongoBaseTest {
     setup:
     String collectionName = randomCollectionName()
     def options = MongoClientOptions.builder().serverSelectionTimeout(10).build()
-    def client = new MongoClient(new ServerAddress("localhost", UNUSABLE_PORT), [], options)
+    def client = new MongoClient(new ServerAddress(mongoDbContainer.getHost(), UNUSABLE_PORT), [], options)
 
     when:
     MongoDatabase db = client.getDatabase(databaseName)

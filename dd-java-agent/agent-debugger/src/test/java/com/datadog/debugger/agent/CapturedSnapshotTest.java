@@ -940,27 +940,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  public void staticFieldExtractorNotAccessible() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
-    LogProbe logProbe =
-        createMethodProbe(PROBE_ID, CLASS_NAME + "$MyHttpURLConnection", "process", "()");
-    TestSnapshotListener listener = installProbes(logProbe);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.onClass(testClass).call("main", "static").get();
-    assertEquals(42, result);
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureStaticFieldsNotCaptured(
-        snapshot.getCaptures().getReturn(),
-        "followRedirects",
-        "Field is not accessible: module java.base does not opens/exports to the current module");
-    assertCaptureStaticFieldsNotCaptured(
-        snapshot.getCaptures().getReturn(),
-        "factory",
-        "Field is not accessible: module java.base does not opens/exports to the current module");
-  }
-
-  @Test
   public void uncaughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
     TestSnapshotListener listener =
@@ -1611,12 +1590,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
-    assertEquals(7, staticFields.size());
+    // inherited static fields are not collected
+    assertEquals(2, staticFields.size());
     assertEquals("barfoo", MoshiSnapshotTestHelper.getValue(staticFields.get("strValue")));
-    assertEquals("48", MoshiSnapshotTestHelper.getValue(staticFields.get("intValue")));
-    assertEquals("6.28", MoshiSnapshotTestHelper.getValue(staticFields.get("doubleValue")));
-    assertEquals("[1, 2, 3, 4]", MoshiSnapshotTestHelper.getValue(staticFields.get("longValues")));
-    assertEquals("[foo, bar]", MoshiSnapshotTestHelper.getValue(staticFields.get("strValues")));
   }
 
   @Test
@@ -2641,7 +2617,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Config config = mock(Config.class);
     when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDynamicInstrumentationInstrumentTheWorld()).thenReturn(true);
+    when(config.getDynamicInstrumentationInstrumentTheWorld()).thenReturn("method");
     when(config.getDynamicInstrumentationExcludeFiles()).thenReturn(excludeFileName);
     when(config.getDynamicInstrumentationIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())

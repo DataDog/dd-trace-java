@@ -1,3 +1,5 @@
+import datadog.trace.api.ProcessTags
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 
 import datadog.trace.agent.test.base.HttpServer
@@ -21,6 +23,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static org.junit.Assume.assumeTrue
 
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
@@ -64,6 +67,22 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   @Override
   boolean testSessionId() {
     true
+  }
+
+  boolean testProcessTags() {
+    false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "${testProcessTags()}")
+    ProcessTags.reset()
+  }
+
+  def cleanupSpec() {
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
   }
 
   @Override
@@ -266,6 +285,11 @@ class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
   @Override
   boolean testWebsockets() {
     false
+  }
+
+  @Override
+  boolean testProcessTags() {
+    true
   }
 }
 

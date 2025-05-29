@@ -89,7 +89,7 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
-      if (config.isDynamicInstrumentationInstrumentTheWorld()) {
+      if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
     }
@@ -212,7 +212,8 @@ public class DebuggerAgent {
             configurationUpdater,
             classNameFilter,
             Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond());
+            config.getDebuggerMaxExceptionPerSecond(),
+            config.getDebuggerExceptionMaxCapturedFrames());
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }

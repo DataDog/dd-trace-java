@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import okhttp3.MediaType;
 import org.junit.jupiter.api.Test;
 
 class SymbolSinkTest {
@@ -200,6 +201,31 @@ class SymbolSinkTest {
     symbolSink.flush();
     // no request to upload because we cannot split the jar scope
     assertTrue(symbolUploaderMock.multiPartContents.isEmpty());
+  }
+
+  @Test
+  public void maxCompressedAndSplit() {
+    SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
+    Config config = mock(Config.class);
+    when(config.getServiceName()).thenReturn("service1");
+    when(config.isSymbolDatabaseCompressed()).thenReturn(true);
+    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 512);
+    final int NUM_JAR_SCOPES = 100;
+    for (int i = 0; i < NUM_JAR_SCOPES; i++) {
+      symbolSink.addScope(
+          Scope.builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
+              .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
+              .build());
+    }
+    symbolSink.flush();
+    assertEquals(4, symbolUploaderMock.multiPartContents.size());
+    for (int i = 0; i < 4; i += 2) {
+      BatchUploader.MultiPartContent eventContent = symbolUploaderMock.multiPartContents.get(i);
+      assertEquals("event", eventContent.getPartName());
+      BatchUploader.MultiPartContent symbolContent =
+          symbolUploaderMock.multiPartContents.get(i + 1);
+      assertEquals(MediaType.get("application/gzip"), symbolContent.getMediaType());
+    }
   }
 
   private static String assertMultipartContent(SymbolUploaderMock symbolUploaderMock, int index) {

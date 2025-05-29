@@ -24,7 +24,7 @@ class JUnit413Test extends CiVisibilityInstrumentationTest {
 
   def runner = new JUnitCore()
 
-  def "test #testcaseName"() {
+  def "test setup teardown methods #testcaseName"() {
     runTests(tests, success)
 
     assertSpansData(testcaseName)

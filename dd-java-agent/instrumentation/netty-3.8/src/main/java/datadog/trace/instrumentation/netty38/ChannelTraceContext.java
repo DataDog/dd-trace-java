@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty38;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 
 public class ChannelTraceContext {
@@ -22,6 +23,9 @@ public class ChannelTraceContext {
   HttpHeaders requestHeaders;
   boolean analyzedResponse;
   boolean blockedResponse;
+
+  HandlerContext.Sender senderHandlerContext;
+  HandlerContext.Receiver receiverHandlerContext;
 
   public void reset() {
     this.connectionContinuation = null;
@@ -87,5 +91,21 @@ public class ChannelTraceContext {
 
   public void setClientParentSpan(AgentSpan clientParentSpan) {
     this.clientParentSpan = clientParentSpan;
+  }
+
+  public HandlerContext.Sender getSenderHandlerContext() {
+    return senderHandlerContext;
+  }
+
+  public void setSenderHandlerContext(HandlerContext.Sender senderHandlerContext) {
+    this.senderHandlerContext = senderHandlerContext;
+  }
+
+  public HandlerContext.Receiver getReceiverHandlerContext() {
+    return receiverHandlerContext;
+  }
+
+  public void setReceiverHandlerContext(HandlerContext.Receiver receiverHandlerContext) {
+    this.receiverHandlerContext = receiverHandlerContext;
   }
 }

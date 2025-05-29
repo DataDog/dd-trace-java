@@ -171,7 +171,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "java-cassandra"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" container.getHost()
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"

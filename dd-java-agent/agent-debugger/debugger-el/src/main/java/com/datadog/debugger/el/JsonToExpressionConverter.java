@@ -50,7 +50,8 @@ public class JsonToExpressionConverter {
               "endsWith",
               "contains",
               "matches",
-              "instanceof"));
+              "instanceof",
+              "isDefined"));
 
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {

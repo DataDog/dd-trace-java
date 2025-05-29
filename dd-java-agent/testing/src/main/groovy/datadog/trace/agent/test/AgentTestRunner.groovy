@@ -368,8 +368,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_WRITER = new ListWriter()
 
     if (isTestAgentEnabled()) {
+      String agentHost = System.getenv("CI_AGENT_HOST")
+      if (agentHost == null) {
+        agentHost = DEFAULT_AGENT_HOST
+      }
+
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
-      HttpUrl agentUrl = HttpUrl.get("http://" + DEFAULT_AGENT_HOST + ":" + DEFAULT_TRACE_AGENT_PORT)
+      HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
       OkHttpClient client = buildHttpClient(agentUrl, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
       DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())

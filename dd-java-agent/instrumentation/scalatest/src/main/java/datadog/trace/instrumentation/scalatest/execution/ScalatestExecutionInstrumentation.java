@@ -107,7 +107,7 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Return(readOnly = false) Status status)
         throws Throwable {
       TestExecutionWrapper invokeWrapper = (TestExecutionWrapper) invokeWithFixture;
-      if (invokeWrapper.retry()) {
+      if (!invokeWrapper.wasLastExecution()) {
         status =
             (Status)
                 runTest.invokeWithArguments(

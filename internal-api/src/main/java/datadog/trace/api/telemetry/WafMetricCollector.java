@@ -13,6 +13,10 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
+  private static final int MASK_STRING_TOO_LONG = 1; // 0b001
+  private static final int MASK_LIST_MAP_TOO_LARGE = 1 << 1; // 0b010
+  private static final int MASK_OBJECT_TOO_DEEP = 1 << 2; // 0b100
+
   public static WafMetricCollector INSTANCE = new WafMetricCollector();
 
   public static WafMetricCollector get() {
@@ -33,6 +37,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   private static final int WAF_REQUEST_COMBINATIONS = 128; // 2^7
   private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
+
+  private static final AtomicLongArray wafInputTruncatedCounter =
+      new AtomicLongArray(1 << 3); // 3 flags → 2^3 = 8 possible bit combinations
 
   private static final AtomicLongArray raspRuleEvalCounter =
       new AtomicLongArray(RuleType.getNumValues());
@@ -104,6 +111,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     wafRequestCounter.incrementAndGet(index);
   }
 
+  public void wafInputTruncated(
+      final boolean stringTooLong, final boolean listMapTooLarge, final boolean objectTooDeep) {
+    int index = computeWafInputTruncatedIndex(stringTooLong, listMapTooLarge, objectTooDeep);
+    wafInputTruncatedCounter.incrementAndGet(index);
+  }
+
   static int computeWafRequestIndex(
       boolean ruleTriggered,
       boolean requestBlocked,
@@ -120,6 +133,15 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     if (blockFailure) index |= 1 << 4;
     if (rateLimited) index |= 1 << 5;
     if (inputTruncated) index |= 1 << 6;
+    return index;
+  }
+
+  static int computeWafInputTruncatedIndex(
+      boolean stringTooLong, boolean listMapTooLarge, boolean objectTooDeep) {
+    int index = 0;
+    if (stringTooLong) index |= MASK_STRING_TOO_LONG;
+    if (listMapTooLarge) index |= MASK_LIST_MAP_TOO_LARGE;
+    if (objectTooDeep) index |= MASK_OBJECT_TOO_DEEP;
     return index;
   }
 
@@ -211,6 +233,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 blockFailure,
                 rateLimited,
                 inputTruncated))) {
+          return;
+        }
+      }
+    }
+
+    // WAF input truncated
+    for (int i = 0; i < (1 << 3); i++) {
+      long counter = wafInputTruncatedCounter.getAndSet(i, 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(new WafInputTruncated(counter, i))) {
           return;
         }
       }
@@ -513,6 +545,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "waf_version:" + wafVersion,
           "event_rules_version:" + rulesVersion,
           "waf_error:" + ddwafRunError);
+    }
+  }
+
+  public static class WafInputTruncated extends WafMetric {
+    public WafInputTruncated(final long counter, final int bitfield) {
+      super("waf.input_truncated", counter, "truncation_reason:" + bitfield);
     }
   }
 

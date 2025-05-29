@@ -9,12 +9,14 @@ import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.NumericValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -72,6 +74,18 @@ class IndexExpressionTest {
     assertFalse(val.isUndefined());
     assertEquals("bar", val.getValue());
     assertEquals("strMap[\"foo\"]", print(expr));
+  }
+
+  @Test
+  void testUnsupported() {
+    IndexExpression expr =
+        new IndexExpression(new SetValue(new HashSet<>()), new StringValue("foo"));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Cannot evaluate the expression for unsupported type: com.datadog.debugger.el.values.SetValue",
+        evaluationException.getMessage());
   }
 
   @Test

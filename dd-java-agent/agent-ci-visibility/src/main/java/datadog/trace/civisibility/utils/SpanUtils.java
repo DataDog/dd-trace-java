@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.utils;
 
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.domain.TestStatus;
 import datadog.trace.civisibility.ipc.TestFramework;
 import java.util.ArrayList;
 import java.util.Collection;

@@ -43,9 +43,13 @@ public class IndexExpression implements ValueExpression<Value<?>> {
         } else {
           result = ((MapValue) targetValue).get(objKey);
         }
-      }
-      if (targetValue instanceof ListValue) {
+      } else if (targetValue instanceof ListValue) {
         result = ((ListValue) targetValue).get(keyValue.getValue());
+      } else {
+        throw new EvaluationException(
+            "Cannot evaluate the expression for unsupported type: "
+                + targetValue.getClass().getTypeName(),
+            PrettyPrintVisitor.print(this));
       }
     } catch (IllegalArgumentException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);

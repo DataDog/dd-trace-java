@@ -5,7 +5,7 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = 'vertx-mysql-client'
-    versions = '[4.4.2,4.6.0)'
+    versions = '[4.4.2,)'
     assertInverse = true
   }
 }

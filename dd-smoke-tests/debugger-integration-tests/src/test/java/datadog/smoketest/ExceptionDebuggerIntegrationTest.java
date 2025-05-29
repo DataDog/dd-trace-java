@@ -238,6 +238,51 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   }
 
   @Test
+  @DisplayName("test3CapturedRecursiveFrames")
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  void test3CapturedRecursiveFrames() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // instrumenting first exception
+    waitForInstrumentation(appUrl);
+    execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // collecting snapshots and sending them
+    registerTraceListener(this::receiveExceptionReplayTrace);
+    registerSnapshotListener(this::receiveSnapshot);
+    processRequests(
+        () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          if (traceReceived
+              && snapshotReceived
+              && snapshots.containsKey(snapshotIdTags.get(0))
+              && snapshots.containsKey(snapshotIdTags.get(1))
+              && snapshots.containsKey(snapshotIdTags.get(2))) {
+            assertEquals(3, snapshotIdTags.size());
+            assertEquals(3, snapshots.size());
+            // snapshot 0
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(0)));
+            // snapshot 1
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(1)));
+            // snapshot 2
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(2)));
+            return true;
+          }
+          return false;
+        });
+  }
+
+  private static void assertRecursiveSnapshot(Snapshot snapshot) {
+    assertNotNull(snapshot);
+    assertEquals(
+        "recursiveOops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+    assertEquals(
+        "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithRecursiveException",
+        snapshot.getStack().get(0).getFunction());
+  }
+
+  @Test
   @DisplayName("testLambdaHiddenFrames")
   @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "HotSpot specific test")
   void testLambdaHiddenFrames() throws Exception {

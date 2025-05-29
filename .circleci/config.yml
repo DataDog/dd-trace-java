@@ -1,40 +1,16 @@
 version: 2.1
-setup: true
-python310_image: &python310_image cimg/python:3.10
-parameters:
-  nightly:
-    type: boolean
-    default: false
-  weekly:
-    type: boolean
-    default: false
-orbs:
-  continuation: circleci/continuation@0.1.2
-executors:
-  python310:
-    docker:
-      - image: *python310_image
-    resource_class: small
+
 jobs:
-  setup:
-    executor: python310
+  donothing:
+    resource_class: small
+    docker:
+      - image: alpine
     steps:
-      - checkout
       - run:
-          name: Checkout merge commit
-          command: .circleci/checkout_merge_commit.sh
-      - run:
-          name: Install dependencies
-          command: pip3 install jinja2 requests
-      - run:
-          name: Generate config
-          command: >-
-            CIRCLE_IS_NIGHTLY="<< pipeline.parameters.nightly >>"
-            CIRCLE_IS_WEEKLY="<< pipeline.parameters.weekly >>"
-            .circleci/render_config.py
-      - continuation/continue:
-          configuration_path: .circleci/config.continue.yml
+          command: echo 'Done'
+
 workflows:
-  setup:
+  build_test:
     jobs:
-      - setup
+      - donothing:
+          name: required

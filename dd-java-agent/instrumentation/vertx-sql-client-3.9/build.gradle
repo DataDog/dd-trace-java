@@ -5,6 +5,7 @@ muzzle {
     group = "io.vertx"
     module = "vertx-sql-client"
     versions = "[3.9.0,)"
+    javaVersion = "11"
   }
 }
 

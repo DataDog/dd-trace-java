@@ -2,8 +2,10 @@ package opentelemetry14.context.propagation
 
 import datadog.trace.agent.test.AgentTestRunner
 import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.context.Context
 import spock.lang.Subject
+
+import static io.opentelemetry.context.Context.current
+import static io.opentelemetry.context.Context.root
 
 class W3cPropagatorTracestateTest extends AgentTestRunner {
   @Subject
@@ -33,10 +35,10 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     }
 
     when:
-    def context = propagator.extract(Context.root(), headers, TextMap.INSTANCE)
+    def context = propagator.extract(root(), headers, TextMap.INSTANCE)
 
     then:
-    context != Context.root()
+    context != root()
 
     when:
     def localSpan = tracer.spanBuilder("some-name")
@@ -44,7 +46,7 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
       .startSpan()
     def scope = localSpan.makeCurrent()
     Map<String, String> injectedHeaders = [:]
-    propagator.inject(Context.current(), injectedHeaders, TextMap.INSTANCE)
+    propagator.inject(current(), injectedHeaders, TextMap.INSTANCE)
     scope.close()
     localSpan.end()
 
@@ -55,16 +57,20 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     // Check tracestate contains extracted members plus the Datadog one in first position
     def injectedMembers = injectedTracestate.split(',')
     injectedMembers.length == Math.min(1 + members.length, 32)
-    injectedMembers[0] == expect
+    // Check datadog member (should be injected as first member)
+    injectedMembers[0] == "dd=s:0;p:${localSpan.spanContext.spanId};t.tid:1111111111111111"
+    // Check all other members
     for (int i = 0; i< Math.min(members.length, 31); i++) {
       assert injectedMembers[i+1] == members[i]
     }
 
     where:
-    tracestate            |expect
-    "foo=1,bar=2"         |"dd=s:0;t.tid:1111111111111111"
-    "dd=s:0,foo=1,bar=2"  |"dd=s:0;t.tid:1111111111111111"
-    "foo=1,dd=s:0,bar=2"  |"dd=s:0;t.tid:1111111111111111"
-    "dd=s:3"              |"dd=s:0;t.tid:1111111111111111"
+    // spotless:off
+    tracestate << [
+      "foo=1,bar=2",
+      "dd=s:0,foo=1,bar=2",
+      "foo=1,dd=s:0,bar=2",
+    ]
+    // spotless:on
   }
 }

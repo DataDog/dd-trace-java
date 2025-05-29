@@ -7,6 +7,7 @@ import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
@@ -29,7 +30,10 @@ public class EndHandlerWrapper implements Handler<Void> {
         actual.handle(event);
       }
     } finally {
-      if (path != null && parentSpan != null) {
+      if (path != null
+          && parentSpan != null
+          // do not override route with a "/" if it's already set (it's probably more meaningful)
+          && !(path.equals("/") && parentSpan.getTag(Tags.HTTP_ROUTE) != null)) {
         HTTP_RESOURCE_DECORATOR.withRoute(
             parentSpan, routingContext.request().method().name(), path, true);
       }

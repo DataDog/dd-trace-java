@@ -63,7 +63,7 @@ class WeakCipherTest extends AgentTestRunner {
   }
 
   // Key Generator
-  def "test weak cipher instrumentation"() {
+  def "test weak keygen instrumentation"() {
     setup:
     WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
@@ -75,7 +75,7 @@ class WeakCipherTest extends AgentTestRunner {
     1 * module.onCipherAlgorithm(_)
   }
 
-  def "test weak cipher instrumentation with provider"() {
+  def "test weak keygen instrumentation with provider"() {
     setup:
     WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)
@@ -88,7 +88,7 @@ class WeakCipherTest extends AgentTestRunner {
     1 * module.onCipherAlgorithm(_)
   }
 
-  def "test weak cipher instrumentation with provider string"() {
+  def "test weak keygen instrumentation with provider string"() {
     setup:
     WeakCipherModule module = Mock(WeakCipherModule)
     InstrumentationBridge.registerIastModule(module)

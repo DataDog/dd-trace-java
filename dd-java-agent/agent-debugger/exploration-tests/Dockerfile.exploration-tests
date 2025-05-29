@@ -29,6 +29,9 @@ COPY jackson-core_exploration-tests.patch .
 RUN cd jackson-core && git apply /exploration-tests/jackson-core_exploration-tests.patch
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && mvn verify -DskipTests=true"
 RUN git clone -b 2.16 https://github.com/FasterXML/jackson-databind.git
+COPY jackson-databind_exploration-tests.patch .
+# fix tests that are failing because too deep recrursion
+RUN cd jackson-databind && git apply /exploration-tests/jackson-databind_exploration-tests.patch
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && mvn verify -DskipTests=true"
 
 # Netty

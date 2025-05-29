@@ -67,7 +67,7 @@ public class DefaultExceptionDebuggerTest {
             new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     exceptionDebugger =
         new DefaultExceptionDebugger(
-            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100);
+            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100, 3);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -275,7 +275,7 @@ public class DefaultExceptionDebuggerTest {
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100);
+        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100, 3);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }

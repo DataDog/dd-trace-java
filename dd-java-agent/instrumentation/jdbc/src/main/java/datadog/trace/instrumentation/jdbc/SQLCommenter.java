@@ -80,9 +80,11 @@ public class SQLCommenter {
     if (dbType != null) {
       final String firstWord = getFirstWord(sql);
 
-      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
+      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC
+      // callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
-      // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      // TODO: Could we inject the comment after the JDBC has been converted to
+      // standard SQL?
       if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
         return sql;
       }
@@ -92,9 +94,15 @@ public class SQLCommenter {
         appendComment = true;
       }
 
-      // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // Both Postgres and MySQL are unhappy with anything before CALL in a stored
+      // procedure
       // invocation but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {
+        appendComment = true;
+      }
+
+      // Append the comment in the case of a pg_hint_plan extension
+      if (dbType.startsWith("postgres") && containsPgHint(sql)) {
         appendComment = true;
       }
     }
@@ -294,5 +302,11 @@ public class SQLCommenter {
             + OPEN_COMMENT.length()
             + CLOSE_COMMENT.length(); // two quotes, one equals & one comma * 5 + \* */
     return tagKeysLen + extraCharsLen;
+  }
+
+  // pg_hint_plan extension works by checking the first block comment
+  // we'll have to append the traced comment if there is a pghint
+  private static boolean containsPgHint(String sql) {
+    return sql.indexOf("/*+") > 0;
   }
 }

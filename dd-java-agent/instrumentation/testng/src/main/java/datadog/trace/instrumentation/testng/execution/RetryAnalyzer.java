@@ -13,12 +13,9 @@ import org.testng.ITestResult;
 public class RetryAnalyzer implements IRetryAnalyzer {
 
   private volatile TestExecutionPolicy executionPolicy;
+  private boolean suppressFailures;
 
-  @Override
-  public boolean retry(ITestResult result) {
-    if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
-      return false;
-    }
+  public void createExecutionPolicy(ITestResult result) {
     if (executionPolicy == null) {
       synchronized (this) {
         if (executionPolicy == null) {
@@ -31,15 +28,29 @@ public class RetryAnalyzer implements IRetryAnalyzer {
         }
       }
     }
-    return executionPolicy.retry(
-        result.isSuccess(), result.getEndMillis() - result.getStartMillis());
+  }
+
+  @Override
+  public boolean retry(ITestResult result) {
+    if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+      return false;
+    }
+    createExecutionPolicy(result);
+    return !executionPolicy.wasLastExecution();
+  }
+
+  public void setSuppressFailures(ITestResult result) {
+    createExecutionPolicy(result);
+    suppressFailures = executionPolicy.suppressFailures();
+  }
+
+  public boolean getAndResetSuppressFailures() {
+    boolean suppressFailures = this.suppressFailures;
+    this.suppressFailures = false;
+    return suppressFailures;
   }
 
   public TestExecutionHistory getExecutionHistory() {
     return executionPolicy;
-  }
-
-  public boolean suppressFailures() {
-    return executionPolicy != null && executionPolicy.suppressFailures();
   }
 }

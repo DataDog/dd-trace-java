@@ -117,15 +117,6 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
     true
   }
 
-  @Override
-  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
-    if (endpoint.path == '/not-found') {
-      'GET /testapp/not-found'
-    } else {
-      super.expectedResourceName(endpoint, method, address)
-    }
-  }
-
   def 'test blocking on response with commit during the response'() {
     setup:
     assumeTrue(testBlockingOnResponse())

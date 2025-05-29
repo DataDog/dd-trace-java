@@ -58,7 +58,7 @@ public class ProbeStatusSink {
     this.interval = Duration.ofSeconds(config.getDynamicInstrumentationDiagnosticsInterval());
     this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
-    this.isInstrumentTheWorld = config.isDynamicInstrumentationInstrumentTheWorld();
+    this.isInstrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
   }
 
   public void stop() {

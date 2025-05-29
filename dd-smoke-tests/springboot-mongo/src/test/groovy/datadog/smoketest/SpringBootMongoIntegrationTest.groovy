@@ -23,7 +23,7 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   void beforeProcessBuilders() {
-    mongoDbContainer = new MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
+    mongoDbContainer = new MongoDBContainer(DockerImageName.parse("mongo:4.4.29"))
     mongoDbContainer.start()
     mongoDbUri = mongoDbContainer.replicaSetUrl
   }

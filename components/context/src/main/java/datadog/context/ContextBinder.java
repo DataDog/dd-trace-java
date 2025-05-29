@@ -29,9 +29,21 @@ public interface ContextBinder {
   /**
    * Requests use of a custom {@link ContextBinder}.
    *
-   * @param binder the binder to use (will replace any other binder in use).
+   * <p>Once the registered binder is used it cannot be replaced and this method will have no
+   * effect. To test different binders, make sure {@link #allowTesting()} is called early on.
+   *
+   * @param binder the binder to use.
    */
   static void register(ContextBinder binder) {
     ContextProviders.customBinder = binder;
+  }
+
+  /**
+   * Allow re-registration of custom {@link ContextBinder}s for testing.
+   *
+   * @return {@code true} if re-registration is allowed; otherwise {@code false}
+   */
+  static boolean allowTesting() {
+    return TestContextBinder.register();
   }
 }

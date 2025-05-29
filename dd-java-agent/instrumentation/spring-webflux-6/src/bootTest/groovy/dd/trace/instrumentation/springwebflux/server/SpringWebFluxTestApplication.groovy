@@ -5,11 +5,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
+import org.springframework.web.reactive.HandlerMapping
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping
+import org.springframework.web.reactive.socket.WebSocketHandler
 import reactor.core.publisher.Mono
 
 import java.time.Duration
@@ -20,6 +23,17 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 
 @SpringBootApplication
 class SpringWebFluxTestApplication {
+
+  @Bean
+  HandlerMapping wsHandlerMapping(WsHandler wsHandler) {
+    Map<String, WebSocketHandler> map = new HashMap<>()
+    map.put("/websocket", wsHandler)
+
+    SimpleUrlHandlerMapping handlerMapping = new SimpleUrlHandlerMapping()
+    handlerMapping.setOrder(1)
+    handlerMapping.setUrlMap(map)
+    return handlerMapping
+  }
 
   @Bean
   RouterFunction<ServerResponse> echoRouterFunction(EchoHandler echoHandler) {

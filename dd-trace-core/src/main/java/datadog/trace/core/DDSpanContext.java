@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
@@ -146,7 +147,6 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile CharSequence lastParentId;
-  private final boolean isRemote;
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -197,8 +197,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true,
-        false);
+        true);
   }
 
   public DDSpanContext(
@@ -244,8 +243,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags,
-        false);
+        injectBaggageAsTags);
   }
 
   public DDSpanContext(
@@ -291,8 +289,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        true,
-        false);
+        true);
   }
 
   public DDSpanContext(
@@ -317,8 +314,7 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags,
-      final boolean isRemote) {
+      final boolean injectBaggageAsTags) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -378,8 +374,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    setLastParentId(this.propagationTags.getLastParentId());
-    this.isRemote = isRemote;
+    setTag(PARENT_ID, this.propagationTags.getLastParentId());
   }
 
   @Override
@@ -1116,20 +1111,8 @@ public class DDSpanContext
     setMetaStruct(field, value);
   }
 
-  public CharSequence getLastParentId() {
-    return lastParentId;
-  }
-
-  public void setLastParentId(CharSequence lastParentId) {
-    if (lastParentId != null) {
-      synchronized (unsafeTags) {
-        unsafeSetTag("_dd.parent_id", lastParentId);
-      }
-      this.lastParentId = lastParentId;
-    }
-  }
-
+  @Override
   public boolean isRemote() {
-    return isRemote;
+    return false;
   }
 }

@@ -6,6 +6,7 @@ muzzle {
     group = 'io.vertx'
     module = 'vertx-mysql-client'
     versions = '[3.9.0,4)'
+    javaVersion = '11'
     assertInverse = true
   }
 }

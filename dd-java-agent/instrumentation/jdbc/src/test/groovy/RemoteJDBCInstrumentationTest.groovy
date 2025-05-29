@@ -183,7 +183,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    postgres = new PostgreSQLContainer("postgres:11.1")
+    postgres = new PostgreSQLContainer("postgres:11.2")
       .withDatabaseName(dbName.get(POSTGRESQL)).withUsername(jdbcUserNames.get(POSTGRESQL)).withPassword(jdbcPasswords.get(POSTGRESQL))
     postgres.start()
     PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT), 5, TimeUnit.SECONDS)

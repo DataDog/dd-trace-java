@@ -1,6 +1,8 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.WebsocketServer
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
+import datadog.trace.util.TraceUtils
 import jakarta.servlet.ServletContextEvent
 import jakarta.servlet.ServletContextListener
 import jakarta.websocket.Session
@@ -62,6 +64,12 @@ class TomcatServer implements WebsocketServer {
     server.start()
     port = server.service.findConnectors()[0].localPort
     assert port > 0
+    if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+      def serverName = TraceUtils.normalizeTag(server.getEngine().getName())
+      assert ProcessTags.getTagsAsStringList().containsAll(["server.type:tomcat", "server.name:" + serverName])
+    } else {
+      assert ProcessTags.getTagsAsStringList() == null
+    }
   }
 
   @Override

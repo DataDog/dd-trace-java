@@ -101,6 +101,16 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   }
 
   @Override
+  public boolean isNull() {
+    return setHolder == null || (setHolder instanceof Value && ((Value<?>) setHolder).isNull());
+  }
+
+  @Override
+  public boolean isUndefined() {
+    return setHolder instanceof Value && ((Value<?>) setHolder).isUndefined();
+  }
+
+  @Override
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);
   }

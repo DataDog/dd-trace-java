@@ -117,10 +117,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
       executionRequest =
-          new ExecutionRequest(
-              executionRequest.getRootTestDescriptor(),
-              compositeListener,
-              executionRequest.getConfigurationParameters());
+          JUnitPlatformUtils.createExecutionRequest(executionRequest, compositeListener);
     }
 
     // JUnit 5.3.0 and above

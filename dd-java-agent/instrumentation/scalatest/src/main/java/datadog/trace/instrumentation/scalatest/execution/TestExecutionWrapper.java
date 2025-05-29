@@ -10,9 +10,6 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   private final scala.Function1<SuperEngine<?>.TestLeaf, Outcome> delegate;
   private final TestExecutionPolicy executionPolicy;
 
-  private boolean executionFailed;
-  private long duration;
-
   public TestExecutionWrapper(
       Function1<SuperEngine<?>.TestLeaf, Outcome> delegate, TestExecutionPolicy executionPolicy) {
     this.delegate = delegate;
@@ -21,14 +18,9 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
 
   @Override
   public Outcome apply(SuperEngine<?>.TestLeaf testLeaf) {
-    executionFailed = false;
-
-    long startTimestamp = System.currentTimeMillis();
     Outcome outcome = delegate.apply(testLeaf);
-    duration = System.currentTimeMillis() - startTimestamp;
 
     if (outcome.isFailed()) {
-      executionFailed = true;
       if (executionPolicy.suppressFailures()) {
         Throwable t = outcome.toOption().get();
         return Canceled.apply(
@@ -39,7 +31,7 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
     return outcome;
   }
 
-  public boolean retry() {
-    return executionPolicy.retry(!executionFailed, duration);
+  public boolean wasLastExecution() {
+    return executionPolicy.wasLastExecution();
   }
 }

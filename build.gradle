@@ -13,6 +13,7 @@ buildscript {
 }
 
 plugins {
+  id "datadog.gradle-debug"
   id "datadog.dependency-locking"
 
   id "com.diffplug.spotless" version "6.13.0"

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -54,7 +54,7 @@ public class DatadogServerRequestResponseFlowWrapper
         // that this connection was created with. This means that we can safely
         // close the span at the front of the queue when we receive the response
         // from the user code, since it will match up to the request for that span.
-        final Queue<AgentScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+        final Queue<ContextScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
 
         // This is where the request comes in from the server and TCP layer
         setHandler(
@@ -63,7 +63,7 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
-                final AgentScope scope = DatadogWrapperHelper.createSpan(request);
+                final ContextScope scope = DatadogWrapperHelper.createSpan(request);
                 scopes.add(scope);
                 push(requestOutlet, request);
                 // Since we haven't instrumented the pekko stream state machine, we can't rely
@@ -111,14 +111,15 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 final HttpResponse response = grab(responseInlet);
-                final AgentScope scope = scopes.poll();
+                final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  DatadogWrapperHelper.finishSpan(scope.span(), response);
+                  AgentSpan span = AgentSpan.fromContext(scope.context());
+                  DatadogWrapperHelper.finishSpan(span, response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
                   AgentSpan activeSpan = activeSpan();
-                  if (activeSpan == scope.span()) {
+                  if (activeSpan == span) {
                     scope.close();
                   }
                 }
@@ -129,9 +130,9 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onUpstreamFinish() throws Exception {
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                AgentScope scope = scopes.poll();
+                ContextScope scope = scopes.poll();
                 while (scope != null) {
-                  scope.span().finish();
+                  AgentSpan.fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 completeStage();
@@ -139,16 +140,17 @@ public class DatadogServerRequestResponseFlowWrapper
 
               @Override
               public void onUpstreamFailure(final Throwable ex) throws Exception {
-                AgentScope scope = scopes.poll();
+                ContextScope scope = scopes.poll();
+                AgentSpan span = AgentSpan.fromContext(scope.context());
                 if (scope != null) {
                   // Mark the span as failed
-                  DatadogWrapperHelper.finishSpan(scope.span(), ex);
+                  DatadogWrapperHelper.finishSpan(span, ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  scope.span().finish();
+                  span.finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);

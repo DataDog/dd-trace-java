@@ -340,6 +340,7 @@
       "test.source.method" : "test_failed()V",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailed",
+      "test.test_management.attempt_to_fix_passed" : "false",
       "test.test_management.is_attempt_to_fix" : "true",
       "test.test_management.is_quarantined" : "true",
       "test.type" : "test",

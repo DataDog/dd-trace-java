@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.jetty10;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
@@ -16,21 +15,21 @@ import org.eclipse.jetty.server.Request;
 public class HandleAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
+  public static ContextScope onEnter(
       @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
     Request req = channel.getRequest();
 
     Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
     if (existingSpan instanceof AgentSpan) {
-      return activateSpan((AgentSpan) existingSpan);
+      return ((AgentSpan) existingSpan).attach();
     }
 
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
+    final Context extractedContext = DECORATE.extractContext(req);
     span = DECORATE.startSpan(req, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, extractedContext);
 
-    final AgentScope scope = activateSpan(span);
+    final ContextScope scope = extractedContext.with(span).attach();
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
     req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
@@ -38,7 +37,7 @@ public class HandleAdvice {
   }
 
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-  public static void closeScope(@Advice.Enter final AgentScope scope) {
+  public static void closeScope(@Advice.Enter final ContextScope scope) {
     scope.close();
   }
 

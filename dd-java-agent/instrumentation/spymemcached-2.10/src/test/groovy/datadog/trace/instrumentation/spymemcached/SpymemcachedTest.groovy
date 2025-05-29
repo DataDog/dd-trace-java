@@ -56,7 +56,7 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    memcachedContainer = new GenericContainer('memcached:1.6.14-alpine')
+    memcachedContainer = new GenericContainer('library/memcached:1.6.14-alpine')
       .withExposedPorts(defaultMemcachedPort)
       .withStartupTimeout(Duration.ofSeconds(120))
     memcachedContainer.start()

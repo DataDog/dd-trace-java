@@ -9,6 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
+import com.datadog.debugger.el.values.ListValue;
+import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -37,10 +40,9 @@ class HasAllExpressionTest {
         assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(resolver));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("all(UNDEFINED, {true})", print(undefinedExpression));
-    HasAllExpression expression = new HasAllExpression(value(this), null);
+    HasAllExpression expression = new HasAllExpression(value(new Object[] {this}), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals(
-        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, {true})", print(expression));
+    assertEquals("all(java.lang.Object[], {true})", print(expression));
     expression = new HasAllExpression(value(Collections.singletonList(this)), null);
     assertTrue(expression.evaluate(resolver));
     assertEquals("all(List, {true})", print(expression));
@@ -88,28 +90,6 @@ class HasAllExpressionTest {
     exception = assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("all(UNDEFINED, {testField == 10})", print(expression));
-  }
-
-  @Test
-  void testSingleElementHasAll() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    ValueExpression<?> targetExpression = value(this);
-    HasAllExpression expression = all(targetExpression, TRUE);
-    assertTrue(expression.evaluate(ctx));
-    assertEquals(
-        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, {true})", print(expression));
-
-    expression = all(targetExpression, FALSE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals(
-        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, {false})",
-        print(expression));
-
-    expression = all(targetExpression, eq(ref("testField"), value(10)));
-    assertTrue(expression.evaluate(ctx));
-    assertEquals(
-        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, {testField == 10})",
-        print(expression));
   }
 
   @Test
@@ -264,4 +244,51 @@ class HasAllExpressionTest {
     assertTrue(expression.evaluate(ctx));
     assertEquals("all(Map, {@value == \"a\"})", print(expression));
   }
+
+  @Test
+  void testUnsupportedList() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    ListValue collection = new ListValue(new CustomList());
+    HasAllExpression expression =
+        all(collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
+    assertEquals(
+        "Unsupported List class: com.datadog.debugger.el.expressions.HasAllExpressionTest$CustomList",
+        exception.getMessage());
+    assertEquals("all(List, {@it == \"foo\"})", print(expression));
+  }
+
+  @Test
+  void testUnsupportedMap() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    MapValue collection = new MapValue(new CustomMap());
+    HasAllExpression expression = all(collection, eq(ref(ValueReferences.VALUE_REF), value("foo")));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
+    assertEquals(
+        "Unsupported Map class: com.datadog.debugger.el.expressions.HasAllExpressionTest$CustomMap",
+        exception.getMessage());
+    assertEquals("all(Map, {@value == \"foo\"})", print(expression));
+  }
+
+  @Test
+  void testUnsupportedSet() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    SetValue collection = new SetValue(new CustomSet());
+    HasAllExpression expression =
+        all(collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
+    assertEquals(
+        "Unsupported Set class: com.datadog.debugger.el.expressions.HasAllExpressionTest$CustomSet",
+        exception.getMessage());
+    assertEquals("all(Set, {@it == \"foo\"})", print(expression));
+  }
+
+  static class CustomList extends java.util.ArrayList<String> {}
+
+  static class CustomMap extends HashMap<String, Integer> {}
+
+  static class CustomSet extends java.util.HashSet<String> {}
 }

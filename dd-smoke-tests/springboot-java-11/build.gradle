@@ -22,13 +22,10 @@ dependencies {
   implementation project(':dd-smoke-tests:iast-util:iast-util-11')
 }
 
-project.tasks.withType(AbstractCompile).configureEach {
+tasks.named("compileJava", JavaCompile).configure {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
-  if (it instanceof JavaCompile) {
-    it.options.release.set(11)
-  }
 }
 
 forbiddenApisMain {

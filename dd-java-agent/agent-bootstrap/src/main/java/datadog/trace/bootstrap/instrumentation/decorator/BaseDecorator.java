@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
@@ -103,6 +104,11 @@ public abstract class BaseDecorator {
           errorPriority);
     }
     return span;
+  }
+
+  public ContextScope onError(final ContextScope scope, final Throwable throwable) {
+    onError(AgentSpan.fromContext(scope.context()), throwable);
+    return scope;
   }
 
   public AgentSpan onPeerConnection(

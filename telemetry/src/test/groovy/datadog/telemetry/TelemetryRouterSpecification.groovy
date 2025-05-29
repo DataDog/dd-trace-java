@@ -329,7 +329,7 @@ class TelemetryRouterSpecification extends Specification {
     500        | null           | agentTelemetryUrl
   }
 
-  def 'switch to Intake when Agent fails to receive telemetry requests'() {
+  def 'switch to Intake then back to Agent when both fail to receive telemetry requests'() {
     Request request
 
     when:

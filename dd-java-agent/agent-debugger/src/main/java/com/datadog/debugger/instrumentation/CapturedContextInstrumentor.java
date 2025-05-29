@@ -1,6 +1,5 @@
 package com.datadog.debugger.instrumentation;
 
-import static com.datadog.debugger.instrumentation.ASMHelper.extractSuperClass;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
@@ -910,7 +909,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     }
 
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
-      if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
+      if (Config.get().getDynamicInstrumentationInstrumentTheWorld() == null) {
         reportWarning("Missing local variable debug info");
       }
       // no local variables info - bail out
@@ -1136,49 +1135,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
         }
       }
     }
-    if (!Config.get().isDynamicInstrumentationInstrumentTheWorld()) {
-      // Collects inherited static fields only if the ITW mode is not enabled
-      // because it can lead to LinkageError: attempted duplicate class definition
-      // for example, when a probe is located in method overridden in enum element
-      addInheritedStaticFields(classNode, classLoader, limits, results, fieldCount);
-    }
+    // Collecting inherited static fields is problematic because it some cases can lead to
+    // LinkageError: attempted duplicate class definition
+    // as we force to load a class to get the static fields in a different order than the JVM
+    // for example, when a probe is located in method overridden in enum element
     return results;
-  }
-
-  private static void addInheritedStaticFields(
-      ClassNode classNode,
-      ClassLoader classLoader,
-      Limits limits,
-      List<FieldNode> results,
-      int fieldCount) {
-    String superClassName = extractSuperClass(classNode);
-    while (!superClassName.equals(Object.class.getTypeName())) {
-      Class<?> clazz;
-      try {
-        clazz = Class.forName(superClassName, false, classLoader);
-      } catch (ClassNotFoundException ex) {
-        break;
-      }
-      try {
-        for (Field field : clazz.getDeclaredFields()) {
-          if (isStaticField(field) && !isFinalField(field)) {
-            String desc = Type.getDescriptor(field.getType());
-            FieldNode fieldNode =
-                new FieldNode(field.getModifiers(), field.getName(), desc, null, field);
-            results.add(fieldNode);
-            LOGGER.debug("Adding static inherited field {}", fieldNode.name);
-            fieldCount++;
-            if (fieldCount > limits.maxFieldCount) {
-              return;
-            }
-          }
-        }
-      } catch (ClassCircularityError ex) {
-        break;
-      }
-      clazz = clazz.getSuperclass();
-      superClassName = clazz.getTypeName();
-    }
   }
 
   private int declareContextVar(InsnList insnList) {

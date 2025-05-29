@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.restlet;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.restlet.RestletDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.sun.net.httpserver.HttpExchange;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -53,10 +53,10 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
 
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      AgentSpanContext.Extracted context = DECORATE.extract(exchange);
+    public static ContextScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
+      Context context = DECORATE.extractContext(exchange);
       AgentSpan span = DECORATE.startSpan(exchange, context);
-      AgentScope scope = activateSpan(span);
+      ContextScope scope = context.with(span).attach();
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, context);
       DECORATE.onPeerConnection(span, exchange.getRemoteAddress());
@@ -66,14 +66,14 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Argument(0) final HttpExchange exchange,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromContext(scope.context());
       DECORATE.onResponse(span, exchange);
 
       if (null != error) {

@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.Value;
+import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -83,5 +84,15 @@ class ListValueTest {
     assertThrows(IllegalArgumentException.class, () -> listValue.get(-1));
     assertThrows(IllegalArgumentException.class, () -> listValue.get(intArray.length));
     assertEquals("int[][]", print(listValue));
+  }
+
+  @Test
+  void nullList() {
+    ListValue listValue = new ListValue(null);
+    assertTrue(listValue.isEmpty());
+    assertTrue(listValue.isNull());
+    listValue = new ListValue(Values.NULL_OBJECT);
+    assertTrue(listValue.isEmpty());
+    assertTrue(listValue.isNull());
   }
 }

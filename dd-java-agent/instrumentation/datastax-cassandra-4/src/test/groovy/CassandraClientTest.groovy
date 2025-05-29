@@ -47,7 +47,7 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
     container = new CassandraContainer("cassandra:4").withStartupTimeout(Duration.ofSeconds(120))
     container.start()
     port = container.getMappedPort(9042)
-    address = new InetSocketAddress("127.0.0.1", port)
+    address = new InetSocketAddress(container.getHost(), port)
 
     runUnderTrace("setup") {
       Session session = sessionBuilder().build()
@@ -247,12 +247,12 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "java-cassandra"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" "localhost"
+        "$Tags.PEER_HOSTNAME" container.getHost()
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"
         "$Tags.DB_INSTANCE" keyspace
-        "$InstrumentationTags.CASSANDRA_CONTACT_POINTS"  "127.0.0.1:${port}"
+        "$InstrumentationTags.CASSANDRA_CONTACT_POINTS"  "${container.contactPoint.hostString}:${container.contactPoint.port}"
 
         if (throwable != null) {
           errorTags(throwable)

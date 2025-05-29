@@ -748,7 +748,7 @@ class JFRBasedProfilingIntegrationTest {
     final List<String> command =
         Arrays.asList(
             javaPath(),
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "512M"),
+            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
             "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
             "-javaagent:" + agentShadowJar(),
             "-XX:ErrorFile=/tmp/hs_err_pid%p.log",

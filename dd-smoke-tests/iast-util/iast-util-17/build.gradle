@@ -21,13 +21,10 @@ dependencies {
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))
 }
 
-project.tasks.withType(AbstractCompile).configureEach {
+tasks.named("compileJava", JavaCompile).configure {
   setJavaVersion(it, 17)
   sourceCompatibility = JavaVersion.VERSION_17
   targetCompatibility = JavaVersion.VERSION_17
-  if (it instanceof JavaCompile) {
-    it.options.release.set(17)
-  }
 }
 
 forbiddenApisMain {

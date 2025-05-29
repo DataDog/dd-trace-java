@@ -34,7 +34,7 @@ public final class TracingSupervisor extends Supervisor<Object> {
       Option<Fiber.Runtime<Object, Object>> parent,
       Fiber.Runtime<E, A_> fiber,
       Unsafe unsafe) {
-    FiberContext context = FiberContext.create();
+    FiberContext context = new FiberContext();
     contextStore.put(fiber, context);
   }
 

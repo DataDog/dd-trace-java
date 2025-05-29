@@ -19,6 +19,7 @@ import org.eclipse.jetty.server.SslConnectionFactory
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.util.ssl.SslContextFactory
+import org.eclipse.jetty.util.thread.QueuedThreadPool
 
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
@@ -82,7 +83,10 @@ class TestHttpServer implements AutoCloseable {
   }
 
   private TestHttpServer() {
-    internalServer = new Server()
+    // In some versions, Jetty requires max threads > than some arbitrary calculated value
+    // The calculated value can be high in CI
+    // There is no easy way to override the configuration in a version-neutral way
+    internalServer = new Server(new QueuedThreadPool(400))
 
     TrustManager[] trustManagers = new TrustManager[1]
     trustManagers[0] = trustManager
@@ -124,7 +128,6 @@ class TestHttpServer implements AutoCloseable {
         internalServer.addConnector(https)
 
         customizer.call(internalServer)
-
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
         internalServer.stopAtShutdown = true

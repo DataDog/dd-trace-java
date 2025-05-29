@@ -2,6 +2,7 @@ package com.datadog.profiling.uploader;
 
 import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingInputStream;
+import io.airlift.compress.zstd.ZstdOutputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -86,6 +87,7 @@ final class CompressingRequestBody extends RequestBody {
   private static final int[] LZ4_MAGIC = new int[] {0x04, 0x22, 0x4D, 0x18};
   private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
   private static final int GZ_MAGIC[] = new int[] {31, 139};
+  private static final int ZSTD_MAGIC[] = new int[] {0x28, 0xB5, 0x2F, 0xFD};
 
   private final InputStreamSupplier inputStreamSupplier;
   private final OutputStreamMappingFunction outputStreamMapper;
@@ -269,7 +271,24 @@ final class CompressingRequestBody extends RequestBody {
    */
   static boolean isCompressed(@Nonnull final InputStream is) throws IOException {
     checkMarkSupported(is);
-    return isGzip(is) || isLz4(is) || isZip(is);
+    return isGzip(is) || isLz4(is) || isZip(is) || isZstd(is);
+  }
+
+  /**
+   * Check whether the stream represents ZSTD data
+   *
+   * @param is input stream; must support {@linkplain InputStream#mark(int)}
+   * @return {@literal true} if the stream represents ZSTD data
+   * @throws IOException
+   */
+  static boolean isZstd(@Nonnull final InputStream is) throws IOException {
+    checkMarkSupported(is);
+    is.mark(ZSTD_MAGIC.length);
+    try {
+      return hasMagic(is, ZSTD_MAGIC);
+    } finally {
+      is.reset();
+    }
   }
 
   /**
@@ -331,12 +350,11 @@ final class CompressingRequestBody extends RequestBody {
 
   private static OutputStreamMappingFunction getOutputStreamMapper(
       @Nonnull CompressionType compressionType) {
-    // currently only gzip and off are supported
-    // this needs to be updated once more compression types are added
-    compressionType =
-        (Platform.isNativeImage() && compressionType != CompressionType.OFF
-            ? CompressionType.GZIP
-            : compressionType);
+    // Handle native image compatibility
+    if (Platform.isNativeImage() && compressionType != CompressionType.OFF) {
+      compressionType = CompressionType.GZIP;
+    }
+
     switch (compressionType) {
       case GZIP:
         {
@@ -346,6 +364,10 @@ final class CompressingRequestBody extends RequestBody {
         {
           return out -> out;
         }
+      case ZSTD:
+        {
+          return CompressingRequestBody::toZstdStream;
+        }
       case ON:
       case LZ4:
       default:
@@ -353,6 +375,12 @@ final class CompressingRequestBody extends RequestBody {
           return CompressingRequestBody::toLz4Stream;
         }
     }
+  }
+
+  private static OutputStream toZstdStream(@Nonnull OutputStream os) throws IOException {
+    // Default compression level is 3 which provides a good balance between performance and
+    // compression ratio
+    return new ZstdOutputStream(os);
   }
 
   private static OutputStream toLz4Stream(@Nonnull OutputStream os) throws IOException {

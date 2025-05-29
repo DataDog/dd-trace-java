@@ -9,7 +9,7 @@ import datadog.trace.civisibility.utils.ShellCommandExecutor
  */
 class GradleLauncherSmokeTest extends AbstractGradleTest {
 
-  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 60_000
+  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
 
   private static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
 

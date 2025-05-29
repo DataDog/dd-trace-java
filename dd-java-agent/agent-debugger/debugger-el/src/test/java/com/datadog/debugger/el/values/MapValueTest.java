@@ -60,4 +60,14 @@ class MapValueTest {
     Value<?> key = Value.of(1);
     assertEquals(Value.of(1), instance.get(key));
   }
+
+  @Test
+  void nullMap() {
+    MapValue mapValue = new MapValue(null);
+    assertTrue(mapValue.isEmpty());
+    assertTrue(mapValue.isNull());
+    mapValue = new MapValue(Values.NULL_OBJECT);
+    assertTrue(mapValue.isEmpty());
+    assertTrue(mapValue.isNull());
+  }
 }

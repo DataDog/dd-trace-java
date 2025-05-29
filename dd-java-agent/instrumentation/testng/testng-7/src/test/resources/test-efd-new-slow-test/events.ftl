@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedSlow",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -37,7 +37,7 @@
 }, {
   "content" : {
     "duration" : ${content_duration_2},
-    "error" : 1,
+    "error" : 0,
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
@@ -56,7 +56,7 @@
       "test.name" : "test_succeed",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_succeed()V",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedSlow",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -151,7 +151,7 @@
       "test.early_flake.enabled" : "true",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },
@@ -184,7 +184,7 @@
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "testng-7",
-      "test.status" : "fail",
+      "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
     },

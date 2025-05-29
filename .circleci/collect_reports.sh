@@ -35,12 +35,12 @@ done
 
 mkdir -p $REPORTS_DIR >/dev/null 2>&1
 
-cp /tmp/hs_err_pid*.log $REPORTS_DIR || true
-cp /tmp/java_pid*.hprof $REPORTS_DIR || true
-cp /tmp/javacore.* $REPORTS_DIR || true
-cp /tmp/*.trc $REPORTS_DIR || true
-cp /tmp/*.dmp $REPORTS_DIR || true
-cp /tmp/dd-profiler/*.jfr $REPORTS_DIR || true
+cp /tmp/hs_err_pid*.log $REPORTS_DIR 2>/dev/null || true
+cp /tmp/java_pid*.hprof $REPORTS_DIR 2>/dev/null || true
+cp /tmp/javacore.* $REPORTS_DIR 2>/dev/null || true
+cp /tmp/*.trc $REPORTS_DIR 2>/dev/null || true
+cp /tmp/*.dmp $REPORTS_DIR 2>/dev/null || true
+cp /tmp/dd-profiler/*.jfr $REPORTS_DIR 2>/dev/null || true
 
 function process_reports () {
     project_to_save=$1
@@ -59,9 +59,9 @@ function process_reports () {
     else
       echo "copying reports for $project_to_save"
       mkdir -p $report_path
-      cp -r workspace/$project_to_save/build/reports/* $report_path/ || true
-      cp workspace/$project_to_save/build/hs_err_pid*.log $report_path/ || true
-      cp workspace/$project_to_save/build/javacore*.txt $report_path/ || true
+      cp -r workspace/$project_to_save/build/reports/* $report_path/ 2>/dev/null || true
+      cp workspace/$project_to_save/build/hs_err_pid*.log $report_path/ 2>/dev/null || true
+      cp workspace/$project_to_save/build/javacore*.txt $report_path/ 2>/dev/null || true
     fi
 }
 
@@ -73,4 +73,4 @@ for report_path in workspace/**/build/reports; do
     process_reports $report_path
 done
 
-tar -cvzf reports.tar $REPORTS_DIR
+tar -czf reports.tar $REPORTS_DIR

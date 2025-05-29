@@ -38,28 +38,33 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ConfigurationUpdater configurationUpdater;
   private final ClassNameFilter classNameFiltering;
   private final CircuitBreaker circuitBreaker;
+  private final int maxCapturedFrames;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
       Duration captureInterval,
-      int maxExceptionPerSecond) {
+      int maxExceptionPerSecond,
+      int maxCapturedFrames) {
     this(
         new ExceptionProbeManager(classNameFiltering, captureInterval),
         configurationUpdater,
         classNameFiltering,
-        maxExceptionPerSecond);
+        maxExceptionPerSecond,
+        maxCapturedFrames);
   }
 
   DefaultExceptionDebugger(
       ExceptionProbeManager exceptionProbeManager,
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
-      int maxExceptionPerSecond) {
+      int maxExceptionPerSecond,
+      int maxCapturedFrames) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
+    this.maxCapturedFrames = maxCapturedFrames;
   }
 
   @Override
@@ -91,7 +96,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;
       }
-      processSnapshotsAndSetTags(t, span, state, chainedExceptionsList, fingerprint);
+      processSnapshotsAndSetTags(
+          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -128,7 +134,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       AgentSpan span,
       ThrowableState state,
       List<Throwable> chainedExceptions,
-      String fingerprint) {
+      String fingerprint,
+      int maxCapturedFrames) {
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
@@ -142,7 +149,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     }
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
-    for (int i = 0; i < snapshots.size(); i++) {
+    int maxSnapshotSize = Math.min(snapshots.size(), maxCapturedFrames);
+    for (int i = 0; i < maxSnapshotSize; i++) {
       Snapshot snapshot = snapshots.get(i);
       Throwable currentEx = chainedExceptions.get(snapshot.getChainedExceptionIdx());
       int[] mapping = createThrowableMapping(currentEx, t);

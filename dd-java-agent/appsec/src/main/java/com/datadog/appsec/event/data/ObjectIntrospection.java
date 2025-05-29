@@ -1,6 +1,8 @@
 package com.datadog.appsec.event.data;
 
+import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -16,6 +18,7 @@ import org.slf4j.LoggerFactory;
 public final class ObjectIntrospection {
   private static final int MAX_DEPTH = 20;
   private static final int MAX_ELEMENTS = 256;
+  private static final int MAX_STRING_LENGTH = 4096;
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
 
   private static final Method trySetAccessible;
@@ -34,6 +37,16 @@ public final class ObjectIntrospection {
   }
 
   private ObjectIntrospection() {}
+
+  /**
+   * Listener interface for optional per-call truncation logic. Single-method invoked when any
+   * truncation occurs, receiving only the request context.
+   */
+  @FunctionalInterface
+  public interface TruncationListener {
+    /** Called after default truncation handling if any truncation occurred. */
+    void onTruncation();
+  }
 
   /**
    * Converts arbitrary objects compatible with ddwaf_object. Possible types in the result are:
@@ -60,20 +73,46 @@ public final class ObjectIntrospection {
    * <p>Certain instance fields are excluded. Right now, this includes metaClass fields in Groovy
    * objects and this$0 fields in inner classes.
    *
-   * <p>Only string values are preserved. Numbers or booleans are removed, since we do not expect
-   * rules to detect malicious payloads in these types. An exception to this are map keys, which are
-   * always converted to strings.
-   *
    * @param obj an arbitrary object
+   * @param requestContext the request context
    * @return the converted object
    */
-  public static Object convert(Object obj) {
-    return guardedConversion(obj, 0, new State());
+  public static Object convert(Object obj, AppSecRequestContext requestContext) {
+    return convert(obj, requestContext, null);
+  }
+
+  /**
+   * Core conversion method with an optional per-call truncation listener. Always applies default
+   * truncation logic, then invokes listener if provided.
+   */
+  public static Object convert(
+      Object obj, AppSecRequestContext requestContext, TruncationListener listener) {
+    State state = new State(requestContext);
+    Object converted = guardedConversion(obj, 0, state);
+    if (state.stringTooLong || state.listMapTooLarge || state.objectTooDeep) {
+      // Default truncation handling: always run
+      requestContext.setWafTruncated();
+      WafMetricCollector.get()
+          .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
+      // Optional extra per-call logic: only requestContext is passed
+      if (listener != null) {
+        listener.onTruncation();
+      }
+    }
+    return converted;
   }
 
   private static class State {
     int elemsLeft = MAX_ELEMENTS;
     int invalidKeyId;
+    boolean objectTooDeep = false;
+    boolean listMapTooLarge = false;
+    boolean stringTooLong = false;
+    AppSecRequestContext requestContext;
+
+    private State(AppSecRequestContext requestContext) {
+      this.requestContext = requestContext;
+    }
   }
 
   private static Object guardedConversion(Object obj, int depth, State state) {
@@ -94,31 +133,48 @@ public final class ObjectIntrospection {
       return "null";
     }
     if (key instanceof String) {
-      return (String) key;
+      return checkStringLength((String) key, state);
     }
     if (key instanceof Number
         || key instanceof Boolean
         || key instanceof Character
         || key instanceof CharSequence) {
-      return key.toString();
+      return checkStringLength(key.toString(), state);
     }
     return "invalid_key:" + (++state.invalidKeyId);
   }
 
   private static Object doConversion(Object obj, int depth, State state) {
+    if (obj == null) {
+      return null;
+    }
     state.elemsLeft--;
-    if (state.elemsLeft <= 0 || obj == null || depth > MAX_DEPTH) {
+    if (state.elemsLeft <= 0) {
+      state.listMapTooLarge = true;
       return null;
     }
 
-    // strings, booleans and numbers are preserved
-    if (obj instanceof String || obj instanceof Boolean || obj instanceof Number) {
+    if (depth > MAX_DEPTH) {
+      state.objectTooDeep = true;
+      return null;
+    }
+
+    // booleans and numbers are preserved
+    if (obj instanceof Boolean || obj instanceof Number) {
       return obj;
     }
 
+    // strings are preserved, but we need to check the length
+    if (obj instanceof String) {
+      return checkStringLength((String) obj, state);
+    }
+
     // char sequences are transformed just in case they are not immutable,
+    if (obj instanceof CharSequence) {
+      return checkStringLength(obj.toString(), state);
+    }
     // single char sequences are transformed to strings for ddwaf compatibility.
-    if (obj instanceof CharSequence || obj instanceof Character) {
+    if (obj instanceof Character) {
       return obj.toString();
     }
 
@@ -147,6 +203,7 @@ public final class ObjectIntrospection {
       }
       for (Object o : ((Iterable<?>) obj)) {
         if (state.elemsLeft <= 0) {
+          state.listMapTooLarge = true;
           break;
         }
         newList.add(guardedConversion(o, depth + 1, state));
@@ -178,6 +235,7 @@ public final class ObjectIntrospection {
     for (Field[] fields : allFields) {
       for (Field f : fields) {
         if (state.elemsLeft <= 0) {
+          state.listMapTooLarge = true;
           break outer;
         }
         if (Modifier.isStatic(f.getModifiers())) {
@@ -238,5 +296,13 @@ public final class ObjectIntrospection {
       log.error("Unable to make field accessible", e);
       return false;
     }
+  }
+
+  private static String checkStringLength(final String str, final State state) {
+    if (str.length() > MAX_STRING_LENGTH) {
+      state.stringTooLong = true;
+      return str.substring(0, MAX_STRING_LENGTH);
+    }
+    return str;
   }
 }

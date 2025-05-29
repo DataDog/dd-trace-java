@@ -13,7 +13,10 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodNode;
 
 public class ASMHelperTest {
 
@@ -167,5 +170,21 @@ public class ASMHelperTest {
 
   private static LocalVariableNode createLocalVar(String name, String desc, int index) {
     return new LocalVariableNode(name, desc, null, null, null, index);
+  }
+
+  @Test
+  void getLineNumbers() {
+    assertEquals(Collections.emptyList(), ASMHelper.getLineNumbers(null));
+    MethodNode methodNode = new MethodNode();
+    assertEquals(Collections.emptyList(), ASMHelper.getLineNumbers(methodNode));
+    methodNode.instructions.add(new LineNumberNode(40, null));
+    methodNode.instructions.add(new LineNumberNode(2, null));
+    methodNode.instructions.add(new LineNumberNode(82, null));
+    methodNode.instructions.add(new LabelNode());
+    List<Integer> lineNumbers = ASMHelper.getLineNumbers(methodNode);
+    assertEquals(3, lineNumbers.size());
+    assertEquals(40, lineNumbers.get(0).intValue());
+    assertEquals(2, lineNumbers.get(1).intValue());
+    assertEquals(82, lineNumbers.get(2).intValue());
   }
 }
