@@ -23,7 +23,7 @@ public class StableConfigParser {
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
   static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
-  private static final String UNDEFINED_VALUE = "UNDEFINED";
+  private static final String UNDEFINED_VALUE = "";
 
   /**
    * Parses a configuration file and returns a stable configuration object.

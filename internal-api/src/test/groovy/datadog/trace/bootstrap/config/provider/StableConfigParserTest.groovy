@@ -42,6 +42,12 @@ apm_configuration_rules:
       matches: ["mysvc"]
     configuration:
       KEY_FOUR: "ignored"
+  - selectors:
+    - origin: process_arguments
+      key: "-Darg1"
+      operator: exists
+    configuration:
+      KEY_FIVE: "ignored"
 """
     Files.write(filePath, yaml.getBytes())
     StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
@@ -234,13 +240,13 @@ apm_configuration_rules:
     where:
     templateVar                                                                                                 | envKey   | envVal  | expect
     "{{environment_variables['DD_KEY']}}"                                                                       | "DD_KEY" | "value" | "value"
-    "{{environment_variables['DD_KEY']}}"                                                                       | null     | null    | "UNDEFINED"
-    "{{}}"                                                                                                      | null     | null    | "UNDEFINED"
+    "{{environment_variables['DD_KEY']}}"                                                                       | null     | null    | ""
+    "{{}}"                                                                                                      | null     | null    | ""
     "{}"                                                                                                        | null     | null    | "{}"
     "{{environment_variables['dd_key']}}"                                                                       | "DD_KEY" | "value" | "value"
-    "{{environment_variables['DD_KEY}}"                                                                         | "DD_KEY" | "value" | "UNDEFINED"
+    "{{environment_variables['DD_KEY}}"                                                                         | "DD_KEY" | "value" | ""
     "header-{{environment_variables['DD_KEY']}}-footer"                                                         | "DD_KEY" | "value" | "header-value-footer"
-    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "UNDEFINEDvalueUNDEFINED"
+    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "value"
   }
 
   def "test processTemplate error cases"() {
