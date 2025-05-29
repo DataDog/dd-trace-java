@@ -231,8 +231,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private void handleWafUpdateResultReport(
-      String configKey, Map<String, Object> rawConfig, String... filename)
+  private void handleWafUpdateResultReport(String configKey, Map<String, Object> rawConfig)
       throws AppSecModule.AppSecModuleActivationException {
     wafBuilder = getWafBuilder();
     if (modulesToUpdateVersionIn != null
@@ -242,8 +241,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     try {
       WafDiagnostics wafDiagnostics = wafBuilder.addOrUpdateConfig(configKey, rawConfig);
-      if (log.isInfoEnabled() && filename.length > 0) {
-        StandardizedLogging.numLoadedRules(log, filename[0], countRules(rawConfig));
+      if (log.isInfoEnabled()) {
+        StandardizedLogging.numLoadedRules(log, configKey, countRules(rawConfig));
       }
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
