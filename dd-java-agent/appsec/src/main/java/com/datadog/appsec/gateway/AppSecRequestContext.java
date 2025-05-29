@@ -239,8 +239,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspTimeouts;
   }
 
-  public WafContext getOrCreateWafContext(WafHandle wafHandle, boolean isRasp) {
-    if (Config.get().isAppSecWafMetrics()) {
+  public WafContext getOrCreateWafContext(
+      WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
+    if (createMetrics) {
       if (wafMetrics == null) {
         this.wafMetrics = new WafMetrics();
       }
