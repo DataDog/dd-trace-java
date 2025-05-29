@@ -60,6 +60,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import datadog.trace.api.telemetry.LogCollector;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -244,6 +246,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       if (log.isInfoEnabled()) {
         StandardizedLogging.numLoadedRules(log, configKey, countRules(rawConfig));
       }
+
+      // TODO: Send diagnostics via telemetry
+      final LogCollector telemetryLogger = LogCollector.get();
+
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
           && !wafDiagnostics.rulesetVersion.isEmpty()
@@ -260,6 +266,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           "Invalid rule during waf config update for config key {}: {}",
           configKey,
           e.wafDiagnostics);
+
+      // TODO: Propagate diagostics back to remote config apply_error
+
       initReporter.setReportForPublication(e.wafDiagnostics);
       throw new RuntimeException(e);
     } catch (UnclassifiedWafException e) {
