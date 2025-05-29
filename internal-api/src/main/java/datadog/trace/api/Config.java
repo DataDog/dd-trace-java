@@ -1260,7 +1260,9 @@ public class Config {
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     profilingUploadCompression =
         configProvider.getString(
-            PROFILING_UPLOAD_COMPRESSION, PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT);
+            PROFILING_DEBUG_UPLOAD_COMPRESSION,
+            PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+            PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
