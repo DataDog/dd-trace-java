@@ -8,18 +8,91 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import org.junit.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class TagMapTest {
   // size is chosen to make sure to stress all types of collisions in the Map
   static final int MANY_SIZE = 256;
+
+  // static function tests - mostly exist to satisfy coverage checker
+  @Test
+  public void fromMap_emptyMap() {
+    Map<String, String> emptyMap = Collections.emptyMap();
+
+    TagMap tagMap = TagMap.fromMap(emptyMap);
+    assertEquals(tagMap.size(), 0);
+    assertTrue(tagMap.isEmpty());
+
+    assertFalse(tagMap.isFrozen());
+  }
+
+  @Test
+  public void fromMap_nonEmptyMap() {
+    // mostly exists to satisfy coverage checker
+    HashMap<String, String> origMap = new HashMap<>();
+    origMap.put("foo", "bar");
+    origMap.put("baz", "quux");
+
+    TagMap tagMap = TagMap.fromMap(origMap);
+    assertEquals(tagMap.size(), origMap.size());
+
+    assertEquals(tagMap.get("foo"), origMap.get("foo"));
+    assertEquals(tagMap.get("baz"), origMap.get("baz"));
+
+    assertFalse(tagMap.isFrozen());
+  }
+
+  @Test
+  public void fromMapImmutable_empty() {
+    Map<String, String> emptyMap = Collections.emptyMap();
+
+    TagMap tagMap = TagMap.fromMapImmutable(emptyMap);
+    assertEquals(tagMap.size(), 0);
+    assertTrue(tagMap.isEmpty());
+
+    assertTrue(tagMap.isFrozen());
+  }
+
+  @Test
+  public void fromMapImmutable_nonEmptyMap() {
+    // mostly exists to satisfy coverage checker
+    HashMap<String, String> origMap = new HashMap<>();
+    origMap.put("foo", "bar");
+    origMap.put("baz", "quux");
+
+    TagMap tagMap = TagMap.fromMapImmutable(origMap);
+    assertEquals(tagMap.size(), origMap.size());
+
+    assertEquals(tagMap.get("foo"), origMap.get("foo"));
+    assertEquals(tagMap.get("baz"), origMap.get("baz"));
+
+    assertTrue(tagMap.isFrozen());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  public void optimizedFactory(boolean optimized) {
+    TagMapFactory<?> factory = TagMapFactory.createFactory(optimized);
+
+    TagMap unsizedMap = factory.create();
+    assertEquals(optimized, unsizedMap.isOptimized());
+
+    TagMap sizedMap = factory.create(32);
+    assertEquals(optimized, sizedMap.isOptimized());
+
+    TagMap emptyMap = factory.empty();
+    assertEquals(optimized, emptyMap.isOptimized());
+  }
 
   @ParameterizedTest
   @EnumSource(TagMapType.class)
@@ -63,6 +136,71 @@ public class TagMapTest {
 
     assertEquals(false, map.getBoolean("unset"));
     assertEquals(true, map.getBooleanOrDefault("unset", true));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void numericZeroToBooleanCoercion(TagMapType mapType) {
+    TagMap map =
+        TagMap.ledger()
+            .set("int", 0)
+            .set("intObj", Integer.valueOf(0))
+            .set("long", 0L)
+            .set("longObj", Long.valueOf(0L))
+            .set("float", 0F)
+            .set("floatObj", Float.valueOf(0F))
+            .set("double", 0D)
+            .set("doubleObj", Double.valueOf(0D))
+            .build();
+
+    assertEquals(false, map.getBoolean("int"));
+    assertEquals(false, map.getBoolean("intObj"));
+    assertEquals(false, map.getBoolean("long"));
+    assertEquals(false, map.getBoolean("longObj"));
+    assertEquals(false, map.getBoolean("float"));
+    assertEquals(false, map.getBoolean("floatObj"));
+    assertEquals(false, map.getBoolean("double"));
+    assertEquals(false, map.getBoolean("doubleObj"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void numericNonZeroToBooleanCoercion(TagMapType mapType) {
+    TagMap map =
+        TagMap.ledger()
+            .set("int", 1)
+            .set("intObj", Integer.valueOf(1))
+            .set("long", 1L)
+            .set("longObj", Long.valueOf(1L))
+            .set("float", 1F)
+            .set("floatObj", Float.valueOf(1F))
+            .set("double", 1D)
+            .set("doubleObj", Double.valueOf(1D))
+            .build();
+
+    assertEquals(true, map.getBoolean("int"));
+    assertEquals(true, map.getBoolean("intObj"));
+    assertEquals(true, map.getBoolean("long"));
+    assertEquals(true, map.getBoolean("longObj"));
+    assertEquals(true, map.getBoolean("float"));
+    assertEquals(true, map.getBoolean("floatObj"));
+    assertEquals(true, map.getBoolean("double"));
+    assertEquals(true, map.getBoolean("doubleObj"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void objectToBooleanCoercion(TagMapType mapType) {
+    TagMap map =
+        TagMap.ledger()
+            .set("obj", new Object())
+            .set("trueStr", "true")
+            .set("falseStr", "false")
+            .build();
+
+    assertEquals(true, map.getBoolean("obj"));
+    assertEquals(true, map.getBoolean("trueStr"));
+    assertEquals(true, map.getBoolean("falseStr"));
   }
 
   @ParameterizedTest

@@ -1067,9 +1067,11 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
  */
 abstract class TagMapFactory<MapT extends TagMap> {
   public static final TagMapFactory<?> INSTANCE =
-      Config.get().isOptimizedMapEnabled()
-          ? new OptimizedTagMapFactory()
-          : new LegacyTagMapFactory();
+      createFactory(Config.get().isOptimizedMapEnabled());
+
+  static final TagMapFactory<?> createFactory(boolean useOptimized) {
+    return useOptimized ? new OptimizedTagMapFactory() : new LegacyTagMapFactory();
+  }
 
   public abstract MapT create();
 
