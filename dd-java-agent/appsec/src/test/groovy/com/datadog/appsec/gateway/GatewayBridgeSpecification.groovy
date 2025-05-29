@@ -1181,7 +1181,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> true
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
@@ -1199,7 +1199,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> false
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
@@ -1218,7 +1218,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> true
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)

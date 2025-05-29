@@ -1213,7 +1213,7 @@ final class OptimizedTagMap implements TagMap {
 
   public final double getDoubleOrDefault(String tag, double defaultValue) {
     Entry entry = this.getEntry(tag);
-    return entry == null ? 0D : entry.doubleValue();
+    return entry == null ? defaultValue : entry.doubleValue();
   }
 
   @Override
