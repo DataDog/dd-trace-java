@@ -892,7 +892,7 @@ public class DDSpanContext
             .append("DDSpan [ t_id=")
             .append(traceId)
             .append(", s_id=")
-            .append(Long.toUnsignedString(spanId))
+            .append(DDSpanID.toString(spanId))
             .append(", p_id=")
             .append(Long.toUnsignedString(parentId))
             .append(" ] trace=")
