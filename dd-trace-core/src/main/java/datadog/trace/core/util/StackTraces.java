@@ -17,7 +17,13 @@ public final class StackTraces {
   public static String getStackTrace(Throwable t, int maxChars) {
     StringWriter sw = new StringWriter();
     t.printStackTrace(new PrintWriter(sw));
-    return truncate(sw.toString(), maxChars);
+    String trace = sw.toString();
+    try {
+      return truncate(trace, maxChars);
+    } catch (Exception e) {
+      // If something goes wrong, return the original trace
+      return trace;
+    }
   }
 
   static String truncate(String trace, int maxChars) {
