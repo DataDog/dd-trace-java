@@ -7,6 +7,8 @@ package datadog.trace.api.config;
  * documentation for details.
  */
 public final class CrashTrackingConfig {
+  public static final String CRASH_TRACKING_ENABLED = "crashtracking.enabled";
+  public static final boolean CRASH_TRACKING_ENABLED_DEFAULT = true;
 
   public static final String CRASH_TRACKING_TAGS = "crashtracking.tags";
 
