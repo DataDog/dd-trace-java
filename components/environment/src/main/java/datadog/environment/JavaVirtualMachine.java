@@ -1,8 +1,12 @@
 package datadog.environment;
 
-import static datadog.environment.CommandLine.VM_ARGUMENTS;
+import static datadog.environment.CommandLine.CMD;
+import static datadog.environment.CommandLine.CMD_ARGUMENTS;
+import static datadog.environment.CommandLine.VM_OPTIONS;
 
 import java.util.List;
+import java.util.Locale;
+import javax.annotation.Nullable;
 
 public class JavaVirtualMachine {
   private static final JavaVersion JAVA_VERSION = JavaVersion.getRuntimeVersion();
@@ -119,12 +123,45 @@ public class JavaVirtualMachine {
   }
 
   /**
-   * Gets the JVM CLI arguments.
+   * Gets the JVM options.
    *
-   * @return The JVM CLI arguments, an empty collection if they can't be retrieved.
+   * @return The JVM options, an empty collection if they can't be retrieved.
    */
-  public static List<String> getVmArguments() {
-    return VM_ARGUMENTS;
+  public static List<String> getVmOptions() {
+    return VM_OPTIONS;
+  }
+
+  /**
+   * Gets the command arguments.
+   *
+   * @return The command arguments, an empty collection if missing or can't be retrieved.
+   */
+  public static List<String> getCommandArguments() {
+    return CMD_ARGUMENTS;
+  }
+
+  /**
+   * Gets the JVM runtime main class name.
+   *
+   * @return The JVM runtime main class name, {@code null} if using JAR file instead or can't be
+   *     retrieved.
+   */
+  public static @Nullable String getMainClass() {
+    return CMD != null && !isJarName(CMD) ? CMD : null;
+  }
+
+  /**
+   * Gets the JVM runtime jar file.
+   *
+   * @return The JVM runtime jar file, {@code null} if using main class instead or can't be
+   *     retrieved.
+   */
+  public static @Nullable String getJarFile() {
+    return CMD != null && isJarName(CMD) ? CMD : null;
+  }
+
+  private static boolean isJarName(String argument) {
+    return argument.toLowerCase(Locale.ROOT).endsWith(".jar");
   }
 
   static final class Runtime {
