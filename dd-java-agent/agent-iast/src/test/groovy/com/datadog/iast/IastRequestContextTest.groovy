@@ -1,6 +1,7 @@
 package com.datadog.iast
 
 import com.datadog.iast.model.Range
+import com.datadog.iast.overhead.OverheadContext
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
@@ -119,5 +120,17 @@ class IastRequestContextTest extends DDSpecification {
 
     then:
     ctx.taintedObjects.count() == 0
+  }
+
+  void 'on release context overheadContext reset is called'() {
+    setup:
+    final overheadCtx = Mock(OverheadContext)
+    final ctx = new IastRequestContext(overheadCtx)
+
+    when:
+    provider.releaseRequestContext(ctx)
+
+    then:
+    1 * overheadCtx.resetMaps()
   }
 }

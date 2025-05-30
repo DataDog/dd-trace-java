@@ -1,5 +1,6 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.model.VulnerabilityType.INSECURE_COOKIE;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static java.util.Collections.singletonList;
@@ -65,7 +66,11 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+    // TODO decide if we remove this one quota for all vulnerabilities as new IAST sampling
+    // algorithm is able to report  all endpoint vulnerabilities
+    if (!overheadController.consumeQuota(
+        Operations.REPORT_VULNERABILITY, span, INSECURE_COOKIE // we need a type to check quota
+        )) {
       return;
     }
     final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());

@@ -1,0 +1,92 @@
+package datadog.smoketest
+
+import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
+import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING
+import groovy.transform.CompileDynamic
+import okhttp3.FormBody
+import okhttp3.Request
+
+@CompileDynamic
+class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest {
+
+  @Override
+  ProcessBuilder createProcessBuilder() {
+    String springBootShadowJar = System.getProperty('datadog.smoketest.springboot.shadowJar.path')
+
+    List<String> command = []
+    command.add(javaPath())
+    command.addAll(defaultJavaProperties)
+    command.addAll(iastJvmOpts())
+    command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(new File(buildDirectory))
+    // Spring will print all environment variables to the log, which may pollute it and affect log assertions.
+    processBuilder.environment().clear()
+    return processBuilder
+  }
+
+  protected List<String> iastJvmOpts() {
+    return [
+      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_DETECTION_MODE, 'DEFAULT'),
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_REQUEST_SAMPLING, 100),
+    ]
+  }
+
+  void 'test'() {
+    given:
+    // prepare a list of exactly three GET requests with path and query param
+    def requests = []
+    for (int i = 1; i <= 3; i++) {
+      requests.add(new Request.Builder()
+        .url("http://localhost:${httpPort}/multiple_vulns/${i}/?param=value${i}")
+        .get()
+        .build())
+      requests.add(new Request.Builder()
+        .url("http://localhost:${httpPort}/multiple_vulns-2/${i}/?param=value${i}")
+        .get()
+        .build())
+      requests.add(new Request.Builder()
+        .url("http://localhost:${httpPort}/multiple_vulns/${i}")
+        .post(new FormBody.Builder().add('param', "value${i}").build())
+        .build())
+    }
+
+
+    when:
+    requests.each { req ->
+      client.newCall(req as Request).execute()
+    }
+
+    then: 'check first get mapping'
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==28 }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==33 }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns' && vul.location.line ==36 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==42 }
+
+    and: 'check second get mapping'
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==54 }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==59 }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns2' && vul.location.line ==62 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==68 }
+
+    and: 'check post mapping'
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==80 }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==85 }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==88 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==94 }
+  }
+
+}
