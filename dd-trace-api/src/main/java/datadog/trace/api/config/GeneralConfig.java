@@ -21,6 +21,7 @@ public final class GeneralConfig {
   public static final String SITE = "site";
 
   public static final String SERVICE_NAME = "service.name";
+  public static final String SERVICE_NAME_SET_BY_USER = "service.name.set.by.user";
   public static final String ENV = "env";
   public static final String VERSION = "version";
   public static final String PRIMARY_TAG = "primary.tag";
