@@ -6,7 +6,6 @@ import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFor
 import datadog.trace.bootstrap.BootstrapProxy;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -15,6 +14,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,26 +65,26 @@ public class IntegrationTestUtils {
    *
    * <p>The jar file will be removed when the jvm exits.
    *
-   * @param mainClassname The name of the class to use for Main-Class and Premain-Class. May be null
+   * @param mainClassName The name of the class to use for Main-Class and Premain-Class. May be null
    * @param classes classes to package into the jar.
    * @return the location of the newly created jar.
    * @throws IOException
    */
-  public static File createJarFileWithClasses(final String mainClassname, final Class<?>... classes)
+  public static File createJarFileWithClasses(final String mainClassName, final Class<?>... classes)
       throws IOException {
-    final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "-", ".jar");
+    final File tmpJar = File.createTempFile(UUID.randomUUID() + "-", ".jar");
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
-    if (mainClassname != null) {
+    if (mainClassName != null) {
       final Attributes mainAttributes = manifest.getMainAttributes();
       mainAttributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-      mainAttributes.put(Attributes.Name.MAIN_CLASS, mainClassname);
-      mainAttributes.put(new Attributes.Name("Premain-Class"), mainClassname);
+      mainAttributes.put(Attributes.Name.MAIN_CLASS, mainClassName);
+      mainAttributes.put(new Attributes.Name("Premain-Class"), mainClassName);
     }
 
     try (final JarOutputStream target =
-        new JarOutputStream(new FileOutputStream(tmpJar), manifest)) {
+        new JarOutputStream(Files.newOutputStream(tmpJar.toPath()), manifest)) {
       for (final Class<?> clazz : classes) {
         addToJar(clazz, target);
       }
@@ -93,10 +93,10 @@ public class IntegrationTestUtils {
     return tmpJar;
   }
 
-  public static URL createJarWithClasses(final String mainClassname, final Class<?>... classes)
+  public static URL createJarWithClasses(final String mainClassName, final Class<?>... classes)
       throws IOException {
 
-    return createJarFileWithClasses(mainClassname, classes).toURI().toURL();
+    return createJarFileWithClasses(mainClassName, classes).toURI().toURL();
   }
 
   private static void addToJar(final Class<?> clazz, final JarOutputStream jarOutputStream)
@@ -312,7 +312,7 @@ public class IntegrationTestUtils {
     public void run() {
       try {
         final BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        String line = null;
+        String line;
         while ((line = reader.readLine()) != null) {
           if (null != out) {
             out.println(type + "> " + line);
