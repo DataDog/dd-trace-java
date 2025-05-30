@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.http.scaladsl.util.FastFuture$;
 import akka.stream.Materializer;
-import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -28,8 +29,7 @@ public class DatadogAsyncHandlerWrapper
   @Override
   public Future<HttpResponse> apply(final HttpRequest request) {
     final ContextScope scope = DatadogWrapperHelper.createSpan(request);
-    Context context = scope.context();
-    final AgentSpan span = AgentSpan.fromContext(context);
+    final AgentSpan span = fromContext(scope.context());
     Future<HttpResponse> futureResponse;
 
     // handle blocking in the beginning of the request

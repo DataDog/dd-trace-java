@@ -1,16 +1,13 @@
 package datadog.trace.instrumentation.playws21;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
@@ -31,8 +28,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(getCurrentContext().with(span).with(dsmContext), request, SETTER);
+      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

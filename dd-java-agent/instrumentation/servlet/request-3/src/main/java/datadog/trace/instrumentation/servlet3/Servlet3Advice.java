@@ -69,12 +69,12 @@ public class Servlet3Advice {
       return false;
     }
 
-    final Context extractedContext = DECORATE.extractContext(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = extractedContext.with(span).attach();
+    final Context context = DECORATE.extractContext(httpServletRequest);
+    final AgentSpan span = DECORATE.startSpan(httpServletRequest, context);
+    scope = context.with(span).attach();
 
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, context);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
