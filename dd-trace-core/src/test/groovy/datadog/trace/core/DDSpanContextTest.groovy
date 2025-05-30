@@ -289,7 +289,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     "_dd.${tag}.json"
   }
 
-  def "setting resource name to null is ignored"() {
+  def "Span IDs printed as unsigned long"() {
     setup:
     def parent = tracer.buildSpan("fakeOperation")
       .withServiceName("fakeService")
