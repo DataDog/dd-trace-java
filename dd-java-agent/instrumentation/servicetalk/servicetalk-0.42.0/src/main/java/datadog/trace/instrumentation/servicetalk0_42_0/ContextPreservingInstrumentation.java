@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
@@ -13,7 +13,7 @@ import io.servicetalk.context.api.ContextMap;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class ContextPreservingInstrumentation extends AbstractAsyncContextInstrumentation
+public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   @Override
