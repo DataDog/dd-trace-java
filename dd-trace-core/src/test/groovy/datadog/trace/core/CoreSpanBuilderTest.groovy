@@ -8,6 +8,7 @@ import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TagMap
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.api.sampling.PrioritySampling
@@ -396,9 +397,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     ] + productTags()
 
     where:
-    tagContext                                      | _
-    new TagContext(null, [:])                       | _
-    new TagContext("some-origin", ["asdf": "qwer"]) | _
+    tagContext                                                      | _
+    new TagContext(null, TagMap.fromMap([:]))                       | _
+    new TagContext("some-origin", TagMap.fromMap(["asdf": "qwer"])) | _
   }
 
   def "global span tags populated on each span"() {

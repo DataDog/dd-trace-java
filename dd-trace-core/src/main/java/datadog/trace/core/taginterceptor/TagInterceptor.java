@@ -22,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Pair;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
@@ -35,6 +36,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.net.URI;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -80,6 +82,49 @@ public class TagInterceptor {
             && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
+  }
+
+  public boolean needsIntercept(TagMap map) {
+    for (TagMap.Entry entry : map) {
+      if (needsIntercept(entry.tag())) return true;
+    }
+    return false;
+  }
+
+  public boolean needsIntercept(Map<String, ?> map) {
+    for (String tag : map.keySet()) {
+      if (needsIntercept(tag)) return true;
+    }
+    return false;
+  }
+
+  public boolean needsIntercept(String tag) {
+    switch (tag) {
+      case DDTags.RESOURCE_NAME:
+      case Tags.DB_STATEMENT:
+      case DDTags.SERVICE_NAME:
+      case "service":
+      case Tags.PEER_SERVICE:
+      case DDTags.MANUAL_KEEP:
+      case DDTags.MANUAL_DROP:
+      case Tags.ASM_KEEP:
+      case Tags.SAMPLING_PRIORITY:
+      case Tags.PROPAGATED_TRACE_SOURCE:
+      case Tags.PROPAGATED_DEBUG:
+      case InstrumentationTags.SERVLET_CONTEXT:
+      case SPAN_TYPE:
+      case ANALYTICS_SAMPLE_RATE:
+      case Tags.ERROR:
+      case HTTP_STATUS:
+      case HTTP_METHOD:
+      case HTTP_URL:
+      case ORIGIN_KEY:
+      case MEASURED:
+        return true;
+
+      default:
+        return splitServiceTags.contains(tag);
+    }
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {

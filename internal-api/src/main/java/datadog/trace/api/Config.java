@@ -543,6 +543,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+
   private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
@@ -578,6 +579,8 @@ public class Config {
   private final Set<String> experimentalFeaturesEnabled;
 
   private final boolean jdkSocketEnabled;
+
+  private final boolean optimizedMapEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2036,6 +2039,9 @@ public class Config {
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    this.optimizedMapEnabled =
+        configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
 
     log.debug("New instance: {}", this);
   }
@@ -3659,11 +3665,15 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isOptimizedMapEnabled() {
+    return optimizedMapEnabled;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, Object> getLocalRootSpanTags() {
+  public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
-    result.putAll(runtimeTags);
+
+    final TagMap result = TagMap.fromMap(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
@@ -3684,7 +3694,7 @@ public class Config {
 
     result.putAll(getProcessIdTag());
 
-    return Collections.unmodifiableMap(result);
+    return result.freeze();
   }
 
   public WellKnownTags getWellKnownTags() {

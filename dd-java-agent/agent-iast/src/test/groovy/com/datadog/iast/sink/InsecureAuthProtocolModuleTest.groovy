@@ -5,6 +5,7 @@ import com.datadog.iast.Reporter
 import com.datadog.iast.RequestEndedHandler
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
+import datadog.trace.api.TagMap
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.InsecureAuthProtocolModule
@@ -42,9 +43,9 @@ class InsecureAuthProtocolModuleTest extends IastModuleImplTestBase{
     given:
     final handler = new RequestEndedHandler(dependencies)
     ctx.authorization = value
-    span.getTags() >> [
+    span.getTags() >> TagMap.fromMap([
       'http.status_code': status_code
-    ]
+    ])
 
     when:
     def flow = handler.apply(reqCtx, span)
