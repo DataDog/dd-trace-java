@@ -165,13 +165,10 @@ class CommandLineTest {
     command.add(System.getProperty("java.class.path"));
     command.add(clazz.getName());
     command.addAll(arguments.cmdArgs);
-
     // Start the process
     ProcessBuilder processBuilder = new ProcessBuilder(command);
-    processBuilder.redirectErrorStream(true);
     Process process = processBuilder.start();
-
-    // Read and parse the output
+    // Read and parse output and error streams
     Result result = new Result();
     List<String> current = null;
     String output = "";
@@ -191,14 +188,23 @@ class CommandLineTest {
         output += line + "\n";
       }
     }
-
+    String error = "";
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        error += line + "\n";
+      }
+    }
     // Wait for the process to complete
     int exitCode = process.waitFor();
     // Dumping state on error
     if (exitCode != 0) {
       System.err.println("Error running command: " + String.join(" ", command));
-      System.err.println("Exit code " + exitCode + " with output: ");
+      System.err.println("Exit code " + exitCode + " with output:");
       System.err.println(output);
+      System.err.println("and error:");
+      System.err.println(error);
     }
     assertEquals(0, exitCode, "Process should exit normally");
     return result;
