@@ -46,6 +46,8 @@ public class InternalSpanTypes {
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
   public static final UTF8BytesString PROTOBUF = UTF8BytesString.create(DDSpanTypes.PROTOBUF);
 
+  public static final UTF8BytesString LLMOBS = UTF8BytesString.create(DDSpanTypes.LLMOBS);
+
   public static final UTF8BytesString TIBCO_BW = UTF8BytesString.create("tibco_bw");
   public static final UTF8BytesString MULE = UTF8BytesString.create(DDSpanTypes.MULE);
   public static final CharSequence VALKEY = UTF8BytesString.create(DDSpanTypes.VALKEY);
