@@ -27,8 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import datadog.trace.core.util.StackTraces;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -350,9 +349,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
         setError(true, errorPriority);
-        final StringWriter errorString = new StringWriter();
-        error.printStackTrace(new PrintWriter(errorString));
-        setTag(DDTags.ERROR_STACK, errorString.toString());
+        setTag(
+            DDTags.ERROR_STACK,
+            StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit()));
       }
 
       setTag(DDTags.ERROR_MSG, message);
