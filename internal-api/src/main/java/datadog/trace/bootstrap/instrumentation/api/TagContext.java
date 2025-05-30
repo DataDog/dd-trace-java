@@ -54,9 +54,6 @@ public class TagContext implements AgentSpanContext.Extracted {
       final TraceConfig traceConfig,
       final TracePropagationStyle propagationStyle,
       final DDTraceId traceId) {
-
-    // if ( tags != null ) tags.checkWriteAccess();
-
     this.origin = origin;
     this.tags = tags;
     this.terminatedContextLinks = null;

@@ -43,26 +43,6 @@ import java.util.stream.StreamSupport;
  *   <li>adaptive collision
  * </ul>
  */
-
-/*
- * For memory efficiency, TagMap uses a rather complicated bucket system.
- * <p>
- * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
- * <p>
- * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
- * directly form a linked list to handle collisions.
- * <p>
- * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
- * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
- * <p>
- * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed
- * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
- * <p>
- * This does introduce some inefficiencies when Entry-s are removed.
- * The assumption is that removals are rare, so BucketGroups are never consolidated.
- * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
- * removed from the collision chain.
- */
 public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   public static final TagMap EMPTY = TagMapFactory.INSTANCE.empty();
@@ -103,15 +83,26 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   boolean isOptimized();
 
+  /** Inefficiently implemented for optimized TagMap */
   @Deprecated
   Set<String> keySet();
 
+  /** Inefficiently implemented for optimized TagMap - requires boxing primitives */
   @Deprecated
   Collection<Object> values();
 
   // @Deprecated -- not deprecated until OptimizedTagMap becomes the default
   Set<java.util.Map.Entry<String, Object>> entrySet();
 
+  /**
+   * Deprecated in favor of typed getters like...
+   * <ul>
+   * <li>{@link TagMap#getObject(String)}
+   * <li>{@link TagMap#getString(String)}
+   * <li>{@link TagMap#getBoolean(String)
+   * <li>...
+   * </ul>
+   */
   @Deprecated
   Object get(Object tag);
 
@@ -147,6 +138,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
    */
   Entry getEntry(String tag);
 
+  /**
+   * Deprecated in favor of {@link TagMap#set} methods. set methods don't return the prior value and
+   * are implemented efficiently for both the legacy and optimized implementations of TagMap.
+   */
   @Deprecated
   Object put(String tag, Object value);
 
@@ -208,6 +203,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   void fillStringMap(Map<? super String, ? super String> stringMap);
 
+  /**
+   * Deprecated in favor of {@link TagMap#remove(String)} which returns a boolean and is efficiently
+   * implemented for both legacy and optimal TagMaps
+   */
   @Deprecated
   Object remove(Object tag);
 
@@ -219,7 +218,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   /**
    * Similar to {@link Map#remove(Object)} but returns the prior Entry object rather than the prior
-   * value. For optimized TagMap-s, this preferred because it avoids additional boxing.
+   * value. For optimized TagMap-s, this method is preferred because it avoids additional boxing.
    */
   Entry getAndRemove(String tag);
 
@@ -780,12 +779,23 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return this.tag() + '=' + this.stringValue();
     }
 
+    /** Deprecated in favor of{@link Entry#tag()} */
     @Deprecated
     @Override
     public String getKey() {
       return this.tag();
     }
 
+    /**
+     * Deprecated in favor of typed getters like...
+     *
+     * <ul>
+     *   <li>{@link Entry#objectValue()}
+     *   <li>{@link Entry#stringValue()}
+     *   <li>{@link Entry#booleanValue()}
+     *   <li>...
+     * </ul>
+     */
     @Deprecated
     @Override
     public Object getValue() {
@@ -1114,6 +1124,25 @@ final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
   }
 }
 
+/*
+ * For memory efficiency, OptimizedTagMap uses a rather complicated bucket system.
+ * <p>
+ * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
+ * <p>
+ * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
+ * directly form a linked list to handle collisions.
+ * <p>
+ * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
+ * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
+ * <p>
+ * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed
+ * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
+ * <p>
+ * This does introduce some inefficiencies when Entry-s are removed.
+ * The assumption is that removals are rare, so BucketGroups are never consolidated.
+ * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
+ * removed from the collision chain.
+ */
 final class OptimizedTagMap implements TagMap {
   // Using special constructor that creates a frozen view of an existing array
   // Bucket calculation requires that array length is a power of 2
@@ -2004,7 +2033,6 @@ final class OptimizedTagMap implements TagMap {
           }
         }
       }
-      ;
 
       return null;
     }
