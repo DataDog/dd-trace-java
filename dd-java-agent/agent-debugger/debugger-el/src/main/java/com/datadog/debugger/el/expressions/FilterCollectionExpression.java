@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -48,41 +47,52 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       checkSupportedList(materialized, this);
       Collection<Object> filtered = new ArrayList<>();
       int len = materialized.count();
-      for (int i = 0; i < len; i++) {
-        Object value = materialized.get(i).getValue();
-        if (filterExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)))) {
-          filtered.add(value);
+      try {
+        for (int i = 0; i < len; i++) {
+          Object value = materialized.get(i).getValue();
+          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, value);
+          if (filterExpression.evaluate(valueRefResolver)) {
+            filtered.add(value);
+          }
         }
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
       return new ListValue(filtered);
     } else if (collectionValue instanceof MapValue) {
       MapValue materialized = (MapValue) collectionValue;
       checkSupportedMap(materialized, this);
       Map<Object, Object> filtered = new HashMap<>();
-      for (Value<?> key : materialized.getKeys()) {
-        Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
-        Map<String, Object> valueRefExtensions = new HashMap<>();
-        valueRefExtensions.put(ValueReferences.KEY_EXTENSION_NAME, key);
-        valueRefExtensions.put(ValueReferences.VALUE_EXTENSION_NAME, value);
-        valueRefExtensions.put(
-            ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value));
-        if (filterExpression.evaluate(valueRefResolver.withExtensions(valueRefExtensions))) {
-          filtered.put(key.getValue(), value.getValue());
+      try {
+        for (Value<?> key : materialized.getKeys()) {
+          Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
+          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, key);
+          valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, value);
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value));
+          if (filterExpression.evaluate(valueRefResolver)) {
+            filtered.put(key.getValue(), value.getValue());
+          }
         }
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
+        valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
       return new MapValue(filtered);
     } else if (collectionValue instanceof SetValue) {
       SetValue materialized = (SetValue) collectionValue;
       Collection<Object> filtered = new HashSet<>();
       Set<?> setHolder = checkSupportedSet(materialized, this);
-      for (Object value : setHolder) {
-        if (filterExpression.evaluate(
-            valueRefResolver.withExtensions(
-                Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)))) {
-          filtered.add(value);
+      try {
+        for (Object value : setHolder) {
+          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, value);
+          if (filterExpression.evaluate(valueRefResolver)) {
+            filtered.add(value);
+          }
         }
+      } finally {
+        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
       return new SetValue(filtered);
     }
