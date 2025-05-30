@@ -35,3 +35,7 @@
 1 $HibernateInstantiator$*
 1 $HibernateProxy$*
 1 $HibernateAccessOptimizer$*
+# Quarkus generated jaxrs stubs
+1 $$QuarkusRestClientInterface
+# CDI stubs
+1 $$CDIWrapper*
