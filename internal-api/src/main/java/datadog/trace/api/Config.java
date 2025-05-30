@@ -409,6 +409,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SA
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
