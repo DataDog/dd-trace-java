@@ -166,8 +166,12 @@ public class AppSecSystem {
         }
         module.config(cfgObject);
         cfgObject.commit();
-      } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
+      } catch (RuntimeException t) {
         log.error("Startup of appsec module {} failed", module.getName(), t);
+        continue;
+      } catch (AppSecModule.AppSecModuleActivationException e) {
+        log.error("Startup of appsec module {} failed", module.getName(), e);
+        APP_SEC_CONFIG_SERVICE.reportWafHandleActivationError();
         continue;
       }
 

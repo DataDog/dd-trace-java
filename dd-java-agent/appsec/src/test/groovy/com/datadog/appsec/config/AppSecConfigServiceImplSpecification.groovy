@@ -122,7 +122,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     appSecConfigService.init()
     then:
-    2 * config.getAppSecRulesFile() >> (p as String)
+    1 * config.getAppSecRulesFile() >> (p as String)
 
     when:
     appSecConfigService.maybeSubscribeConfigPolling()

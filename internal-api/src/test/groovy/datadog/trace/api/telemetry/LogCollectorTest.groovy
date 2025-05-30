@@ -9,7 +9,7 @@ class LogCollectorTest extends DDSpecification {
     def logCollector = new LogCollector(1)
 
     when:
-    logCollector.addLogMessage("ERROR", "Message 1", null)
+    logCollector.addLogMessage(LogCollector.LogLevel.ERROR, "Message 1", null)
 
     then:
     def log = logCollector.drain().toList().get(0)
@@ -24,10 +24,10 @@ class LogCollectorTest extends DDSpecification {
     def logCollector = new LogCollector(3)
 
     when:
-    logCollector.addLogMessage("ERROR", "Message 1", null)
-    logCollector.addLogMessage("ERROR", "Message 2", null)
-    logCollector.addLogMessage("ERROR", "Message 3", null)
-    logCollector.addLogMessage("ERROR", "Message 4", null)
+    logCollector.addLogMessage(LogCollector.LogLevel.ERROR, "Message 1", null)
+    logCollector.addLogMessage(LogCollector.LogLevel.ERROR, "Message 2", null)
+    logCollector.addLogMessage(LogCollector.LogLevel.ERROR, "Message 3", null)
+    logCollector.addLogMessage(LogCollector.LogLevel.ERROR, "Message 4", null)
 
     then:
     logCollector.rawLogMessages.size() == 3
@@ -35,16 +35,16 @@ class LogCollectorTest extends DDSpecification {
 
   void "grouping messages in LogCollector"() {
     when:
-    LogCollector.get().addLogMessage("ERROR", "First Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Second Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Third Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Forth Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Second Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Third Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Forth Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Third Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Forth Message", null)
-    LogCollector.get().addLogMessage("ERROR", "Forth Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "First Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Second Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Third Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Forth Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Second Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Third Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Forth Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Third Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Forth Message", null)
+    LogCollector.get().addLogMessage(LogCollector.LogLevel.ERROR, "Forth Message", null)
 
     then:
     def list = LogCollector.get().drain()

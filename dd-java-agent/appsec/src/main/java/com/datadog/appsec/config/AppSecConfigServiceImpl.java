@@ -47,12 +47,14 @@ import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.telemetry.LogCollector;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,8 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import datadog.trace.api.telemetry.LogCollector;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +101,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
+  private final LogCollector telemetryLogger = LogCollector.get();
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -169,6 +170,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   public String getCurrentRuleVersion() {
     return currentRuleVersion;
+  }
+
+  public void reportWafHandleActivationError() {
+    this.configurationPoller.addUserConfigError(
+        "Failed to build WAF instance: no valid rules or processors available",
+        LogCollector.LogLevel.ERROR.name(),
+        Arrays.asList(
+            "\"log_type\": \"rc::asm_dd::diagnostic\"",
+            "\"appsec_config_key\": \"*\"",
+            "\"rc_config_id\": \"*\""));
   }
 
   private class AppSecConfigConfigurationChangesTypedListener implements ProductListener {
@@ -247,9 +258,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         StandardizedLogging.numLoadedRules(log, configKey, countRules(rawConfig));
       }
 
-      // TODO: Send diagnostics via telemetry
-      final LogCollector telemetryLogger = LogCollector.get();
-
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
           && !wafDiagnostics.rulesetVersion.isEmpty()
@@ -261,13 +269,44 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           modulesToUpdateVersionIn.forEach(module -> module.setRuleVersion(currentRuleVersion));
         }
       }
+      if (wafDiagnostics.getNumConfigError() > 0) {
+        wafDiagnostics
+            .getAllErrors()
+            .forEach(
+                (section, errors) -> {
+                  String error = String.join(", ", errors);
+                  error = "{" + section + " : " + error + "}";
+                  telemetryLogger.addLogMessage(
+                      LogCollector.LogLevel.ERROR,
+                      error,
+                      new AppSecModule.AppSecModuleActivationException(error));
+                });
+      }
     } catch (InvalidRuleSetException e) {
       log.debug(
           "Invalid rule during waf config update for config key {}: {}",
           configKey,
           e.wafDiagnostics);
-
-      // TODO: Propagate diagostics back to remote config apply_error
+      e.wafDiagnostics
+          .getAllErrors()
+          .forEach(
+              (section, errors) -> {
+                String error = String.join(", ", errors);
+                error = "{" + section + " : " + error + "}";
+                telemetryLogger.addLogMessage(
+                    LogCollector.LogLevel.ERROR,
+                    error,
+                    new AppSecModule.AppSecModuleActivationException(error));
+              });
+      e.wafDiagnostics
+          .getAllErrors()
+          .forEach(
+              (section, errors) -> {
+                String error = String.join(", ", errors);
+                error = "{" + section + " : " + error + "}";
+                this.configurationPoller.addUserConfigError(
+                    error, LogCollector.LogLevel.ERROR.name(), new ArrayList<>()); // TODO add tags
+              });
 
       initReporter.setReportForPublication(e.wafDiagnostics);
       throw new RuntimeException(e);
@@ -348,10 +387,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       throw new IllegalStateException("Expected default waf config to be available");
     }
     try {
-      handleWafUpdateResultReport(
-          DEFAULT_WAF_CONFIG_RULE,
-          wafConfig,
-          defaultConfigActivated ? DEFAULT_CONFIG_LOCATION : tracerConfig.getAppSecRulesFile());
+      handleWafUpdateResultReport(DEFAULT_WAF_CONFIG_RULE, wafConfig);
     } catch (AppSecModule.AppSecModuleActivationException e) {
       throw new RuntimeException(e);
     }

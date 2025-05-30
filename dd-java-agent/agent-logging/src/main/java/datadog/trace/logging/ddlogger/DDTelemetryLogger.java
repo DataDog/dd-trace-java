@@ -45,7 +45,8 @@ public class DDTelemetryLogger extends DDLogger {
     if (t == null && marker != LogCollector.SEND_TELEMETRY) {
       return;
     }
-    LogCollector.get().addLogMessage(level.name(), msgOrgFormat, t);
+    LogCollector.get()
+        .addLogMessage(LogCollector.LogLevel.fromString(level.name()), msgOrgFormat, t);
   }
 
   private Throwable getIfThrowable(final Object obj) {

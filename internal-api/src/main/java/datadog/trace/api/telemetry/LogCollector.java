@@ -20,6 +20,20 @@ public class LogCollector {
   private final Map<RawLogMessage, AtomicInteger> rawLogMessages;
   private final int maxCapacity;
 
+  public enum LogLevel {
+    DEBUG,
+    WARN,
+    ERROR;
+
+    public static LogLevel fromString(String level) {
+      try {
+        return LogLevel.valueOf(level.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        return DEBUG; // Default to DEBUG if the level is unknown
+      }
+    }
+  }
+
   public static LogCollector get() {
     return INSTANCE;
   }
@@ -34,13 +48,13 @@ public class LogCollector {
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
   }
 
-  public void addLogMessage(String logLevel, String message, Throwable throwable) {
+  public void addLogMessage(LogLevel logLevel, String message, Throwable throwable) {
     if (rawLogMessages.size() >= maxCapacity) {
       // TODO: We could emit a metric for dropped logs.
       return;
     }
     RawLogMessage rawLogMessage =
-        new RawLogMessage(logLevel, message, throwable, System.currentTimeMillis() / 1000);
+        new RawLogMessage(logLevel.name(), message, throwable, System.currentTimeMillis() / 1000);
     AtomicInteger count = rawLogMessages.computeIfAbsent(rawLogMessage, k -> new AtomicInteger());
     count.incrementAndGet();
   }
