@@ -29,7 +29,6 @@ compileMain_java6Java.configure {
   setJavaVersion(it, 8)
   sourceCompatibility = JavaVersion.VERSION_1_6
   targetCompatibility = JavaVersion.VERSION_1_6
-  destinationDirectory = layout.buildDirectory.dir("classes/java/main")
 }
 
 tasks.compileJava.dependsOn compileMain_java6Java
@@ -51,6 +50,9 @@ ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
   duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Include AgentPreCheck compiled with Java 6.
+  from sourceSets.main_java6.output
 
   // Remove some cruft from the final jar.
   // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
