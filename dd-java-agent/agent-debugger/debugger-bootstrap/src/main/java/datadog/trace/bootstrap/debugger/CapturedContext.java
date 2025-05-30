@@ -182,12 +182,14 @@ public class CapturedContext implements ValueReferenceResolver {
     return new CapturedContext(this, extensions);
   }
 
-  public void removeExtension(String name) {
-    extensions.remove(name);
+  @Override
+  public void addExtension(String name, Object value) {
+    extensions.put(name, value);
   }
 
-  private void addExtension(String name, Object value) {
-    extensions.put(name, value);
+  @Override
+  public void removeExtension(String name) {
+    extensions.remove(name);
   }
 
   public void addArguments(CapturedValue[] values) {
