@@ -238,7 +238,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
@@ -409,6 +408,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SA
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
