@@ -24,7 +24,7 @@ public class InitializationTelemetryCheck {
     // Emulates the real application performing work in main().
     // That should give enough time to send initial telemetry from daemon thread.
     if (args.length > 0 && "sleep".equals(args[0])) {
-      Thread.sleep(1000);
+      Thread.sleep(2000);
     }
   }
 
@@ -136,7 +136,7 @@ public class InitializationTelemetryCheck {
     Files.write(file.toPath(), Arrays.asList(lines));
   }
 
-  static final String read(File file) throws IOException {
+  static final String read(File file) {
     try {
       return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     } catch (IOException e) {
