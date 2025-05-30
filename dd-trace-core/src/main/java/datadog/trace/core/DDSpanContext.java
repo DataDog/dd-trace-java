@@ -894,7 +894,7 @@ public class DDSpanContext
             .append(", s_id=")
             .append(DDSpanID.toString(spanId))
             .append(", p_id=")
-            .append(Long.toUnsignedString(parentId))
+            .append(DDSpanID.toString(parentId))
             .append(" ] trace=")
             .append(getServiceName())
             .append('/')
