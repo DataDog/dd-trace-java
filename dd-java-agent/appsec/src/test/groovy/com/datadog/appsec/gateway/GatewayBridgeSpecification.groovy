@@ -1,4 +1,3 @@
-
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
