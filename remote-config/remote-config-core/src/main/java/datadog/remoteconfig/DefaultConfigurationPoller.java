@@ -6,6 +6,7 @@ import static datadog.remoteconfig.PollingHinterNoop.NOOP;
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
@@ -84,6 +85,7 @@ public class DefaultConfigurationPoller
   private PollerRequestFactory requestFactory;
   private RemoteConfigResponse.Factory responseFactory;
   private boolean fatalOnInitialization = false;
+  private Moshi moshi = new Moshi.Builder().build();
 
   public DefaultConfigurationPoller(
       Config config,
@@ -134,6 +136,12 @@ public class DefaultConfigurationPoller
   }
 
   @Override
+  public synchronized void addListener(
+      Product product, ConfigurationChangesListener mapConfigurationChangesTypedListener) {
+    this.addListener(product, new SimpleProductListener(mapConfigurationChangesTypedListener));
+  }
+
+  @Override
   public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
@@ -176,6 +184,26 @@ public class DefaultConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.fileListeners.put(file, useDeserializer(deserializer, listener));
+  }
+
+  @Override
+  public synchronized void addUserConfigError(String message, String level, List<String> tags) {
+    JsonAdapter<ReportableExceptionBuilder> adapter =
+        moshi.adapter(ReportableExceptionBuilder.class);
+    String error = adapter.toJson(new ReportableExceptionBuilder(message, level, tags));
+    this.productStates.get(Product.ASM_DD).recordError(new ReportableException(error));
+  }
+
+  private static class ReportableExceptionBuilder {
+    private String message;
+    private String level;
+    private List<String> tags;
+
+    public ReportableExceptionBuilder(String message, String level, List<String> tags) {
+      this.message = message;
+      this.level = level;
+      this.tags = tags;
+    }
   }
 
   @Override
