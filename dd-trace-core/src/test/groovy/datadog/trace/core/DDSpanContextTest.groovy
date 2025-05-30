@@ -19,7 +19,7 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG
 class DDSpanContextTest extends DDCoreSpecification {
 
   def writer
-  def tracer
+  CoreTracer tracer
   def profilingContextIntegration
 
   def setup() {
@@ -287,6 +287,29 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   private static String dataTag(String tag) {
     "_dd.${tag}.json"
+  }
+
+  def "setting resource name to null is ignored"() {
+    setup:
+    def parent = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanId(-987654321)
+      .start()
+
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanId(-123456789)
+      .asChildOf(parent.context())
+      .start()
+
+    def context = span.context() as DDSpanContext
+
+    expect:
+    // even though span ID and parent ID are setup as negative numbers, they should be printed as their unsigned value
+    // asserting there is no negative sign after ids is the best I can do.
+    context.toString().contains("id=-") == false
   }
 
   static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
