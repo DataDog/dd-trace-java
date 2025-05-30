@@ -236,7 +236,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def exitCode = whenRunningMavenBuild([], [], [:], false)
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
+    def additionalDynamicPaths = ["content.service"]
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1), additionalDynamicPaths)
 
     where:
     projectName                                | mavenVersion

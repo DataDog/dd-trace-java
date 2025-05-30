@@ -101,6 +101,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         new BuildModuleSettings(
             getPropertiesPropagatedToChildProcess(
                 config.getServiceName(),
+                config.isServiceNameSetByUser(),
                 moduleName,
                 startCommand,
                 classpath,
@@ -128,6 +129,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
       String serviceName,
+      boolean userProvidedServiceName,
       String moduleName,
       String startCommand,
       @Nullable Collection<Path> classpath,
@@ -195,6 +197,9 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME), serviceName);
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME_SET_BY_USER),
+        String.valueOf(userProvidedServiceName));
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
         moduleName);
