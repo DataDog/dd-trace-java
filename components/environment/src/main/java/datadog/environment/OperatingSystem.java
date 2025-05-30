@@ -10,9 +10,11 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Locale;
 
-public class OperatingSystem {
+public final class OperatingSystem {
+  private OperatingSystem() {}
+
   /**
-   * Check whether the operating system is Linux based.
+   * Checks whether the operating system is Linux based.
    *
    * @return @{@code true} if operating system is Linux based, {@code false} otherwise.
    */
@@ -21,7 +23,7 @@ public class OperatingSystem {
   }
 
   /**
-   * Check whether the operating system is Windows.
+   * Checks whether the operating system is Windows.
    *
    * @return @{@code true} if operating system is Windows, {@code false} otherwise.
    */
@@ -32,7 +34,7 @@ public class OperatingSystem {
   }
 
   /**
-   * Check whether the operating system is macOS.
+   * Checks whether the operating system is macOS.
    *
    * @return @{@code true} if operating system is macOS, {@code false} otherwise.
    */
@@ -41,10 +43,20 @@ public class OperatingSystem {
     return os.contains("mac");
   }
 
+  /**
+   * Checks whether the architecture is AArch64.
+   *
+   * @return {@code true} if the architecture is AArch64, {@code false} otherwise.
+   */
   public static boolean isAarch64() {
     return System.getProperty("os.arch").toLowerCase().contains("aarch64");
   }
 
+  /**
+   * Checks whether the libc is MUSL.
+   *
+   * @return {@code true} if the libc is MUSL, {@code false} otherwise.
+   */
   public static boolean isMusl() {
     if (!isLinux()) {
       return false;
@@ -61,7 +73,7 @@ public class OperatingSystem {
     }
   }
 
-  static boolean isMuslProcSelfMaps() throws IOException {
+  private static boolean isMuslProcSelfMaps() throws IOException {
     try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/maps"))) {
       String line;
       while ((line = reader.readLine()) != null) {
@@ -84,8 +96,7 @@ public class OperatingSystem {
    * `/ld-linux-...`). However, if such string is missing should indicate that the system is not a
    * musl one.
    */
-  static boolean isMuslJavaExecutable() throws IOException {
-
+  private static boolean isMuslJavaExecutable() throws IOException {
     byte[] magic = new byte[] {(byte) 0x7f, (byte) 'E', (byte) 'L', (byte) 'F'};
     byte[] prefix = new byte[] {(byte) '/', (byte) 'l', (byte) 'd', (byte) '-'}; // '/ld-*'
     byte[] musl = new byte[] {(byte) 'm', (byte) 'u', (byte) 's', (byte) 'l'}; // 'musl'
