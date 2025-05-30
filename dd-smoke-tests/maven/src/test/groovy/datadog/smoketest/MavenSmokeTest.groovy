@@ -75,7 +75,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def agentArgs = jacocoCoverage ? [
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION}" as String
     ] : []
-    def exitCode = whenRunningMavenBuild(agentArgs, commandLineParams)
+    def exitCode = whenRunningMavenBuild(agentArgs, commandLineParams, [:])
 
     if (expectSuccess) {
       assert exitCode == 0
@@ -118,7 +118,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def exitCode = whenRunningMavenBuild([
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
-    ], [])
+    ], [], [:])
     assert exitCode == 0
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
@@ -143,7 +143,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
-    def exitCode = whenRunningMavenBuild([], [])
+    def exitCode = whenRunningMavenBuild([], [], [:])
     assert exitCode == 0
 
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
@@ -228,6 +228,21 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     ] | 12
   }
 
+  def "test service name is propagated to child processes"() {
+    givenWrapperPropertiesFile(mavenVersion)
+    givenMavenProjectFiles(projectName)
+    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
+
+    def exitCode = whenRunningMavenBuild([], [], [:], false)
+    assert exitCode == 0
+
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
+
+    where:
+    projectName                                | mavenVersion
+    "test_successful_maven_run_child_service_propagation" | "3.9.9"
+  }
+
   private void givenWrapperPropertiesFile(String mavenVersion) {
     def distributionUrl = "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${mavenVersion}/apache-maven-${mavenVersion}-bin.zip"
 
@@ -291,7 +306,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final Collection<String> LOADED_DEPENDENCIES = new HashSet<>()
 
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand, Map<String, String> additionalEnvVars = [:]) {
-    def processBuilder = createProcessBuilder(mvnCommand, false, [], additionalEnvVars)
+    def processBuilder = createProcessBuilder(mvnCommand, false, false, [], additionalEnvVars)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
@@ -301,8 +316,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
   }
 
-  private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars = [:]) {
-    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, additionalAgentArgs, additionalEnvVars)
+  private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
+    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
@@ -323,13 +338,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return p.exitValue()
   }
 
-  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, List<String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
+  ProcessBuilder createProcessBuilder(List<String> mvnCommand, boolean runWithAgent, boolean setServiceName, List<String> additionalAgentArgs, Map<String, String> additionalEnvVars) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path")
     assert new File(mavenRunnerShadowJar).isFile()
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
-    command.addAll(jvmArguments(runWithAgent, additionalAgentArgs))
+    command.addAll(jvmArguments(runWithAgent, setServiceName, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
     command.addAll(mvnCommand)
@@ -350,7 +365,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return System.getProperty("java.home") + separator + "bin" + separator + "java"
   }
 
-  List<String> jvmArguments(boolean runWithAgent, List<String> additionalAgentArgs) {
+  List<String> jvmArguments(boolean runWithAgent, boolean setServiceName, List<String> additionalAgentArgs) {
     def arguments = [
       "-D${MavenWrapperMain.MVNW_VERBOSE}=true".toString(),
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
@@ -368,7 +383,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
-        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
@@ -376,6 +390,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true,"
+
+      if (setServiceName) {
+        agentArgument += "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME},"
+      }
 
       agentArgument += additionalAgentArgs.join(",")
 
