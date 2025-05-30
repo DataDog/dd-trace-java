@@ -14,6 +14,8 @@ stages:
   - publish
   - benchmarks
   - macrobenchmarks
+  - gate
+  - notify
   - tests
   - exploration-tests
   - ci-visibility-tests

@@ -70,3 +70,56 @@ otel-latest:
     BP_BENCHMARKS_CONFIGURATION: otel-latest
     TRACER_OPTS: -javaagent:/app/otel-java-agent.jar -Ddd.env=otel-latest -Ddd.service=bp-java-petclinic
     JAVA_OPTS: -javaagent:/app/memcheck/stability-testing-memwatch.jar -Xmx128M
+
+.check-threshold-breaches:
+  stage: gate
+  when: always
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+
+check-warning-breaches:
+  extends: .check-threshold-breaches
+  script:
+    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin java/petclinic)
+    - bp-runner bp-runner.fail-on-breach.warning.yml
+
+check-slo-breaches:
+  extends: .check-threshold-breaches
+  script:
+    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin java/petclinic)
+    - bp-runner bp-runner.fail-on-breach.slos.yml
+
+# Taken from https://github.com/DataDog/slack-notifier/blob/master/gitlab-pipeline-templates/v3-sdm/template.yml
+.slack-notifier-base:
+  stage: notify
+  image: registry.ddbuild.io/slack-notifier:v27936653-9a2a7db-sdm-gbi-jammy@sha256:c9d1145319d1904fa72ea97904a15200d3cb684324723f9e1700bc02cc85065c
+  tags: [ "arch:amd64" ]
+  before_script:
+    - if [[ $GITLAB_USER_LOGIN = "codesync" || $GITLAB_USER_LOGIN = "ddci-service-account" ]]; then EMAIL=$(git show -s --format="%ae" HEAD); else EMAIL=$GITLAB_USER_EMAIL; fi
+    - SLACK_AUTHOR=$(echo $EMAIL | email2slackid || echo "")
+    - if [ -z "$SLACK_AUTHOR" ]; then echo "author not found or unsubscribed"; fi
+    - BUILD_URL="$CI_PROJECT_URL/pipelines/$CI_PIPELINE_ID"
+
+notify-slo-breaches:
+  extends: .slack-notifier-base
+  needs: ["check-slo-breaches"]
+  when: on_failure
+  script:
+    # Ideally add the SLACK_AUTHOR once dd-trace-py can access SDS: https://datadoghq.atlassian.net/wiki/spaces/SDA/pages/3175317505/Accessing+SDS+data+externally+via+Graphql
+    - 'MESSAGE_TEXT=":x: $CI_COMMIT_REF_NAME - Performance SLOs in $CI_PROJECT_NAME were breached in <$BUILD_URL|$CI_PIPELINE_ID>. Please look into it."'
+    - postmessage "pre-release-gate-prototype" "$MESSAGE_TEXT"
+
+notify-warning-breaches:
+  extends: .slack-notifier-base
+  needs: ["check-warning-breaches"]
+  when: on_failure
+  script:
+    # Ideally add the SLACK_AUTHOR once dd-trace-py can access SDS: https://datadoghq.atlassian.net/wiki/spaces/SDA/pages/3175317505/Accessing+SDS+data+externally+via+Graphql
+    - 'MESSAGE_TEXT=":warning: $CI_COMMIT_REF_NAME - Performance SLOs in $CI_PROJECT_NAME are about to be breached. A warning threshold in <$BUILD_URL|$CI_PIPELINE_ID> was triggered. Please look into it."'
+    - postmessage "pre-release-gate-prototype" "$MESSAGE_TEXT"
