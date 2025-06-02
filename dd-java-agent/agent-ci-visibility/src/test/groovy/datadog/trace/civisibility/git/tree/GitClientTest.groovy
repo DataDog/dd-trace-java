@@ -1,17 +1,16 @@
 package datadog.trace.civisibility.git.tree
 
-import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import static datadog.trace.civisibility.TestUtils.lines
+
+import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.git.GitObject
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor
-import datadog.communication.util.IOUtils
-import spock.lang.Specification
-import spock.lang.TempDir
-
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-
-import static datadog.trace.civisibility.TestUtils.lines
+import spock.lang.Specification
+import spock.lang.TempDir
 
 class GitClientTest extends Specification {
 
@@ -327,6 +326,138 @@ class GitClientTest extends Specification {
     diff.linesByRelativePath == [
       "src/Datadog.Trace/Logging/DatadogLogging.cs": lines(26, 32, 91, 95, 159, 160)
     ]
+  }
+
+  def "test remove remote prefix"() {
+    def gitClient = givenGitClient()
+    gitClient.removeRemotePrefix(branchName, remoteName) == expected
+
+    where:
+    branchName            | remoteName | expected
+    "origin/main"         | "origin"   | "main"
+    "upstream/master"     | "upstream" | "master"
+    "origin/feature/test" | "origin"   | "feature/test"
+    "main"                | "origin"   | "main"
+    "upstream/main"       | "origin"   | "upstream/main"
+    ""                    | "origin"   | ""
+  }
+
+  def "test base like branch match"() {
+    def gitClient = givenGitClient()
+    gitClient.isBaseLikeBranch(branchName, remoteName) == expected
+
+    where:
+    branchName            | remoteName | expected
+    "main"                | "origin"   | true
+    "master"              | "origin"   | true
+    "preprod"             | "origin"   | true
+    "prod"                | "origin"   | true
+    "dev"                 | "origin"   | true
+    "development"         | "origin"   | true
+    "trunk"               | "origin"   | true
+    "release/v1.0"        | "origin"   | true
+    "release/2023.1"      | "origin"   | true
+    "hotfix/critical"     | "origin"   | true
+    "hotfix/bug-123"      | "origin"   | true
+    "origin/main"         | "origin"   | true
+    "origin/master"       | "origin"   | true
+    "upstream/main"       | "upstream" | true
+    "feature/test"        | "origin"   | false
+    "bugfix/issue-123"    | "origin"   | false
+    "update/dependencies" | "origin"   | false
+    "my-feature-branch"   | "origin"   | false
+    ""                    | "origin"   | false
+    "main-backup"         | "origin"   | false
+    "maintenance"         | "origin"   | false
+  }
+
+  def "test is default branch"() {
+    def gitClient = givenGitClient()
+    gitClient.isDefaultBranch(branch, defaultBranch, remoteName) == expected
+
+    where:
+    branch            | defaultBranch | remoteName | expected
+    "main"            | "main"        | "origin"   | true
+    "master"          | "master"      | "origin"   | true
+    "origin/main"     | "main"        | "origin"   | true
+    "upstream/master" | "master"      | "upstream" | true
+    "feature/test"    | "main"        | "origin"   | false
+    "origin/feature"  | "main"        | "origin"   | false
+    "main"            | "master"      | "origin"   | false
+    "main"            | null          | "origin"   | false
+  }
+
+  def "test get remote name"() {
+    givenGitRepo(repoPath)
+    def gitClient = givenGitClient()
+    gitClient.getRemoteName() == remoteName
+
+    where:
+    repoPath               | remoteName
+    "ci/git/impacted/git"  | "origin"
+    "ci/git/with_pack/git" | "origin" // fallback on ambiguous upstream
+  }
+
+  def "test get source branch"() {
+    given:
+    givenGitRepo("ci/git/impacted/git")
+    def gitClient = givenGitClient()
+
+    when:
+    def branch = gitClient.getSourceBranch()
+
+    then:
+    branch == "feature/source"
+  }
+
+  def "test detect default branch"() {
+    givenGitRepo()
+    def gitClient = givenGitClient()
+    gitClient.detectDefaultBranch("origin") == "master"
+  }
+
+  def "test compute branch metrics"() {
+    given:
+    givenGitRepo("ci/git/impacted/git")
+    def gitClient = givenGitClient()
+
+    when:
+    def metrics = gitClient.computeBranchMetrics(["master", "origin/master"], "feature/source")
+
+    then:
+    metrics == [
+      "master"       : new ShellGitClient.BaseBranchMetric(1, 1, "2ae4709da8155737b36d480722c57bab906a4f00"),
+      "origin/master": new ShellGitClient.BaseBranchMetric(1, 1, "2ae4709da8155737b36d480722c57bab906a4f00")]
+  }
+
+  def "test find best branch sha"() {
+    def gitClient = givenGitClient()
+    gitClient.findBestBranchSha(metrics, "main", "origin") == expected
+
+    where:
+    metrics                                                              | expected
+    [
+      "main"       : new ShellGitClient.BaseBranchMetric(10, 2, "sha1"),
+      "master"     : new ShellGitClient.BaseBranchMetric(15, 1, "sha2"),
+      "origin/main": new ShellGitClient.BaseBranchMetric(5, 2, "sha3")]  | "sha2"
+    [
+      "main"       : new ShellGitClient.BaseBranchMetric(10, 2, "sha1"),
+      "master"     : new ShellGitClient.BaseBranchMetric(15, 2, "sha2"),
+      "origin/main": new ShellGitClient.BaseBranchMetric(5, 2, "sha3")]  | "sha3"
+    [:]                                                                  | null
+  }
+
+  def "test get base branch sha"() {
+    givenGitRepo("ci/git/impacted/git")
+    def gitClient = givenGitClient()
+
+    gitClient.getBaseCommitSha(baseBranch, defaultBranch) == expected
+
+    where:
+    baseBranch | defaultBranch | expected
+    "master"   | "master"      | "2ae4709da8155737b36d480722c57bab906a4f00"
+    "master"   | null          | "2ae4709da8155737b36d480722c57bab906a4f00"
+    null       | null          | "2ae4709da8155737b36d480722c57bab906a4f00"
   }
 
   private void givenGitRepo() {
