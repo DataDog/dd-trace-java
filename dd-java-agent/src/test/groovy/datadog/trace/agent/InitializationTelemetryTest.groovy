@@ -21,7 +21,7 @@ class InitializationTelemetryTest extends Specification {
 
   def "normal start-up"() {
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(null, true, "sleep")
+    def result = InitializationTelemetryCheck.runTestJvm(null, true, "sleep,normal")
 
     then:
     result.exitCode == 0
@@ -33,7 +33,7 @@ class InitializationTelemetryTest extends Specification {
     // agent initialization to fail.  However, we should catch the exception allowing the application
     // to run normally.
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy, true, "sleep")
+    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy, true, "sleep,incomplete")
 
     then:
     result.exitCode == 0

@@ -29,6 +29,10 @@ public class InitializationTelemetryCheck {
       Thread.sleep(2000);
     }
 
+    for (int i = 0; i < args.length; i++) {
+      System.err.println("DEBUG: arg[" + i + "]=" + args[i]);
+    }
+
     System.err.println(System.currentTimeMillis() + " DEBUG: main ended");
   }
 
