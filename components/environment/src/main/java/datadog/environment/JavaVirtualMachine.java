@@ -1,27 +1,26 @@
 package datadog.environment;
 
-import static datadog.environment.CommandLine.CMD;
-import static datadog.environment.CommandLine.CMD_ARGUMENTS;
-import static datadog.environment.CommandLine.VM_OPTIONS;
-
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
 
-public class JavaVirtualMachine {
-  private static final JavaVersion JAVA_VERSION = JavaVersion.getRuntimeVersion();
-  private static final Runtime RUNTIME = new Runtime();
+public final class JavaVirtualMachine {
+  private static final CommandLine commandLine = new CommandLine();
+  private static final JavaVersion javaVersion = JavaVersion.getRuntimeVersion();
+  private static final Runtime runtime = new Runtime();
+
+  private JavaVirtualMachine() {}
 
   public static boolean isJavaVersion(int major) {
-    return JAVA_VERSION.is(major);
+    return javaVersion.is(major);
   }
 
   public static boolean isJavaVersion(int major, int minor) {
-    return JAVA_VERSION.is(major, minor);
+    return javaVersion.is(major, minor);
   }
 
   public static boolean isJavaVersion(int major, int minor, int update) {
-    return JAVA_VERSION.is(major, minor, update);
+    return javaVersion.is(major, minor, update);
   }
 
   public static boolean isJavaVersionAtLeast(int major) {
@@ -33,7 +32,7 @@ public class JavaVirtualMachine {
   }
 
   public static boolean isJavaVersionAtLeast(int major, int minor, int update) {
-    return JAVA_VERSION.isAtLeast(major, minor, update);
+    return javaVersion.isAtLeast(major, minor, update);
   }
 
   /**
@@ -80,7 +79,7 @@ public class JavaVirtualMachine {
    */
   public static boolean isJavaVersionBetween(
       int fromMajor, int fromMinor, int fromUpdate, int toMajor, int toMinor, int toUpdate) {
-    return JAVA_VERSION.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
+    return javaVersion.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
   }
 
   /**
@@ -90,8 +89,8 @@ public class JavaVirtualMachine {
    */
   public static boolean isOracleJDK8() {
     return isJavaVersion(8)
-        && RUNTIME.vendor.contains("Oracle")
-        && !RUNTIME.name.contains("OpenJDK");
+        && runtime.vendor.contains("Oracle")
+        && !runtime.name.contains("OpenJDK");
   }
 
   public static boolean isJ9() {
@@ -99,27 +98,27 @@ public class JavaVirtualMachine {
   }
 
   public static boolean isIbm8() {
-    return isJavaVersion(8) && RUNTIME.vendor.contains("IBM");
+    return isJavaVersion(8) && runtime.vendor.contains("IBM");
   }
 
   public static boolean isGraalVM() {
-    return RUNTIME.vendorVersion.toLowerCase().contains("graalvm");
+    return runtime.vendorVersion.toLowerCase().contains("graalvm");
   }
 
   public static String getLangVersion() {
-    return String.valueOf(JAVA_VERSION.major);
+    return String.valueOf(javaVersion.major);
   }
 
   public static String getRuntimeVendor() {
-    return RUNTIME.vendor;
+    return runtime.vendor;
   }
 
   public static String getRuntimeVersion() {
-    return RUNTIME.version;
+    return runtime.version;
   }
 
   public static String getRuntimePatches() {
-    return RUNTIME.patches;
+    return runtime.patches;
   }
 
   /**
@@ -128,7 +127,7 @@ public class JavaVirtualMachine {
    * @return The JVM options, an empty collection if they can't be retrieved.
    */
   public static List<String> getVmOptions() {
-    return VM_OPTIONS;
+    return JvmOptionsHolder.JVM_OPTIONS.VM_OPTIONS;
   }
 
   /**
@@ -137,7 +136,7 @@ public class JavaVirtualMachine {
    * @return The command arguments, an empty collection if missing or can't be retrieved.
    */
   public static List<String> getCommandArguments() {
-    return CMD_ARGUMENTS;
+    return commandLine.CMD_ARGUMENTS;
   }
 
   /**
@@ -147,7 +146,7 @@ public class JavaVirtualMachine {
    *     retrieved.
    */
   public static @Nullable String getMainClass() {
-    return CMD != null && !isJarName(CMD) ? CMD : null;
+    return commandLine.CMD != null && !isJarName(commandLine.CMD) ? commandLine.CMD : null;
   }
 
   /**
@@ -157,11 +156,15 @@ public class JavaVirtualMachine {
    *     retrieved.
    */
   public static @Nullable String getJarFile() {
-    return CMD != null && isJarName(CMD) ? CMD : null;
+    return commandLine.CMD != null && isJarName(commandLine.CMD) ? commandLine.CMD : null;
   }
 
   private static boolean isJarName(String argument) {
     return argument.toLowerCase(Locale.ROOT).endsWith(".jar");
+  }
+
+  private static class JvmOptionsHolder {
+    private static final JvmOptions JVM_OPTIONS = new JvmOptions();
   }
 
   static final class Runtime {
