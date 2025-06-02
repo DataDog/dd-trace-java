@@ -209,6 +209,12 @@ public abstract class BootstrapInitializationTelemetry {
     @SuppressForbidden
     @Override
     public void run() {
+      System.err.println(
+          System.currentTimeMillis()
+              + " DEBUG: fwd="
+              + forwarderPath
+              + ", payload= "
+              + new String(payload));
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
 
       try {
@@ -216,6 +222,7 @@ public abstract class BootstrapInitializationTelemetry {
         try (OutputStream out = process.getOutputStream()) {
           out.write(payload);
         }
+        System.err.println(System.currentTimeMillis() + " DEBUG: telemetry completed");
       } catch (Throwable e) {
         // We don't have a log manager here, so just print.
         System.err.println("Failed to send telemetry: " + e.getMessage());
