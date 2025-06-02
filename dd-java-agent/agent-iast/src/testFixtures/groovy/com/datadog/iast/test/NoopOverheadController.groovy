@@ -25,6 +25,11 @@ class NoopOverheadController implements OverheadController {
   }
 
   @Override
+  boolean consumeQuota(Operation operation, @Nullable AgentSpan span) {
+    true
+  }
+
+  @Override
   boolean consumeQuota(Operation operation, @Nullable AgentSpan span, @Nullable VulnerabilityType type) {
     true
   }

@@ -185,9 +185,9 @@ class OverheadControllerTest extends DDSpecification {
     hasQuota1
 
     when:
-    def consumedQuota1 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
-    def consumedQuota2 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
-    def consumedQuota3 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
+    def consumedQuota1 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
+    def consumedQuota2 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
+    def consumedQuota3 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
 
     then:
     consumedQuota1

@@ -35,6 +35,8 @@ public interface OverheadController {
 
   boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
 
+  boolean consumeQuota(Operation operation, @Nullable final AgentSpan span);
+
   boolean consumeQuota(
       Operation operation, @Nullable final AgentSpan span, @Nullable final VulnerabilityType type);
 
@@ -103,6 +105,12 @@ public interface OverheadController {
             span);
       }
       return result;
+    }
+
+    @Override
+    public boolean consumeQuota(
+        Operation operation, @org.jetbrains.annotations.Nullable AgentSpan span) {
+      return consumeQuota(operation, span, null);
     }
 
     @Override
@@ -199,6 +207,12 @@ public interface OverheadController {
     @Override
     public boolean hasQuota(final Operation operation, @Nullable final AgentSpan span) {
       return operation.hasQuota(getContext(span));
+    }
+
+    @Override
+    public boolean consumeQuota(
+        Operation operation, @org.jetbrains.annotations.Nullable AgentSpan span) {
+      return consumeQuota(operation, span, null);
     }
 
     @Override

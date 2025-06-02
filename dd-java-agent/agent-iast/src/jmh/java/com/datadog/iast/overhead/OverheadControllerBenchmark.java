@@ -41,6 +41,6 @@ public class OverheadControllerBenchmark {
 
   @Benchmark
   public void consumeQuota() {
-    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null, null);
+    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null);
   }
 }
