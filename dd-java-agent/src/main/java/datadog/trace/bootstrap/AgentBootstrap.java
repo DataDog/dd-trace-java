@@ -70,6 +70,9 @@ public final class AgentBootstrap {
               + t.getClass().getName()
               + ", msg="
               + t.getMessage());
+
+      t.printStackTrace(System.err);
+
       initTelemetry = BootstrapInitializationTelemetry.noOpInstance();
     }
     try {
