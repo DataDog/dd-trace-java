@@ -36,7 +36,7 @@ public interface OverheadController {
   boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
 
   boolean consumeQuota(
-      final Operation operation,
+      Operation operation,
       @Nullable final AgentSpan span,
       @Nullable final VulnerabilityType type);
 
