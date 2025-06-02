@@ -613,31 +613,28 @@ public class ShellGitClient implements GitClient {
           }
           LOGGER.debug("Source branch: {}", sourceBranch);
 
+          if (baseBranch != null) {
+            return getCommonAncestor(baseBranch, sourceBranch);
+          }
+
           String defaultBranch =
               Strings.isNotBlank(settingsDefaultBranch)
                   ? settingsDefaultBranch
                   : detectDefaultBranch(remoteName);
 
-          List<String> possibleBaseBranches =
-              baseBranch == null ? POSSIBLE_BASE_BRANCHES : Collections.singletonList(baseBranch);
-          checkAndFetchBaseBranches(possibleBaseBranches, remoteName);
+          for (String branch : POSSIBLE_BASE_BRANCHES) {
+            checkAndFetchBranch(branch, remoteName);
+          }
 
-          List<String> candidates = getBaseBranchCandidates(baseBranch, sourceBranch, remoteName);
+          List<String> candidates = getBaseBranchCandidates(sourceBranch, remoteName);
           if (candidates.isEmpty()) {
             LOGGER.debug("No base branch candidates found");
             return null;
           }
 
-          String baseSha;
-          if (candidates.size() == 1) {
-            baseSha = getCommonAncestor(candidates.get(0), sourceBranch);
-          } else {
-            // select best candidate based on "ahead" metrics
-            Map<String, BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
-            baseSha = findBestBranchSha(metrics, defaultBranch, remoteName);
-          }
-
-          return baseSha;
+          // select best candidate based on "ahead" metrics
+          Map<String, BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
+          return findBestBranchSha(metrics, defaultBranch, remoteName);
         });
   }
 
@@ -713,14 +710,7 @@ public class ShellGitClient implements GitClient {
     }
 
     LOGGER.debug("Could not get symbolic-ref, trying to find fallback");
-    return findFallbackDefaultBranch(remoteName);
-  }
-
-  @Nullable
-  public String findFallbackDefaultBranch(String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
     List<String> fallbackBranches = Arrays.asList("main", "master");
-
     for (String branch : fallbackBranches) {
       try {
         commandExecutor.executeCommand(
@@ -742,7 +732,7 @@ public class ShellGitClient implements GitClient {
   public void checkAndFetchBranch(String branch, String remoteName)
       throws IOException, InterruptedException, TimeoutException {
     try {
-      // check if branch exists locally
+      // check if branch exists locally as a remote ref
       commandExecutor.executeCommand(
           ShellCommandExecutor.OutputParser.IGNORE,
           "git",
@@ -779,22 +769,11 @@ public class ShellGitClient implements GitClient {
         branch);
   }
 
-  public void checkAndFetchBaseBranches(List<String> branches, String remoteName)
+  public List<String> getBaseBranchCandidates(String sourceBranch, String remoteName)
       throws IOException, InterruptedException, TimeoutException {
-    for (String branch : branches) {
-      checkAndFetchBranch(branch, remoteName);
-    }
-  }
-
-  public List<String> getBaseBranchCandidates(
-      String baseBranch, String sourceBranch, String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
-    if (baseBranch != null) {
-      return Collections.singletonList(baseBranch);
-    }
-
     List<String> candidates = new ArrayList<>();
     try {
+      // only consider remote branches
       List<String> branches =
           commandExecutor.executeCommand(
               IOUtils::readLines,
@@ -922,10 +901,7 @@ public class ShellGitClient implements GitClient {
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
     if (!Strings.isNotBlank(baseCommit)) {
-      LOGGER.debug(
-          "Base commit and/or target commit info is not available, returning empty git diff: {}/{}",
-          baseCommit,
-          targetCommit);
+      LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
     } else if (Strings.isNotBlank(targetCommit)) {
       return executeCommand(
