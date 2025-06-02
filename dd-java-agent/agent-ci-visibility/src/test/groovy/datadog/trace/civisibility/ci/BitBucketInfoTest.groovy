@@ -23,18 +23,4 @@ class BitBucketInfoTest extends CITagsProviderTest {
     map.put(BitBucketInfo.BITBUCKET_GIT_COMMIT, "0000000000000000000000000000000000000000")
     return map
   }
-
-  @Override
-  void setupPullRequestInfoBuild() {
-    environmentVariables.set(BitBucketInfo.BITBUCKET_PR_DESTINATION_BRANCH, "base-branch")
-  }
-
-  @Override
-  PullRequestInfo expectedPullRequestInfo() {
-    return new PullRequestInfo(
-      "base-branch",
-      null,
-      null,
-      )
-  }
 }
