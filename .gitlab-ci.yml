@@ -42,7 +42,7 @@ variables:
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
-      - "oracle8"
+      - "8"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
