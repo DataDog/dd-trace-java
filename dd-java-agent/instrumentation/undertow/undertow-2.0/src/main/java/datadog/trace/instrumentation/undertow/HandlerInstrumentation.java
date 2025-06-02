@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
@@ -14,12 +13,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -71,7 +71,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpHandler handler,
         @Advice.Argument(1) final HttpServerExchange exchange,
-        @Advice.Local("agentScope") AgentScope scope) {
+        @Advice.Local("contextScope") ContextScope scope) {
       AgentSpan activeSpan = AgentTracer.activeSpan();
       if (activeSpan != null) {
         AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
@@ -89,13 +89,13 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         // not yet complete, not ready to do final activation of continuation
-        scope = activateSpan(continuation.span());
+        scope = continuation.span().attach();
         return;
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
+      final Context extractedContext = DECORATE.extractContext(exchange);
       final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-      scope = activateSpan(span);
+      scope = extractedContext.with(span).attach();
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, extractedContext);
 
@@ -118,7 +118,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("agentScope") final AgentScope scope) {
+    public static void closeScope(@Advice.Local("contextScope") final ContextScope scope) {
       if (scope == null) {
         return;
       }

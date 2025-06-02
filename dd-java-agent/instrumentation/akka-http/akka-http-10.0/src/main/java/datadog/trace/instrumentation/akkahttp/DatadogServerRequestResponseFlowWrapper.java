@@ -13,8 +13,8 @@ import akka.stream.stage.AbstractInHandler;
 import akka.stream.stage.AbstractOutHandler;
 import akka.stream.stage.GraphStage;
 import akka.stream.stage.GraphStageLogic;
+import datadog.context.ContextScope;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.akkahttp.appsec.BlockingResponseHelper;
 import java.util.Queue;
@@ -56,7 +56,7 @@ public class DatadogServerRequestResponseFlowWrapper
         // that this connection was created with. This means that we can safely
         // close the span at the front of the queue when we receive the response
         // from the user code, since it will match up to the request for that span.
-        final Queue<AgentScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+        final Queue<ContextScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
         boolean[] skipNextPull = new boolean[] {false};
 
         // This is where the request comes in from the server and TCP layer
@@ -66,8 +66,8 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 final HttpRequest request = grab(requestInlet);
-                final AgentScope scope = DatadogWrapperHelper.createSpan(request);
-                AgentSpan span = scope.span();
+                final ContextScope scope = DatadogWrapperHelper.createSpan(request);
+                final AgentSpan span = AgentSpan.fromContext(scope.context());
                 RequestContext requestContext = span.getRequestContext();
                 if (requestContext != null) {
                   HttpResponse response =
@@ -77,7 +77,7 @@ public class DatadogServerRequestResponseFlowWrapper
                     skipNextPull[0] = true;
                     requestContext.getTraceSegment().effectivelyBlocked();
                     emit(responseOutlet, response);
-                    DatadogWrapperHelper.finishSpan(scope.span(), response);
+                    DatadogWrapperHelper.finishSpan(span, response);
                     pull(requestInlet);
                     scope.close();
                     return;
@@ -131,9 +131,9 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onPush() throws Exception {
                 HttpResponse response = grab(responseInlet);
-                final AgentScope scope = scopes.poll();
+                final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  AgentSpan span = scope.span();
+                  AgentSpan span = AgentSpan.fromContext(scope.context());
                   HttpResponse newResponse =
                       BlockingResponseHelper.handleFinishForWaf(span, response);
                   if (newResponse != response) {
@@ -146,7 +146,7 @@ public class DatadogServerRequestResponseFlowWrapper
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
                   AgentSpan activeSpan = activeSpan();
-                  if (activeSpan == scope.span()) {
+                  if (activeSpan == span) {
                     scope.close();
                   }
                 }
@@ -157,9 +157,9 @@ public class DatadogServerRequestResponseFlowWrapper
               public void onUpstreamFinish() throws Exception {
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
-                AgentScope scope = scopes.poll();
+                ContextScope scope = scopes.poll();
                 while (scope != null) {
-                  scope.span().finish();
+                  AgentSpan.fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 completeStage();
@@ -167,16 +167,17 @@ public class DatadogServerRequestResponseFlowWrapper
 
               @Override
               public void onUpstreamFailure(final Throwable ex) throws Exception {
-                AgentScope scope = scopes.poll();
+                ContextScope scope = scopes.poll();
+                AgentSpan span = AgentSpan.fromContext(scope.context());
                 if (scope != null) {
                   // Mark the span as failed
-                  DatadogWrapperHelper.finishSpan(scope.span(), ex);
+                  DatadogWrapperHelper.finishSpan(span, ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  scope.span().finish();
+                  span.finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);

@@ -17,8 +17,26 @@ configurations {
   traceShadowInclude
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
+// and prevent issues for users that still using them.
+sourceSets {
+  "main_java6" {
+    java.srcDirs "${project.projectDir}/src/main/java6"
+  }
+}
+
+compileMain_java6Java.configure {
+  setJavaVersion(it, 8)
+  sourceCompatibility = JavaVersion.VERSION_1_6
+  targetCompatibility = JavaVersion.VERSION_1_6
+}
+
+tasks.compileJava.dependsOn compileMain_java6Java
+
+dependencies {
+  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  testImplementation sourceSets.main_java6.output
+}
 
 /*
  * Several shadow jars are created
@@ -32,6 +50,9 @@ ext.generalShadowJarConfig = {
   mergeServiceFiles()
 
   duplicatesStrategy = DuplicatesStrategy.FAIL
+
+  // Include AgentPreCheck compiled with Java 6.
+  from sourceSets.main_java6.output
 
   // Remove some cruft from the final jar.
   // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
@@ -68,7 +89,7 @@ ext.generalShadowJarConfig = {
   if (!projectName.equals('instrumentation')) {
     relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
     relocate 'okhttp3', 'datadog.okhttp3'
-    relocate 'okio',  'datadog.okio'
+    relocate 'okio', 'datadog.okio'
   }
 
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
@@ -176,7 +197,7 @@ shadowJar generalShadowJarConfig >> {
     attributes(
       "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
+      "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
       )

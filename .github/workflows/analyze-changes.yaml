@@ -61,6 +61,8 @@ jobs:
 
   trivy:
     name: Analyze changes with Trivy
+    # Don’t run on PR, only when pushing to master
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       actions: read

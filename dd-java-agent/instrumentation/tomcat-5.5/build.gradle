@@ -44,6 +44,12 @@ muzzle {
     assertInverse = true
   }
   // org.apache.catalina.connector.CoyoteAdapter introduced in Catalina 5.5
+  pass {
+    name = "tomcat-processtags"
+    group = "org.apache.tomcat"
+    module = 'tomcat-catalina-ha'
+    versions = "[,]"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
