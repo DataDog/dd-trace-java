@@ -1,12 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TagMap
 import spock.lang.Specification
 
 class ExtractedSpanTest extends Specification {
   def 'test extracted span from partial tracing context'() {
     given:
-    def tags = ['tag-1': 'value-1', 'tag-2': 'value-2']
+    def tags = TagMap.fromMap(['tag-1': 'value-1', 'tag-2': 'value-2'])
     def baggage = ['baggage-1': 'value-1', 'baggage-2': 'value-2']
     def traceId = DDTraceId.from(12345)
     def context = new TagContext('origin', tags, null, baggage, 0, null, null, traceId)

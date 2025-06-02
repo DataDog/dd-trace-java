@@ -101,5 +101,7 @@ public final class GeneralConfig {
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
+  public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
+
   private GeneralConfig() {}
 }
