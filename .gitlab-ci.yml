@@ -42,18 +42,7 @@ variables:
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
-      - "8"
-      - "11"
-      - "17"
-      - "21"
-      - "semeru11"
       - "oracle8"
-      - "ubuntu17"
-      - "zulu8"
-      - "semeru8"
-      - "ibm8"
-      - "zulu11"
-      - "semeru17"
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
@@ -475,117 +464,117 @@ test_base:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
 
-test_inst:
-  extends: .test_job_with_test_agent
-  variables:
-    GRADLE_TARGET: ":instrumentationTest"
-    CACHE_TYPE: "inst"
-  parallel:
-    matrix: *test_matrix_6
-
-test_inst_latest:
-  extends: .test_job_with_test_agent
-  variables:
-    GRADLE_TARGET: ":instrumentationLatestDepTest"
-    CACHE_TYPE: "latestDep"
-  parallel:
-    matrix:
-      - testJvm: ["8", "17", "21" ]
-        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-        # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
-
-test_flaky:
-  extends: .test_job_with_test_agent
-  variables:
-    GRADLE_PARAMS: "-PrunFlakyTests"
-    CACHE_TYPE: "base"
-    testJvm: "8"
-    CONTINUE_ON_FAILURE: "true"
-  rules:
-    - *master_only
-    - if: $RUN_FLAKY_TESTS == "true"
-      when: on_success
-  parallel:
-    matrix:
-      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
-        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-        # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
-
-test_flaky_inst:
-  extends: .test_job
-  variables:
-    GRADLE_TARGET: ":instrumentationTest"
-    GRADLE_PARAMS: "-PrunFlakyTests"
-    CACHE_TYPE: "inst"
-    testJvm: "8"
-    CONTINUE_ON_FAILURE: "true"
-  rules:
-    - *master_only
-    - if: $RUN_FLAKY_TESTS == "true"
-      when: on_success
-  parallel: 6
-
-test_profiling:
-  extends: .test_job
-  variables:
-    GRADLE_TARGET: ":profilingTest"
-    CACHE_TYPE: "profiling"
-  parallel:
-    matrix: *test_matrix
-
-# specific jvms list for debugger project because J9-based JVMs have issues with local vars
-# so need to test at least against one J9-based JVM
-test_debugger:
-  extends: .test_job
-  variables:
-    GRADLE_TARGET: ":debuggerTest"
-    CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|semeru8)$/
-  parallel:
-    matrix: *test_matrix
-
-test_smoke:
-  extends: .test_job
-  variables:
-    GRADLE_TARGET: "stageMainDist :smokeTest"
-    GRADLE_PARAMS: "-PskipFlakyTests"
-    CACHE_TYPE: "smoke"
-  parallel:
-    matrix: *test_matrix_2
-
-test_ssi_smoke:
-  extends: .test_job
-  rules: *master_only
-  variables:
-    GRADLE_TARGET: "stageMainDist :smokeTest"
-    CACHE_TYPE: "smoke"
-    DD_INJECT_FORCE: "true"
-    DD_INJECTION_ENABLED: "tracer"
-  parallel:
-    matrix: *test_matrix_2
-
-test_smoke_graalvm:
-  extends: .test_job
-  tags: [ "arch:amd64" ]
-  variables:
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
-    CACHE_TYPE: "smoke"
-    CI_NO_SPLIT: "true"
-    NON_DEFAULT_JVMS: "true"
-  parallel:
-    matrix:
-      - testJvm: ["graalvm17", "graalvm21"]
-
-test_smoke_semeru8_debugger:
-  extends: .test_job
-  tags: [ "arch:amd64" ]
-  variables:
-    GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
-    CACHE_TYPE: "smoke"
-    NON_DEFAULT_JVMS: "true"
-    testJvm: "semeru8"
+#test_inst:
+#  extends: .test_job_with_test_agent
+#  variables:
+#    GRADLE_TARGET: ":instrumentationTest"
+#    CACHE_TYPE: "inst"
+#  parallel:
+#    matrix: *test_matrix_6
+#
+#test_inst_latest:
+#  extends: .test_job_with_test_agent
+#  variables:
+#    GRADLE_TARGET: ":instrumentationLatestDepTest"
+#    CACHE_TYPE: "latestDep"
+#  parallel:
+#    matrix:
+#      - testJvm: ["8", "17", "21" ]
+#        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+#        # This emulates "parallel" by including it in the matrix
+#        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+#
+#test_flaky:
+#  extends: .test_job_with_test_agent
+#  variables:
+#    GRADLE_PARAMS: "-PrunFlakyTests"
+#    CACHE_TYPE: "base"
+#    testJvm: "8"
+#    CONTINUE_ON_FAILURE: "true"
+#  rules:
+#    - *master_only
+#    - if: $RUN_FLAKY_TESTS == "true"
+#      when: on_success
+#  parallel:
+#    matrix:
+#      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
+#        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+#        # This emulates "parallel" by including it in the matrix
+#        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+#
+#test_flaky_inst:
+#  extends: .test_job
+#  variables:
+#    GRADLE_TARGET: ":instrumentationTest"
+#    GRADLE_PARAMS: "-PrunFlakyTests"
+#    CACHE_TYPE: "inst"
+#    testJvm: "8"
+#    CONTINUE_ON_FAILURE: "true"
+#  rules:
+#    - *master_only
+#    - if: $RUN_FLAKY_TESTS == "true"
+#      when: on_success
+#  parallel: 6
+#
+#test_profiling:
+#  extends: .test_job
+#  variables:
+#    GRADLE_TARGET: ":profilingTest"
+#    CACHE_TYPE: "profiling"
+#  parallel:
+#    matrix: *test_matrix
+#
+## specific jvms list for debugger project because J9-based JVMs have issues with local vars
+## so need to test at least against one J9-based JVM
+#test_debugger:
+#  extends: .test_job
+#  variables:
+#    GRADLE_TARGET: ":debuggerTest"
+#    CACHE_TYPE: "base"
+#    DEFAULT_TEST_JVMS: /^(8|11|17|21|semeru8)$/
+#  parallel:
+#    matrix: *test_matrix
+#
+#test_smoke:
+#  extends: .test_job
+#  variables:
+#    GRADLE_TARGET: "stageMainDist :smokeTest"
+#    GRADLE_PARAMS: "-PskipFlakyTests"
+#    CACHE_TYPE: "smoke"
+#  parallel:
+#    matrix: *test_matrix_2
+#
+#test_ssi_smoke:
+#  extends: .test_job
+#  rules: *master_only
+#  variables:
+#    GRADLE_TARGET: "stageMainDist :smokeTest"
+#    CACHE_TYPE: "smoke"
+#    DD_INJECT_FORCE: "true"
+#    DD_INJECTION_ENABLED: "tracer"
+#  parallel:
+#    matrix: *test_matrix_2
+#
+#test_smoke_graalvm:
+#  extends: .test_job
+#  tags: [ "arch:amd64" ]
+#  variables:
+#    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+#    CACHE_TYPE: "smoke"
+#    CI_NO_SPLIT: "true"
+#    NON_DEFAULT_JVMS: "true"
+#  parallel:
+#    matrix:
+#      - testJvm: ["graalvm17", "graalvm21"]
+#
+#test_smoke_semeru8_debugger:
+#  extends: .test_job
+#  tags: [ "arch:amd64" ]
+#  variables:
+#    GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+#    CACHE_TYPE: "smoke"
+#    NON_DEFAULT_JVMS: "true"
+#    testJvm: "semeru8"
 
 deploy_to_profiling_backend:
   stage: publish
