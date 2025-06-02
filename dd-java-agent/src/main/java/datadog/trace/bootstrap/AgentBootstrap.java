@@ -65,7 +65,11 @@ public final class AgentBootstrap {
     try {
       initTelemetry = createInitializationTelemetry();
     } catch (Throwable t) {
-      System.err.println("Failed to initialize JSON initTelemetry: " + t.getMessage());
+      System.err.println(
+          "Failed to initialize JSON initTelemetry: "
+              + t.getClass().getName()
+              + ", msg="
+              + t.getMessage());
       initTelemetry = BootstrapInitializationTelemetry.noOpInstance();
     }
     try {
