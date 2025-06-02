@@ -79,6 +79,7 @@ public class OverheadContext {
     keys.forEach(
         key -> {
           Map<VulnerabilityType, Integer> countMap = requestMap.get(key);
+          // should not happen, but just in case
           if (countMap == null || countMap.isEmpty()) {
             globalMap.remove(key);
             return;

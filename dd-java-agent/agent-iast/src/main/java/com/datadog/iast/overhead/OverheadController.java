@@ -237,6 +237,7 @@ public interface OverheadController {
      * RFC-1029 algorithm.
      *
      * @param type the type of vulnerability detected
+     * @return true if the vulnerability should be skipped, false otherwise
      */
     private boolean maybeSkipVulnerability(
         @Nullable final OverheadContext ctx,

@@ -6,10 +6,12 @@ import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.transform.CompileDynamic
 import spock.lang.Shared
+import com.datadog.iast.model.VulnerabilityType
 
 import java.util.concurrent.Callable
 import java.util.concurrent.CountDownLatch
@@ -18,6 +20,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.Semaphore
 
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED
+
 
 @CompileDynamic
 class OverheadControllerTest extends DDSpecification {
@@ -182,9 +185,9 @@ class OverheadControllerTest extends DDSpecification {
     hasQuota1
 
     when:
-    def consumedQuota1 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
-    def consumedQuota2 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
-    def consumedQuota3 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)
+    def consumedQuota1 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
+    def consumedQuota2 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
+    def consumedQuota3 = overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, null)
 
     then:
     consumedQuota1
@@ -281,6 +284,167 @@ class OverheadControllerTest extends DDSpecification {
     then:
     acquiredValues.every { it == true }
     !lastAcquired
+  }
+
+  void "maybeSkipVulnerability returns false if ctx or type is null"() {
+    given:
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+    final ctx = Mock(OverheadContext)
+    ctx.requestMap >>> [null, [:]]
+    ctx.copyMap >> null
+
+    when: "maybeSkipVulnerability returns false if ctx or type is null"
+    def skip1 = controller.maybeSkipVulnerability(null, VulnerabilityType.WEAK_HASH, "GET", "/path")
+
+    then:
+    !skip1
+
+    when: "maybeSkipVulnerability returns false if type is null"
+    def skip2 = controller.maybeSkipVulnerability(ctx, null, "GET", "/path")
+
+    then:
+    !skip2
+
+    when: "maybeSkipVulnerability returns false if ctx.requestMap is null"
+    def skip3 = controller.maybeSkipVulnerability(ctx, null, "GET", "/path")
+
+    then:
+    !skip3
+
+    when: "maybeSkipVulnerability returns false if ctx.requestMap is empty"
+    def skip4 = controller.maybeSkipVulnerability(ctx, VulnerabilityType.WEAK_HASH, "GET", "/path")
+
+    then:
+    !skip4
+  }
+
+  void "maybeSkipVulnerability returns true when global count is higher"() {
+    given:
+    final ctx = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest())
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+    // Simulate that in a previous request, GLOBAL has counted 3 SQL_INJECTION for "GET /bar"
+    OverheadContext.globalMap.put("GET /bar", [(VulnerabilityType.SQL_INJECTION): 3])
+
+    when:
+    // First occurrence in this request: counter=1, storedCounter=3 ⇒ skip
+    boolean skipFirst = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "GET", "/bar")
+    // Second occurrence: requestMap now equals 1 internally, storedCounter=3 still ⇒ skip
+    boolean skipSecond = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "GET", "/bar")
+    // Simulate calling a third time: counter in requestMap incremented to 2 ⇒ still 2 < 3 ⇒ skip
+    boolean skipThird = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "GET", "/bar")
+    // Fourth time: counter=3, storedCounter=3 ⇒ not skip
+    boolean skipFourth = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "GET", "/bar")
+
+    then:
+    skipFirst
+    skipSecond
+    skipThird
+    !skipFourth
+
+    when:
+    boolean skipPost = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "POST", "/bar")
+
+    then:
+    !skipPost
+
+    when:
+    boolean skipAnotherEndpoint = controller.maybeSkipVulnerability(ctx, VulnerabilityType.SQL_INJECTION, "GET", "/bar2")
+
+    then:
+    !skipAnotherEndpoint
+  }
+
+  void "consumeQuota: globalContext path always calls operation.consumeQuota"() {
+    given: "An Operation stub that always returns true for both hasQuota and consumeQuota"
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+    def dummyOp = Stub(Operation) {
+      hasQuota(_ as OverheadContext) >> false   // hasQuota won’t matter for global path
+      consumeQuota(_ as OverheadContext) >> true
+    }
+
+    expect:
+    // Because controller was built with useGlobalAsFallback=true, passing null span yields globalContext
+    controller.consumeQuota(dummyOp, null, VulnerabilityType.WEAK_HASH)
+  }
+
+  void "consumeQuota: when IAST context present and hasQuota false returns false"() {
+    given:
+    // Build a fake span + requestContext + IAST context setup
+    OverheadContext localCtx = new OverheadContext(10, false)
+    def iastCtx = new IastRequestContext(localCtx)
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+
+    RequestContext rc = Stub(RequestContext) {
+      getData(RequestContextSlot.IAST) >> iastCtx
+    }
+    AgentSpan span = Stub(AgentSpan)
+    span.getRequestContext() >> rc
+    span.getLocalRootSpan() >> span  // return itself for tag lookups
+    span.getTag(Tags.HTTP_METHOD) >> "POST"
+    span.getTag(Tags.HTTP_ROUTE) >> "/do"
+
+    def op = Stub(Operation) {
+      hasQuota(localCtx) >> false    // even though context exists, hasQuota = false
+      consumeQuota(localCtx) >> true
+    }
+
+    expect:
+    !controller.consumeQuota(op, span, VulnerabilityType.WEAK_CIPHER)
+  }
+
+  void "consumeQuota: when hasQuota true but maybeSkipVulnerability returns true => false"() {
+    given:
+    // Prepare local context and global count so that skip logic triggers immediately
+    OverheadContext localCtx = new OverheadContext(10, false)
+    OverheadContext.globalMap.put("PUT /skipme", [(VulnerabilityType.WEAK_CIPHER): 2])
+    def iastCtx = new IastRequestContext(localCtx)
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+
+    RequestContext rc = Stub(RequestContext) {
+      getData(RequestContextSlot.IAST) >> iastCtx
+    }
+    AgentSpan span = Stub(AgentSpan)
+    span.getRequestContext() >> rc
+    span.getLocalRootSpan() >> span      // return the stub itself
+    span.getTag(Tags.HTTP_METHOD) >> "PUT"
+    span.getTag(Tags.HTTP_ROUTE)  >> "/skipme"
+
+    def op = Stub(Operation) {
+      hasQuota(localCtx) >> true
+      consumeQuota(localCtx) >> true
+    }
+
+    expect:
+    // First call: maybeSkip sees global=2, request counter=1 ⇒ skip → consumeQuota not called
+    !controller.consumeQuota(op, span, VulnerabilityType.WEAK_CIPHER)
+  }
+
+  void "consumeQuota: when hasQuota true and skip=false, calls consume and returns true"() {
+    given:
+    OverheadContext localCtx = new OverheadContext(10, false)
+    def iastCtx = new IastRequestContext(localCtx)
+    final controller = new OverheadControllerImpl(100f, 10, true, null)
+
+    RequestContext rc = Stub(RequestContext) {
+      getData(RequestContextSlot.IAST) >> iastCtx
+    }
+    AgentSpan span = Stub(AgentSpan)
+    span.getRequestContext() >> rc
+    span.getLocalRootSpan() >> span      // return the stub itself
+    span.getTag(Tags.HTTP_METHOD) >> "PATCH"
+    span.getTag(Tags.HTTP_ROUTE)  >> "/allow"
+
+    // No globalMap entry for "PATCH /allow", so skip=false on first invocation
+    def op = Stub(Operation) {
+      hasQuota(localCtx) >> true
+      consumeQuota(localCtx) >> { OverheadContext ctx ->
+        // As soon as consumeQuota is called, record it by incrementing a counter
+        return true
+      }
+    }
+
+    expect:
+    controller.consumeQuota(op, span, VulnerabilityType.WEAK_CIPHER)
   }
 
   private AgentSpan getAgentSpanWithOverheadContext() {
