@@ -36,9 +36,7 @@ public interface OverheadController {
   boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
 
   boolean consumeQuota(
-      Operation operation,
-      @Nullable final AgentSpan span,
-      @Nullable final VulnerabilityType type);
+      Operation operation, @Nullable final AgentSpan span, @Nullable final VulnerabilityType type);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     return build(
