@@ -358,7 +358,8 @@ public class CustomSecurityManager extends SecurityManager {
         || isEtcFile(filePath)
         || isTimeZoneDb(filePath)
         || isNetProperties(filePath)
-        || isIbmFile(filePath);
+        || isIbmFile(filePath)
+        || isOracleFile(filePath);
   }
 
   protected boolean checkFileWritePermission(FilePermission perm, Object ctx, String filePath) {
@@ -389,6 +390,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isIbmFile(String filePath) {
     return filePath.endsWith("/tmp/.com_ibm_tools_attach");
+  }
+
+  protected static final boolean isOracleFile(String filePath) {
+    return filePath.endsWith("/meta-index");
   }
 
   protected static final boolean isLibraryFile(String filePath) {
