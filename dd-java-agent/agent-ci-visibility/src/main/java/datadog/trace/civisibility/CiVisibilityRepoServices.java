@@ -65,8 +65,7 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(services.config, services.environment, ciProviderInfo);
+    PullRequestInfo pullRequestInfo = buildPullRequestInfo(services.environment, ciProviderInfo);
 
     if (pullRequestInfo.isNotEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
@@ -111,38 +110,18 @@ public class CiVisibilityRepoServices {
 
   @Nonnull
   private static PullRequestInfo buildPullRequestInfo(
-      Config config, CiEnvironment environment, CIProviderInfo ciProviderInfo) {
-    PullRequestInfo info = buildUserPullRequestInfo(config, environment);
-
-    if (info.isComplete()) {
-      return info;
+      CiEnvironment environment, CIProviderInfo ciProviderInfo) {
+    PullRequestInfo ciProviderPrInfo = ciProviderInfo.buildPullRequestInfo();
+    if (ciProviderPrInfo.isNotEmpty()) {
+      return ciProviderPrInfo;
     }
 
-    // complete with CI vars if user didn't provide all information
-    return PullRequestInfo.merge(info, ciProviderInfo.buildPullRequestInfo());
-  }
-
-  @Nonnull
-  private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment) {
-    PullRequestInfo userInfo =
-        new PullRequestInfo(
-            config.getGitPullRequestBaseBranch(),
-            config.getGitPullRequestBaseBranchSha(),
-            config.getGitCommitHeadSha());
-
-    if (userInfo.isComplete()) {
-      return userInfo;
-    }
-
-    // logs-backend specific vars
-    PullRequestInfo ddCiInfo =
-        new PullRequestInfo(
-            null,
-            environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
-            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
-
-    return PullRequestInfo.merge(userInfo, ddCiInfo);
+    // could not get PR info from CI provider,
+    // check if it was set manually
+    return new PullRequestInfo(
+        null,
+        environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
+        environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {

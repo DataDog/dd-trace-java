@@ -85,11 +85,6 @@ public final class CiVisibilityConfig {
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";
 
-  /* Git PR info */
-  public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";
-  public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull.request.base.branch.sha";
-  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
-
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";

@@ -83,7 +83,7 @@ class AppVeyorInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(environment.get(APPVEYOR_REPO_BRANCH), null, null);
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildGitBranch(final String repoProvider) {

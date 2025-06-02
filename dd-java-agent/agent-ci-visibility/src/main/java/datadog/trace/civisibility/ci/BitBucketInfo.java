@@ -26,7 +26,6 @@ class BitBucketInfo implements CIProviderInfo {
   public static final String BITBUCKET_GIT_COMMIT = "BITBUCKET_COMMIT";
   public static final String BITBUCKET_GIT_BRANCH = "BITBUCKET_BRANCH";
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
-  public static final String BITBUCKET_PR_DESTINATION_BRANCH = "BITBUCKET_PR_DESTINATION_BRANCH";
 
   private final CiEnvironment environment;
 
@@ -75,7 +74,7 @@ class BitBucketInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(environment.get(BITBUCKET_PR_DESTINATION_BRANCH), null, null);
+    return PullRequestInfo.EMPTY;
   }
 
   private String buildPipelineUrl(final String repo, final String number) {
