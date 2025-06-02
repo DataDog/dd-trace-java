@@ -1,7 +1,6 @@
 package datadog.trace.core.util;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -56,24 +55,19 @@ public final class StackTraces {
 
   private static String abbreviatePackageNames(String trace) {
     StringBuilder sb = new StringBuilder(trace.length());
-    try (BufferedReader reader = new BufferedReader(new StringReader(trace))) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        Matcher m = FRAME.matcher(line);
-        if (m.matches()) {
-          sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
-        } else {
-          sb.append(line);
-        }
-        sb.append(System.lineSeparator());
-      }
-      trace = sb.toString();
-      return trace;
-
-    } catch (IOException ignored) {
-      // This should never happen since we are reading from a StringReader
-      return trace;
-    }
+    new BufferedReader(new StringReader(trace))
+        .lines()
+        .forEach(
+            line -> {
+              Matcher m = FRAME.matcher(line);
+              if (m.matches()) {
+                sb.append("\tat ").append(abbreviatePackageName(m.group(1))).append(m.group(2));
+              } else {
+                sb.append(line);
+              }
+              sb.append(System.lineSeparator());
+            });
+    return sb.toString();
   }
 
   /**
