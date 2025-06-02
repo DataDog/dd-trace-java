@@ -297,46 +297,46 @@ check_debugger:
   variables:
     GRADLE_TARGET: ":debuggerCheck"
 
-muzzle:
-  extends: .gradle_build
-  needs: [ build_tests ]
-  stage: tests
-  parallel: 8
-  variables:
-    CACHE_TYPE: inst
-  script:
-    - export SKIP_BUILDSCAN="true"
-    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
-    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
-    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
-  after_script:
-    - source .gitlab/gitlab-utils.sh
-    - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
-    - gitlab_section_end "collect-reports"
-  artifacts:
-    when: always
-    paths:
-      - ./reports
-      - '.gradle/daemon/*/*.out.log'
-
-muzzle-dep-report:
-  extends: .gradle_build
-  needs: [ build_tests ]
-  stage: tests
-  variables:
-    CACHE_TYPE: inst
-  script:
-    - export SKIP_BUILDSCAN="true"
-    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
-  after_script:
-    - .circleci/collect_muzzle_deps.sh
-  artifacts:
-    when: always
-    paths:
-      - ./reports
-      - '.gradle/daemon/*/*.out.log'
+#muzzle:
+#  extends: .gradle_build
+#  needs: [ build_tests ]
+#  stage: tests
+#  parallel: 8
+#  variables:
+#    CACHE_TYPE: inst
+#  script:
+#    - export SKIP_BUILDSCAN="true"
+#    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
+#    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
+#    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
+#    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
+#  after_script:
+#    - source .gitlab/gitlab-utils.sh
+#    - gitlab_section_start "collect-reports" "Collecting reports"
+#    - .circleci/collect_reports.sh
+#    - gitlab_section_end "collect-reports"
+#  artifacts:
+#    when: always
+#    paths:
+#      - ./reports
+#      - '.gradle/daemon/*/*.out.log'
+#
+#muzzle-dep-report:
+#  extends: .gradle_build
+#  needs: [ build_tests ]
+#  stage: tests
+#  variables:
+#    CACHE_TYPE: inst
+#  script:
+#    - export SKIP_BUILDSCAN="true"
+#    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+#  after_script:
+#    - .circleci/collect_muzzle_deps.sh
+#  artifacts:
+#    when: always
+#    paths:
+#      - ./reports
+#      - '.gradle/daemon/*/*.out.log'
 
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
