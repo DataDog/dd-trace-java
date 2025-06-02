@@ -9,6 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
@@ -83,7 +84,12 @@ class AppVeyorInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(environment.get(APPVEYOR_REPO_BRANCH), null, null);
+    if (Strings.isNotBlank(environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH))) {
+      return new PullRequestInfo(
+          normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)), null, null);
+    } else {
+      return PullRequestInfo.EMPTY;
+    }
   }
 
   private String buildGitBranch(final String repoProvider) {

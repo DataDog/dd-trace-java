@@ -63,7 +63,7 @@ class BuddyInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(BUDDY_RUN_PR_BASE_BRANCH, null, null);
+    return new PullRequestInfo(environment.get(BUDDY_RUN_PR_BASE_BRANCH), null, null);
   }
 
   private String getPipelineId(String pipelineNumber) {
