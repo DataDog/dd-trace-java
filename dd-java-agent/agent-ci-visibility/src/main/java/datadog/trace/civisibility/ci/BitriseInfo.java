@@ -14,6 +14,7 @@ import javax.annotation.Nonnull;
 
 class BitriseInfo implements CIProviderInfo {
 
+  // https://devcenter.bitrise.io/en/references/available-environment-variables.html
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
   public static final String BITRISE_PIPELINE_ID = "BITRISE_BUILD_SLUG";

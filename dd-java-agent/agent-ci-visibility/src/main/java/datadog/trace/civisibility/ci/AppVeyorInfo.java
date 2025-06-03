@@ -26,6 +26,8 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_BRANCH = "APPVEYOR_REPO_BRANCH";
   public static final String APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH =
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
+  public static final String APPVEYOR_PULL_REQUEST_HEAD_COMMIT =
+      "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT = "APPVEYOR_REPO_COMMIT_MESSAGE";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_BODY =
@@ -84,9 +86,12 @@ class AppVeyorInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
+    // check if PR is detected
     if (Strings.isNotBlank(environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH))) {
       return new PullRequestInfo(
-          normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)), null, null);
+          normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)),
+          null,
+          environment.get(APPVEYOR_PULL_REQUEST_HEAD_COMMIT));
     } else {
       return PullRequestInfo.EMPTY;
     }
