@@ -52,10 +52,6 @@ public final class HostNameResolver {
   }
 
   private static String fromCache(InetAddress remoteAddress, String ip) {
-    final String alreadyResolved = HostNameResolver.getAlreadyResolvedHostName(remoteAddress);
-    if (alreadyResolved != null) {
-      return alreadyResolved;
-    }
     if (null != ip) {
       return HOSTNAME_CACHE.computeIfAbsent(ip, _ip -> remoteAddress.getHostName());
     }
