@@ -1,0 +1,13 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = ../origin.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "feature/source"]
+	remote = origin
+	merge = refs/heads/feature/source
