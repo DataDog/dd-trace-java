@@ -33,12 +33,12 @@ public interface OverheadController {
 
   int releaseRequest();
 
-  boolean hasQuota(final Operation operation, @Nullable final AgentSpan span);
+  boolean hasQuota(Operation operation, @Nullable AgentSpan span);
 
-  boolean consumeQuota(Operation operation, @Nullable final AgentSpan span);
+  boolean consumeQuota(Operation operation, @Nullable AgentSpan span);
 
   boolean consumeQuota(
-      Operation operation, @Nullable final AgentSpan span, @Nullable final VulnerabilityType type);
+      Operation operation, @Nullable AgentSpan span, @Nullable VulnerabilityType type);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     return build(
@@ -108,8 +108,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean consumeQuota(
-        Operation operation, @org.jetbrains.annotations.Nullable AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       return consumeQuota(operation, span, null);
     }
 
@@ -210,8 +209,7 @@ public interface OverheadController {
     }
 
     @Override
-    public boolean consumeQuota(
-        Operation operation, @org.jetbrains.annotations.Nullable AgentSpan span) {
+    public boolean consumeQuota(final Operation operation, @Nullable final AgentSpan span) {
       return consumeQuota(operation, span, null);
     }
 
