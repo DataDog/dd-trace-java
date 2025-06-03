@@ -24,7 +24,7 @@ final class JavaVersion {
     return parseJavaVersion(SystemProperties.getOrDefault("java.version", ""));
   }
 
-  private static JavaVersion parseJavaVersion(String javaVersion) {
+  static JavaVersion parseJavaVersion(String javaVersion) {
     // Remove pre-release part, usually -ea
     final int indexOfDash = javaVersion.indexOf('-');
     if (indexOfDash >= 0) {
