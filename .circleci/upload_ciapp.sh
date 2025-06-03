@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 SERVICE_NAME="dd-trace-java"
-PIPELINE_STAGE=$1
+CACHE_TYPE=$1
 TEST_JVM=$2
 
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
@@ -23,7 +23,7 @@ junit_upload() {
     DD_API_KEY=$1 \
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
-        --tags "test.traits:{\"marker\":[\"$PIPELINE_STAGE\"]}" \
+        --tags "test.traits:{\"category\":[\"$CACHE_TYPE\"]}" \
         --tags "runtime.name:$(java_prop java.runtime.name)" \
         --tags "runtime.vendor:$(java_prop java.vendor)" \
         --tags "runtime.version:$(java_prop java.version)" \
