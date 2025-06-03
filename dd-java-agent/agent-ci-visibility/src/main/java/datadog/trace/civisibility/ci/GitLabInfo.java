@@ -85,7 +85,7 @@ class GitLabInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     return new PullRequestInfo(
-        environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH),
+        normalizeBranch(environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH)),
         null,
         environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA));
   }

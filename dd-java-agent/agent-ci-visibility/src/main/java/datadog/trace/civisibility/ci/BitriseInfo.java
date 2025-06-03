@@ -72,7 +72,8 @@ class BitriseInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(environment.get(BITRISE_GIT_BRANCH_DEST), null, null);
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(BITRISE_GIT_BRANCH_DEST)), null, null);
   }
 
   private String buildGitCommit() {

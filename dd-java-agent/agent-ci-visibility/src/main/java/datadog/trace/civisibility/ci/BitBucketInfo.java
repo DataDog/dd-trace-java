@@ -75,7 +75,8 @@ class BitBucketInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return new PullRequestInfo(environment.get(BITBUCKET_PR_DESTINATION_BRANCH), null, null);
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(BITBUCKET_PR_DESTINATION_BRANCH)), null, null);
   }
 
   private String buildPipelineUrl(final String repo, final String number) {
