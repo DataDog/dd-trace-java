@@ -557,7 +557,9 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
-  rules: *master_only
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
