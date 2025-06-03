@@ -180,4 +180,67 @@ class OverheadContextTest extends DDSpecification {
     ctx.requestMap.isEmpty()
     ctx.copyMap.isEmpty()
   }
+
+  void "resetMaps merges and updates global entry when quota consumed and counter <= globalCounter"() {
+    given:
+    def ctx = new OverheadContext(1, false)
+    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 2])
+    // Simulate we saw 3 in this request
+    ctx.requestMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 2])
+    ctx.consumeQuota(1)
+    assert ctx.getAvailableQuota() == 0
+
+    when:
+    ctx.resetMaps()
+
+    then:
+    // The max of (global=1, request=3) is 3, so globalMap is updated
+    OverheadContext.globalMap["endpoint"][VulnerabilityType.WEAK_HASH] == 2
+    ctx.requestMap.isEmpty()
+    ctx.copyMap.isEmpty()
+  }
+
+  void "resetMaps merges and updates global entry when quota consumed and a vuln is detected in a new endpoint"() {
+    given:
+    def ctx = new OverheadContext(1, false)
+    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    ctx.requestMap.put("endpoint2", [(VulnerabilityType.WEAK_CIPHER): 1])
+    ctx.consumeQuota(1)
+    assert ctx.getAvailableQuota() == 0
+
+    when:
+    ctx.resetMaps()
+
+    then:
+    OverheadContext.globalMap["endpoint"][VulnerabilityType.WEAK_HASH] == 1
+    OverheadContext.globalMap["endpoint2"][VulnerabilityType.WEAK_CIPHER] == 1
+    ctx.requestMap.isEmpty()
+    ctx.copyMap.isEmpty()
+  }
+
+  void "globalMap should evict eldest entry once capacity is exceeded"() {
+    given: "We clear any existing entries"
+    OverheadContext.globalMap.clear()
+
+    and: "We know the configured maximum size"
+    int maxSize = OverheadContext.GLOBAL_MAP_MAX_SIZE
+
+    when: "We insert (maxSize + 1) distinct keys"
+    (1..maxSize + 1).each { i ->
+      OverheadContext.globalMap.put("key${i}", [(VulnerabilityType.WEAK_HASH): i])
+    }
+
+    then: "The total size never exceeds maxSize"
+    OverheadContext.globalMap.size() == maxSize
+
+    and: "The very first key inserted has been evicted"
+    !OverheadContext.globalMap.containsKey("key1")
+
+    and: "All subsequent (maxSize) keys remain present, in insertion order"
+    (2..maxSize + 1).each { i ->
+      assert OverheadContext.globalMap.containsKey("key${i}")
+    }
+  }
 }
