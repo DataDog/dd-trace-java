@@ -21,19 +21,11 @@ import java.util.Set;
  */
 public class InitializationTelemetryCheck {
   public static void main(String[] args) throws InterruptedException {
-    System.err.println(System.currentTimeMillis() + " DEBUG: main started");
-
     // Emulates the real application performing work in main().
     // That should give enough time to send initial telemetry from daemon thread.
     if (args.length > 0 && "sleep".equals(args[0])) {
-      Thread.sleep(2000);
+      Thread.sleep(1000);
     }
-
-    for (int i = 0; i < args.length; i++) {
-      System.err.println("DEBUG: arg[" + i + "]=" + args[i]);
-    }
-
-    System.err.println(System.currentTimeMillis() + " DEBUG: main ended");
   }
 
   /** Blocks the loading of the agent bootstrap */
