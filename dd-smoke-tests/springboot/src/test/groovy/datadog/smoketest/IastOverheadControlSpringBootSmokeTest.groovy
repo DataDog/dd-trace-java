@@ -62,31 +62,31 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     }
 
     then: 'check first get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==28 }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns' && vul.location.line ==31 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==33 }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns' && vul.location.line ==36 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.location.line ==42 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns'}
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns' }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'MD2'}
 
     and: 'check second get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==54 }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns2' && vul.location.line ==57 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==59 }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns2' && vul.location.line ==62 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.location.line ==68 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns2'}
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns2' }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'MD2'}
 
     and: 'check post mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==80 }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==83 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==85 }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==88 }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.location.line ==94 }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulnsPost'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost'&& vul.evidence.value == 'MD2'}
   }
 
 }

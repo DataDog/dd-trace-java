@@ -30,7 +30,7 @@ public class IastSamplingController {
     Cookie cookie = new Cookie("user-id", "7");
     response.addCookie(cookie);
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash2".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("SHA-1").digest("hash2".getBytes(StandardCharsets.UTF_8));
     // untrusted deserialization
     try {
       final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
@@ -39,7 +39,7 @@ public class IastSamplingController {
       // Ignore IOException
     }
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash3".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("MD2").digest("hash3".getBytes(StandardCharsets.UTF_8));
     return "OK";
   }
 
@@ -56,7 +56,7 @@ public class IastSamplingController {
     Cookie cookie = new Cookie("user-id", "7");
     response.addCookie(cookie);
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash2".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("SHA-1").digest("hash2".getBytes(StandardCharsets.UTF_8));
     // untrusted deserialization
     try {
       final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
@@ -65,7 +65,7 @@ public class IastSamplingController {
       // Ignore IOException
     }
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash3".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("MD2").digest("hash3".getBytes(StandardCharsets.UTF_8));
     return "OK";
   }
 
@@ -82,7 +82,7 @@ public class IastSamplingController {
     Cookie cookie = new Cookie("user-id", "7");
     response.addCookie(cookie);
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash2".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("SHA-1").digest("hash2".getBytes(StandardCharsets.UTF_8));
     // untrusted deserialization
     try {
       final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
@@ -91,7 +91,7 @@ public class IastSamplingController {
       // Ignore IOException
     }
     // weak hash
-    MessageDigest.getInstance("SHA1").digest("hash3".getBytes(StandardCharsets.UTF_8));
+    MessageDigest.getInstance("MD2").digest("hash3".getBytes(StandardCharsets.UTF_8));
     return "OK";
   }
 }
