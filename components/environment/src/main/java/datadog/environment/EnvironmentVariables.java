@@ -27,7 +27,8 @@ public final class EnvironmentVariables {
    */
   public static String getOrDefault(@Nonnull String name, String defaultValue) {
     try {
-      return System.getenv(name);
+      String value = System.getenv(name);
+      return value == null ? defaultValue : value;
     } catch (SecurityException e) {
       return defaultValue;
     }
