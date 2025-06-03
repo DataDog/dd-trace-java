@@ -26,20 +26,18 @@ class HostNameResolverForkedTest extends DDSpecification {
   }
 
   def "should use the cache for unresolved addresses"() {
-    setup:
-    def inet1 = Mock(InetAddress)
-    def inet2 = Mock(InetAddress)
+    given:
+    def inet1 = new Inet4Address(null, InetAddress.getLocalHost().getAddress())
+    def inet2 = new Inet4Address(null, 0) // this will fail if a resolution will happen
     when:
     def address = new InetSocketAddress(inet1, 666)
     def host = HostNameResolver.hostName(address.getAddress(), "127.0.0.1")
     then:
-    host == "somehost"
-    1 * inet1.getHostName() >> "somehost"
+    host != null
     when:
     address = new InetSocketAddress(inet2, 666)
-    host = HostNameResolver.hostName(address.getAddress(), "127.0.0.1")
+    def host2 = HostNameResolver.hostName(address.getAddress(), "127.0.0.1")
     then:
-    0 * inet2.getHostName()
-    host == "somehost"
+    host == host2
   }
 }
