@@ -60,7 +60,7 @@ Requirements to build the full project:
 
 ### Install the required JDKs
 
-Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for you OS.
+Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for your OS.
 
 #### macOS
 
