@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servicetalk;
+package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -16,7 +16,7 @@ import io.servicetalk.context.api.ContextMap;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class ContextMapInstrumentation extends AbstractAsyncContextInstrumentation
+public class ContextMapInstrumentation extends ServiceTalkInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
@@ -40,6 +40,8 @@ public class ContextMapInstrumentation extends AbstractAsyncContextInstrumentati
   private static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(@Advice.This ContextMap contextMap) {
+      // Capture an active span on ST context copy to support versions prior to 0.42.56 that did not
+      // have captureContext
       InstrumentationContext.get(ContextMap.class, AgentSpan.class)
           .put(contextMap, AgentTracer.activeSpan());
     }

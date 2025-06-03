@@ -24,7 +24,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   JAVA_BUILD_IMAGE_VERSION: "v25.05"
@@ -387,7 +387,7 @@ muzzle-dep-report:
       when: on_success
     - if: $NON_DEFAULT_JVMS == "true"
       when: on_success
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
       when: on_success
   script:
     - >

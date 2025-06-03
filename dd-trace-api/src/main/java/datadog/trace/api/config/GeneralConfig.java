@@ -21,6 +21,7 @@ public final class GeneralConfig {
   public static final String SITE = "site";
 
   public static final String SERVICE_NAME = "service.name";
+  public static final String SERVICE_NAME_SET_BY_USER = "service.name.set.by.user";
   public static final String ENV = "env";
   public static final String VERSION = "version";
   public static final String PRIMARY_TAG = "primary.tag";
@@ -99,6 +100,8 @@ public final class GeneralConfig {
   public static final String AGENTLESS_LOG_SUBMISSION_URL = "agentless.log.submission.url";
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
+
+  public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
 
   private GeneralConfig() {}
 }
