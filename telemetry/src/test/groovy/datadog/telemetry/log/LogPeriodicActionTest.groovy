@@ -21,6 +21,34 @@ class LogPeriodicActionTest extends DDSpecification {
     LogCollector.get().drain()
   }
 
+  void 'log with unknown log level is normalized to DEBUG'() {
+    LogMessage logMessage
+
+    when:
+    LogCollector.get().addLogMessage("INFO", "test", null)
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getLevel() == LogMessageLevel.DEBUG
+    logMessage.getMessage() == 'test'
+  }
+
+  void 'log with null log level is normalized to DEBUG'() {
+    LogMessage logMessage
+
+    when:
+    LogCollector.get().addLogMessage(null, "test", null)
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getLevel() == LogMessageLevel.DEBUG
+    logMessage.getMessage() == 'test'
+  }
+
   void 'log with datadog throwable'() {
     LogMessage logMessage
 
@@ -34,6 +62,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}: exception\n" +
       "  at datadog.MyClass.method(file:42)\n"
@@ -52,6 +81,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at java.MyClass.method(file:42)\n"
@@ -70,6 +100,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n"
   }
@@ -85,6 +116,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getCount() == 2
   }
@@ -104,6 +136,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() != null
     logMessage.getCount() == 2
@@ -129,6 +162,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at (redacted)\n" +
@@ -162,6 +196,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at (redacted)\n" +
@@ -204,6 +239,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at java.MyClass.method(file:42)\n" +
@@ -240,6 +276,7 @@ class LogPeriodicActionTest extends DDSpecification {
     then:
     1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
     0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
     logMessage.getMessage() == 'test'
     logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
       "  at java.MyClass.method(file:42)\n" +

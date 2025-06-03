@@ -12,6 +12,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+/**
+ * A collector for telemetry log messages. Most consumers should not use this class directly, but rather
+ * use SLF4J logging, which will call this collector automatically.
+ */
 public class LogCollector {
   public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
@@ -34,6 +38,12 @@ public class LogCollector {
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
   }
 
+  /**
+   * Schedule a log message for processing by the telemetry subsystem.
+   * @param logLevel ERROR, WARN or DEBUG. Other values are accepted, but will be normalized to DEBUG. Cannot be null.
+   * @param message The log message, needs to be free from sensitive data. Cannot be null.
+   * @param throwable An optional throwable to associate a stacktrace with the log message, can be null.
+   */
   public void addLogMessage(String logLevel, String message, Throwable throwable) {
     if (rawLogMessages.size() >= maxCapacity) {
       // TODO: We could emit a metric for dropped logs.
@@ -69,6 +79,10 @@ public class LogCollector {
     return list;
   }
 
+  /**
+   * A log message scheduled for processing by the telemetry subsystem.
+   * Consumers should not use this class directly.
+   */
   public static class RawLogMessage {
     public final String message;
     public final String logLevel;
