@@ -7,13 +7,6 @@ muzzle {
   }
 }
 
-configurations.all {
-  // shut up about broken xml-api pom relocation
-  resolutionStrategy {
-    force 'xml-apis:xml-apis:1.4.01'
-  }
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'call-site-instrumentation'
 
