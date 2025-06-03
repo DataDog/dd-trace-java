@@ -230,9 +230,10 @@ public interface OverheadController {
         String method = null;
         String path = null;
         if (span != null) {
-          Object methodTag = span.getLocalRootSpan().getTag(Tags.HTTP_METHOD);
+          AgentSpan rootSpan = span.getLocalRootSpan();
+          Object methodTag = rootSpan.getTag(Tags.HTTP_METHOD);
           method = (methodTag == null) ? "" : methodTag.toString();
-          Object routeTag = span.getLocalRootSpan().getTag(Tags.HTTP_ROUTE);
+          Object routeTag = rootSpan.getTag(Tags.HTTP_ROUTE);
           path = (routeTag == null) ? "" : routeTag.toString();
         }
         if (!maybeSkipVulnerability(ctx, type, method, path)) {
