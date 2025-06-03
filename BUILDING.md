@@ -60,7 +60,7 @@ Requirements to build the full project:
 
 ### Install the required JDKs
 
-Download and install Eclipse Temurin JDK versions 8, 11, 17 and 21, and GraalVM 17.
+Download and install JDK versions 8, 11, 17 and 21, and GraalVM 17 for you OS.
 
 #### macOS
 
@@ -179,17 +179,17 @@ scoop install git
 
 #### macOS
 
-Download and install Docker Desktop from the offical website:<br/>
+Download and install Docker Desktop from the official website:<br/>
 https://docs.docker.com/desktop/setup/install/mac-install/
 
 #### Linux
 
-Download and install Docker Desktop from the offical website:<br/>
+Download and install Docker Desktop from the official website:<br/>
 https://docs.docker.com/desktop/setup/install/linux/
 
 #### Windows
 
-Download and install Docker Desktop from the offical website:<br/>
+Download and install Docker Desktop from the official website:<br/>
 https://docs.docker.com/desktop/setup/install/windows-install/
 
 <details>
