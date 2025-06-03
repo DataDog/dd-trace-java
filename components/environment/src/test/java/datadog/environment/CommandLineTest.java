@@ -28,7 +28,7 @@ class CommandLineTest {
   private static final String CMD_ARGUMENTS_MARKER = "-- CMD ARGUMENTS --";
   private static final String REAL_CMD_ARGUMENTS_MARKER = "-- REAL CMD ARGUMENTS --";
 
-  public static Stream<Arguments> data() {
+  static Stream<Arguments> data() {
     // spotless:off
     return Stream.of(
         arguments(
@@ -58,8 +58,8 @@ class CommandLineTest {
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("data")
-  public void testGetVmArguments(
-      String useCase, RunArguments arguments, RunArguments expectedArguments) throws Exception {
+  void testGetVmArguments(String useCase, RunArguments arguments, RunArguments expectedArguments)
+      throws Exception {
     if (useCase.contains("argfile")) {
       System.out.println(">>> java.home" + System.getProperty("java.home"));
       System.err.println(">>> java.home" + System.getProperty("java.home"));
