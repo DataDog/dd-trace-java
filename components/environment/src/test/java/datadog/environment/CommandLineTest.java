@@ -60,6 +60,10 @@ class CommandLineTest {
   @MethodSource("data")
   public void testGetVmArguments(
       String useCase, RunArguments arguments, RunArguments expectedArguments) throws Exception {
+    if (useCase.contains("argfile")) {
+      System.out.println(">>> java.home" + System.getProperty("java.home"));
+      System.err.println(">>> java.home" + System.getProperty("java.home"));
+    }
     // Skip unsupported test cases
     skipArgFileTestOnJava8(arguments);
     // keepDisabledArgFileOnLinuxOnly(arguments);
@@ -118,7 +122,7 @@ class CommandLineTest {
       }
     }
     if (useArgFile) {
-      assumeFalse(System.getProperty("java.home").matches(".*[-/]8\\..*"));
+      assumeFalse(System.getProperty("java.home").matches(".*[-/]8[./].*"));
     }
   }
 
