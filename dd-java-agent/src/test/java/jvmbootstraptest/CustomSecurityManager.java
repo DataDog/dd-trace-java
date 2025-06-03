@@ -393,7 +393,7 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected static final boolean isOracleFile(String filePath) {
-    return filePath.endsWith("/meta-index");
+    return filePath.contains("/oracle8");
   }
 
   protected static final boolean isLibraryFile(String filePath) {
