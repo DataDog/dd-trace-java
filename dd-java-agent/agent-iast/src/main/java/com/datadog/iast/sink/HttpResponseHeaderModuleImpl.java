@@ -66,7 +66,6 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    // TODO decide if we remove this one quota for all vulnerabilities as new IAST sampling
     // algorithm is able to report  all endpoint vulnerabilities
     if (!overheadController.consumeQuota(
         Operations.REPORT_VULNERABILITY, span, INSECURE_COOKIE // we need a type to check quota
