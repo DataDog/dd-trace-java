@@ -579,6 +579,8 @@ public class Config {
 
   private final boolean jdkSocketEnabled;
 
+  private final int stackTraceLengthLimit;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -635,7 +637,8 @@ public class Config {
       serviceNameSetByUser = false;
       serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
     } else {
-      serviceNameSetByUser = true;
+      // might be an auto-detected name propagated from instrumented parent process
+      serviceNameSetByUser = configProvider.getBoolean(SERVICE_NAME_SET_BY_USER, true);
       serviceName = userProvidedServiceName;
     }
 
@@ -2035,6 +2038,13 @@ public class Config {
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    int defaultStackTraceLengthLimit =
+        instrumenterConfig.isCiVisibilityEnabled()
+            ? 5000 // EVP limit
+            : Integer.MAX_VALUE; // no effective limit (old behavior)
+    this.stackTraceLengthLimit =
+        configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
     log.debug("New instance: {}", this);
   }
@@ -3656,6 +3666,10 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
+  }
+
+  public int getStackTraceLengthLimit() {
+    return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
