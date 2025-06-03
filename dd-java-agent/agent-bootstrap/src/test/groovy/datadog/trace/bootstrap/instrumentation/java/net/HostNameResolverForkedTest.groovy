@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.net
 
 import datadog.trace.test.util.DDSpecification
 
-class HostNameResolverTest extends DDSpecification {
+class HostNameResolverForkedTest extends DDSpecification {
   def "should directly get the hostname for already resolved address #address"() {
     given:
     def host = HostNameResolver.getAlreadyResolvedHostName(address)
