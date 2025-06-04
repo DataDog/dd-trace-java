@@ -17,6 +17,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.instrumentation.AllMethodTraceDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
+/**
+ * Traces all methods of all classes under the specified business package names globally.
+ */
 @AutoService(InstrumenterModule.class)
 public class AllMethodInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
