@@ -25,6 +25,7 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_METHODS_FILE = "trace.method.file";
+  public static final String TRACE_METHOD_PACKAGES = "trace.method.packages";
   /*
   format for measure.methods is the same as for trace.methods:
   https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/

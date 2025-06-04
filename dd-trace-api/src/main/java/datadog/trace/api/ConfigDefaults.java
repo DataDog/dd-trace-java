@@ -203,6 +203,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  static final String DEFAULT_TRACE_METHOD_PACKAGES = null;
   static final boolean DEFAULT_TRACE_ANNOTATION_ASYNC = false;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
