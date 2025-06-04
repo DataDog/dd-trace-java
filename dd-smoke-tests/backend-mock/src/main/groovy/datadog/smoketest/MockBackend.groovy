@@ -33,7 +33,6 @@ class MockBackend implements AutoCloseable {
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> knownTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> testManagement = new CopyOnWriteArrayList<>()
-  private final Collection<String> changedFiles = new CopyOnWriteArrayList<>()
 
   private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
@@ -55,7 +54,6 @@ class MockBackend implements AutoCloseable {
     flakyTests.clear()
     knownTests.clear()
     testManagement.clear()
-    changedFiles.clear()
   }
 
   @Override
@@ -81,10 +79,6 @@ class MockBackend implements AutoCloseable {
 
   void givenImpactedTestsDetection(boolean impactedTestsDetectionEnabled) {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
-  }
-
-  void givenChangedFile(String relativePath) {
-    changedFiles.add(relativePath)
   }
 
   void givenKnownTests(boolean knownTests) {
@@ -330,23 +324,6 @@ class MockBackend implements AutoCloseable {
         receivedLogs.addAll(decodedEvent)
 
         response.status(200).send()
-      }
-
-      prefix("/api/v2/ci/tests/diffs") {
-        response.status(200)
-        .addHeader("Content-Encoding", "gzip")
-        .send(MockBackend.compress(("""
-          {
-            "data": {
-              "type": "ci_app_tests_diffs_response",
-              "id": "<some-hash>",
-              "attributes": {
-                "base_sha": "ef733331f7cee9b1c89d82df87942d8606edf3f7",
-                "files": [ ${changedFiles.stream().map(f -> '"' + f + '"').collect(Collectors.joining(","))} ]
-              }
-            }
-          }
-          """).bytes))
       }
     }
   }
