@@ -16,10 +16,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class OverheadContext {
 
-  /**
-   * Maximum number of distinct endpoints to remember in the global cache (LRU eviction beyond this
-   * size).
-   */
+  /** Maximum number of distinct endpoints to remember in the global cache. */
   private static final int GLOBAL_MAP_MAX_SIZE = 4096;
 
   /**
