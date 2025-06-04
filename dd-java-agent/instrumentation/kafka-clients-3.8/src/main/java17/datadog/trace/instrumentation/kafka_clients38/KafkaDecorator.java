@@ -162,6 +162,16 @@ public class KafkaDecorator extends MessagingClientDecorator {
             PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
                 producerConfig, BOOTSTRAP_SERVERS_JOINER));
       }
+
+      try {
+        System.out.println("Before sleep for 1ms Rob kafkaClient38 Java17");
+        Thread.sleep(1);
+        // Sleep to avoid race conditions between topology updates
+        System.out.println("Sleeping for 1ms Rob");
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
       span.setTag(MESSAGING_DESTINATION_NAME, topic);
