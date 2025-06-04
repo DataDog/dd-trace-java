@@ -1,0 +1,55 @@
+#!/bin/bash
+
+origin_path="/tmp/impacted/repo_origin"
+source_path="/tmp/impacted/source_repo"
+new_clone_path="/tmp/impacted/new_clone"
+no_remote_path="/tmp/impacted/no_remote"
+ghub_actions_path="/tmp/impacted/ghub_actions_clone"
+
+# create origin
+mkdir -p $origin_path
+(cd $origin_path && git init --bare)
+
+# create git repo
+mkdir -p $source_path
+(cd $source_path && git init && git remote add origin $origin_path)
+(cd $source_path && echo "Hello, world!" >>README.md && git add README.md && git commit -m "Initial commit")
+(cd $source_path && echo "Hello, world!" >>README.md && git add README.md && git commit -m "Update README")
+(cd $source_path && git push origin master)
+
+base_branch="master"
+feature_branch="feature"
+base_commit=$(cd $source_path && git rev-parse HEAD)
+
+# create feature branch
+(cd $source_path && git checkout -b $feature_branch)
+(cd $source_path && echo "Feature branch change" >>README.md && git add README.md && git commit -m "Updated README")
+(cd $source_path && git push origin $feature_branch)
+
+# create new clone
+mkdir -p $new_clone_path
+(cd $new_clone_path && git init)
+(cd $new_clone_path && git remote add origin $origin_path)
+(cd $new_clone_path && git fetch origin $feature_branch)
+(cd $new_clone_path && git reset --hard "origin/$feature_branch")
+
+# remote pointing to non existing repo
+mkdir -p $no_remote_path
+(cd $no_remote_path && git init)
+(cd $no_remote_path && echo "base branch file" >>README.md && git add README.md && git commit -m "first commit")
+(cd $no_remote_path && git remote add origin "git@git.com:datadog/non_existing_repo.git")
+
+# github actions style clone
+mkdir -p $ghub_actions_path
+(cd $ghub_actions_path && git init)
+(cd $ghub_actions_path && git remote add origin $origin_path)
+(cd $ghub_actions_path && git fetch --no-tags --prune --no-recurse-submodules origin $feature_branch)
+(cd $ghub_actions_path && git checkout --progress --force -B $feature_branch "refs/remotes/origin/$feature_branch")
+
+echo "BASE COMMIT: $base_commit"
+
+# cleanup
+(cd $source_path && rm -rf .git/hooks .git/info .git/logs .git/COMMIT_EDITMSG .git/description .git/index && mv .git git)
+(cd $new_clone_path && rm -rf .git/hooks .git/info .git/logs .git/COMMIT_EDITMSG .git/description .git/index && mv .git git)
+(cd $no_remote_path && rm -rf .git/hooks .git/info .git/logs .git/COMMIT_EDITMSG .git/description .git/index && mv .git git)
+(cd $ghub_actions_path && rm -rf .git/hooks .git/info .git/logs .git/COMMIT_EDITMSG .git/description .git/index && mv .git git)

@@ -653,7 +653,7 @@ public class ShellGitClient implements GitClient {
 
       return remote.split("/")[0];
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error getting remote from upstream", e);
+      LOGGER.debug("Error getting remote from upstream, falling back to first remote", e);
     }
 
     // fallback to first remote if no upstream
@@ -709,7 +709,7 @@ public class ShellGitClient implements GitClient {
     } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
     }
 
-    LOGGER.debug("Could not get symbolic-ref, trying to find fallback");
+    LOGGER.debug("Could not get symbolic-ref for default branch, trying fallback");
     List<String> fallbackBranches = Arrays.asList("main", "master");
     for (String branch : fallbackBranches) {
       try {
@@ -726,6 +726,7 @@ public class ShellGitClient implements GitClient {
       }
     }
 
+    LOGGER.debug("No fallback default branch found");
     return null;
   }
 
@@ -743,16 +744,20 @@ public class ShellGitClient implements GitClient {
       LOGGER.debug("Branch {} exists locally, skipping fetch", branch);
       return;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Branch {} does not exist locally, checking remote", branch, e);
+      LOGGER.debug("Branch {} does not exist locally, checking remote", branch);
     }
 
     // check if branch exists in remote
-    String remoteHeads =
-        commandExecutor
-            .executeCommand(IOUtils::readFully, "git", "ls-remote", "--heads", remoteName, branch)
-            .trim();
+    String remoteHeads = null;
+    try {
+      remoteHeads =
+          commandExecutor
+              .executeCommand(IOUtils::readFully, "git", "ls-remote", "--heads", remoteName, branch)
+              .trim();
+    } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+    }
 
-    if (remoteHeads.isEmpty()) {
+    if (!Strings.isNotBlank(remoteHeads)) {
       LOGGER.debug("Branch {} does not exist in remote", branch);
       return;
     }

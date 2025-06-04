@@ -393,41 +393,47 @@ class GitClientTest extends Specification {
     gitClient.getRemoteName() == remoteName
 
     where:
-    repoPath               | remoteName
-    "ci/git/impacted/git"  | "origin"
-    "ci/git/with_pack/git" | "origin" // fallback on ambiguous upstream
+    repoPath                                 | remoteName
+    "ci/git/impacted/ghub_actions_clone/git" | "origin" // get remote from upstream
+    "ci/git/impacted/source_repo/git"        | "origin" // no upstream configured for branch
+    "ci/git/with_pack/git"                   | "origin" // ambiguous '@{upstream}' argument
   }
 
   def "test get source branch"() {
     given:
-    givenGitRepo("ci/git/impacted/git")
+    givenGitRepo("ci/git/impacted/source_repo/git")
     def gitClient = givenGitClient()
 
     when:
     def branch = gitClient.getSourceBranch()
 
     then:
-    branch == "feature/source"
+    branch == "feature"
   }
 
   def "test detect default branch"() {
-    givenGitRepo()
+    given:
+    givenGitRepo("ci/git/impacted/source_repo/git")
     def gitClient = givenGitClient()
-    gitClient.detectDefaultBranch("origin") == "master"
+
+    when:
+    def defaultBranch = gitClient.detectDefaultBranch("origin")
+
+    then:
+    defaultBranch == "master"
   }
 
   def "test compute branch metrics"() {
     given:
-    givenGitRepo("ci/git/impacted/git")
+    givenGitRepo("ci/git/impacted/source_repo/git")
     def gitClient = givenGitClient()
 
     when:
-    def metrics = gitClient.computeBranchMetrics(["master", "origin/master"], "feature/source")
+    def metrics = gitClient.computeBranchMetrics(["origin/master"], "feature")
 
     then:
-    metrics == [
-      "master"       : new ShellGitClient.BaseBranchMetric(1, 1, "2ae4709da8155737b36d480722c57bab906a4f00"),
-      "origin/master": new ShellGitClient.BaseBranchMetric(1, 1, "2ae4709da8155737b36d480722c57bab906a4f00")]
+    metrics.size() == 1
+    metrics["origin/master"] == new ShellGitClient.BaseBranchMetric(0, 1, "02fcc183ad25f086aaec562224abc1b323ebaaa9")
   }
 
   def "test find best branch sha"() {
@@ -447,17 +453,19 @@ class GitClientTest extends Specification {
     [:]                                                                  | null
   }
 
-  def "test get base branch sha"() {
-    givenGitRepo("ci/git/impacted/git")
+  def "test get base branch sha: #testcaseName"() {
+    givenGitRepo(repo)
     def gitClient = givenGitClient()
 
-    gitClient.getBaseCommitSha(baseBranch, defaultBranch) == expected
+    gitClient.getBaseCommitSha(baseBranch, null) == expected
 
     where:
-    baseBranch | defaultBranch | expected
-    "master"   | "master"      | "2ae4709da8155737b36d480722c57bab906a4f00"
-    "master"   | null          | "2ae4709da8155737b36d480722c57bab906a4f00"
-    null       | null          | "2ae4709da8155737b36d480722c57bab906a4f00"
+    testcaseName                 | repo                                     | baseBranch | expected
+    "base branch provided"       | "ci/git/impacted/source_repo/git"        | "master"   | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
+    "base branch not provided"   | "ci/git/impacted/source_repo/git"        | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
+    "fresh clone"                | "ci/git/impacted/new_clone/git"          | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
+    "no remote clone"            | "ci/git/impacted/no_remote/git"          | null       | null
+    "Github Actions style clone" | "ci/git/impacted/ghub_actions_clone/git" | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
   }
 
   private void givenGitRepo() {
