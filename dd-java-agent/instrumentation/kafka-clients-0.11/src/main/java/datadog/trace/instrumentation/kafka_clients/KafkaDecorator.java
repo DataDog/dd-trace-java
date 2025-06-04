@@ -165,10 +165,13 @@ public class KafkaDecorator extends MessagingClientDecorator {
 
 
       try {
-        System.out.println("Before sleep for 1ms Rob kafkaClient011");
-        Thread.sleep(1);
+        System.out.println("Before empty work Rob kafkaClient011");
+        int x = 0;
+        for (int i = 0; i < 1000; i++) {
+            x++; // Prevent JIT optimization
+        }
         // Sleep to avoid race conditions between topology updates
-        System.out.println("Sleeping for 1ms Rob");
+        System.out.println("After empty work Rob");
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
