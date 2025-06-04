@@ -3,7 +3,12 @@ package datadog.environment;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Safely queries environment variables. */
+/**
+ * Safely queries environment variables against security manager.
+ *
+ * @see <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/SecurityManager.html">Security
+ *     Manager</a>
+ */
 public final class EnvironmentVariables {
   private EnvironmentVariables() {}
 

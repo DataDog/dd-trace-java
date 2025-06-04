@@ -136,7 +136,7 @@ public final class JavaVirtualMachine {
    * @return The command arguments, an empty collection if missing or can't be retrieved.
    */
   public static List<String> getCommandArguments() {
-    return commandLine.CMD_ARGUMENTS;
+    return commandLine.arguments;
   }
 
   /**
@@ -146,7 +146,9 @@ public final class JavaVirtualMachine {
    *     retrieved.
    */
   public static @Nullable String getMainClass() {
-    return commandLine.CMD != null && !isJarName(commandLine.CMD) ? commandLine.CMD : null;
+    return commandLine.command != null && !isJarName(commandLine.command)
+        ? commandLine.command
+        : null;
   }
 
   /**
@@ -156,7 +158,9 @@ public final class JavaVirtualMachine {
    *     retrieved.
    */
   public static @Nullable String getJarFile() {
-    return commandLine.CMD != null && isJarName(commandLine.CMD) ? commandLine.CMD : null;
+    return commandLine.command != null && isJarName(commandLine.command)
+        ? commandLine.command
+        : null;
   }
 
   private static boolean isJarName(String argument) {
