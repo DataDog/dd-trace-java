@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Locale;
 
+/** Detects operating systems and libc library. */
 public final class OperatingSystem {
   private OperatingSystem() {}
 
