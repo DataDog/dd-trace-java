@@ -53,6 +53,15 @@ public class StreamingContext {
       newTopics.put(internalTopic, INTERNAL_TOPIC);
     }
 
+    try {
+      System.out.println("Before sleep for 1ms Rob");
+      Thread.sleep(1);
+      // Sleep to avoid race conditions between topology updates
+      System.out.println("Sleeping for 1ms Rob");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
     topics = newTopics;
   }
 
