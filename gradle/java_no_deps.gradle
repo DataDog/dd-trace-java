@@ -228,9 +228,7 @@ project.afterEvaluate {
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
       tasks.named(type).configure {
-        kotlinOptions {
-          freeCompilerArgs += '-Xmx256m'
-        }
+        kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }
   }
@@ -266,18 +264,27 @@ if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
 }
 
 ext.setJavaVersion = (it, javaVersionInteger) -> {
-  AbstractCompile ac = (AbstractCompile) it
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
+  Provider<JavaLauncher> launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+  }
   try {
-    ac.configure {
-      options.fork = true
-      if (ac.hasProperty('javaCompiler')) {
-        javaCompiler = compiler
-      } else {
-        options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+    if (it instanceof JavaCompile) {
+      JavaCompile jc = (JavaCompile) it
+      jc.javaCompiler = compiler
+      if (javaVersionInteger == 8) {
+        jc.options.release = null
       }
+    } else if (it instanceof GroovyCompile) {
+      GroovyCompile gc = (GroovyCompile) it
+      gc.javaLauncher = launcher
+    } else if (it instanceof ScalaCompile) {
+      ScalaCompile sc = (ScalaCompile) it
+      sc.javaLauncher = launcher
+    } else {
+      throw new GradleException("Unsupported compile type: ${it.getClass()}")
     }
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")

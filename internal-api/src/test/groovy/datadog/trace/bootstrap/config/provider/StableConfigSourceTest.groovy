@@ -3,18 +3,12 @@ package datadog.trace.bootstrap.config.provider
 import static java.util.Collections.singletonMap
 
 import datadog.trace.api.ConfigOrigin
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationValue
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml
+import datadog.trace.bootstrap.config.provider.stableconfig.Rule
+import datadog.trace.bootstrap.config.provider.stableconfig.Selector
+import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig
 import datadog.trace.test.util.DDSpecification
-import org.yaml.snakeyaml.DumperOptions
-import org.yaml.snakeyaml.Yaml
-import org.yaml.snakeyaml.introspector.Property
-import org.yaml.snakeyaml.nodes.NodeTuple
-import org.yaml.snakeyaml.nodes.Tag
-import org.yaml.snakeyaml.representer.Representer
+import org.snakeyaml.engine.v2.api.Dump
+import org.snakeyaml.engine.v2.api.DumpSettings
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -34,11 +28,13 @@ class StableConfigSourceTest extends DDSpecification {
   def "test empty file"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create: " + filePath)
     }
-    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
+    when:
+    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
     then:
     config.getKeys().size() == 0
     config.getConfigId() == null
@@ -48,16 +44,13 @@ class StableConfigSourceTest extends DDSpecification {
     // StableConfigSource must handle the exception thrown by StableConfigParser.parse(filePath) gracefully
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create: " + filePath)
     }
 
-    try {
-      writeFileRaw(filePath, configId, data)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
-    }
-
+    when:
+    writeFileRaw(filePath, configId, data)
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
@@ -74,19 +67,14 @@ class StableConfigSourceTest extends DDSpecification {
   def "test file valid format"() {
     when:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
-    }
-    StableConfigYaml stableConfigYaml = new StableConfigYaml()
-    stableConfigYaml.setConfig_id(configId)
-    stableConfigYaml.setApm_configuration_default(defaultConfigs as ConfigurationMap)
-
-    try {
-      writeFileYaml(filePath, stableConfigYaml)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
+      throw new AssertionError("Failed to create: " + filePath)
     }
 
+    when:
+    StableConfig stableConfigYaml = new StableConfig(configId, defaultConfigs)
+    writeFileYaml(filePath, stableConfigYaml)
     StableConfigSource stableCfg = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
 
     then:
@@ -115,9 +103,9 @@ class StableConfigSourceTest extends DDSpecification {
     Files.delete(filePath)
 
     where:
-    configId | defaultConfigs | ruleConfigs
-    ""       | new HashMap<>() | Arrays.asList(new Rule())
-    "12345"  | new HashMap<>() << ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
+    configId | defaultConfigs                             | ruleConfigs
+    ""       | [:]                                        | Arrays.asList(new Rule())
+    "12345"  | ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
@@ -129,37 +117,26 @@ class StableConfigSourceTest extends DDSpecification {
     '''
 
   // Matching and non-matching Rules used for testing, defined outside the 'where' block for readability
-  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), new ConfigurationMap(singletonMap("DD_KEY_THREE", new ConfigurationValue("three"))))
-  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), new ConfigurationMap(singletonMap("DD_KEY_FOUR", new ConfigurationValue("four"))))
+  def static sampleMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Java"), null)), singletonMap("DD_KEY_THREE", "three"))
+  def static sampleNonMatchingRule = new Rule(Arrays.asList(new Selector("origin", "language", Arrays.asList("Golang"), null)), singletonMap("DD_KEY_FOUR", "four"))
 
-  // Helper functions
-  def stableConfigYamlWriter = getStableConfigYamlWriter()
+  def writeFileYaml(Path filePath, StableConfig stableConfigs) {
+    Map<String, Object> yamlData = new HashMap<>()
 
-  Yaml getStableConfigYamlWriter() {
-    DumperOptions options = new DumperOptions()
-    // Create the Representer, configure it to omit nulls
-    Representer representer = new Representer(options) {
-        @Override
-        protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
-          if (propertyValue == null) {
-            return null // Skip null values
-          } else {
-            return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag)
-          }
-        }
-      }
-    // Exclude class tag from the resulting yaml string
-    representer.addClassTag(StableConfigYaml.class, Tag.MAP)
+    if (stableConfigs.getConfigId() != null && !stableConfigs.getConfigId().isEmpty()) {
+      yamlData.put("config_id", stableConfigs.getConfigId())
+    }
 
-    // YAML instance with custom Representer
-    return new Yaml(representer, options)
-  }
+    if (stableConfigs.getApmConfigurationDefault() != null && !stableConfigs.getApmConfigurationDefault().isEmpty()) {
+      yamlData.put("apm_configuration_default", stableConfigs.getApmConfigurationDefault())
+    }
 
-  def writeFileYaml(Path filePath, StableConfigYaml stableConfigs) {
-    try (FileWriter writer = new FileWriter(filePath.toString())) {
-      stableConfigYamlWriter.dump(stableConfigs, writer)
-    } catch (IOException e) {
-      e.printStackTrace()
+    DumpSettings settings = DumpSettings.builder().build()
+    Dump dump = new Dump(settings)
+    String yamlContent = dump.dumpToString(yamlData)
+
+    try (FileWriter writer = new FileWriter(filePath.toFile())) {
+      writer.write(yamlContent)
     }
   }
 

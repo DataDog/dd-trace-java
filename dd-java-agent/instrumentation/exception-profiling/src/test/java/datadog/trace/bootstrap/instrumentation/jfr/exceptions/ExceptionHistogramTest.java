@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.item.Aggregators;
@@ -60,9 +61,13 @@ public class ExceptionHistogramTest {
   private Recording snapshot;
   private ExceptionHistogram instance;
 
+  @BeforeAll
+  public static void precheck() {
+    assumeFalse(Platform.isJ9());
+  }
+
   @BeforeEach
   public void setup() {
-    assumeFalse(Platform.isJ9());
     recording = new Recording();
     recording.enable("datadog.ExceptionCount");
     recording.start();

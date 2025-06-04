@@ -1,13 +1,18 @@
 package datadog.telemetry
 
+
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.telemetry.ProductChange
-import okio.Buffer
+import datadog.trace.test.util.DDSpecification
 import okhttp3.RequestBody
-import spock.lang.Specification
+import okio.Buffer
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.api.telemetry.ProductChange.ProductType.APPSEC
 import static datadog.trace.api.telemetry.ProductChange.ProductType.DYNAMIC_INSTRUMENTATION
 import static datadog.trace.api.telemetry.ProductChange.ProductType.PROFILER
@@ -15,7 +20,7 @@ import static datadog.trace.api.telemetry.ProductChange.ProductType.PROFILER
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
  */
-class TelemetryRequestBodySpecification extends Specification {
+class TelemetryRequestBodySpecification extends DDSpecification {
 
   def 'throw SerializationException in case of JSON nesting problem'() {
     setup:
@@ -112,17 +117,17 @@ class TelemetryRequestBodySpecification extends Specification {
     drainToString(req).contains("\"debug\":true")
   }
 
-  void 'test writeProducts'(){
+  void 'test writeProducts'() {
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
     final products = new HashMap<ProductChange.ProductType, Boolean>()
-    if(appsecChange) {
+    if (appsecChange) {
       products.put(APPSEC, appsecEnabled)
     }
-    if(profilerChange) {
+    if (profilerChange) {
       products.put(PROFILER, profilerEnabled)
     }
-    if(dynamicInstrumentationChange) {
+    if (dynamicInstrumentationChange) {
       products.put(DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled)
     }
 
@@ -153,5 +158,34 @@ class TelemetryRequestBodySpecification extends Specification {
     byte[] bytes = new byte[buf.size()]
     buf.read(bytes)
     return new String(bytes)
+  }
+
+  def 'Should propagate process tags when enabled #processTagsEnabled'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "$processTagsEnabled")
+    ProcessTags.reset()
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_STARTED)
+
+    when:
+    req.beginRequest(true)
+    req.endRequest()
+
+    then:
+    def type = Types.newParameterizedType(Map, String, Object)
+    def adapter = new Moshi.Builder().build().adapter(type)
+    def parsed = (Map<String, Object>)adapter.fromJson(drainToString(req))
+    def parsedTags = ((Map<String, Object>)parsed.get("application")).get("process_tags")
+    if (processTagsEnabled) {
+      assert parsedTags == ProcessTags.tagsForSerialization.toString()
+    } else {
+      assert parsedTags == null
+    }
+
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
+
+    where:
+    processTagsEnabled << [true, false]
   }
 }

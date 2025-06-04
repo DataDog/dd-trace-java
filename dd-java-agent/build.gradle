@@ -17,8 +17,26 @@ configurations {
   traceShadowInclude
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
+// and prevent issues for users that still using them.
+sourceSets {
+  "main_java6" {
+    java.srcDirs "${project.projectDir}/src/main/java6"
+  }
+}
+
+compileMain_java6Java.configure {
+  setJavaVersion(it, 8)
+  sourceCompatibility = JavaVersion.VERSION_1_6
+  targetCompatibility = JavaVersion.VERSION_1_6
+}
+
+tasks.compileJava.dependsOn compileMain_java6Java
+
+dependencies {
+  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  testImplementation sourceSets.main_java6.output
+}
 
 /*
  * Several shadow jars are created
@@ -33,12 +51,15 @@ ext.generalShadowJarConfig = {
 
   duplicatesStrategy = DuplicatesStrategy.FAIL
 
+  // Include AgentPreCheck compiled with Java 6.
+  from sourceSets.main_java6.output
+
   // Remove some cruft from the final jar.
   // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
   // used to report our own dependencies, but we should remove the top-level metadata
   // of vendored packages because those could trigger unwanted framework checks.
   exclude '/META-INF/maven/org.slf4j/**'
-  exclude '/META-INF/maven/org.yaml/**'
+  exclude '/META-INF/maven/org.snakeyaml/**'
   exclude '**/META-INF/maven/**/pom.xml'
   exclude '**/META-INF/proguard/'
   exclude '**/META-INF/*.kotlin_module'
@@ -66,9 +87,9 @@ ext.generalShadowJarConfig = {
 
   // Prevents conflict with other instances, but doesn't relocate instrumentation
   if (!projectName.equals('instrumentation')) {
-    relocate 'org.yaml.snakeyaml', 'datadog.snakeyaml'
+    relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
     relocate 'okhttp3', 'datadog.okhttp3'
-    relocate 'okio',  'datadog.okio'
+    relocate 'okio', 'datadog.okio'
   }
 
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
@@ -176,7 +197,7 @@ shadowJar generalShadowJarConfig >> {
     attributes(
       "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
+      "Premain-Class": "datadog.trace.bootstrap.AgentPreCheck",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
       )
@@ -306,7 +327,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() <= 31 * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 32 * 1024 * 1024
   }
 
   dependsOn "shadowJar"

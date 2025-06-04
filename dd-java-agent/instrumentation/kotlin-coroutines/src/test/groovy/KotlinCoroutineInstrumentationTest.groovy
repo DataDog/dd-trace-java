@@ -1,7 +1,10 @@
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.kotlin.coroutines.AbstractKotlinCoroutineInstrumentationTest
+import kotlin.OptIn
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+@OptIn(markerClass = ExperimentalCoroutinesApi)
 class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrumentationTest<KotlinCoroutineTests> {
 
   @Override
