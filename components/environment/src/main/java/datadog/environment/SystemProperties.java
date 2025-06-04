@@ -1,6 +1,11 @@
 package datadog.environment;
 
-/** Safely queries system properties. */
+/**
+ * Safely queries system properties against security manager.
+ *
+ * @see <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/SecurityManager.html">Security
+ *     Manager</a>
+ */
 public final class SystemProperties {
   private SystemProperties() {}
 
