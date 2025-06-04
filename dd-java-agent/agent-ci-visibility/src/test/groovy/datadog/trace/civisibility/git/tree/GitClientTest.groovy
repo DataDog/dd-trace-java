@@ -333,13 +333,14 @@ class GitClientTest extends Specification {
     gitClient.removeRemotePrefix(branchName, remoteName) == expected
 
     where:
-    branchName            | remoteName | expected
-    "origin/main"         | "origin"   | "main"
-    "upstream/master"     | "upstream" | "master"
-    "origin/feature/test" | "origin"   | "feature/test"
-    "main"                | "origin"   | "main"
-    "upstream/main"       | "origin"   | "upstream/main"
-    ""                    | "origin"   | ""
+    branchName                 | remoteName | expected
+    "origin/main"              | "origin"   | "main"
+    "upstream/master"          | "upstream" | "master"
+    "origin/feature/test"      | "origin"   | "feature/test"
+    "main"                     | "origin"   | "main"
+    "upstream/main"            | "origin"   | "upstream/main"
+    "upstream/bad_origin/main" | "origin"   | "upstream/bad_origin/main"
+    ""                         | "origin"   | ""
   }
 
   def "test base like branch match"() {

@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -41,6 +42,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("main", "master", "preprod", "prod", "dev", "development", "trunk");
   private static final Pattern BASE_BRANCH_PATTERN =
       Pattern.compile("^(" + String.join("|", POSSIBLE_BASE_BRANCHES) + "|release/.*|hotfix/.*)$");
+  private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
 
   private final CiVisibilityMetricCollector metricCollector;
@@ -638,6 +640,7 @@ public class ShellGitClient implements GitClient {
         });
   }
 
+  @SuppressForbidden // split on single-character uses fast path
   public String getRemoteName() throws IOException, InterruptedException, TimeoutException {
     try {
       String remote =
@@ -679,7 +682,10 @@ public class ShellGitClient implements GitClient {
   }
 
   public String removeRemotePrefix(String branch, String remoteName) {
-    return branch.replaceFirst("^" + remoteName + "/", "");
+    if (branch.indexOf(remoteName + "/") != 0) {
+      return branch;
+    }
+    return branch.substring(remoteName.length() + 1);
   }
 
   public boolean isBaseLikeBranch(String branch, String remoteName) {
@@ -857,7 +863,7 @@ public class ShellGitClient implements GitClient {
                   candidate + "..." + sourceBranch)
               .trim();
 
-      String[] counts = countsResult.split("\\s+");
+      String[] counts = WHITESPACE_PATTERN.split(countsResult);
       int behind = Integer.parseInt(counts[0]);
       int ahead = Integer.parseInt(counts[1]);
 
