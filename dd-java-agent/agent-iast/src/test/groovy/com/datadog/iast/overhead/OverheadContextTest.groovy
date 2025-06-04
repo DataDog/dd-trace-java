@@ -3,12 +3,15 @@ package com.datadog.iast.overhead
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.Config
 import datadog.trace.api.iast.IastContext
+import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
 import groovy.transform.CompileDynamic
 
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED
+
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 @CompileDynamic
 class OverheadContextTest extends DDSpecification {
@@ -88,14 +91,17 @@ class OverheadContextTest extends DDSpecification {
   void "resetMaps is no-op when context is global"() {
     given:
     def ctx = new OverheadContext(5, true)
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    def array = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    array.incrementAndGet(VulnerabilityType.WEAK_HASH.type())
+    OverheadContext.globalMap.put("endpoint", array)
+
 
     when:
     ctx.resetMaps()
 
     then:
     // globalMap remains unchanged
-    OverheadContext.globalMap == ["endpoint": [(VulnerabilityType.WEAK_HASH): 1]]
+    OverheadContext.globalMap.get('endpoint').get(VulnerabilityType.WEAK_HASH.type()) == 1
     ctx.copyMap == null
     ctx.requestMap == null
   }
@@ -104,9 +110,15 @@ class OverheadContextTest extends DDSpecification {
     given:
     def ctx = new OverheadContext(3, false)
     // Prepare global entry for "endpoint"
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.SQL_INJECTION): 2])
-    ctx.requestMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    def globalArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    globalArray.getAndSet(VulnerabilityType.SQL_INJECTION.type(), 2)
+    OverheadContext.globalMap.put("endpoint", globalArray)
+    def requestArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    requestArray.set(VulnerabilityType.WEAK_HASH.type(), 1)
+    ctx.requestMap.put("endpoint", requestArray)
+    def copyArray = new int[VulnerabilityTypes.STRINGS.length]
+    copyArray[VulnerabilityType.WEAK_HASH.type()] = 1
+    ctx.copyMap.put("endpoint", copyArray)
     assert ctx.getAvailableQuota() > 0
 
     when:
@@ -123,11 +135,14 @@ class OverheadContextTest extends DDSpecification {
   void "resetMaps removes global entry when quota consumed and countMap is null"() {
     given:
     def ctx = new OverheadContext(1, false)
-    // Prepare global entry for "key"
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.SQL_INJECTION): 2])
+    // Prepare global entry for "endpoint"
+    def globalArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    globalArray.getAndSet(VulnerabilityType.SQL_INJECTION.type(), 1)
     // Simulate per-request endpoint present but no inner map
     ctx.requestMap.put("endpoint", null)
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.SQL_INJECTION): 2])
+    def copyArray = new int[VulnerabilityTypes.STRINGS.length]
+    copyArray[VulnerabilityType.SQL_INJECTION.type()] = 2
+    ctx.copyMap.put("endpoint", copyArray)
     // Consume the only permit
     ctx.consumeQuota(1)
     assert ctx.getAvailableQuota() == 0
@@ -142,32 +157,19 @@ class OverheadContextTest extends DDSpecification {
     ctx.copyMap.isEmpty()
   }
 
-  void "resetMaps removes global entry when quota consumed and countMap is empty"() {
+  void "resetMaps merges and updates global entry when quota consumed "() {
     given:
     def ctx = new OverheadContext(1, false)
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.SQL_INJECTION): 5])
-    ctx.requestMap.put("endpoint", [:])  // empty inner map
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.SQL_INJECTION): 5])
-    ctx.consumeQuota(1)
-    assert ctx.getAvailableQuota() == 0
-
-    when:
-    ctx.resetMaps()
-
-    then:
-    // Empty countMap → remove global entry
-    !OverheadContext.globalMap.containsKey("endpoint")
-    ctx.requestMap.isEmpty()
-    ctx.copyMap.isEmpty()
-  }
-
-  void "resetMaps merges and updates global entry when quota consumed and countMap non-empty"() {
-    given:
-    def ctx = new OverheadContext(1, false)
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    def globalArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    globalArray.getAndSet(VulnerabilityType.WEAK_HASH.type(), 1)
+    OverheadContext.globalMap.put("endpoint", globalArray)
     // Simulate we saw 3 in this request
-    ctx.requestMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 3])
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
+    def requestArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    requestArray.set(VulnerabilityType.WEAK_HASH.type(), 3)
+    ctx.requestMap.put("endpoint", requestArray)
+    def copyArray = new int[VulnerabilityTypes.STRINGS.length]
+    copyArray[VulnerabilityType.WEAK_HASH.type()] = 1
+    ctx.copyMap.put("endpoint", copyArray)
     ctx.consumeQuota(1)
     assert ctx.getAvailableQuota() == 0
 
@@ -176,7 +178,7 @@ class OverheadContextTest extends DDSpecification {
 
     then:
     // The max of (global=1, request=3) is 3, so globalMap is updated
-    OverheadContext.globalMap["endpoint"][VulnerabilityType.WEAK_HASH] == 3
+    OverheadContext.globalMap.get("endpoint").get(VulnerabilityType.WEAK_HASH.type()) == 3
     ctx.requestMap.isEmpty()
     ctx.copyMap.isEmpty()
   }
@@ -184,10 +186,15 @@ class OverheadContextTest extends DDSpecification {
   void "resetMaps merges and updates global entry when quota consumed and counter <= globalCounter"() {
     given:
     def ctx = new OverheadContext(1, false)
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 2])
-    // Simulate we saw 3 in this request
-    ctx.requestMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 2])
+    def globalArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    globalArray.getAndSet(VulnerabilityType.WEAK_HASH.type(), 2)
+    OverheadContext.globalMap.put("endpoint", globalArray)
+    def requestArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    requestArray.set(VulnerabilityType.WEAK_HASH.type(), 1)
+    ctx.requestMap.put("endpoint", requestArray)
+    def copyArray = new int[VulnerabilityTypes.STRINGS.length]
+    copyArray[VulnerabilityType.WEAK_HASH.type()] = 2
+    ctx.copyMap.put("endpoint", copyArray)
     ctx.consumeQuota(1)
     assert ctx.getAvailableQuota() == 0
 
@@ -196,7 +203,7 @@ class OverheadContextTest extends DDSpecification {
 
     then:
     // The max of (global=1, request=3) is 3, so globalMap is updated
-    OverheadContext.globalMap["endpoint"][VulnerabilityType.WEAK_HASH] == 2
+    OverheadContext.globalMap.get("endpoint").get(VulnerabilityType.WEAK_HASH.type()) == 2
     ctx.requestMap.isEmpty()
     ctx.copyMap.isEmpty()
   }
@@ -204,9 +211,15 @@ class OverheadContextTest extends DDSpecification {
   void "resetMaps merges and updates global entry when quota consumed and a vuln is detected in a new endpoint"() {
     given:
     def ctx = new OverheadContext(1, false)
-    OverheadContext.globalMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
-    ctx.copyMap.put("endpoint", [(VulnerabilityType.WEAK_HASH): 1])
-    ctx.requestMap.put("endpoint2", [(VulnerabilityType.WEAK_CIPHER): 1])
+    def globalArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    globalArray.getAndSet(VulnerabilityType.WEAK_HASH.type(), 1)
+    OverheadContext.globalMap.put("endpoint", globalArray)
+    def requestArray = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    requestArray.set(VulnerabilityType.WEAK_CIPHER.type(), 1)
+    ctx.requestMap.put("endpoint2", requestArray)
+    def copyArray = new int[VulnerabilityTypes.STRINGS.length]
+    copyArray[VulnerabilityType.WEAK_HASH.type()] = 1
+    ctx.copyMap.put("endpoint", copyArray)
     ctx.consumeQuota(1)
     assert ctx.getAvailableQuota() == 0
 
@@ -214,33 +227,41 @@ class OverheadContextTest extends DDSpecification {
     ctx.resetMaps()
 
     then:
-    OverheadContext.globalMap["endpoint"][VulnerabilityType.WEAK_HASH] == 1
-    OverheadContext.globalMap["endpoint2"][VulnerabilityType.WEAK_CIPHER] == 1
+    OverheadContext.globalMap.get("endpoint").get(VulnerabilityType.WEAK_HASH.type()) == 1
+    OverheadContext.globalMap.get("endpoint2").get(VulnerabilityType.WEAK_CIPHER.type()) == 1
     ctx.requestMap.isEmpty()
     ctx.copyMap.isEmpty()
   }
 
-  void "globalMap should evict eldest entry once capacity is exceeded"() {
-    given: "We clear any existing entries"
-    OverheadContext.globalMap.clear()
 
-    and: "We know the configured maximum size"
+  void "computeIfAbsent should not clear until size exceeds GLOBAL_MAP_MAX_SIZE"() {
+    given: "We know the maximum size"
     int maxSize = OverheadContext.GLOBAL_MAP_MAX_SIZE
 
-    when: "We insert (maxSize + 1) distinct keys"
-    (1..maxSize + 1).each { i ->
-      OverheadContext.globalMap.put("key${i}", [(VulnerabilityType.WEAK_HASH): i])
+    when: "We insert exactly maxSize distinct keys via computeIfAbsent"
+    (1..maxSize).each { i ->
+      AtomicIntegerArray arr = OverheadContext.globalMap.computeIfAbsent("key" + i) {
+        new AtomicIntegerArray([i] as int[])
+      }
+      // verify returned array holds the correct value
+      assert arr.get(0) == i
     }
 
-    then: "The total size never exceeds maxSize"
+    then: "The map size is exactly maxSize and none of those keys was evicted"
     OverheadContext.globalMap.size() == maxSize
-
-    and: "The very first key inserted has been evicted"
-    !OverheadContext.globalMap.containsKey("key1")
-
-    and: "All subsequent (maxSize) keys remain present, in insertion order"
-    (2..maxSize + 1).each { i ->
-      assert OverheadContext.globalMap.containsKey("key${i}")
+    (1..maxSize).each { i ->
+      assert OverheadContext.globalMap.containsKey("key"+i)
+      assert OverheadContext.globalMap.get("key"+i).get(0) == i
     }
+
+    when: "We invoke computeIfAbsent on one more distinct key, which should trigger clear()"
+    AtomicIntegerArray extra = OverheadContext.globalMap.computeIfAbsent("keyExtra") {
+      new AtomicIntegerArray([999] as int[])
+    }
+
+    then: "Upon exceeding maxSize, the map has been cleared completely"
+    OverheadContext.globalMap.isEmpty()
+    // And the returned array is still the one newly created
+    extra.get(0) == 999
   }
 }

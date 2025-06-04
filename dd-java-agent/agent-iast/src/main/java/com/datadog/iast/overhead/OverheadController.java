@@ -11,15 +11,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -260,25 +260,37 @@ public interface OverheadController {
         return false;
       }
 
-      String currentKey = httpMethod + " " + httpPath;
-      Set<String> keys = ctx.requestMap.keySet();
+      int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
 
-      if (!keys.contains(currentKey)) {
-        ctx.copyMap.put(currentKey, globalMap.getOrDefault(currentKey, new HashMap<>()));
+      String currentEndpoint = httpMethod + " " + httpPath;
+      Set<String> endpoints = ctx.requestMap.keySet();
+
+      if (!endpoints.contains(currentEndpoint)) {
+        AtomicIntegerArray globalArray =
+            globalMap.getOrDefault(
+                currentEndpoint, new AtomicIntegerArray(numberOfVulnerabilities));
+        ctx.copyMap.put(currentEndpoint, toIntArray(globalArray));
       }
 
-      ctx.requestMap.computeIfAbsent(currentKey, k -> new HashMap<>());
-
-      Integer counter = ctx.requestMap.get(currentKey).getOrDefault(type, 0);
-      ctx.requestMap.get(currentKey).put(type, counter + 1);
-
-      Integer storedCounter = 0;
-      Map<VulnerabilityType, Integer> copyCountMap = ctx.copyMap.get(currentKey);
-      if (copyCountMap != null) {
-        storedCounter = copyCountMap.getOrDefault(type, 0);
+      ctx.requestMap.computeIfAbsent(
+          currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+      int counter = ctx.requestMap.get(currentEndpoint).getAndIncrement(type.type());
+      int storedCounter = 0;
+      int[] copyArray = ctx.copyMap.get(currentEndpoint);
+      if (copyArray != null) {
+        storedCounter = copyArray[type.type()];
       }
 
       return counter < storedCounter;
+    }
+
+    private static int[] toIntArray(AtomicIntegerArray atomic) {
+      int length = atomic.length();
+      int[] result = new int[length];
+      for (int i = 0; i < length; i++) {
+        result[i] = atomic.get(i);
+      }
+      return result;
     }
 
     @Nullable

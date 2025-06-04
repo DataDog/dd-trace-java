@@ -2,13 +2,17 @@ package com.datadog.iast.overhead;
 
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
-import com.datadog.iast.model.VulnerabilityType;
 import com.datadog.iast.util.NonBlockingSemaphore;
+import datadog.trace.api.iast.VulnerabilityTypes;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 public class OverheadContext {
 
@@ -19,20 +23,29 @@ public class OverheadContext {
   private static final int GLOBAL_MAP_MAX_SIZE = 4096;
 
   /**
-   * Global LRU cache mapping each “method + path” key to its historical vulnerabilityCounts map.
-   * Key: HTTP_METHOD + " " + HTTP_PATH Value: Map<vulnerabilityType, count>
+   * Global concurrent cache mapping each “method + path” key to its historical vulnerabilityCounts
+   * map. As soon as size() > GLOBAL_MAP_MAX_SIZE, we clear() the whole map.
    */
-  static final Map<String, Map<VulnerabilityType, Integer>> globalMap =
-      new LinkedHashMap<String, Map<VulnerabilityType, Integer>>(GLOBAL_MAP_MAX_SIZE, 0.75f, true) {
+  static final ConcurrentMap<String, AtomicIntegerArray> globalMap =
+      new ConcurrentHashMap<String, AtomicIntegerArray>() {
+
         @Override
-        protected boolean removeEldestEntry(
-            Map.Entry<String, Map<VulnerabilityType, Integer>> eldest) {
-          return size() > GLOBAL_MAP_MAX_SIZE;
+        public AtomicIntegerArray computeIfAbsent(
+            String key,
+            @NotNull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
+          AtomicIntegerArray prev = super.computeIfAbsent(key, mappingFunction);
+          if (this.size() > GLOBAL_MAP_MAX_SIZE) {
+            super.clear();
+          }
+          return prev;
         }
       };
 
-  @Nullable final Map<String, Map<VulnerabilityType, Integer>> copyMap;
-  @Nullable final Map<String, Map<VulnerabilityType, Integer>> requestMap;
+  // Snapshot of the globalMap for the current request
+  @Nullable final Map<String, int[]> copyMap;
+  // Map of vulnerabilities per endpoint for the current request, needs to use AtomicIntegerArray
+  // because it's possible to have concurrent updates in the same request
+  @Nullable final Map<String, AtomicIntegerArray> requestMap;
 
   private final NonBlockingSemaphore availableVulnerabilities;
   private final boolean isGlobal;
@@ -64,42 +77,46 @@ public class OverheadContext {
   }
 
   public void resetMaps() {
+    // If this is a global context, we do not reset the maps
     if (isGlobal || requestMap == null || copyMap == null) {
       return;
     }
+    Set<String> endpoints = requestMap.keySet();
     // If the budget is not consumed, we can reset the maps
-    Set<String> keys = requestMap.keySet();
     if (getAvailableQuota() > 0) {
-      keys.forEach(globalMap::remove);
-      keys.clear();
+      // clean endpoints from globalMap
+      endpoints.forEach(globalMap::remove);
+      // Clear the requestMap and copyMap related to this context
       requestMap.clear();
       copyMap.clear();
       return;
     }
-    keys.forEach(
-        key -> {
-          Map<VulnerabilityType, Integer> countMap = requestMap.get(key);
+    // If the budget is consumed, we need to merge the requestMap into the globalMap
+    endpoints.forEach(
+        endpoint -> {
+          AtomicIntegerArray countMap = requestMap.get(endpoint);
           // should not happen, but just in case
-          if (countMap == null || countMap.isEmpty()) {
-            globalMap.remove(key);
+          if (countMap == null) {
+            globalMap.remove(endpoint);
             return;
           }
-          countMap.forEach(
-              (key1, counter) -> {
-                Map<VulnerabilityType, Integer> globalCountMap = globalMap.get(key);
-                if (globalCountMap != null) {
-                  Integer globalCounter = globalCountMap.getOrDefault(key1, 0);
-                  if (counter > globalCounter) {
-                    globalCountMap.put(key1, counter);
-                  }
-                } else {
-                  globalCountMap = new HashMap<>();
-                  globalCountMap.put(key1, counter);
-                  globalMap.put(key, globalCountMap);
-                }
-              });
+          // Iterate over the vulnerabilities and update the globalMap
+          int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
+          for (int i = 0; i < numberOfVulnerabilities; i++) {
+            int counter = countMap.get(i);
+            if (counter > 0) {
+              AtomicIntegerArray globalCountMap =
+                  globalMap.computeIfAbsent(
+                      endpoint, value -> new AtomicIntegerArray(numberOfVulnerabilities));
+              int globalCounter = globalCountMap.get(i);
+              if (counter > globalCounter) {
+                globalCountMap.set(i, counter);
+              }
+            }
+          }
         });
-    keys.clear();
+
+    // Clear the requestMap and copyMap related to this context
     requestMap.clear();
     copyMap.clear();
   }

@@ -5,6 +5,7 @@ import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.VulnerabilityTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
@@ -20,6 +21,8 @@ import java.util.concurrent.Future
 import java.util.concurrent.Semaphore
 
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED
+
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 
 @CompileDynamic
@@ -323,7 +326,9 @@ class OverheadControllerTest extends DDSpecification {
     final ctx = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest())
     final controller = new OverheadControllerImpl(100f, 10, true, null)
     // Simulate that in a previous request, GLOBAL has counted 3 SQL_INJECTION for "GET /bar"
-    OverheadContext.globalMap.put("GET /bar", [(VulnerabilityType.SQL_INJECTION): 3])
+    def array = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    array.set(VulnerabilityType.SQL_INJECTION.type(), 3)
+    OverheadContext.globalMap.put("GET /bar", array)
 
     when:
     // First occurrence in this request: counter=1, storedCounter=3 ⇒ skip
@@ -396,7 +401,9 @@ class OverheadControllerTest extends DDSpecification {
     given:
     // Prepare local context and global count so that skip logic triggers immediately
     OverheadContext localCtx = new OverheadContext(10, false)
-    OverheadContext.globalMap.put("PUT /skipme", [(VulnerabilityType.WEAK_CIPHER): 2])
+    def array = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
+    array.set(VulnerabilityType.WEAK_CIPHER.type(), 2)
+    OverheadContext.globalMap.put("PUT /skipme", array)
     def iastCtx = new IastRequestContext(localCtx)
     final controller = new OverheadControllerImpl(100f, 10, true, null)
 
