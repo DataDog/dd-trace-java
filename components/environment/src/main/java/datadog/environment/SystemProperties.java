@@ -1,6 +1,11 @@
 package datadog.environment;
 
-/** Safely queries system properties. */
+/**
+ * Safely queries system properties against security manager.
+ *
+ * @see <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/SecurityManager.html">Security
+ *     Manager</a>
+ */
 public final class SystemProperties {
   private SystemProperties() {}
 
@@ -30,11 +35,18 @@ public final class SystemProperties {
     }
   }
 
+  /**
+   * Sets a system property value.
+   *
+   * @param property The system property name.
+   * @param value The system property value to set.
+   * @return {@code true} if the system property was successfully set, {@code} false otherwise.
+   */
   public static boolean set(String property, String value) {
     try {
       System.setProperty(property, value);
       return true;
-    }  catch (SecurityException ignored) {
+    } catch (SecurityException ignored) {
       return false;
     }
   }
