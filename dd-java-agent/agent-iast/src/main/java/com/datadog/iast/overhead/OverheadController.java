@@ -247,7 +247,10 @@ public interface OverheadController {
      * Method to be called when a vulnerability of a certain type is detected. Implements the
      * RFC-1029 algorithm.
      *
+     * @param ctx the overhead context for the current request
      * @param type the type of vulnerability detected
+     * @param httpMethod the HTTP method of the request (e.g., GET, POST)
+     * @param httpPath the HTTP path of the request
      * @return true if the vulnerability should be skipped, false otherwise
      */
     private boolean maybeSkipVulnerability(
