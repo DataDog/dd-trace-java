@@ -2,6 +2,7 @@ package com.datadog.iast
 
 import com.datadog.iast.model.Range
 import com.datadog.iast.overhead.OverheadContext
+import com.datadog.iast.taint.TaintedMap
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
@@ -125,7 +126,7 @@ class IastRequestContextTest extends DDSpecification {
   void 'on release context overheadContext reset is called'() {
     setup:
     final overheadCtx = Mock(OverheadContext)
-    final ctx = new IastRequestContext(overheadCtx)
+    final ctx = new IastRequestContext(TaintedObjects.build(TaintedMap.build(TaintedMap.DEFAULT_CAPACITY)), overheadCtx)
 
     when:
     provider.releaseRequestContext(ctx)

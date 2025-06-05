@@ -57,12 +57,14 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
    * Use this constructor only when you want to create a new context with a fresh overhead context
    * (e.g. for testing purposes).
    *
+   * @param taintedObjects the tainted objects to use
    * @param overheadContext the overhead context to use
    */
-  public IastRequestContext(final OverheadContext overheadContext) {
+  public IastRequestContext(
+      final TaintedObjects taintedObjects, final OverheadContext overheadContext) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
     this.overheadContext = overheadContext;
-    this.taintedObjects = TaintedObjects.build(TaintedMap.build(MAP_SIZE));
+    this.taintedObjects = taintedObjects;
   }
 
   public VulnerabilityBatch getVulnerabilityBatch() {

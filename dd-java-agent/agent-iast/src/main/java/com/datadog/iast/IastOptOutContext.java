@@ -32,7 +32,7 @@ public class IastOptOutContext implements IastContext {
 
     @Override
     public IastContext buildRequestContext() {
-      return new IastRequestContext((TaintedObjects) optOutContext.getTaintedObjects());
+      return new IastRequestContext(optOutContext.getTaintedObjects());
     }
 
     @Override
