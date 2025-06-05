@@ -387,7 +387,7 @@ muzzle-dep-report:
       when: on_success
     - if: $NON_DEFAULT_JVMS == "true"
       when: on_success
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
   script:
     - >
