@@ -36,6 +36,32 @@ public class PullRequestInfo {
         || Strings.isNotBlank(gitCommitHeadSha);
   }
 
+  public boolean isComplete() {
+    return Strings.isNotBlank(pullRequestBaseBranch)
+        && Strings.isNotBlank(pullRequestBaseBranchSha)
+        && Strings.isNotBlank(gitCommitHeadSha);
+  }
+
+  /**
+   * Merges info by completing the empty information fields with the fallback's
+   *
+   * @param info Base PR info
+   * @param fallback Fallback PR info
+   * @return Completed PR info
+   */
+  public static PullRequestInfo merge(PullRequestInfo info, PullRequestInfo fallback) {
+    return new PullRequestInfo(
+        Strings.isNotBlank(info.pullRequestBaseBranch)
+            ? info.pullRequestBaseBranch
+            : fallback.pullRequestBaseBranch,
+        Strings.isNotBlank(info.pullRequestBaseBranchSha)
+            ? info.pullRequestBaseBranchSha
+            : fallback.pullRequestBaseBranchSha,
+        Strings.isNotBlank(info.gitCommitHeadSha)
+            ? info.gitCommitHeadSha
+            : fallback.gitCommitHeadSha);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {

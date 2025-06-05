@@ -136,7 +136,7 @@ public class InitializationTelemetryCheck {
     Files.write(file.toPath(), Arrays.asList(lines));
   }
 
-  static final String read(File file) throws IOException {
+  static final String read(File file) {
     try {
       return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     } catch (IOException e) {
