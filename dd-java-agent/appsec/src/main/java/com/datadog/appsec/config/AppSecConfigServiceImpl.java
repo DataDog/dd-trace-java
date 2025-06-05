@@ -45,8 +45,10 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.telemetry.AppSecMetricCollector;
 import datadog.trace.api.telemetry.LogCollector;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -521,6 +523,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       newState = tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
     } else {
       newState = asm.enabled;
+      if (newState) {
+        AppSecMetricCollector.appsecOrigin = ConfigOrigin.REMOTE;
+      } else {
+        AppSecMetricCollector.appsecOrigin = null;
+      }
     }
     if (AppSecSystem.isActive() != newState) {
       log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");

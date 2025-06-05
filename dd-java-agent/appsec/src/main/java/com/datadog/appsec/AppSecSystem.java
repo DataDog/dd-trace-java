@@ -18,8 +18,10 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.telemetry.AppSecMetricCollector;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
@@ -87,6 +89,7 @@ public class AppSecSystem {
         new AppSecConfigServiceImpl(
             config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
+      AppSecMetricCollector.appsecOrigin = ConfigOrigin.ENV;
       APP_SEC_CONFIG_SERVICE.init();
     }
     sco.createRemaining(config);
