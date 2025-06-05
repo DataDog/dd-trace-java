@@ -1,19 +1,17 @@
 package datadog.smoketest
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.test.util.MultipartRequestParser
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.util.concurrent.PollingConditions
-
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.stream.Collectors
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class MockBackend implements AutoCloseable {
 
@@ -54,6 +52,15 @@ class MockBackend implements AutoCloseable {
     flakyTests.clear()
     knownTests.clear()
     testManagement.clear()
+
+    itrEnabled = true
+    codeCoverageEnabled = true
+    testsSkippingEnabled = true
+    flakyRetriesEnabled = false
+    impactedTestsDetectionEnabled = false
+    knownTestsEnabled = false
+    testManagementEnabled = false
+    attemptToFixRetries = 0
   }
 
   @Override
@@ -74,7 +81,7 @@ class MockBackend implements AutoCloseable {
   }
 
   void givenSkippableTest(String module, String suite, String name, Map<String, BitSet> coverage = null) {
-    skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage ])
+    skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage])
   }
 
   void givenImpactedTestsDetection(boolean impactedTestsDetectionEnabled) {
@@ -99,27 +106,27 @@ class MockBackend implements AutoCloseable {
 
   void givenQuarantinedTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["quarantined": true]
     ])
   }
 
   void givenDisabledTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["disabled": true]
     ])
   }
 
   void givenAttemptToFixTests(String module, String suite, String name) {
     testManagement.add([
-      "module": module,
-      "suite": suite,
-      "name": name,
+      "module"    : module,
+      "suite"     : suite,
+      "name"      : name,
       "properties": ["attempt_to_fix": true]
     ])
   }
@@ -273,7 +280,7 @@ class MockBackend implements AutoCloseable {
 
       prefix("/api/v2/ci/libraries/tests") {
         Map<String, Map> modules = [:]
-        for (Map<String, Object> test :  knownTests) {
+        for (Map<String, Object> test : knownTests) {
           Map<String, Map> suites = modules.computeIfAbsent("${test.module}", k -> [:])
           List tests = suites.computeIfAbsent("${test.suite}", k -> [])
           tests.add(test.name)
