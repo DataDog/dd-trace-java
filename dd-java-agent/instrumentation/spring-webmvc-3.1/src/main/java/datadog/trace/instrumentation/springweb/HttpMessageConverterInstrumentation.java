@@ -71,6 +71,27 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
             .and(takesArgument(1, Class.class))
             .and(takesArgument(2, named("org.springframework.http.HttpInputMessage"))),
         HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("write"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, Object.class))
+            .and(takesArgument(1, named("org.springframework.http.MediaType")))
+            .and(takesArgument(2, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("write"))
+            .and(takesArguments(4))
+            .and(takesArgument(0, Object.class))
+            .and(takesArgument(1, Type.class))
+            .and(takesArgument(2, named("org.springframework.http.MediaType")))
+            .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -103,6 +124,50 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
               rba.getExtraHeaders());
         }
         t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
+      }
+    }
+  }
+
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class HttpMessageConverterWriteAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(
+        @Advice.Argument(0) final Object obj, @ActiveRequestContext RequestContext reqCtx) {
+      if (obj == null) {
+        return;
+      }
+
+      // TODO: A dedicated responseBodyProcessed event should be added to the Events class
+      // For now, we're using requestBodyProcessed as a placeholder, but this is not semantically
+      // correct
+      // The proper solution would be to:
+      // 1. Add RESPONSE_BODY_PROCESSED_ID = 26 to Events.java
+      // 2. Add corresponding responseBodyProcessed() method to Events.java
+      // 3. Update GatewayBridge to handle the new event type
+      // 4. Replace the callback below with the proper responseBodyProcessed event
+
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
+          cbp.getCallback(
+              EVENTS
+                  .requestBodyProcessed()); // TEMPORARY: Using requestBodyProcessed as placeholder
+      if (callback == null) {
+        return;
+      }
+
+      Flow<Void> flow = callback.apply(reqCtx, obj);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
       }
     }
   }
