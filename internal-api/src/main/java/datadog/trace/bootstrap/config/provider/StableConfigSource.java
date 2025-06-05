@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.config.provider;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.api.telemetry.AppSecMetricCollector;
 import java.io.File;
 import java.util.Collections;
 import java.util.Map;
@@ -37,6 +38,7 @@ public final class StableConfigSource extends ConfigProvider.Source {
     try {
       log.debug("Stable configuration file found at path: {}", file);
       cfg = StableConfigParser.parse(filePath);
+      AppSecMetricCollector.setLatestAppsecOrigin(origin);
     } catch (Throwable e) {
       log.warn(
           "Encountered the following exception when attempting to read stable configuration file at path: {}, dropping configs.",
