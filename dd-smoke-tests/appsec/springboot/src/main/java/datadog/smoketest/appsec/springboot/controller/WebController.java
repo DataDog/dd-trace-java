@@ -239,6 +239,13 @@ public class WebController {
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
   }
 
+  @PostMapping("/api_security/response")
+  public ResponseEntity<String> apiSecurityResponse(@RequestBody String body) {
+    // This endpoint is used to test API security response handling
+    // It simply returns the body received in the request
+    return ResponseEntity.ok(body);
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
