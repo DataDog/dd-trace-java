@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.util.Strings;
 
 public abstract class AbstractSqsInstrumentation extends InstrumenterModule.Tracing {
   public AbstractSqsInstrumentation() {
@@ -8,6 +9,6 @@ public abstract class AbstractSqsInstrumentation extends InstrumenterModule.Trac
   }
 
   public AbstractSqsInstrumentation(String... additionalNames) {
-    super("sqs", concat(additionalNames, "aws-sdk"));
+    super("sqs", Strings.concat(additionalNames, "aws-sdk"));
   }
 }
