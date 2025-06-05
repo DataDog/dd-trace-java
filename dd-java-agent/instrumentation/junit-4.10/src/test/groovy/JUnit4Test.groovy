@@ -3,11 +3,37 @@ import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
-import org.example.*
+import org.example.TestAssumption
+import org.example.TestAssumptionAndSucceed
+import org.example.TestError
+import org.example.TestFailed
+import org.example.TestFailedAndSucceed
+import org.example.TestFailedParameterized
+import org.example.TestFailedSuiteSetUpAssumption
+import org.example.TestFailedSuiteSetup
+import org.example.TestFailedSuiteTearDown
+import org.example.TestFailedThenSucceed
+import org.example.TestInheritance
+import org.example.TestParameterized
+import org.example.TestParameterizedJUnitParams
+import org.example.TestSkipped
+import org.example.TestSkippedClass
+import org.example.TestSucceed
+import org.example.TestSucceedAndSkipped
+import org.example.TestSucceedExpectedException
+import org.example.TestSucceedKotlin
+import org.example.TestSucceedLegacy
+import org.example.TestSucceedParameterizedKotlin
+import org.example.TestSucceedSkipEfd
+import org.example.TestSucceedSlow
+import org.example.TestSucceedSuite
+import org.example.TestSucceedUnskippable
+import org.example.TestSucceedUnskippableSuite
+import org.example.TestSucceedVerySlow
+import org.example.TestSucceedWithCategories
 import org.junit.jupiter.api.Assumptions
 import org.junit.runner.JUnitCore
 
@@ -124,8 +150,6 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     where:
     testcaseName            | tests         | prDiff
     "test-succeed"          | [TestSucceed] | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceed] | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceed] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
     "test-succeed"          | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
     "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
