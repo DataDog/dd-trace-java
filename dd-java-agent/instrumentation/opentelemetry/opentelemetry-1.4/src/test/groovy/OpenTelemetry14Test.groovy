@@ -311,6 +311,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          ignoreSpanLinks() // check is done on the content of the tag below
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
@@ -345,6 +346,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          ignoreSpanLinks() // check is done on the content of the tag below
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
@@ -380,6 +382,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          ignoreSpanLinks() // check is done on the content of the tag below
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
@@ -421,6 +424,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     assertTraces(1) {
       trace(1) {
         span {
+          ignoreSpanLinks() // check is done on the content of the tag below
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
@@ -531,6 +535,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
               "empty-array" ""
             }
           }
+          assert span.context().integrationName == "otel"
         }
       }
     }

@@ -26,21 +26,22 @@ import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SNAPSHOT_URL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_METRICS_ENABLED
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_POLL_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PROBE_FILE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
@@ -50,6 +51,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
@@ -106,6 +108,7 @@ import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
@@ -122,6 +125,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -204,6 +208,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     prop.setProperty(PROPAGATION_STYLE_INJECT, "B3, Datadog")
     prop.setProperty(TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     prop.setProperty(JMX_FETCH_ENABLED, "false")
     prop.setProperty(JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     prop.setProperty(JMX_FETCH_CHECK_PERIOD, "100")
@@ -219,6 +224,8 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_RATE_LIMIT, "200")
     prop.setProperty(TRACE_LONG_RUNNING_ENABLED, "true")
     prop.setProperty(TRACE_LONG_RUNNING_FLUSH_INTERVAL, "250")
+
+    prop.setProperty(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "DD_TAGS, DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING")
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
@@ -243,20 +250,21 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     prop.setProperty(REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
-    prop.setProperty(DEBUGGER_ENABLED, "true")
-    prop.setProperty(DEBUGGER_PROBE_FILE_LOCATION, "file location")
-    prop.setProperty(DEBUGGER_UPLOAD_TIMEOUT, "10")
-    prop.setProperty(DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
-    prop.setProperty(DEBUGGER_UPLOAD_BATCH_SIZE, "200")
-    prop.setProperty(DEBUGGER_METRICS_ENABLED, "false")
-    prop.setProperty(DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
-    prop.setProperty(DEBUGGER_POLL_INTERVAL, "10")
-    prop.setProperty(DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
-    prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
-    prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    prop.setProperty(DEBUGGER_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_ENABLED, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
+    prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
     when:
     Config config = Config.get(prop)
@@ -294,6 +302,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -310,6 +319,8 @@ class ConfigTest extends DDSpecification {
     config.traceRateLimit == 200
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 250
+
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"].toSet()
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -334,20 +345,21 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2048
 
-    config.debuggerEnabled == true
+    config.dynamicInstrumentationEnabled == true
     config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
-    config.debuggerProbeFileLocation == "file location"
-    config.debuggerUploadTimeout == 10
-    config.debuggerUploadFlushInterval == 1000
-    config.debuggerUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
-    config.debuggerClassFileDumpEnabled == true
-    config.debuggerPollInterval == 10
-    config.debuggerDiagnosticsInterval == 60
-    config.debuggerVerifyByteCode == true
-    config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFiles == "exclude file"
+    config.dynamicInstrumentationProbeFile == "file location"
+    config.dynamicInstrumentationUploadTimeout == 10
+    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadBatchSize == 200
+    config.dynamicInstrumentationMetricsEnabled == false
+    config.dynamicInstrumentationClassFileDumpEnabled == true
+    config.dynamicInstrumentationPollInterval == 10
+    config.dynamicInstrumentationDiagnosticsInterval == 60
+    config.dynamicInstrumentationVerifyByteCode == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
+    config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
+    config.jdkSocketEnabled == false
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -385,6 +397,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, "B3, Datadog")
     System.setProperty(PREFIX + TRACE_PROPAGATION_EXTRACT_FIRST, "false")
+    System.setProperty(PREFIX + TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "restart")
     System.setProperty(PREFIX + JMX_FETCH_ENABLED, "false")
     System.setProperty(PREFIX + JMX_FETCH_METRICS_CONFIGS, "/foo.yaml,/bar.yaml")
     System.setProperty(PREFIX + JMX_FETCH_CHECK_PERIOD, "100")
@@ -400,6 +413,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_RATE_LIMIT, "200")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "333")
+
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, "DD_TAGS, DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -424,20 +439,20 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "3")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
 
-    System.setProperty(PREFIX + DEBUGGER_ENABLED, "true")
-    System.setProperty(PREFIX + DEBUGGER_SNAPSHOT_URL, "snapshot url")
-    System.setProperty(PREFIX + DEBUGGER_PROBE_FILE_LOCATION, "file location")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_TIMEOUT, "10")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_FLUSH_INTERVAL, "1000")
-    System.setProperty(PREFIX + DEBUGGER_UPLOAD_BATCH_SIZE, "200")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_ENABLED, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL, "snapshot url")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
     System.setProperty(PREFIX + REMOTE_CONFIG_MAX_PAYLOAD_SIZE, "2")
-    System.setProperty(PREFIX + DEBUGGER_METRICS_ENABLED, "false")
-    System.setProperty(PREFIX + DEBUGGER_CLASSFILE_DUMP_ENABLED, "true")
-    System.setProperty(PREFIX + DEBUGGER_POLL_INTERVAL, "10")
-    System.setProperty(PREFIX + DEBUGGER_DIAGNOSTICS_INTERVAL, "60")
-    System.setProperty(PREFIX + DEBUGGER_VERIFY_BYTECODE, "true")
-    System.setProperty(PREFIX + DEBUGGER_INSTRUMENT_THE_WORLD, "true")
-    System.setProperty(PREFIX + DEBUGGER_EXCLUDE_FILES, "exclude file")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, "10")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL, "60")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE, "true")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD, "method")
+    System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -474,6 +489,7 @@ class ConfigTest extends DDSpecification {
     config.tracePropagationStylesToExtract.toList() == [DATADOG, B3SINGLE, B3MULTI]
     config.tracePropagationStylesToInject.toList() == [B3SINGLE, B3MULTI, DATADOG]
     config.tracePropagationExtractFirst == false
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.RESTART
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -491,6 +507,8 @@ class ConfigTest extends DDSpecification {
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 333
     config.traceRateLimit == 200
+
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING"].toSet()
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -515,18 +533,18 @@ class ConfigTest extends DDSpecification {
     config.remoteConfigPollIntervalSeconds == 3
     config.remoteConfigMaxPayloadSizeBytes == 2 * 1024
 
-    config.debuggerEnabled == true
-    config.debuggerProbeFileLocation == "file location"
-    config.debuggerUploadTimeout == 10
-    config.debuggerUploadFlushInterval == 1000
-    config.debuggerUploadBatchSize == 200
-    config.debuggerMetricsEnabled == false
-    config.debuggerClassFileDumpEnabled == true
-    config.debuggerPollInterval == 10
-    config.debuggerDiagnosticsInterval == 60
-    config.debuggerVerifyByteCode == true
-    config.debuggerInstrumentTheWorld == true
-    config.debuggerExcludeFiles == "exclude file"
+    config.dynamicInstrumentationEnabled == true
+    config.dynamicInstrumentationProbeFile == "file location"
+    config.dynamicInstrumentationUploadTimeout == 10
+    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadBatchSize == 200
+    config.dynamicInstrumentationMetricsEnabled == false
+    config.dynamicInstrumentationClassFileDumpEnabled == true
+    config.dynamicInstrumentationPollInterval == 10
+    config.dynamicInstrumentationDiagnosticsInterval == 60
+    config.dynamicInstrumentationVerifyByteCode == true
+    config.dynamicInstrumentationInstrumentTheWorld == "method"
+    config.dynamicInstrumentationExcludeFiles == "exclude file"
 
     config.xDatadogTagsMaxLength == 128
   }
@@ -619,6 +637,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, " ")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "invalid")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_FLUSH_INTERVAL, "invalid")
+    System.setProperty(PREFIX + TRACE_EXPERIMENTAL_FEATURES_ENABLED, " ")
 
     when:
     def config = new Config()
@@ -645,9 +664,10 @@ class ConfigTest extends DDSpecification {
     config.splitByTags == [].toSet()
     config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
-    config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT]
-    config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT]
+    config.tracePropagationStylesToExtract.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
+    config.tracePropagationStylesToInject.toList() == [DATADOG, TRACECONTEXT, BAGGAGE]
     config.longRunningTraceEnabled == false
+    config.experimentalFeaturesEnabled == [].toSet()
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -1785,6 +1805,19 @@ class ConfigTest extends DDSpecification {
       'service.version': 'my-svc-vers']
   }
 
+  def "service name prioritizes values from DD_SERVICE over tags"() {
+    setup:
+    System.setProperty(PREFIX + TAGS, "service:service-name-from-tags")
+    System.setProperty(PREFIX + SERVICE, "service-name-from-dd-service")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "service-name-from-dd-service"
+    !config.mergedSpanTags.containsKey("service")
+  }
+
   def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
@@ -1798,7 +1831,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
@@ -1814,7 +1847,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
@@ -1830,12 +1863,12 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
 
-  def "set servicenaem by DD_SERVICE"() {
+  def "set servicename by DD_SERVICE"() {
     setup:
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
@@ -1846,7 +1879,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedSpanTags == ['service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
       'service.version': 'my-svc-vers']
   }
@@ -1864,6 +1897,48 @@ class ConfigTest extends DDSpecification {
 
     where:
     [serviceProperty, serviceName] << [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
+  }
+
+  def "verify behavior of features under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "DD_LOGS_INJECTION, DD_TAGS")
+    environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_LOGS_INJECTION", "DD_TAGS"].toSet()
+
+    //verify expected behavior enabled under feature flag
+    config.logsInjectionEnabled == false
+    config.globalTags == [env: "test", aKey: "aVal bKey:bVal cKey:"]
+  }
+
+  def "verify behavior of 'breaking change' configs when not under DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED"() {
+    setup:
+    environmentVariables.set("DD_TAGS", "env:test,aKey:aVal bKey:bVal cKey:")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == [].toSet()
+
+    //verify expected behavior when not enabled under feature flag
+    config.logsInjectionEnabled == true
+    config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+  }
+
+  def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
+    setup:
+    environmentVariables.set("DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED", "all")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"].toSet()
   }
 
   def "detect if agent is configured using default values"() {
@@ -2403,21 +2478,21 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE                   | eTPSI
-    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]               | [B3SINGLE, B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE, B3MULTI]     | [DATADOG]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]              | [HAYSTACK]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [HAYSTACK]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]              | [B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
-    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
-    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]              | [HAYSTACK]
-    null                     | null                     | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
-    null                     | null                     | null     | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [B3MULTI]
-    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT] | [DATADOG, TRACECONTEXT]
-    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT] | [DATADOG, TRACECONTEXT]
-    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]              | [DATADOG, TRACECONTEXT]
-    null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]               | [DATADOG, TRACECONTEXT]
+    pse                      | psi                      | tps      | tpse               | tpsi    | ePSE                       | ePSI                       | eTPSE                            | eTPSI
+    PropagationStyle.DATADOG | PropagationStyle.B3      | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.B3]      | [DATADOG]                        | [B3SINGLE, B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE, B3MULTI]              | [DATADOG]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]                       | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | null    | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [HAYSTACK]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | null               | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [HAYSTACK]                       | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [B3MULTI]
+    PropagationStyle.B3      | PropagationStyle.DATADOG | null     | B3SINGLE           | B3MULTI | [PropagationStyle.B3]      | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [B3MULTI]
+    null                     | null                     | HAYSTACK | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [HAYSTACK]                       | [HAYSTACK]
+    null                     | null                     | HAYSTACK | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [B3MULTI]
+    null                     | null                     | null     | B3SINGLE           | B3MULTI | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [B3MULTI]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT, BAGGAGE] | [DATADOG, TRACECONTEXT, BAGGAGE]
+    null                     | null                     | null     | null               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [DATADOG, TRACECONTEXT, BAGGAGE] | [DATADOG, TRACECONTEXT, BAGGAGE]
+    null                     | null                     | null     | "b3 single header" | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3SINGLE]                       | [DATADOG, TRACECONTEXT, BAGGAGE]
+    null                     | null                     | null     | "b3"               | null    | [PropagationStyle.DATADOG] | [PropagationStyle.DATADOG] | [B3MULTI]                        | [DATADOG, TRACECONTEXT, BAGGAGE]
     // spotless:on
   }
 
@@ -2602,5 +2677,17 @@ class ConfigTest extends DDSpecification {
     then:
     config.finalDebuggerSnapshotUrl == "http://localhost:8126/debugger/v1/input"
     config.finalDebuggerSymDBUrl == "http://localhost:8126/symdb/v1/input"
+  }
+
+  def "verify try/catch behavior for invalid strings for TRACE_PROPAGATION_BEHAVIOR_EXTRACT"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "test")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.tracePropagationBehaviorExtract == TracePropagationBehaviorExtract.CONTINUE
   }
 }

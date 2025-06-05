@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{setAsyncPropagationEnabled, activeSpan}
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
@@ -26,7 +26,7 @@ class SlickUtils(TEST_WRITER: ListWriter) {
 
   @Trace
   def setup(): DDSpan = {
-    activeScope().setAsyncPropagation(true)
+    setAsyncPropagationEnabled(true)
     Await.result(
       database.run(
         sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""
@@ -39,7 +39,7 @@ class SlickUtils(TEST_WRITER: ListWriter) {
   @Trace
   def startQuery(query: String): Future[Vector[Int]] = {
     try {
-      activeScope().setAsyncPropagation(true)
+      setAsyncPropagationEnabled(true)
       database.run(sql"#$query".as[Int])
     } finally {
       blockUntilChildSpansFinished(activeSpan(), 1)

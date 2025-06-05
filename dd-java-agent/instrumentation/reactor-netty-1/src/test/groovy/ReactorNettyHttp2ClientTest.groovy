@@ -1,3 +1,6 @@
+import datadog.trace.api.Platform
+import spock.lang.IgnoreIf
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -10,6 +13,9 @@ import reactor.netty.http.client.HttpClient
 import reactor.netty.http.server.HttpServer
 import spock.lang.Shared
 
+@IgnoreIf(reason = "TLS issues with OpenJ9", value = {
+  Platform.isJ9()
+})
 class ReactorNettyHttp2ClientTest extends AgentTestRunner {
   @Shared
   DisposableServer server = HttpServer.create()

@@ -9,7 +9,15 @@ public class CiVisibilitySettings {
 
   public static final CiVisibilitySettings DEFAULT =
       new CiVisibilitySettings(
-          false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT);
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          EarlyFlakeDetectionSettings.DEFAULT,
+          TestManagementSettings.DEFAULT);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
@@ -19,6 +27,7 @@ public class CiVisibilitySettings {
   private final boolean impactedTestsDetectionEnabled;
   private final boolean knownTestsEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  private final TestManagementSettings testManagementSettings;
 
   CiVisibilitySettings(
       boolean itrEnabled,
@@ -28,7 +37,8 @@ public class CiVisibilitySettings {
       boolean flakyTestRetriesEnabled,
       boolean impactedTestsDetectionEnabled,
       boolean knownTestsEnabled,
-      EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
+      EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      TestManagementSettings testManagementSettings) {
     this.itrEnabled = itrEnabled;
     this.codeCoverage = codeCoverage;
     this.testsSkipping = testsSkipping;
@@ -37,6 +47,7 @@ public class CiVisibilitySettings {
     this.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled;
     this.knownTestsEnabled = knownTestsEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.testManagementSettings = testManagementSettings;
   }
 
   public boolean isItrEnabled() {
@@ -71,6 +82,10 @@ public class CiVisibilitySettings {
     return earlyFlakeDetectionSettings;
   }
 
+  public TestManagementSettings getTestManagementSettings() {
+    return testManagementSettings;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -87,7 +102,8 @@ public class CiVisibilitySettings {
         && flakyTestRetriesEnabled == that.flakyTestRetriesEnabled
         && impactedTestsDetectionEnabled == that.impactedTestsDetectionEnabled
         && knownTestsEnabled == that.knownTestsEnabled
-        && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings);
+        && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
+        && Objects.equals(testManagementSettings, that.testManagementSettings);
   }
 
   @Override
@@ -100,7 +116,8 @@ public class CiVisibilitySettings {
         flakyTestRetriesEnabled,
         impactedTestsDetectionEnabled,
         knownTestsEnabled,
-        earlyFlakeDetectionSettings);
+        earlyFlakeDetectionSettings,
+        testManagementSettings);
   }
 
   public interface Factory {
@@ -125,8 +142,10 @@ public class CiVisibilitySettings {
           getBoolean(json, "flaky_test_retries_enabled", false),
           getBoolean(json, "impacted_tests_enabled", false),
           getBoolean(json, "known_tests_enabled", false),
-          EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE.fromJson(
-              (Map<String, Object>) json.get("early_flake_detection")));
+          EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE.fromJson(
+              (Map<String, Object>) json.get("early_flake_detection")),
+          TestManagementSettings.JsonAdapter.INSTANCE.fromJson(
+              (Map<String, Object>) json.get("test_management")));
     }
 
     private static boolean getBoolean(

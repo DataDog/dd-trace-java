@@ -23,7 +23,7 @@ class MetricCollectorTest extends Specification {
     counter(tags: ['a:b', 'c:d'], value: 2) | counter(tags: ['a:b', 'c:d'], value: 6) | true
   }
 
-  void 'test metric toString'() {
+  void 'test metric toString #iterationIndex'() {
     expect:
     metric.toString() != null
 

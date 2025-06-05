@@ -81,6 +81,7 @@
 1 org.groovy.*
 1 org.jinspired.*
 1 org.springframework.context.support.ContextTypeMatchClassLoader
+1 org.springframework.context.support.DefaultLifecycleProcessor*
 1 org.springframework.core.DecoratingClassLoader
 1 org.springframework.core.OverridingClassLoader
 1 org.springframework.core.$Proxy*
@@ -349,12 +350,14 @@
 0 org.springframework.web.context.support.XmlWebApplicationContext
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
+0 org.springframework.web.socket.*
 # Need for IAST so propagation of tainted objects is complete in spring 2.7.5
 0 org.springframework.util.StreamUtils$NonClosingInputStream
 # Need for IAST gson propagation
 0 org.springframework.util.StreamUtils
 # Included for IAST Spring mvc unvalidated redirect and xss vulnerability
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
+0 org.springframework.web.method.support.InvocableHandlerMethod
 2 org.xml.*
 2 org.yaml.snakeyaml.*
 # Need for IAST sink

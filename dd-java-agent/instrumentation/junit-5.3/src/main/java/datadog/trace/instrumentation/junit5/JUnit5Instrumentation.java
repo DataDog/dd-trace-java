@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -77,12 +78,11 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
         value = "UC_USELESS_OBJECT",
         justification = "executionRequest is the argument of the original method")
     @Advice.OnMethodEnter
-    public static void setContextStores() {
+    public static void setContextStores(@Advice.This TestEngine testEngine) {
       ContextStore<TestDescriptor, Object> contextStore =
           InstrumentationContext.get(TestDescriptor.class, Object.class);
-      TestEventsHandlerHolder.setContextStores(
-          (ContextStore) contextStore, (ContextStore) contextStore);
-      TestEventsHandlerHolder.start();
+      TestEventsHandlerHolder.start(
+          testEngine, (ContextStore) contextStore, (ContextStore) contextStore);
     }
   }
 
@@ -94,9 +94,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     public static void addTracingListener(
         @Advice.This TestEngine testEngine,
         @Advice.Argument(value = 0, readOnly = false) ExecutionRequest executionRequest) {
-      String testEngineClassName = testEngine.getClass().getName();
-      if (testEngineClassName.startsWith("io.cucumber")
-          || testEngineClassName.startsWith("org.spockframework")) {
+      if (JUnitPlatformUtils.engineToFramework(testEngine) != TestFrameworkInstrumentation.JUNIT5) {
         // Cucumber and Spock have dedicated instrumentations.
         // We can only filter out calls to their engines at runtime,
         // since they do not declare their own "execute" method,
@@ -119,10 +117,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
       executionRequest =
-          new ExecutionRequest(
-              executionRequest.getRootTestDescriptor(),
-              compositeListener,
-              executionRequest.getConfigurationParameters());
+          JUnitPlatformUtils.createExecutionRequest(executionRequest, compositeListener);
     }
 
     // JUnit 5.3.0 and above

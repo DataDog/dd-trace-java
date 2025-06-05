@@ -22,7 +22,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
   MongoClient client
 
   def setup() throws Exception {
-    client = MongoClients.create("mongodb://localhost:$port/?appname=some-description")
+    client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port/?appname=some-description")
   }
 
   def cleanup() throws Exception {
@@ -64,7 +64,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
   def "test create collection no description"() {
     setup:
     String collectionName = randomCollectionName()
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName)
@@ -217,7 +217,7 @@ abstract class Mongo4ClientTest extends MongoBaseTest {
   def "test client failure"() {
     setup:
     String collectionName = randomCollectionName()
-    def client = MongoClients.create("mongodb://localhost:$UNUSABLE_PORT/?serverselectiontimeoutms=10")
+    def client = MongoClients.create("mongodb://${mongoDbContainer.getHost()}:$UNUSABLE_PORT/?serverselectiontimeoutms=10")
 
     when:
     MongoDatabase db = client.getDatabase(databaseName)

@@ -76,7 +76,7 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(clazz));
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

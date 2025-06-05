@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.Map;
  * contextualize the associated Span instance.
  */
 public interface AgentSpanContext {
+
   /**
    * Gets the TraceId of the span's trace.
    *
@@ -50,6 +52,15 @@ public interface AgentSpanContext {
   PathwayContext getPathwayContext();
 
   default void mergePathwayContext(PathwayContext pathwayContext) {}
+
+  default void setIntegrationName(CharSequence componentName) {}
+
+  /**
+   * Gets whether the span context used is part of the local trace or from another service
+   *
+   * @return boolean representing if the span context is part of the local trace
+   */
+  boolean isRemote();
 
   interface Extracted extends AgentSpanContext {
     /**

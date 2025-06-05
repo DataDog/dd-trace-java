@@ -1,3 +1,4 @@
+import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
 
 import com.google.common.util.concurrent.MoreExecutors
@@ -110,7 +111,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     ig.reset()
   }
 
-  def "test request-response"() {
+  def "test request-response #name #executor.class.simpleName"() {
     setup:
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
@@ -150,6 +151,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
 
     then:
     response.message == "Hello $name"
+    codeOriginTags(TEST_WRITER)
     assertTraces(2) {
       trace(hasClientMessageSpans() ? 3 : 2) {
         basicSpan(it, "parent")
@@ -679,6 +681,12 @@ class GrpcDataStreamsEnabledV0Test extends GrpcDataStreamsEnabledForkedTest {
 }
 
 class GrpcDataStreamsEnabledV1ForkedTest extends GrpcDataStreamsEnabledForkedTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    codeOriginSetup()
+  }
 
   @Override
   int version() {

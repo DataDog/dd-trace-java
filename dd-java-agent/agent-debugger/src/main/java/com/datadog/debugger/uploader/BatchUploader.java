@@ -128,7 +128,7 @@ public class BatchUploader {
       RetryPolicy retryPolicy,
       String containerId,
       String entityId) {
-    instrumentTheWorld = config.isDebuggerInstrumentTheWorld();
+    instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
@@ -148,7 +148,7 @@ public class BatchUploader {
     this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
-    Duration requestTimeout = Duration.ofSeconds(config.getDebuggerUploadTimeout());
+    Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
     client =
         OkHttpUtils.buildHttpClient(
             config,

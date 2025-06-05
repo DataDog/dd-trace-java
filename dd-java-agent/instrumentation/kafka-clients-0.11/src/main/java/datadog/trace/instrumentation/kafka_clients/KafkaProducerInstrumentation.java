@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -23,15 +25,18 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -148,14 +153,15 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       sortedTags.put(TOPIC_TAG, record.topic());
       sortedTags.put(TYPE_TAG, "kafka");
       try {
-        propagate().inject(span, record.headers(), setter);
+        defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           // inject the context in the headers, but delay sending the stats until we know the
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
-          propagate()
-              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+          dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
@@ -169,11 +175,12 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.value(),
                 record.headers());
 
-        propagate().inject(span, record.headers(), setter);
+        defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-          propagate()
-              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+          DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+          dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }

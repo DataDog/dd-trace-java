@@ -10,7 +10,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
@@ -38,7 +40,9 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
+    return super.isApplicable(enabledSystems)
+        && (Config.get().isCiVisibilityTestSkippingEnabled()
+            || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -97,7 +101,10 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
 
-      if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+      TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler =
+          TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.SPOCK);
+
+      if (testEventsHandler == null) {
         // should only happen in integration tests
         // because we cannot avoid instrumenting ourselves
         return;
@@ -118,8 +125,7 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
           if (featureIdentifier == null) {
             return;
           }
-          SkipReason skipReason =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(featureIdentifier);
+          SkipReason skipReason = testEventsHandler.skipReason(featureIdentifier);
           if (skipReason == null) {
             return;
           }
@@ -144,7 +150,7 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
         if (test == null) {
           return;
         }
-        SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+        SkipReason skipReason = testEventsHandler.skipReason(test);
         if (skipReason == null) {
           return;
         }

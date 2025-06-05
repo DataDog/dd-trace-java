@@ -18,6 +18,10 @@
           </#list>
         },
         "faulty_session_threshold": ${settings.earlyFlakeDetectionSettings.faultySessionThreshold}
+      },
+      "test_management": {
+        "enabled": ${settings.testManagementSettings.enabled?c},
+        "attempt_to_fix_retries": ${settings.testManagementSettings.attemptToFixRetries}
       }
     }
   }

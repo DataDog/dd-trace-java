@@ -7,12 +7,14 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
+import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.util.FNV64Hash;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,37 +107,21 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags, Consumer<StatsPoint> pointConsumer) {
-    setCheckpoint(sortedTags, pointConsumer, 0, 0);
-  }
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp) {
-    setCheckpoint(sortedTags, pointConsumer, defaultTimestamp, 0);
-  }
-
-  @Override
-  public void setCheckpoint(
-      LinkedHashMap<String, String> sortedTags,
-      Consumer<StatsPoint> pointConsumer,
-      long defaultTimestamp,
-      long payloadSizeBytes) {
+  public void setCheckpoint(DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
     lock.lock();
     try {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
+      LinkedHashMap<String, String> sortedTags = context.sortedTags();
       List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder =
           new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
       DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
+        long defaultTimestamp = context.defaultTimestamp();
         if (defaultTimestamp == 0) {
           pathwayStartNanos = startNanos;
           pathwayStartNanoTicks = nanoTicks;
@@ -195,7 +182,7 @@ public class DefaultPathwayContext implements PathwayContext {
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
-              payloadSizeBytes,
+              context.payloadSizeBytes(),
               serviceNameOverride);
       edgeStartNanoTicks = nanoTicks;
       hash = newHash;
@@ -267,7 +254,7 @@ public class DefaultPathwayContext implements PathwayContext {
     }
   }
 
-  private static class PathwayContextExtractor implements AgentPropagation.KeyClassifier {
+  private static class PathwayContextExtractor implements BiConsumer<String, String> {
     private final TimeSource timeSource;
     private final long hashOfKnownTags;
     private final String serviceNameOverride;
@@ -281,27 +268,25 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     @Override
-    public boolean accept(String key, String value) {
+    public void accept(String key, String value) {
       if (PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, hashOfKnownTags, serviceNameOverride, value);
-        } catch (IOException e) {
-          return false;
+        } catch (IOException ignored) {
         }
       }
-      return true;
     }
   }
 
   static <C> DefaultPathwayContext extract(
       C carrier,
-      AgentPropagation.ContextVisitor<C> getter,
+      CarrierVisitor<C> getter,
       TimeSource timeSource,
       long hashOfKnownTags,
       String serviceNameOverride) {
     PathwayContextExtractor pathwayContextExtractor =
         new PathwayContextExtractor(timeSource, hashOfKnownTags, serviceNameOverride);
-    getter.forEachKey(carrier, pathwayContextExtractor);
+    getter.forEachKeyValue(carrier, pathwayContextExtractor);
     if (pathwayContextExtractor.extractedContext == null) {
       log.debug("No context extracted");
     } else {
@@ -378,6 +363,10 @@ public class DefaultPathwayContext implements PathwayContext {
     String primaryTag = Config.get().getPrimaryTag();
     if (primaryTag != null) {
       builder.append(primaryTag);
+    }
+    CharSequence processTags = ProcessTags.getTagsForSerialization();
+    if (processTags != null) {
+      builder.append(processTags);
     }
     return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
   }

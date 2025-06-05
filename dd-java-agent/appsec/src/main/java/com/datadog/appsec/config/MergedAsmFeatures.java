@@ -31,7 +31,6 @@ public class MergedAsmFeatures {
 
   private AppSecFeatures merge(final AppSecFeatures target, final AppSecFeatures newFeatures) {
     mergeAsm(target, newFeatures.asm);
-    mergeApiSecurity(target, newFeatures.apiSecurity);
     mergeAutoUserInstrum(target, newFeatures.autoUserInstrum);
     return target;
   }
@@ -41,14 +40,6 @@ public class MergedAsmFeatures {
       return;
     }
     target.asm = newValue;
-  }
-
-  private void mergeApiSecurity(
-      final AppSecFeatures target, final AppSecFeatures.ApiSecurity newValue) {
-    if (newValue == null || newValue.requestSampleRate == null) {
-      return;
-    }
-    target.apiSecurity = newValue;
   }
 
   private void mergeAutoUserInstrum(

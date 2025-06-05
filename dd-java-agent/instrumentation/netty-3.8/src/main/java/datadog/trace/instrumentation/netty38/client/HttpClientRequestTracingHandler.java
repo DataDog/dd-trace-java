@@ -1,18 +1,20 @@
 package datadog.trace.instrumentation.netty38.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAdapter.SETTER;
 
+import datadog.context.Context;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -55,7 +57,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     boolean isSecure = ctx.getPipeline().get("sslHandler") != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
-    final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
+    final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
@@ -65,10 +67,8 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
       }
 
-      propagate().inject(span, request.headers(), SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+      defaultPropagator().inject(Context.current().with(dsmContext), request.headers(), SETTER);
 
       channelTraceContext.setClientSpan(span);
 

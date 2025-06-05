@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class SpanAttributes {
   /** Represent an empty attributes. */
@@ -124,5 +125,17 @@ public class SpanAttributes {
     public SpanAttributes build() {
       return new SpanAttributes(this.attributes);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof SpanAttributes)) return false;
+    SpanAttributes that = (SpanAttributes) o;
+    return Objects.equals(attributes, that.attributes);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(attributes);
   }
 }

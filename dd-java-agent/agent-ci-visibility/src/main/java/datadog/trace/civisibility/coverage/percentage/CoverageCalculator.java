@@ -14,7 +14,7 @@ public interface CoverageCalculator {
 
     T moduleCoverage(
         long moduleId,
-        BuildModuleLayout moduleLayout,
+        @Nullable BuildModuleLayout moduleLayout,
         ExecutionSettings executionSettings,
         T sessionCoverage);
   }

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
@@ -31,10 +32,10 @@ public class UndertowRunnableWrapper implements Runnable {
     if (task instanceof UndertowRunnableWrapper || exclude(RUNNABLE, task)) {
       return task;
     }
-    AgentScope scope = activeScope();
-    if (null != scope) {
-      return new UndertowRunnableWrapper(task, exchange, scope.capture());
+    AgentScope.Continuation continuation = captureActiveSpan();
+    if (continuation != noopContinuation()) {
+      return new UndertowRunnableWrapper(task, exchange, continuation);
     }
-    return task; // don't wrap unless there is a scope to propagate
+    return task; // don't wrap unless there is a span to propagate
   }
 }

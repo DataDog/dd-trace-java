@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.opentracing31;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler;
 import io.opentracing.References;
 import io.opentracing.Scope;
@@ -49,8 +52,8 @@ public class OTTracer implements Tracer {
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpanContext context = converter.toContext(spanContext);
-
-      tracer.propagate().inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
+      AgentSpan span = fromSpanContext(context);
+      defaultPropagator().inject(span, (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -60,9 +63,8 @@ public class OTTracer implements Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpanContext tagContext =
-          tracer
-              .propagate()
-              .extract((TextMap) carrier, ContextVisitors.<TextMap>stringValuesEntrySet());
+          extractContextAndGetSpanContext(
+              (TextMap) carrier, ContextVisitors.stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -149,13 +151,15 @@ public class OTTracer implements Tracer {
     @Override
     public Span start() {
       final AgentSpan agentSpan = delegate.start();
+      agentSpan.context().setIntegrationName("opentracing");
       return converter.toSpan(agentSpan);
     }
 
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
-      return converter.toScope(
-          tracer.activateSpan(delegate.start(), ScopeSource.MANUAL), finishSpanOnClose);
+      final AgentSpan agentSpan = delegate.start();
+      agentSpan.context().setIntegrationName("opentracing");
+      return converter.toScope(tracer.activateManualSpan(agentSpan), finishSpanOnClose);
     }
   }
 }

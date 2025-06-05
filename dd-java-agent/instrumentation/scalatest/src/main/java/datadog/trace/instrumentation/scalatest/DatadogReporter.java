@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.scalatest;
 
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.execution.SuppressedTestFailedException;
@@ -86,14 +86,17 @@ public class DatadogReporter {
 
   private static void onSuiteStart(SuiteStarting event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     Collection<String> categories = Collections.emptyList();
     boolean parallelized = true;
 
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestSuiteStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
         testSuiteName,
@@ -108,30 +111,40 @@ public class DatadogReporter {
 
   private static void onSuiteFinish(SuiteCompleted event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
+
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
   }
 
   private static void onSuiteAbort(SuiteAborted event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     Throwable throwable = event.throwable().getOrElse(null);
+
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestSuiteFailure(new TestSuiteDescriptor(testSuiteName, testClass), throwable);
     eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass), null);
   }
 
   private static void onTestStart(TestStarting event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -140,13 +153,13 @@ public class DatadogReporter {
     Collection<String> categories;
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
     if (context.itrUnskippable(testIdentifier)) {
-      categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
+      categories = Collections.singletonList(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
     }
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    TestExecutionPolicy retryPolicy = context.popExecutionPolicy(testIdentifier);
 
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestStart(
         new TestSuiteDescriptor(testSuiteName, testClass),
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
@@ -156,14 +169,16 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
-        null);
+        null,
+        context.getExecutionHistory(testIdentifier));
   }
 
   private static void onTestSuccess(TestSucceeded event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
@@ -172,13 +187,20 @@ public class DatadogReporter {
     String testParameters = null;
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestFailure(TestFailed event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
@@ -188,14 +210,21 @@ public class DatadogReporter {
     Throwable throwable = event.throwable().getOrElse(null);
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestFailure(testDescriptor, throwable);
-    eventHandler.onTestFinish(testDescriptor, null);
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestIgnore(TestIgnored event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -207,6 +236,7 @@ public class DatadogReporter {
     TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
     SkipReason reason = context.getSkipReason(skippableTest);
 
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestIgnore(
         new TestSuiteDescriptor(testSuiteName, testClass),
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
@@ -216,13 +246,16 @@ public class DatadogReporter {
         testParameters,
         categories,
         new TestSourceData(testClass, null, null),
-        reason != null ? reason.getDescription() : null);
+        reason != null ? reason.getDescription() : null,
+        context.popExecutionHistory(skippableTest));
   }
 
   private static void onTestCancel(TestCanceled event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -234,18 +267,25 @@ public class DatadogReporter {
 
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     if (throwable instanceof SuppressedTestFailedException) {
       eventHandler.onTestFailure(testDescriptor, throwable.getCause());
     } else {
       eventHandler.onTestSkip(testDescriptor, reason);
     }
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 
   private static void onTestPending(TestPending event) {
     int runStamp = event.ordinal().runStamp();
-    RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
+    RunContext context = RunContext.get(runStamp);
+    if (context == null) {
+      return;
+    }
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -256,7 +296,12 @@ public class DatadogReporter {
 
     TestDescriptor testDescriptor =
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestSkip(testDescriptor, reason);
-    eventHandler.onTestFinish(testDescriptor, null);
+
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
+    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+
+    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
   }
 }

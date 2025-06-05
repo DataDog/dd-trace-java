@@ -1,5 +1,7 @@
 package datadog.trace.core.scopemanager
 
+import datadog.context.Context
+import datadog.context.ContextKey
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Stateful
@@ -8,9 +10,7 @@ import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -68,94 +70,9 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.close()
   }
 
-  def "scope state should be able to fetch and activate state when there is no active span"() {
-    when:
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def span = tracer.buildSpan("test").start()
-    def scope = tracer.activateSpan(span)
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    writer == [[scope.span()]]
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-  }
-
-  def "scope state should be able to fetch and activate state when there is an active span"() {
-    when:
-    def span = tracer.buildSpan("test").start()
-    def scope = tracer.activateSpan(span)
-    def initialScopeState = scopeManager.newScopeState()
-    initialScopeState.fetchFromActive()
-
-    then:
-    scope.span() == span
-    scopeManager.active() == scope
-
-    when:
-    def newScopeState = scopeManager.newScopeState()
-    newScopeState.activate()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    initialScopeState.activate()
-
-    then:
-    scopeManager.active() == scope
-
-    when:
-    span.finish()
-    scope.close()
-    writer.waitForTraces(1)
-
-    then:
-    scopeManager.active() == null
-    writer == [[scope.span()]]
-  }
-
   def "non-ddspan activation results in a continuable scope"() {
     when:
-    def scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    def scope = scopeManager.activateSpan(noopSpan())
 
     then:
     scopeManager.active() == scope
@@ -170,7 +87,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "no scope is active before activation"() {
     setup:
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("test", "test")
     builder.start()
 
     expect:
@@ -180,7 +97,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "simple scope and span lifecycle"() {
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
 
     then:
@@ -210,9 +127,9 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "sets parent as current upon close"() {
     when:
-    def parentSpan = tracer.buildSpan("parent").start()
+    def parentSpan = tracer.buildSpan("test", "parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
-    def childSpan = tracer.buildSpan("child").start()
+    def childSpan = tracer.buildSpan("test", "child").start()
     def childScope = tracer.activateSpan(childSpan)
 
     then:
@@ -232,9 +149,9 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "sets parent as current upon close with noop child"() {
     when:
-    def parentSpan = tracer.buildSpan("parent").start()
+    def parentSpan = tracer.buildSpan("test", "parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
-    def childSpan = NoopAgentSpan.INSTANCE
+    def childSpan = noopSpan()
     def childScope = tracer.activateSpan(childSpan)
 
     then:
@@ -249,36 +166,32 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
   }
 
-  def "DDScope only creates continuations when propagation is set"() {
+  def "DDScope creates no-op continuations when propagation is not set"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
-    def scope = tracer.activateSpan(span)
+    tracer.activateSpan(span)
     tracer.setAsyncPropagationEnabled(false)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
-    continuation == null
+    continuation == noopContinuation()
 
     when:
     tracer.setAsyncPropagationEnabled(true)
-    continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    continuation = tracer.captureActiveSpan()
 
     then:
-    continuation != null
+    continuation != noopContinuation() && continuation != null
 
     cleanup:
     continuation.cancel()
-
-    where:
-    concurrent << [false, true]
   }
 
   def "Continuation.cancel doesn't close parent scope"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -288,9 +201,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     scopeManager.active() == scope
-
-    where:
-    concurrent << [false, true]
   }
 
   // @Flaky("awaitGC is flaky")
@@ -298,8 +208,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scopeRef.get().captureConcurrent() : scopeRef.get().capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -320,17 +229,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     ref.get() == null
     !spanFinished(span)
     writer == []
-
-    where:
-    concurrent << [false, true]
   }
 
   def "hard reference on continuation does not prevent trace from reporting"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
 
     then:
     continuation != null
@@ -353,11 +258,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == [[span]]
 
     where:
-    autoClose | concurrent
-    true      | true
-    true      | false
-    false     | true
-    false     | false
+    autoClose << [true, false]
   }
 
   def "continuation restores trace"() {
@@ -366,9 +267,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     def parentScope = tracer.activateSpan(parentSpan)
     def childSpan = tracer.buildSpan("test", "child").start()
     def childScope = tracer.activateSpan(childSpan)
-    tracer.setAsyncPropagationEnabled(true)
 
-    def continuation = concurrentChild ? childScope.captureConcurrent() : childScope.capture()
+    def continuation = tracer.captureActiveSpan()
     childScope.close()
 
     then:
@@ -389,13 +289,10 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     when: "activating the continuation"
     def newScope = continuation.activate()
-    if (concurrentChild) {
-      continuation.cancel()
-    }
 
     then: "the continued scope becomes active and span state doesnt change"
     newScope instanceof ContinuableScope
-    newScope.isAsyncPropagating()
+    tracer.isAsyncPropagationEnabled()
     scopeManager.active() == newScope
     newScope != childScope
     newScope != parentScope
@@ -405,13 +302,10 @@ class ScopeManagerTest extends DDCoreSpecification {
     writer == []
 
     when: "creating and activating a second continuation"
-    def newContinuation = concurrentNew ? newScope.captureConcurrent() : newScope.capture()
+    def newContinuation = tracer.captureActiveSpan()
     newScope.close()
     def secondContinuedScope = newContinuation.activate()
     secondContinuedScope.close()
-    if (concurrentNew) {
-      newContinuation.cancel()
-    }
     childSpan.finish()
     writer.waitForTraces(1)
 
@@ -420,28 +314,17 @@ class ScopeManagerTest extends DDCoreSpecification {
     spanFinished(childSpan)
     spanFinished(parentSpan)
     writer == [[childSpan, parentSpan]]
-
-    where:
-    concurrentChild | concurrentNew
-    false           | false
-    true            | false
-    false           | true
-    true            | true
   }
 
   def "continuation allows adding spans even after other spans were completed"() {
     when: "creating and activating a continuation"
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
     def newScope = continuation.activate()
-    if (concurrent) {
-      continuation.cancel()
-    }
 
     then: "the continuation sets the active scope"
     newScope instanceof ContinuableScope
@@ -468,9 +351,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     spanFinished(childSpan)
     childSpan.context().parentId == span.context().spanId
     writer == [[childSpan, span]]
-
-    where:
-    concurrent << [false, true]
   }
 
   def "test activating same span multiple times"() {
@@ -479,14 +359,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     def state = Mock(Stateful)
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
     1 * profilingContext.newScopeState(_) >> state
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -578,7 +458,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def "closing scope out of order - complex"() {
     // Events are checked twice in each case to ensure a call to
-    // tracer.activeScope() or tracer.activeSpan() doesn't change the count
+    // scopeManager.active() or tracer.activeSpan() doesn't change the count
 
     when:
     AgentSpan firstSpan = tracer.buildSpan("test", "foo").start()
@@ -587,7 +467,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
     assertEvents([ACTIVATE])
     1 * profilingContext.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
@@ -602,7 +482,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
-    tracer.activeScope() == secondScope
+    scopeManager.active() == secondScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("bar")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -615,7 +495,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -627,7 +507,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     0 * _
 
@@ -637,7 +517,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     tracer.activeSpan() == firstSpan
-    tracer.activeScope() == firstScope
+    scopeManager.active() == firstScope
 
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     0 * _
@@ -655,7 +535,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       ACTIVATE,
       CLOSE
     ])
-    tracer.activeScope() == null
+    scopeManager.active() == null
     assertEvents([
       ACTIVATE,
       ACTIVATE,
@@ -674,13 +554,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activateSpan(span)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -693,7 +573,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
-    tracer.activeScope() == thirdScope
+    scopeManager.active() == thirdScope
     assertEvents([ACTIVATE, ACTIVATE])
     1 * profilingContext.encodeOperationName("quux")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)
@@ -725,8 +605,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
@@ -737,9 +616,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     when:
     def continuedScope = continuation.activate()
-    if (concurrent) {
-      continuation.cancel()
-    }
+
     AgentSpan secondSpan = tracer.buildSpan("test", "test2").start()
     AgentScope secondScope = (ContinuableScope) tracer.activateSpan(secondSpan)
 
@@ -760,9 +637,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     writer == [[secondSpan, span]]
-
-    where:
-    concurrent << [false, true]
   }
 
   def "exception thrown in TraceInterceptor does not leave scope manager in bad state "() {
@@ -813,8 +687,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test", "test").start()
     def scope = tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
 
@@ -840,8 +713,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     when: "completing another async scope lifecycle"
     def span2 = tracer.buildSpan("test", "test").start()
     def scope2 = tracer.activateSpan(span2)
-    tracer.setAsyncPropagationEnabled(true)
-    def continuation2 = concurrent ? scope2.captureConcurrent() : scope2.capture()
+    def continuation2 = tracer.captureActiveSpan()
 
     then:
     continuation2 != null
@@ -859,9 +731,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     spanFinished(span2)
     scopeManager.scopeStack().depth() == 0
     writer == [[span], [span2]]
-
-    where:
-    concurrent << [false, true]
   }
 
   @Shared
@@ -870,7 +739,7 @@ class ScopeManagerTest extends DDCoreSpecification {
   @Shared
   AtomicInteger iteration = new AtomicInteger(0)
 
-  def "concurrent continuation can be activated and closed in multiple threads"() {
+  def "continuation can be activated and closed in multiple threads"() {
     setup:
     long sendDelayNanos = TimeUnit.MILLISECONDS.toNanos(500 - 100)
 
@@ -878,10 +747,11 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
     def start = System.nanoTime()
     def scope = (ContinuableScope) tracer.activateSpan(span)
-    tracer.setAsyncPropagationEnabled(true)
-    continuation = scope.captureConcurrent()
+    continuation = tracer.captureActiveSpan()
     scope.close()
     span.finish()
+
+    continuation.hold()
 
     then:
     ThreadUtils.runConcurrently(8, 512) {
@@ -920,7 +790,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
@@ -950,7 +820,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test", "test").start()
 
     when:
-    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activateSpan(span)
 
     then:
     assertEvents([ACTIVATE])
@@ -1062,7 +932,7 @@ class ScopeManagerTest extends DDCoreSpecification {
         def childScope = tracer.activateSpan(child)
         try {
           Thread.sleep(100)
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ignored) {
           Thread.currentThread().interrupt()
         }
         childScope.close()
@@ -1078,6 +948,252 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     cleanup:
     executor.shutdown()
+  }
+
+  def "activating a span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.activateSpan(span)
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "capturing and continuing a span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.captureSpan(span).activate()
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "capturing and continuing the active span merges it with existing context"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def testKey = ContextKey.named("test")
+    def context = Context.root().with(testKey, "test-value")
+    def contextScope = scopeManager.attach(context)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    def scope = tracer.activateSpan(span).withCloseable {
+      tracer.captureActiveSpan().activate()
+    }
+
+    then:
+    scopeManager.active() == scope
+    scopeManager.current() != context
+    scopeManager.activeSpan() == span
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    scope.close()
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context
+    scopeManager.activeSpan() == null
+    scopeManager.current().get(testKey) == "test-value"
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+    scopeManager.activeSpan() == null
+  }
+
+  def "rollback stops at most recent checkpoint"() {
+    when:
+    def span1 = tracer.buildSpan("test1", "test1").start()
+    def span2 = tracer.buildSpan("test2", "test2").start()
+    def span3 = tracer.buildSpan("test3", "test3").start()
+    then:
+    scopeManager.activeSpan() == null
+
+    when:
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span2)
+    tracer.checkpointActiveForRollback()
+    tracer.activateSpan(span1)
+    tracer.activateSpan(span2)
+    tracer.activateSpan(span3)
+    then:
+    scopeManager.activeSpan() == span3
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span2
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == span1
+
+    when:
+    tracer.rollbackActiveToCheckpoint()
+    then:
+    scopeManager.activeSpan() == null
+  }
+
+  def "contexts can be swapped out and back"() {
+    setup:
+    def testKey = ContextKey.named("test")
+    def context1 = Context.root().with(testKey, "first-value")
+    def context2 = context1.with(testKey, "second-value")
+
+    when:
+    def swappedOut = scopeManager.swap(Context.root())
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+
+    when:
+    scopeManager.swap(context1)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.current() == context1
+
+    when:
+    scopeManager.swap(swappedOut)
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
+
+    when:
+    def contextScope = scopeManager.attach(context1)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context1
+
+    when:
+    swappedOut = scopeManager.swap(context2)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.active() != contextScope
+    scopeManager.current() == context2
+    swappedOut.get(testKey) == "first-value"
+
+    when:
+    def context3 = swappedOut.with(testKey, "third-value")
+    scopeManager.swap(context3)
+
+    then:
+    scopeManager.active() != null
+    scopeManager.active() != contextScope
+    scopeManager.current() == context3
+
+    when:
+    scopeManager.swap(swappedOut)
+
+    then:
+    scopeManager.active() == contextScope
+    scopeManager.current() == context1
+
+    when:
+    contextScope.close()
+
+    then:
+    scopeManager.active() == null
+    scopeManager.current() == Context.root()
   }
 
   boolean spanFinished(AgentSpan span) {

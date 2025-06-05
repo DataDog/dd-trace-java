@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
@@ -34,9 +36,8 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
     final HttpRequest request = delegate.generateRequest();
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
 
-    propagate().inject(span, request, SETTER);
-    propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+    defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
 
     return request;
   }

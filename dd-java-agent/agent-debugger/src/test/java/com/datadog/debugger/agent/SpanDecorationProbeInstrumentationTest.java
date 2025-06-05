@@ -506,7 +506,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void typeRedaction() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
     Redaction.addUserDefinedTypes(config);
     SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{creds}");
@@ -541,7 +541,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void typeRedactionConditions() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot28$Creds");
     Redaction.addUserDefinedTypes(config);
     SpanDecorationProbe.Decoration decoration1 =
@@ -708,8 +708,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
 
   private void installSpanDecorationProbes(String expectedClassName, Configuration configuration) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.FNV64Hash;

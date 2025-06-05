@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.jetty_client91;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client91.JettyClientDecorator.DECORATE;
@@ -17,9 +19,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
 import java.util.List;
@@ -85,16 +87,14 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
     public static AgentSpan methodEnter(
         @Advice.Argument(0) Request request,
         @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
-      AgentSpan span = startSpan(HTTP_REQUEST);
+      AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
       InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
       // make sure the span is finished before onComplete callbacks execute
       responseListeners.add(0, new SpanFinishingCompleteListener(span));
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      propagate().inject(span, request, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+      defaultPropagator().inject(getCurrentContext().with(span).with(dsmContext), request, SETTER);
       return span;
     }
 

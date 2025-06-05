@@ -59,10 +59,6 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
         .instrument();
   }
 
-  public String getSessionId() {
-    return sessionId;
-  }
-
   public TriggerProbe setSessionId(String sessionId) {
     this.sessionId = sessionId;
     return this;
@@ -86,6 +82,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled {
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation location) {
 
+    Sampling sampling = getSampling();
     if (sampling == null || !sampling.inCoolDown()) {
       boolean sample = true;
       if (!hasCondition()) {

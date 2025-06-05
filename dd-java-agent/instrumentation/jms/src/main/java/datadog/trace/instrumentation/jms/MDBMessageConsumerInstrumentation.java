@@ -4,8 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
@@ -67,7 +67,7 @@ public final class MDBMessageConsumerInstrumentation
       if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
         return null;
       }
-      AgentSpanContext propagatedContext = propagate().extract(message, GETTER);
+      AgentSpanContext propagatedContext = extractContextAndGetSpanContext(message, GETTER);
       AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;

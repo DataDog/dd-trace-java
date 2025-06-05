@@ -35,13 +35,29 @@ muzzle {
     extraDependency 'tomcat:tomcat-util:5.5.23'
     assertInverse = true
   }
+  pass {
+    name = "tomcat-websocket"
+    group = "org.apache.tomcat"
+    module = 'tomcat-websocket'
+    versions = "[8.0.1,]"
+    extraDependency 'org.apache.tomcat:tomcat-catalina-ha:8.0.1'
+    assertInverse = true
+  }
   // org.apache.catalina.connector.CoyoteAdapter introduced in Catalina 5.5
+  pass {
+    name = "tomcat-processtags"
+    group = "org.apache.tomcat"
+    module = 'tomcat-catalina-ha'
+    versions = "[,]"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+
+addTestSuite("tomcat9Test")
 
 addTestSuiteForDir('latest10Test', 'latestDepTest')
 addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest')
@@ -56,12 +72,21 @@ configurations.all {
   }
 }
 
+[compileLatest10TestGroovy, compileLatest10ForkedTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(11)
+}
 
+[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(17)
+}
 
 dependencies {
   compileOnly group: 'tomcat', name: 'catalina', version: tomcatVersion
   compileOnly group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
   compileOnly group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
+  compileOnly group: 'org.apache.tomcat', name: 'tomcat-websocket', version: '8.0.1', transitive: false
+  compileOnly group: 'org.apache.tomcat', name: 'tomcat-websocket-api', version: '8.0.1'
+
 
   // Version that corresponds with Tomcat 5.5
   // https://tomcat.apache.org/whichversion.html
@@ -90,9 +115,16 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
+
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
 
+  tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
+  tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '9.+'
+
   latest10TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.+'
+  latest10TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '10.+'
   latest10TestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
   latest10TestImplementation(testFixtures(project(":dd-java-agent:appsec")))
 
@@ -101,6 +133,7 @@ dependencies {
   latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
 
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '11.+'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '11.+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
   latestDepTestImplementation(testFixtures(project(":dd-java-agent:appsec")))
 
@@ -109,16 +142,24 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat-classloading-9'))
 }
 
-// Exclude all the dependencies from test for latestDepTest since the names are completely different.
-configurations {
-  latestDepTestImplementation {
-    exclude group: 'tomcat', module: 'catalina'
-    exclude group: 'tomcat', module: 'tomcat-coyote'
-    exclude group: 'tomcat', module: 'tomcat-util'
-    exclude group: 'tomcat', module: 'tomcat-http'
-    exclude group: 'tomcat', module: 'naming-resources'
-    exclude group: 'tomcat', module: 'naming-factory'
-    exclude group: 'commons-modeler', module: 'commons-modeler'
-    exclude group: 'javax.servlet', module: 'servlet-api'
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+      // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
+      jvmArgs += ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
+    }
   }
+}
+
+// Exclude all the dependencies from test for latestDepTest since the names are completely different.
+configurations.findAll { it.name in ["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"] }
+.each {
+  it.exclude group: 'tomcat', module: 'catalina'
+  it.exclude group: 'tomcat', module: 'tomcat-coyote'
+  it.exclude group: 'tomcat', module: 'tomcat-util'
+  it.exclude group: 'tomcat', module: 'tomcat-http'
+  it.exclude group: 'tomcat', module: 'naming-resources'
+  it.exclude group: 'tomcat', module: 'naming-factory'
+  it.exclude group: 'commons-modeler', module: 'commons-modeler'
+  it.exclude group: 'javax.servlet', module: 'servlet-api'
 }

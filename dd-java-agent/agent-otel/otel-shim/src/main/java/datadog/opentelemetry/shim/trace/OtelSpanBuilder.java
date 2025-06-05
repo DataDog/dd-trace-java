@@ -11,7 +11,6 @@ import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
-import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -202,11 +201,7 @@ public class OtelSpanBuilder implements SpanBuilder {
       setSpanKind(INTERNAL);
     }
     if (!this.ignoreActiveSpan) {
-      // support automatic parenting from propagated context not on the scope stack
-      Context context = OtelContext.lastPropagated();
-      if (null != context) {
-        setParent(context);
-      }
+      setParent(Context.current());
     }
     AgentSpan delegate = this.delegate.start();
     // Apply overrides

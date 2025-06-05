@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class Serializer {
 
@@ -183,6 +184,28 @@ public class Serializer {
       return null;
     }
     Map<K, V> m = new HashMap<>(size * 4 / 3);
+    return fillMap(byteBuffer, m, keyDeserializer, valueDeserializer, size);
+  }
+
+  public static <K, V> Map<K, V> readMap(
+      ByteBuffer byteBuffer,
+      Supplier<Map<K, V>> mapSupplier,
+      Function<ByteBuffer, K> keyDeserializer,
+      Function<ByteBuffer, V> valueDeserializer) {
+    int size = byteBuffer.getInt();
+    if (size == -1) {
+      return null;
+    }
+    Map<K, V> m = mapSupplier.get();
+    return fillMap(byteBuffer, m, keyDeserializer, valueDeserializer, size);
+  }
+
+  private static <K, V> Map<K, V> fillMap(
+      ByteBuffer byteBuffer,
+      Map<K, V> m,
+      Function<ByteBuffer, K> keyDeserializer,
+      Function<ByteBuffer, V> valueDeserializer,
+      int size) {
     for (int i = 0; i < size; i++) {
       m.put(keyDeserializer.apply(byteBuffer), valueDeserializer.apply(byteBuffer));
     }

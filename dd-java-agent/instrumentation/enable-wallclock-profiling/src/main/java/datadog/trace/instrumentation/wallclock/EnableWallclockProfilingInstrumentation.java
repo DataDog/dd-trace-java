@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
@@ -86,8 +86,8 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
-      AgentScope active = AgentTracer.activeScope();
-      if (active == null) {
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span == null) {
         AgentTracer.get().getProfilingContext().onAttach();
         return true;
       }

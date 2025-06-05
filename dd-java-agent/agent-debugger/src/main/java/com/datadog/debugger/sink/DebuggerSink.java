@@ -62,7 +62,7 @@ public class DebuggerSink {
     this.probeStatusSink = probeStatusSink;
     this.snapshotSink = snapshotSink;
     this.symbolSink = symbolSink;
-    this.uploadFlushInterval = config.getDebuggerUploadFlushInterval();
+    this.uploadFlushInterval = config.getDynamicInstrumentationUploadFlushInterval();
   }
 
   public void start() {

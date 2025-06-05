@@ -1,12 +1,15 @@
 package com.datadog.debugger.origin;
 
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_LINE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_METHOD;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_PREFIX;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -14,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.getLineForLineProbe;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
@@ -25,6 +30,7 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -41,6 +47,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.agent.builder.AgentBuilder.InitializationStrategy;
+import net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy;
+import net.bytebuddy.agent.builder.AgentBuilder.TypeStrategy;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher.Junction.Conjunction;
 import org.jetbrains.annotations.NotNull;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,7 +100,22 @@ public class CodeOriginTest extends CapturingTestBase {
     tracer.addTraceInterceptor(traceInterceptor);
 
     setFieldInConfig(Config.get(), "debuggerCodeOriginEnabled", true);
+    setFieldInConfig(Config.get(), "distributedDebuggerEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
+
+    new AgentBuilder.Default()
+        .with(RedefinitionStrategy.RETRANSFORMATION)
+        .with(InitializationStrategy.NoOp.INSTANCE)
+        .with(TypeStrategy.Default.REDEFINE)
+        .type(nameStartsWith("com.datadog.debugger."))
+        .transform(
+            (builder, typeDescription, classLoader, module, protectionDomain) ->
+                builder.visit(
+                    Advice.to(CodeOriginTestAdvice.class)
+                        .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))))
+    //        .installOn(instr)
+    ;
   }
 
   @Test
@@ -127,16 +154,30 @@ public class CodeOriginTest extends CapturingTestBase {
     final String className = "com.datadog.debugger.CodeOrigin05";
 
     installProbes(
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(className, "entry", "()", "53")),
-        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(className, "exit", "()", "62")),
         new CodeOriginProbe(
-            CODE_ORIGIN_DOUBLE_ENTRY_ID, true, Where.of(className, "doubleEntry", "()", "66")));
+            CODE_ORIGIN_ID1,
+            true,
+            Where.of(
+                className, "entry", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID1))),
+        new CodeOriginProbe(
+            CODE_ORIGIN_ID2,
+            false,
+            Where.of(
+                className, "exit", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID2))),
+        new CodeOriginProbe(
+            CODE_ORIGIN_DOUBLE_ENTRY_ID,
+            true,
+            Where.of(
+                className,
+                "doubleEntry",
+                "()",
+                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID))));
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", 0);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
     MutableSpan span = trace.get(0);
     // this should be entry but until we get the ordering resolved, it's this.
-    assertEquals("entry", span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
+    assertEquals("entry", span.getTag(DD_CODE_ORIGIN_FRAME_METHOD));
   }
 
   @Test
@@ -206,11 +247,13 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   @NotNull
-  private CodeOriginProbe[] codeOriginProbes(String type) {
+  private static CodeOriginProbe[] codeOriginProbes(String type) {
     CodeOriginProbe entry =
         new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(type, "entry", "()", "53"));
+
+    int line = getLineForLineProbe(type, CODE_ORIGIN_ID2);
     CodeOriginProbe exit =
-        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "60"));
+        new CodeOriginProbe(CODE_ORIGIN_ID2, false, Where.of(type, "exit", "()", "" + line));
     return new CodeOriginProbe[] {entry, exit};
   }
 
@@ -227,7 +270,7 @@ public class CodeOriginTest extends CapturingTestBase {
             .collect(Collectors.toList());
 
     for (DDSpan span : list) {
-      checkEntrySpanTags(span, snapshotsExpected != 0);
+      checkCodeOriginTags(span, snapshotsExpected != 0);
     }
 
     assertEquals(
@@ -263,18 +306,16 @@ public class CodeOriginTest extends CapturingTestBase {
     return listener;
   }
 
-  private static void checkEntrySpanTags(DDSpan span, boolean includeSnapshot) {
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
-    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "signature"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
+  private static void checkCodeOriginTags(DDSpan span, boolean includeSnapshot) {
+    for (String tag : DDTags.REQUIRED_CODE_ORIGIN_TAGS) {
+      assertKeyPresent(span, tag);
+    }
+    assertNotEquals(-1, span.getTag(DD_CODE_ORIGIN_FRAME_LINE));
 
     if (includeSnapshot) {
-      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyPresent(span, DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID);
     } else {
-      assertKeyNotPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+      assertKeyNotPresent(span, DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID);
     }
   }
 
@@ -293,27 +334,14 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   private static void checkExitSpanTags(DDSpan span, boolean includeSnapshot) {
-    String keys =
-        format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
-
-    assertKeyPresent(span, DD_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "file"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "line"));
-    assertNotEquals(-1, span.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "method"));
-    assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "type"));
-    if (includeSnapshot) {
-      assertKeyPresent(span, format(DD_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+    for (String tag : DDTags.REQUIRED_CODE_ORIGIN_TAGS) {
+      assertKeyPresent(span, tag);
     }
+    assertNotEquals(-1, span.getTag(DD_CODE_ORIGIN_FRAME_LINE));
 
-    MutableSpan rootSpan = span.getLocalRootSpan();
-    assertEquals(rootSpan.getTag(DD_CODE_ORIGIN_TYPE), "entry", keys);
-    Object file = rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "file"));
-    assertNotNull(file, rootSpan.getTags().toString());
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
-    assertNotEquals(-1, rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "line")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "method")));
-    assertNotNull(rootSpan.getTag(format(DD_CODE_ORIGIN_FRAME, 0, "type")));
+    if (includeSnapshot) {
+      assertKeyPresent(span, DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID);
+    }
   }
 
   private static Set<String> ldKeys(MutableSpan span) {

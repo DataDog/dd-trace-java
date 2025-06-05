@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sns;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -14,7 +14,8 @@ import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishBatchRequest;
 import com.amazonaws.services.sns.model.PublishBatchRequestEntry;
 import com.amazonaws.services.sns.model.PublishRequest;
-import datadog.trace.api.TracePropagationStyle;
+import datadog.context.Context;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -37,10 +38,12 @@ public class SnsInterceptor extends RequestHandler2 {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
-      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
+      context = context.with(dsmContext);
     }
+    defaultPropagator().inject(context, jsonBuilder, SETTER);
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append('}');
     return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));

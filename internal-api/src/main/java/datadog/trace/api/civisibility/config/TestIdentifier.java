@@ -3,14 +3,10 @@ package datadog.trace.api.civisibility.config;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/**
- * Uniquely identifies a test case within a module. Multiple executions of the same test case (for
- * example when retries are done) will have the same test identifier.
- */
+/** Uniquely identifies a test case with FQN and parameters. */
 public class TestIdentifier {
+  private final TestFQN fqn;
 
-  private final String suite;
-  private final String name;
   /**
    * Some API endpoints do not return parameters data. If this field is {@code null} then either
    * corresponding test case is not parameterized, or this identifier refers to <strong>all</strong>
@@ -19,17 +15,21 @@ public class TestIdentifier {
   private @Nullable final String parameters;
 
   public TestIdentifier(String suite, String name, @Nullable String parameters) {
-    this.suite = suite;
-    this.name = name;
+    this.fqn = new TestFQN(suite, name);
+    this.parameters = parameters;
+  }
+
+  public TestIdentifier(TestFQN testFQN, @Nullable String parameters) {
+    this.fqn = testFQN;
     this.parameters = parameters;
   }
 
   public String getSuite() {
-    return suite;
+    return fqn.getSuite();
   }
 
   public String getName() {
-    return name;
+    return fqn.getName();
   }
 
   @Nullable
@@ -37,8 +37,8 @@ public class TestIdentifier {
     return parameters;
   }
 
-  public TestIdentifier withoutParameters() {
-    return parameters == null ? this : new TestIdentifier(suite, name, null);
+  public TestFQN toFQN() {
+    return fqn;
   }
 
   @Override
@@ -50,28 +50,16 @@ public class TestIdentifier {
       return false;
     }
     TestIdentifier that = (TestIdentifier) o;
-    return Objects.equals(suite, that.suite)
-        && Objects.equals(name, that.name)
-        && Objects.equals(parameters, that.parameters);
+    return Objects.equals(fqn, that.fqn) && Objects.equals(parameters, that.parameters);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(suite, name, parameters);
+    return Objects.hash(fqn, parameters);
   }
 
   @Override
   public String toString() {
-    return "TestIdentifier{"
-        + "suite='"
-        + suite
-        + '\''
-        + ", name='"
-        + name
-        + '\''
-        + ", parameters='"
-        + parameters
-        + '\''
-        + '}';
+    return "TestIdentifier{" + "fqn=" + fqn + ", parameters='" + parameters + '\'' + '}';
   }
 }

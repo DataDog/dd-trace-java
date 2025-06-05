@@ -9,6 +9,7 @@ import com.google.common.reflect.TypeToken;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import ratpack.handling.Context;
@@ -37,12 +38,12 @@ public final class TracingHandler implements Handler {
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
     final AgentSpan ratpackSpan = startSpan(DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
-    DECORATE.onRequest(ratpackSpan, request, request, null);
+    DECORATE.onRequest(ratpackSpan, request, request, (AgentSpanContext.Extracted) null);
     ctx.getExecution().add(ratpackSpan);
 
     boolean setFinalizer = false;
 
-    try (final AgentScope scope = activateSpan(ratpackSpan, true)) {
+    try (final AgentScope scope = activateSpan(ratpackSpan)) {
 
       ctx.getResponse()
           .beforeSend(

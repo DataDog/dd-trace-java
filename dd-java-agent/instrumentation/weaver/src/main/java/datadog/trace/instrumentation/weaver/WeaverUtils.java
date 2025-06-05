@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.weaver;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -13,6 +16,8 @@ public abstract class WeaverUtils {
   private static final Logger log = LoggerFactory.getLogger(WeaverUtils.class);
 
   private static final ClassLoader CLASS_LOADER = SbtTask.class.getClassLoader();
+
+  public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
 
   private WeaverUtils() {}
 

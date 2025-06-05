@@ -12,6 +12,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.ProcessTags;
+import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
 import java.util.EnumMap;
@@ -86,6 +88,10 @@ public class TelemetryRequestBody extends RequestBody {
       bodyWriter.name("runtime_name").value(commonData.runtimeName);
       bodyWriter.name("runtime_version").value(commonData.runtimeVersion);
       bodyWriter.name("runtime_patches").value(commonData.runtimePatches); // optional
+      final CharSequence processTags = ProcessTags.getTagsForSerialization();
+      if (processTags != null) {
+        bodyWriter.name("process_tags").value(processTags.toString());
+      }
       bodyWriter.endObject();
 
       if (debug) {
@@ -301,6 +307,42 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void endProducts() throws IOException {
     endMessageIfBatch(RequestType.APP_PRODUCT_CHANGE);
+  }
+
+  public void beginEndpoints() throws IOException {
+    beginMessageIfBatch(RequestType.APP_ENDPOINTS);
+    bodyWriter.name("endpoints");
+    bodyWriter.beginArray();
+  }
+
+  public void writeEndpoint(final Endpoint endpoint) throws IOException {
+    bodyWriter.beginObject();
+    bodyWriter.name("type").value(endpoint.getType());
+    bodyWriter.name("method").value(endpoint.getMethod());
+    bodyWriter.name("path").value(endpoint.getPath());
+    bodyWriter.name("operation-name").value(endpoint.getOperation());
+    if (endpoint.getRequestBodyType() != null) {
+      bodyWriter.name("request-body-type").jsonValue(endpoint.getRequestBodyType());
+    }
+    if (endpoint.getResponseBodyType() != null) {
+      bodyWriter.name("response-body-type").jsonValue(endpoint.getResponseBodyType());
+    }
+    if (endpoint.getResponseCode() != null) {
+      bodyWriter.name("response-code").jsonValue(endpoint.getResponseCode());
+    }
+    if (endpoint.getAuthentication() != null) {
+      bodyWriter.name("authentication").jsonValue(endpoint.getAuthentication());
+    }
+    if (endpoint.getMetadata() != null) {
+      bodyWriter.name("metadata").jsonValue(endpoint.getMetadata());
+    }
+    bodyWriter.endObject();
+  }
+
+  public void endEndpoints(final boolean first) throws IOException {
+    bodyWriter.endArray();
+    bodyWriter.name("is_first").value(first);
+    endMessageIfBatch(RequestType.APP_ENDPOINTS);
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)

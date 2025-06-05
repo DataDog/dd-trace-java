@@ -1,5 +1,5 @@
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -15,12 +15,6 @@ jar {
 
 shadowJar {
   configurations = [project.configurations.runtimeClasspath]
-}
-
-// Only needed until the final release of 2.5.0
-repositories {
-  mavenCentral()
-  maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {

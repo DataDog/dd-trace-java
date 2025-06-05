@@ -4,6 +4,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "gradle",
@@ -55,6 +56,7 @@
     "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.test.is_user_provided_service" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "gradle",
       "env" : "integration-test",
@@ -103,6 +105,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -131,6 +134,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -159,6 +163,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -187,9 +192,10 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "component" : "junit",
+      "component" : "junit4",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -218,7 +224,7 @@
       "test.source.end" : 13,
       "test.source.start" : 7
     },
-    "name" : "junit.test_suite",
+    "name" : "junit4.test_suite",
     "resource" : "datadog.smoke.TestFailed",
     "service" : "test-gradle-service",
     "start" : ${content_start_6},
@@ -233,10 +239,18 @@
     "duration" : ${content_duration_7},
     "error" : 1,
     "meta" : {
+      "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.impacted_tests" : "1",
+      "_dd.library_capabilities.test_impact_analysis" : "1",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "4",
+      "_dd.library_capabilities.test_management.disable" : "1",
+      "_dd.library_capabilities.test_management.quarantine" : "1",
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "component" : "junit",
+      "component" : "junit4",
       "env" : "integration-test",
       "error.stack" : ${content_meta_error_stack_3},
       "error.type" : "java.lang.AssertionError",
@@ -269,7 +283,7 @@
       "test.source.end" : 12,
       "test.source.start" : 9
     },
-    "name" : "junit.test",
+    "name" : "junit4.test",
     "parent_id" : ${content_parent_id},
     "resource" : "datadog.smoke.TestFailed.test_failed",
     "service" : "test-gradle-service",
@@ -288,6 +302,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -316,6 +331,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_9},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -344,6 +360,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_10},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},

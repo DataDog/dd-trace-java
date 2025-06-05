@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.config.TestSourceData
+import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -24,7 +25,6 @@ class ProxyTestModuleTest extends DDSpecification {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
-    executionSettings.getFlakyTests() >> null
 
     def config = Stub(Config)
     config.getCiVisibilityFlakyRetryCount() >> 2 // this counts all executions of a test case (first attempt is counted too)
@@ -52,27 +52,33 @@ class ProxyTestModuleTest extends DDSpecification {
       Stub(LinesResolver),
       Stub(CoverageStore.Factory),
       Stub(ChildProcessCoverageReporter),
-      GroovyMock(SignalClient.Factory)
+      GroovyMock(SignalClient.Factory),
+      []
       )
 
     when:
-    def retryPolicy1 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-1", null), TestSourceData.UNKNOWN)
+    def retryPolicy1 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-1", null), TestSourceData.UNKNOWN, [])
 
     then:
-    retryPolicy1.retry(false, 1L) // 2nd test execution, 1st retry globally
-    !retryPolicy1.retry(false, 1L) // asking for 3rd test execution - local limit reached
+    retryPolicy1.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    !retryPolicy1.wasLastExecution()
+    retryPolicy1.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
+    retryPolicy1.wasLastExecution() // asking for 3rd test execution - local limit reached
 
     when:
-    def retryPolicy2 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-2", null), TestSourceData.UNKNOWN)
+    def retryPolicy2 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-2", null), TestSourceData.UNKNOWN, [])
 
     then:
-    retryPolicy2.retry(false, 1L) // 2nd test execution, 2nd retry globally (since previous test was retried too)
-    !retryPolicy2.retry(false, 1L) // asking for 3rd test execution - local limit reached
+    retryPolicy2.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    !retryPolicy2.wasLastExecution()
+    retryPolicy2.registerExecution(TestStatus.fail, 1L) // 2nd test execution, 1st retry globally
+    retryPolicy2.wasLastExecution() // asking for 3rd test execution - local limit reached
 
     when:
-    def retryPolicy3 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-3", null), TestSourceData.UNKNOWN)
+    def retryPolicy3 = proxyTestModule.executionPolicy(new TestIdentifier("suite", "test-3", null), TestSourceData.UNKNOWN, [])
 
     then:
-    !retryPolicy3.retry(false, 1L) // asking for 3rd retry globally - global limit reached
+    retryPolicy3.registerExecution(TestStatus.fail, 1L) // 1st test execution
+    retryPolicy3.wasLastExecution() // asking for 3rd retry globally - global limit reached
   }
 }

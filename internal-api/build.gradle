@@ -57,6 +57,13 @@ excludedClassesCoverage += [
   'datadog.trace.api.appsec.AppSecEventTracker',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
+  // Data Streams Monitoring
+  "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
+  "datadog.trace.api.datastreams.NoopPathwayContext",
+  "datadog.trace.api.datastreams.StatsPoint",
+  // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
@@ -64,41 +71,44 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   // Caused by empty 'default' interface method
+  "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
+  "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
+  "datadog.trace.bootstrap.instrumentation.api.AgentScope",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.BlackholeAgentSpan",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.BlackholeContext",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContinuation",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
-  "datadog.trace.bootstrap.instrumentation.api.Backlog",
+  "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
+  "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
+  "datadog.trace.bootstrap.instrumentation.api.ExtractedSpan",
+  "datadog.trace.bootstrap.instrumentation.api.ImmutableSpan",
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
   "datadog.trace.bootstrap.instrumentation.api.InternalContextKeys",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
+  "datadog.trace.bootstrap.instrumentation.api.NoopAgentScope",
+  "datadog.trace.bootstrap.instrumentation.api.NoopAgentSpan",
+  "datadog.trace.bootstrap.instrumentation.api.NoopContinuation",
+  "datadog.trace.bootstrap.instrumentation.api.NoopScope",
+  "datadog.trace.bootstrap.instrumentation.api.NoopSpan",
+  "datadog.trace.bootstrap.instrumentation.api.NoopSpanContext",
+  "datadog.trace.bootstrap.instrumentation.api.NotSampledSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities",
   "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContext",
   "datadog.trace.bootstrap.instrumentation.api.ScopedContextKey",
-  "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
   "datadog.trace.bootstrap.instrumentation.api.TagContext.HttpHeaders",
-  "datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings",
-  "datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings.ExecutionsByDuration",
   "datadog.trace.api.civisibility.config.TestIdentifier",
+  "datadog.trace.api.civisibility.config.TestFQN",
   "datadog.trace.api.civisibility.config.TestMetadata",
   "datadog.trace.api.civisibility.config.TestSourceData",
+  "datadog.trace.api.civisibility.config.LibraryCapability",
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
   "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
@@ -116,6 +126,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   "datadog.trace.api.civisibility.events.TestDescriptor",
   "datadog.trace.api.civisibility.events.TestSuiteDescriptor",
+  "datadog.trace.api.civisibility.execution.TestStatus",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric.IndexHolder",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
@@ -129,6 +140,7 @@ excludedClassesCoverage += [
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
+  "datadog.trace.api.git.GitInfoProvider.ShaDiscrepancy",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO
@@ -138,6 +150,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.Config",
   "datadog.trace.api.Config.HostNameHolder",
   "datadog.trace.api.Config.RuntimeIdHolder",
   "datadog.trace.api.ConfigCollector",
@@ -157,6 +170,14 @@ excludedClassesCoverage += [
   "datadog.trace.util.ClassNameTrie.Builder",
   "datadog.trace.util.ClassNameTrie.JavaGenerator",
   "datadog.trace.util.CollectionUtils",
+  "datadog.trace.util.ComparableVersion",
+  "datadog.trace.util.ComparableVersion.BigIntegerItem",
+  "datadog.trace.util.ComparableVersion.IntItem",
+  "datadog.trace.util.ComparableVersion.ListItem",
+  "datadog.trace.util.ComparableVersion.LongItem",
+  "datadog.trace.util.ComparableVersion.StringItem",
+  "datadog.trace.util.ConcurrentEnumMap",
+  "datadog.trace.util.JPSUtils",
   "datadog.trace.util.MethodHandles",
   "datadog.trace.util.PidHelper",
   "datadog.trace.util.PidHelper.Fallback",
@@ -179,9 +200,13 @@ excludedClassesCoverage += [
   // POJO
   'datadog.trace.api.iast.util.Cookie',
   'datadog.trace.api.iast.util.Cookie.Builder',
+  'datadog.trace.api.telemetry.Endpoint',
+  'datadog.trace.api.telemetry.Endpoint.Method',
   'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   "datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint",
   "datadog.trace.api.telemetry.MetricCollector",
+  //Enum
+  "datadog.trace.api.telemetry.WafTruncatedType",
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',
@@ -195,16 +220,22 @@ excludedClassesCoverage += [
   'datadog.trace.util.stacktrace.StackTraceFrame',
   'datadog.trace.api.iast.VulnerabilityMarks',
   'datadog.trace.api.iast.securitycontrol.SecurityControlHelper',
-  'datadog.trace.api.iast.securitycontrol.SecurityControl'
+  'datadog.trace.api.iast.securitycontrol.SecurityControl',
+  // Trivial holder and no-op
+  'datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.Holder',
+  'datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor',
 ]
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
-  'datadog.trace.api.Config',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]
-excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
+excludedClassesInstructionCoverage = [
+  'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
+  'datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource',
+  'datadog.trace.util.stacktrace.StackWalkerFactory'
+]
 
 compileTestJava.dependsOn 'generateTestClassNameTries'
 
@@ -213,12 +244,15 @@ dependencies {
   api project(':dd-trace-api')
   api libs.slf4j
   api project(':components:context')
+  api project(':components:yaml')
+  api project(':components:cli')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
+  testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5

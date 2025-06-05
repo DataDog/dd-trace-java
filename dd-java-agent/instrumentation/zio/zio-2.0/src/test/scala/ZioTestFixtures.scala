@@ -1,5 +1,4 @@
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource.INSTRUMENTATION
 import zio._
 
 import java.util.concurrent.Executors
@@ -127,7 +126,7 @@ object ZioTestFixtures {
             .start()
         )
         ddScope <- ZIO.succeed(
-          AgentTracer.get().activateSpan(ddSpan, INSTRUMENTATION)
+          AgentTracer.get().activateManualSpan(ddSpan)
         )
         _ <- scope.addFinalizer(ZIO.succeed(ddScope.close()))
         _ <- scope.addFinalizer(ZIO.succeed(ddSpan.finish()))

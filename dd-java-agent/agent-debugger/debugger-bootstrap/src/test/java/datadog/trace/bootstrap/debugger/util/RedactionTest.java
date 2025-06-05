@@ -28,7 +28,7 @@ class RedactionTest {
   @Test
   public void userDefinedKeywords() {
     Config config = Config.get();
-    setFieldInConfig(config, "debuggerRedactedIdentifiers", "_MotDePasse,$Passwort");
+    setFieldInConfig(config, "dynamicInstrumentationRedactedIdentifiers", "_MotDePasse,$Passwort");
     try {
       Redaction.addUserDefinedKeywords(config);
       assertTrue(Redaction.isRedactedKeyword("mot-de-passe"));
@@ -41,7 +41,8 @@ class RedactionTest {
   @Test
   public void userDefinedTypes() {
     Config config = Config.get();
-    setFieldInConfig(config, "debuggerRedactedTypes", "java.security.Security,javax.security.*");
+    setFieldInConfig(
+        config, "dynamicInstrumentationRedactedTypes", "java.security.Security,javax.security.*");
     try {
       Redaction.addUserDefinedTypes(Config.get());
       assertTrue(Redaction.isRedactedType("java.security.Security"));
@@ -55,12 +56,16 @@ class RedactionTest {
   public void exclusions() {
     Config config = Config.get();
     setFieldInConfig(
-        config, "debuggerRedactionExcludedIdentifiers", new HashSet<>(Arrays.asList("password")));
+        config,
+        "dynamicInstrumentationRedactionExcludedIdentifiers",
+        new HashSet<>(Arrays.asList("password", "_2FA")));
     Redaction.initKeywords();
     try {
       assertFalse(Redaction.isRedactedKeyword("password"));
+      assertFalse(Redaction.isRedactedKeyword("_2fa"));
     } finally {
-      setFieldInConfig(config, "debuggerRedactionExcludedIdentifiers", Collections.emptySet());
+      setFieldInConfig(
+          config, "dynamicInstrumentationRedactionExcludedIdentifiers", Collections.emptySet());
       Redaction.initKeywords();
     }
   }

@@ -40,7 +40,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active().delegate == scope1
+    scopeManager.active().span().delegate == span1
     !spanFinished(span1)
 
     when:
@@ -54,7 +54,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active().delegate == scope2
+    scopeManager.active().span().delegate == span2
     !spanFinished(span2)
 
     when:
@@ -69,7 +69,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active().delegate == scope3
+    scopeManager.active().span().delegate == span3
     !spanFinished(span3)
 
     when:
@@ -96,7 +96,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active().delegate == scope1
+    scopeManager.active().span().delegate == span1
     !spanFinished(span1)
 
     when:
@@ -110,7 +110,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope2.span() == span2
-    scopeManager.active().delegate == scope2
+    scopeManager.active().span().delegate == span2
     !spanFinished(span2)
 
     when:
@@ -124,7 +124,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope3.span() == span3
-    scopeManager.active().delegate == scope3
+    scopeManager.active().span().delegate == span3
     !spanFinished(span3)
 
     // close and finish the surrounding (non-iteration) span to complete the trace
@@ -150,7 +150,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1.span() == span1
-    scopeManager.active().delegate == scope1
+    scopeManager.active().span().delegate == span1
     !spanFinished(span1)
 
     when:
@@ -168,7 +168,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A1.span() == span1A1
-    scopeManager.active().delegate == scope1A1
+    scopeManager.active().span().delegate == span1A1
     !spanFinished(span1A1)
 
     when:
@@ -182,7 +182,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     and:
     scope1A2.span() == span1A2
-    scopeManager.active().delegate == scope1A2
+    scopeManager.active().span().delegate == span1A2
     !spanFinished(span1A2)
 
     when:

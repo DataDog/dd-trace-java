@@ -1,21 +1,21 @@
 package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
@@ -66,19 +66,19 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     public static boolean /* skip body */ methodEnter(
-        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Local("contextScope") ContextScope scope,
         @Advice.Argument(0) final Request request,
         @Advice.Argument(1) final Response response) {
       if (request.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
         return false;
       }
 
-      final AgentSpanContext.Extracted parentContext = DECORATE.extract(request);
+      final Context parentContext = DECORATE.extractContext(request);
       final AgentSpan span = DECORATE.startSpan(request, parentContext);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      scope = activateSpan(span, true);
+      scope = parentContext.with(span).attach();
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
@@ -101,14 +101,14 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
     public static void methodExit(
         @Advice.Enter boolean skippedBody,
         @Advice.Return(readOnly = false) boolean retVal,
-        @Advice.Local("agentScope") AgentScope scope,
+        @Advice.Local("contextScope") ContextScope scope,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
       if (throwable != null) {
-        final AgentSpan span = scope.span();
+        final AgentSpan span = spanFromContext(scope.context());
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();

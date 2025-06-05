@@ -9,7 +9,9 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.MUnitUtils;
@@ -17,6 +19,7 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -62,7 +65,7 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionHistory.class.getName());
   }
 
   @Override
@@ -88,35 +91,31 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
       Description description = MUnitUtils.createDescription(runner, test);
       TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+      Collection<String> testTags = MUnitUtils.getCategories(description);
 
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-              testIdentifier, testSourceData);
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.MUNIT)
+              .executionPolicy(testIdentifier, testSourceData, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestExecutionPolicy.class)
+      InstrumentationContext.get(Description.class, TestExecutionHistory.class)
           .put(description, executionPolicy);
 
       Future<?> result = Future.successful(false);
 
       FailureSuppressingNotifier failureSuppressingNotifier =
           new FailureSuppressingNotifier(executionPolicy, notifier);
-      long duration;
-      boolean testFailed;
       do {
-        long startTimestamp = System.currentTimeMillis();
         try {
           runTest.setAccessible(true);
           result = (Future<?>) runTest.invoke(runner, failureSuppressingNotifier, test);
-          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
-        } catch (Throwable throwable) {
-          testFailed = true;
+        } catch (Throwable ignored) {
         }
-        duration = System.currentTimeMillis() - startTimestamp;
-      } while (executionPolicy.retry(!testFailed, duration));
+      } while (!executionPolicy.wasLastExecution());
 
       // skip original method
       return result;

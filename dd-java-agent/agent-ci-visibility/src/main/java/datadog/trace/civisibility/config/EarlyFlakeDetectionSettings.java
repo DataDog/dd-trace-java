@@ -1,8 +1,14 @@
 package datadog.trace.civisibility.config;
 
+import com.squareup.moshi.FromJson;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 public class EarlyFlakeDetectionSettings {
 
@@ -34,15 +40,6 @@ public class EarlyFlakeDetectionSettings {
     return executionsByDuration;
   }
 
-  public int getExecutions(long durationMillis) {
-    for (ExecutionsByDuration e : executionsByDuration) {
-      if (durationMillis <= e.durationMillis) {
-        return e.executions;
-      }
-    }
-    return 0;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -62,38 +59,84 @@ public class EarlyFlakeDetectionSettings {
     return Objects.hash(enabled, executionsByDuration, faultySessionThreshold);
   }
 
-  public static final class ExecutionsByDuration {
-    public final long durationMillis;
-    public final int executions;
-
-    public ExecutionsByDuration(long durationMillis, int executions) {
-      this.durationMillis = durationMillis;
-      this.executions = executions;
-    }
-
-    public long getDurationMillis() {
-      return durationMillis;
-    }
-
-    public int getExecutions() {
-      return executions;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
+  public static final class Serializer {
+    public static void serialize(
+        datadog.trace.civisibility.ipc.serialization.Serializer serializer,
+        EarlyFlakeDetectionSettings settings) {
+      if (!settings.enabled) {
+        serializer.write((byte) 0);
+        return;
       }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ExecutionsByDuration that = (ExecutionsByDuration) o;
-      return durationMillis == that.durationMillis && executions == that.executions;
+      serializer.write((byte) 1);
+      serializer.write(settings.faultySessionThreshold);
+      serializer.write(settings.executionsByDuration, ExecutionsByDuration.Serializer::serialize);
     }
 
-    @Override
-    public int hashCode() {
-      return Objects.hash(durationMillis, executions);
+    public static EarlyFlakeDetectionSettings deserialize(ByteBuffer buf) {
+      boolean enabled = datadog.trace.civisibility.ipc.serialization.Serializer.readByte(buf) != 0;
+      if (!enabled) {
+        return EarlyFlakeDetectionSettings.DEFAULT;
+      }
+
+      int faultySessionThreshold =
+          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
+      List<ExecutionsByDuration> executionsByDuration =
+          datadog.trace.civisibility.ipc.serialization.Serializer.readList(
+              buf, ExecutionsByDuration.Serializer::deserialize);
+      return new EarlyFlakeDetectionSettings(enabled, executionsByDuration, faultySessionThreshold);
+    }
+  }
+
+  public static final class JsonAdapter {
+    public static final JsonAdapter INSTANCE = new JsonAdapter();
+
+    @FromJson
+    public EarlyFlakeDetectionSettings fromJson(Map<String, Object> json) {
+      if (json == null) {
+        return EarlyFlakeDetectionSettings.DEFAULT;
+      }
+
+      Boolean enabled = (Boolean) json.get("enabled");
+      Double faultySessionThreshold = (Double) json.get("faulty_session_threshold");
+
+      List<ExecutionsByDuration> executionsByDuration;
+      Map<String, Double> slowTestRetries = (Map<String, Double>) json.get("slow_test_retries");
+      if (slowTestRetries != null) {
+        executionsByDuration = new ArrayList<>(slowTestRetries.size());
+        for (Map.Entry<String, Double> e : slowTestRetries.entrySet()) {
+          long durationMillis = parseDuration(e.getKey());
+          int retries = e.getValue().intValue();
+          executionsByDuration.add(new ExecutionsByDuration(durationMillis, retries));
+        }
+        executionsByDuration.sort(Comparator.comparingLong(r -> r.durationMillis));
+      } else {
+        executionsByDuration = Collections.emptyList();
+      }
+
+      return new EarlyFlakeDetectionSettings(
+          enabled != null ? enabled : false,
+          executionsByDuration,
+          faultySessionThreshold != null ? faultySessionThreshold.intValue() : -1);
+    }
+
+    private static long parseDuration(String duration) {
+      char lastCharacter = duration.charAt(duration.length() - 1);
+      int numericValue = Integer.parseInt(duration.substring(0, duration.length() - 1));
+      TimeUnit timeUnit;
+      switch (lastCharacter) {
+        case 's':
+          timeUnit = TimeUnit.SECONDS;
+          break;
+        case 'm':
+          timeUnit = TimeUnit.MINUTES;
+          break;
+        case 'h':
+          timeUnit = TimeUnit.HOURS;
+          break;
+        default:
+          throw new IllegalArgumentException("Unexpected duration unit: " + lastCharacter);
+      }
+      return timeUnit.toMillis(numericValue);
     }
   }
 }

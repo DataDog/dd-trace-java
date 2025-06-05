@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,7 +23,7 @@ public class TracingListener implements EngineExecutionListener {
   public TracingListener(TestEngine testEngine) {
     String engineId = testEngine.getId();
     testFramework = engineId == null || engineId.startsWith("junit") ? "junit5" : engineId;
-    testFrameworkVersion = testEngine.getVersion().orElse(null);
+    testFrameworkVersion = JUnitPlatformUtils.getFrameworkVersion(testEngine);
   }
 
   @Override
@@ -64,16 +65,18 @@ public class TracingListener implements EngineExecutionListener {
         testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        testFramework,
-        testFrameworkVersion,
-        testClass,
-        tags,
-        false,
-        TestFrameworkInstrumentation.JUNIT5,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            testFramework,
+            testFrameworkVersion,
+            testClass,
+            tags,
+            false,
+            TestFrameworkInstrumentation.JUNIT5,
+            null);
   }
 
   private void containerExecutionFinished(
@@ -86,16 +89,22 @@ public class TracingListener implements EngineExecutionListener {
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         String reason = throwable.getMessage();
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.JUNIT5)
+            .onTestSuiteSkip(suiteDescriptor, reason);
 
         for (TestDescriptor child : suiteDescriptor.getChildren()) {
           executionSkipped(child, reason);
         }
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.JUNIT5)
+            .onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -111,21 +120,22 @@ public class TracingListener implements EngineExecutionListener {
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        testFramework,
-        testFrameworkVersion,
-        testParameters,
-        tags,
-        testSourceData,
-        JUnitPlatformUtils.retryReason(testDescriptor),
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestStart(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            testFramework,
+            testFrameworkVersion,
+            testParameters,
+            tags,
+            testSourceData,
+            null,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
   }
 
   private void testCaseExecutionFinished(
@@ -136,18 +146,25 @@ public class TracingListener implements EngineExecutionListener {
     }
   }
 
-  private static void testMethodExecutionFinished(
+  private void testMethodExecutionFinished(
       TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-            testDescriptor, throwable.getMessage());
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.JUNIT5)
+            .onTestSkip(testDescriptor, throwable.getMessage());
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.JUNIT5)
+            .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory =
+        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   @Override
@@ -176,23 +193,29 @@ public class TracingListener implements EngineExecutionListener {
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        testFramework,
-        testFrameworkVersion,
-        testClass,
-        tags,
-        false,
-        TestFrameworkInstrumentation.JUNIT5,
-        null);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            testFramework,
+            testFrameworkVersion,
+            testClass,
+            tags,
+            false,
+            TestFrameworkInstrumentation.JUNIT5,
+            null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestSuiteSkip(suiteDescriptor, reason);
 
     for (TestDescriptor child : suiteDescriptor.getChildren()) {
       executionSkipped(child, reason);
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testMethodExecutionSkipped(
@@ -206,15 +229,18 @@ public class TracingListener implements EngineExecutionListener {
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        testFramework,
-        testFrameworkVersion,
-        testParameters,
-        tags,
-        testSourceData,
-        reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT5)
+        .onTestIgnore(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            testFramework,
+            testFrameworkVersion,
+            testParameters,
+            tags,
+            testSourceData,
+            reason,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
   }
 }

@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.netty41.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
@@ -12,10 +13,11 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -77,7 +79,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
-    final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
+    final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
@@ -89,10 +91,8 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
-        propagate().inject(span, request.headers(), SETTER);
-        propagate()
-            .injectPathwayContext(
-                span, request.headers(), SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+        defaultPropagator().inject(Context.current().with(dsmContext), request.headers(), SETTER);
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);

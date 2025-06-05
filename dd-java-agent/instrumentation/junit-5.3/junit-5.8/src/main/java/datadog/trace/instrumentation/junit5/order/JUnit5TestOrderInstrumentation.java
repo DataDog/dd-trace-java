@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
@@ -51,8 +52,8 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".TestEventsHandlerHolder",
       parentPackageName + ".JUnitPlatformUtils",
+      parentPackageName + ".TestEventsHandlerHolder",
       packageName + ".JUnit5OrderUtils",
       packageName + ".FailFastClassOrderer",
       packageName + ".FailFastMethodOrderer",
@@ -90,7 +91,8 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
         classOrderer =
             Optional.of(
                 new FailFastClassOrderer(
-                    TestEventsHandlerHolder.TEST_EVENTS_HANDLER, classOrderer.orElse(null)));
+                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+                    classOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
@@ -118,7 +120,8 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
         methodOrderer =
             Optional.of(
                 new FailFastMethodOrderer(
-                    TestEventsHandlerHolder.TEST_EVENTS_HANDLER, methodOrderer.orElse(null)));
+                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+                    methodOrderer.orElse(null)));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }

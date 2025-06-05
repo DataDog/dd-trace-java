@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.trace_annotation;
 
+import static datadog.trace.bootstrap.debugger.DebuggerContext.*;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
@@ -13,7 +15,10 @@ public class TraceAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
-    return activateSpan(DECORATE.startMethodSpan(method));
+    AgentScope agentScope = activateSpan(DECORATE.startMethodSpan(method));
+    marker();
+    captureCodeOrigin(method, true);
+    return agentScope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

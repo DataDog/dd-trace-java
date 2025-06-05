@@ -9,6 +9,8 @@ import net.bytebuddy.jar.asm.Type
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode.PREPEND_ARRAY_CTOR
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.AFTER
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.BEFORE
 
 class CallSiteInstrumentationTest extends BaseCallSiteTest {
 
@@ -84,7 +86,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
             )
         }
       }
-    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(advice, pointcut)]))
+    final callSiteTransformer = new CallSiteTransformer(mockAdvices([mockCallSites(AFTER, advice, pointcut)]))
 
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
@@ -101,7 +103,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     @Override
     void accept(final Container container) {
       final pointcut = buildPointcut(String.getDeclaredMethod('concat', String))
-      container.addAdvice(pointcut.type, pointcut.method, pointcut.descriptor, new StringConcatAdvice())
+      container.addAdvice(BEFORE, pointcut.type, pointcut.method, pointcut.descriptor, new StringConcatAdvice())
     }
   }
 

@@ -1,20 +1,33 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.base.WebsocketServer
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
+import datadog.trace.util.TraceUtils
+import jakarta.servlet.ServletContextEvent
+import jakarta.servlet.ServletContextListener
+import jakarta.websocket.Session
+import jakarta.websocket.server.ServerContainer
 import org.apache.catalina.Context
 import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
+import org.apache.tomcat.websocket.server.WsSci
 
-class TomcatServer implements HttpServer {
+import java.nio.ByteBuffer
+
+class TomcatServer implements WebsocketServer {
   def port = 0
   final Tomcat server
   final String context
   final boolean dispatch
+  volatile Session activeSession
+  final boolean wsAsyncSend
 
-  TomcatServer(String context, boolean dispatch, Closure setupServlets) {
+  TomcatServer(String context, boolean dispatch, Closure setupServlets, Closure setupWebsockets, boolean wsAsyncSend = false) {
     this.context = context
     this.dispatch = dispatch
+    this.wsAsyncSend = wsAsyncSend
     server = new Tomcat()
 
     def baseDir = Files.createTempDir()
@@ -39,7 +52,10 @@ class TomcatServer implements HttpServer {
         }
       }
     setupServlets(servletContext)
-
+    servletContext.addServletContainerInitializer(new WsSci(), null)
+    def listeners = new ArrayList(Arrays.asList(servletContext.getApplicationLifecycleListeners()))
+    listeners.add(new EndpointDeployer(setupWebsockets))
+    servletContext.setApplicationLifecycleListeners(listeners.toArray())
     (server.host as StandardHost).errorReportValveClass = TomcatServletTest.ErrorHandlerValve.name
   }
 
@@ -48,6 +64,12 @@ class TomcatServer implements HttpServer {
     server.start()
     port = server.service.findConnectors()[0].localPort
     assert port > 0
+    if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+      def serverName = TraceUtils.normalizeTag(server.getEngine().getName())
+      assert ProcessTags.getTagsAsStringList().containsAll(["server.type:tomcat", "server.name:" + serverName])
+    } else {
+      assert ProcessTags.getTagsAsStringList() == null
+    }
   }
 
   @Override
@@ -74,5 +96,78 @@ class TomcatServer implements HttpServer {
   @Override
   String toString() {
     return this.class.name
+  }
+
+  @Override
+  void serverSendText(String[] messages) {
+    if (wsAsyncSend && messages.length == 1) { // async does not support partial write
+      WsEndpoint.activeSession.getAsyncRemote().sendText(messages[0])
+    } else {
+      if (messages.length == 1) {
+        WsEndpoint.activeSession.getBasicRemote().sendText(messages[0])
+      } else {
+        def remoteEndpoint = WsEndpoint.activeSession.getBasicRemote()
+        for (int i = 0; i < messages.length; i++) {
+          remoteEndpoint.sendText(messages[i], i == messages.length - 1)
+        }
+      }
+    }
+  }
+
+  @Override
+  void serverSendBinary(byte[][] binaries) {
+    if (wsAsyncSend && binaries.length == 1) { // async does not support partial write
+      WsEndpoint.activeSession.getAsyncRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+    } else {
+      if (binaries.length == 1) {
+        WsEndpoint.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
+      } else {
+        try (def stream = WsEndpoint.activeSession.getBasicRemote().getSendStream()) {
+          binaries.each { stream.write(it) }
+        }
+      }
+    }
+  }
+
+  @Override
+  synchronized void awaitConnected() {
+    synchronized (WsEndpoint) {
+      try {
+        while (WsEndpoint.activeSession == null) {
+          WsEndpoint.wait()
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt()
+      }
+    }
+  }
+
+  @Override
+  void serverClose() {
+    WsEndpoint.activeSession.close()
+    WsEndpoint.activeSession = null
+  }
+
+  @Override
+  void setMaxPayloadSize(int size) {
+    WsEndpoint.activeSession.setMaxTextMessageBufferSize(size)
+    WsEndpoint.activeSession.setMaxBinaryMessageBufferSize(size)
+  }
+
+  static class EndpointDeployer implements ServletContextListener {
+    final Closure wsDeployCallback
+
+    EndpointDeployer(Closure wsDeployCallback) {
+      this.wsDeployCallback = wsDeployCallback
+    }
+
+    @Override
+    void contextInitialized(ServletContextEvent sce) {
+      wsDeployCallback.call((ServerContainer) sce.getServletContext().getAttribute(ServerContainer.class.getName()))
+    }
+
+    @Override
+    void contextDestroyed(ServletContextEvent servletContextEvent) {
+    }
   }
 }

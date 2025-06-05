@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.play26;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_REQUEST;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -19,10 +19,11 @@ import scala.concurrent.Future;
 
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
+  public static ContextScope onEnter(
       @Advice.Argument(value = 0, readOnly = false) Request req,
-      @Advice.Local("extractedContext") AgentSpanContext.Extracted extractedContext) {
+      @Advice.Local("extractedContext") Context extractedContext) {
     final AgentSpan span;
+    final ContextScope scope;
 
     // If we have already added a `play.request` span, then don't do it again
     if (req.attrs().contains(HasPlayRequestSpan.KEY)) {
@@ -31,14 +32,16 @@ public class PlayAdvice {
 
     if (activeSpan() == null) {
       final Headers headers = req.headers();
-      extractedContext = DECORATE.extract(headers);
+      extractedContext = DECORATE.extractContext(headers);
       span = DECORATE.startSpan(headers, extractedContext);
+      scope = extractedContext.with(span).attach();
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
+      scope = span.attach();
     }
-    final AgentScope scope = activateSpan(span, true);
+
     span.setMeasured(true);
     DECORATE.afterStart(span);
 
@@ -49,8 +52,8 @@ public class PlayAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopTraceOnResponse(
-      @Advice.Enter final AgentScope playControllerScope,
-      @Advice.Local("extractedContext") AgentSpanContext.Extracted extractedContext,
+      @Advice.Enter final ContextScope playControllerScope,
+      @Advice.Local("extractedContext") Context extractedContext,
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request req,
@@ -60,7 +63,7 @@ public class PlayAdvice {
       return;
     }
 
-    final AgentSpan playControllerSpan = playControllerScope.span();
+    final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(playControllerSpan, req, req, extractedContext);

@@ -6,7 +6,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -27,7 +27,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test_session",
+    "name" : "junit5.test_session",
     "resource" : "junit-5.3",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start},
@@ -41,7 +41,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
-      "component" : "junit",
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -57,7 +57,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
-    "name" : "junit.test_module",
+    "name" : "junit5.test_module",
     "resource" : "junit-5.3",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_2},
@@ -72,7 +72,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
-      "component" : "junit",
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -92,7 +92,7 @@
       "test.source.end" : 19,
       "test.source.start" : 11
     },
-    "name" : "junit.test_suite",
+    "name" : "junit5.test_suite",
     "resource" : "org.example.TestSucceedSlow",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
@@ -109,7 +109,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -137,7 +137,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "junit5.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedSlow.test_succeed",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -157,7 +157,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "junit5",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -171,7 +171,7 @@
       "test.is_retry" : "true",
       "test.module" : "junit-5.3",
       "test.name" : "test_succeed",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_succeed()V",
       "test.status" : "pass",
@@ -187,7 +187,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "junit5.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedSlow.test_succeed",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",

@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class OkHttp2AsyncTest extends OkHttp2Test {
@@ -52,7 +53,7 @@ abstract class OkHttp2AsyncTest extends OkHttp2Test {
   def "callbacks should carry context with error = #error" () {
 
     when:
-    def captured = AgentTracer.noopSpan()
+    def captured = noopSpan()
     try {
       TraceUtils.runUnderTrace("parent", {
         doRequest(method, url, ["Datadog-Meta-Lang": "java"], "", { captured = AgentTracer.activeSpan() })

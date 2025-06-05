@@ -102,6 +102,71 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   }
 
+  void 'Tainted mail Text Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageText = "This is a test message"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageText", messageText)
+      .addFormDataPart("sanitize", "false")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+
+  void 'Tainted mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent).build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    hasVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
+  void 'Sanitized mail Content Jakarta'() {
+    given:
+    String url = "http://localhost:${httpPort}/jakartaMailHtmlVulnerability"
+    String messageContent = "<html><body><h1>This is a test message</h1></body></html>"
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("messageContent", messageContent)
+      .addFormDataPart("sanitize", "true")
+      .build()
+    Request request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+
+    when:
+    client.newCall(request).execute().body().string()
+
+    then:
+    noVulnerability { vulnerability ->
+      vulnerability.type == 'EMAIL_HTML_INJECTION'
+    }
+  }
+
   void 'Multipart Request original file name'() {
     given:
     String url = "http://localhost:${httpPort}/multipart"

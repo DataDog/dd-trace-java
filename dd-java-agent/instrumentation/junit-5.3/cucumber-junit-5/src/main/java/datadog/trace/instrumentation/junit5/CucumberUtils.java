@@ -21,7 +21,9 @@ public abstract class CucumberUtils {
 
   static {
     TestDataFactory.register(
-        "cucumber", CucumberUtils::toTestIdentifier, d -> TestSourceData.UNKNOWN);
+        JUnitPlatformUtils.ENGINE_ID_CUCUMBER,
+        CucumberUtils::toTestIdentifier,
+        d -> TestSourceData.UNKNOWN);
   }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {

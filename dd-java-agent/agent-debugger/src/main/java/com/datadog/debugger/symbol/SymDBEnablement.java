@@ -1,7 +1,5 @@
 package com.datadog.debugger.symbol;
 
-import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
-
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.PollingRateHinter;
@@ -10,34 +8,24 @@ import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.regex.Pattern;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymDBEnablement implements ProductListener {
   private static final Logger LOGGER = LoggerFactory.getLogger(SymDBEnablement.class);
-  private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final JsonAdapter<SymDbRemoteConfigRecord> SYM_DB_JSON_ADAPTER =
       MoshiHelper.createMoshiConfig().adapter(SymDbRemoteConfigRecord.class);
   private static final String SYM_DB_RC_KEY = "symDb";
@@ -96,7 +84,10 @@ public class SymDBEnablement implements ProductListener {
 
   public void stopSymbolExtraction() {
     LOGGER.debug("Stopping symbol extraction.");
-    instrumentation.removeTransformer(symbolExtractionTransformer);
+    if (symbolExtractionTransformer != null) {
+      instrumentation.removeTransformer(symbolExtractionTransformer);
+      symbolExtractionTransformer = null;
+    }
   }
 
   long getLastUploadTimestamp() {
@@ -120,7 +111,7 @@ public class SymDBEnablement implements ProductListener {
         symbolExtractionTransformer =
             new SymbolExtractionTransformer(symbolAggregator, classNameFilter);
         instrumentation.addTransformer(symbolExtractionTransformer);
-        SymDBReport symDBReport = new SymDBReport();
+        SymDBReport symDBReport = new BasicSymDBReport();
         extractSymbolForLoadedClasses(symDBReport);
         symDBReport.report();
         lastUploadTimestamp = System.currentTimeMillis();
@@ -145,7 +136,6 @@ public class SymDBEnablement implements ProductListener {
       LOGGER.debug("Failed to get all loaded classes", ex);
       return;
     }
-    Set<String> alreadyScannedJars = new HashSet<>();
     byte[] buffer = new byte[READ_BUFFER_SIZE];
     ByteArrayOutputStream baos = new ByteArrayOutputStream(CLASSFILE_BUFFER_SIZE);
     for (Class<?> clazz : classesToExtract) {
@@ -162,86 +152,7 @@ public class SymDBEnablement implements ProductListener {
         symDBReport.addMissingJar(jarPath.toString());
         continue;
       }
-      File jarPathFile = jarPath.toFile();
-      if (jarPathFile.isDirectory()) {
-        scanDirectory(jarPath, alreadyScannedJars, baos, buffer, symDBReport);
-        alreadyScannedJars.add(jarPath.toString());
-        continue;
-      }
-      if (alreadyScannedJars.contains(jarPath.toString())) {
-        continue;
-      }
-      try {
-        try (JarFile jarFile = new JarFile(jarPathFile)) {
-          jarFile.stream()
-              .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
-              .filter(
-                  jarEntry ->
-                      !classNameFilter.isExcluded(
-                          Strings.getClassName(trimPrefixes(jarEntry.getName()))))
-              .forEach(jarEntry -> parseJarEntry(jarEntry, jarFile, jarPath, baos, buffer));
-        }
-        alreadyScannedJars.add(jarPath.toString());
-      } catch (IOException e) {
-        symDBReport.addIOException(jarPath.toString(), e);
-        throw new RuntimeException(e);
-      }
-    }
-  }
-
-  private void scanDirectory(
-      Path jarPath,
-      Set<String> alreadyScannedJars,
-      ByteArrayOutputStream baos,
-      byte[] buffer,
-      SymDBReport symDBReport) {
-    try {
-      Files.walk(jarPath)
-          // explicitly no follow links walking the directory to avoid cycles
-          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-          .filter(path -> path.toString().endsWith(".class"))
-          .filter(
-              path ->
-                  !classNameFilter.isExcluded(
-                      Strings.getClassName(trimPrefixes(jarPath.relativize(path).toString()))))
-          .forEach(path -> parseFileEntry(path, jarPath, baos, buffer));
-      alreadyScannedJars.add(jarPath.toString());
-    } catch (IOException e) {
-      symDBReport.addIOException(jarPath.toString(), e);
-      throw new RuntimeException(e);
-    }
-  }
-
-  private void parseFileEntry(Path path, Path jarPath, ByteArrayOutputStream baos, byte[] buffer) {
-    LOGGER.debug("parsing file class: {}", path.toString());
-    try {
-      try (InputStream inputStream = Files.newInputStream(path)) {
-        int readBytes;
-        baos.reset();
-        while ((readBytes = inputStream.read(buffer)) != -1) {
-          baos.write(buffer, 0, readBytes);
-        }
-        symbolAggregator.parseClass(
-            path.getFileName().toString(), baos.toByteArray(), jarPath.toString());
-      }
-    } catch (IOException ex) {
-      LOGGER.debug("Exception during parsing file class: {}", path, ex);
-    }
-  }
-
-  private void parseJarEntry(
-      JarEntry jarEntry, JarFile jarFile, Path jarPath, ByteArrayOutputStream baos, byte[] buffer) {
-    LOGGER.debug("parsing jarEntry class: {}", jarEntry.getName());
-    try {
-      InputStream inputStream = jarFile.getInputStream(jarEntry);
-      int readBytes;
-      baos.reset();
-      while ((readBytes = inputStream.read(buffer)) != -1) {
-        baos.write(buffer, 0, readBytes);
-      }
-      symbolAggregator.parseClass(jarEntry.getName(), baos.toByteArray(), jarPath.toString());
-    } catch (IOException ex) {
-      LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
+      symbolAggregator.scanJar(symDBReport, jarPath, baos, buffer);
     }
   }
 }

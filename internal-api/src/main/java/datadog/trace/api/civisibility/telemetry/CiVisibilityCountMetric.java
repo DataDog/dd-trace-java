@@ -14,12 +14,19 @@ import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaDiscrepancyType;
+import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
+import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
-import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
+import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
+import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsQuarantined;
 import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
@@ -32,6 +39,7 @@ import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {
@@ -53,8 +61,7 @@ public enum CiVisibilityCountMetric {
       EventType.class,
       IsHeadless.class,
       HasCodeowner.class,
-      IsUnsupportedCI.class,
-      IsBenchmark.class),
+      IsUnsupportedCI.class),
   /** The number of events finished */
   EVENT_FINISHED(
       "event_finished",
@@ -63,11 +70,19 @@ public enum CiVisibilityCountMetric {
       IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
-      IsBenchmark.class,
-      EarlyFlakeDetectionAbortReason.class,
+      EarlyFlakeDetectionAbortReason.class),
+  /** The number of test events finished */
+  TEST_EVENT_FINISHED(
+      "event_finished",
+      TestFrameworkInstrumentation.class,
+      EventType.class,
       IsNew.class,
       IsModified.class,
+      IsQuarantined.class,
+      IsDisabled.class,
+      IsAttemptToFix.class,
       IsRetry.class,
+      HasFailedAllRetries.class,
       RetryReason.class,
       IsRum.class,
       BrowserDriver.class),
@@ -90,6 +105,14 @@ public enum CiVisibilityCountMetric {
   GIT_COMMAND("git.command", Command.class),
   /** The number of git commands that errored */
   GIT_COMMAND_ERRORS("git.command_errors", Command.class, ExitCode.class),
+  /** Number of commit sha comparisons and if they matched when building git info for a repo */
+  GIT_COMMIT_SHA_MATCH("git.commit_sha_match", GitShaMatch.class),
+  /** Number of sha mismatches when building git info for a repo */
+  GIT_COMMIT_SHA_DISCREPANCY(
+      "git.commit_sha_discrepancy",
+      GitProviderExpected.class,
+      GitProviderDiscrepant.class,
+      GitShaDiscrepancyType.class),
   /** The number of requests sent to the search commit endpoint */
   GIT_REQUESTS_SEARCH_COMMITS("git_requests.search_commits", RequestCompressed.class),
   /** The number of search commit requests sent to the endpoint that errored */
@@ -114,6 +137,7 @@ public enum CiVisibilityCountMetric {
       FlakyTestRetriesEnabled.class,
       ImpactedTestsDetectionEnabled.class,
       KnownTestsEnabled.class,
+      TestManagementEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),
@@ -143,7 +167,12 @@ public enum CiVisibilityCountMetric {
   IMPACTED_TESTS_DETECTION_REQUEST("impacted_tests_detection.request", RequestCompressed.class),
   /** The number of tests requests sent to the changed files endpoint that errored */
   IMPACTED_TESTS_DETECTION_REQUEST_ERRORS(
-      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class);
+      "impacted_tests_detection.request_errors", ErrorType.class, StatusCode.class),
+  /** The number of requests sent to the test management tests endpoint */
+  TEST_MANAGEMENT_TESTS_REQUEST("test_management.request", RequestCompressed.class),
+  /** The number of tests requests sent to the test management tests endpoint that errored */
+  TEST_MANAGEMENT_TESTS_REQUEST_ERRORS(
+      "test_management.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {

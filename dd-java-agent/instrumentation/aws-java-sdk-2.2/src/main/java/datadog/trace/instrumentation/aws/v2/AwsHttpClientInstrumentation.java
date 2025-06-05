@@ -5,7 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -14,8 +15,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -70,27 +72,29 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static TraceScope methodEnter(
         @Advice.This final Object thiz,
         @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
-      final AgentScope scope = activeScope();
+      final AgentSpan activeSpan = activeSpan();
       // check name in case TracingExecutionInterceptor failed to activate the span
-      if (scope != null
-          && (scope.span() instanceof AgentTracer.NoopAgentSpan
+      if (activeSpan != null
+          && ((!activeSpan.isValid())
               || AwsSdkClientDecorator.DECORATE
                   .spanName(requestExecutionContext.executionAttributes())
-                  .equals(scope.span().getSpanName()))) {
+                  .equals(activeSpan.getSpanName()))) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
-          scope.close(); // close async legacy HTTP span to avoid Netty leak
+          // close async legacy HTTP span to avoid Netty leak...
+          closeActive(); // then drop-through and activate no-op span
         } else {
-          return scope; // keep sync legacy HTTP span alive for duration of call
+          // keep sync legacy HTTP span alive for duration of call
+          return AgentTracer::closeActive;
         }
       }
       return activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter final AgentScope scope) {
+    public static void methodExit(@Advice.Enter final TraceScope scope) {
       scope.close();
     }
 

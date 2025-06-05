@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -59,6 +61,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
+  private final Collection<LibraryCapability> capabilities;
 
   public ProxyTestModule(
       AgentSpanContext parentProcessModuleContext,
@@ -72,7 +75,8 @@ public class ProxyTestModule implements TestFrameworkModule {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
-      SignalClient.Factory signalClientFactory) {
+      SignalClient.Factory signalClientFactory,
+      Collection<LibraryCapability> capabilities) {
     this.parentProcessModuleContext = parentProcessModuleContext;
     this.moduleName = moduleName;
     this.executionStrategy = executionStrategy;
@@ -86,21 +90,32 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.codeowners = codeowners;
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
+    this.capabilities = capabilities;
   }
 
   @Override
-  public boolean isNew(TestIdentifier test) {
+  public boolean isNew(@Nonnull TestIdentifier test) {
     return executionStrategy.isNew(test);
   }
 
   @Override
-  public boolean isFlaky(TestIdentifier test) {
-    return executionStrategy.isFlaky(test);
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
+    return executionStrategy.isModified(testSourceData);
   }
 
   @Override
-  public boolean isModified(TestSourceData testSourceData) {
-    return executionStrategy.isModified(testSourceData);
+  public boolean isQuarantined(TestIdentifier test) {
+    return executionStrategy.isQuarantined(test);
+  }
+
+  @Override
+  public boolean isDisabled(TestIdentifier test) {
+    return executionStrategy.isDisabled(test);
+  }
+
+  @Override
+  public boolean isAttemptToFix(TestIdentifier test) {
+    return executionStrategy.isAttemptToFix(test);
   }
 
   @Nullable
@@ -111,8 +126,14 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Override
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
-    return executionStrategy.executionPolicy(test, testSource);
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    return executionStrategy.executionPolicy(test, testSource, testTags);
+  }
+
+  @Override
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    return executionStrategy.executionPriority(test, testSource);
   }
 
   @Override
@@ -143,6 +164,8 @@ public class ProxyTestModule implements TestFrameworkModule {
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
           earlyFlakeDetectionEnabled && executionStrategy.isEFDLimitReached();
+      TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+      boolean testManagementEnabled = testManagementSettings.isEnabled();
       long testsSkippedTotal = executionResults.getTestsSkippedByItr();
 
       signalClient.send(
@@ -153,6 +176,7 @@ public class ProxyTestModule implements TestFrameworkModule {
               testSkippingEnabled,
               earlyFlakeDetectionEnabled,
               earlyFlakeDetectionFaulty,
+              testManagementEnabled,
               testsSkippedTotal,
               new TreeSet<>(testFrameworks)));
 
@@ -186,6 +210,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         this::propagateTestFrameworkData);
   }
 

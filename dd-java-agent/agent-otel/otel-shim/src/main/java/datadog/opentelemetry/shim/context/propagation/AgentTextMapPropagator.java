@@ -1,19 +1,16 @@
 package datadog.opentelemetry.shim.context.propagation;
 
-import static datadog.opentelemetry.shim.trace.OtelSpanContext.fromRemote;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
-import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext.Extracted;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.util.PropagationUtils;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -36,11 +33,7 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (carrier == null) {
       return;
     }
-    Span span = Span.fromContext(context);
-    if (span.getSpanContext().isValid()) {
-      AgentSpanContext agentSpanContext = OtelExtractedContext.extract(context);
-      AgentTracer.propagate().inject(agentSpanContext, carrier, setter::set);
-    }
+    defaultPropagator().inject(convertContext(context), carrier, setter::set);
   }
 
   @Override
@@ -48,22 +41,27 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (carrier == null) {
       return context;
     }
-    Extracted extracted =
-        AgentTracer.propagate()
+    datadog.context.Context extracted =
+        defaultPropagator()
             .extract(
+                convertContext(context),
                 carrier,
                 (carrier1, classifier) -> {
                   for (String key : getter.keys(carrier1)) {
                     classifier.accept(key, getter.get(carrier1, key));
                   }
                 });
-    if (extracted == null) {
-      return context;
-    } else {
-      TraceState traceState = extractTraceState(extracted, carrier, getter);
-      SpanContext spanContext = fromRemote(extracted, traceState);
-      return new OtelContext(Span.wrap(spanContext), OtelSpan.invalid());
+    return new OtelContext(extracted);
+  }
+
+  private static datadog.context.Context convertContext(Context context) {
+    // Try to get the underlying context when injecting a Datadog context
+    if (context instanceof OtelContext) {
+      return ((OtelContext) context).asContext();
     }
+    // Otherwise, fallback to extracting limited tracing context and recreating an OTel context from
+    AgentSpanContext extract = OtelExtractedContext.extract(context);
+    return AgentSpan.fromSpanContext(extract);
   }
 
   /**
@@ -73,8 +71,8 @@ public class AgentTextMapPropagator implements TextMapPropagator {
    * @param extracted The extracted context.
    * @param carrier The context carrier.
    * @param getter The context getter.
-   * @return The extracted tracestate, or an empty tracestate otherwise.
    * @param <C> The carrier type.
+   * @return The extracted tracestate, or an empty tracestate otherwise.
    */
   private static <C> TraceState extractTraceState(
       Extracted extracted, C carrier, TextMapGetter<C> getter) {

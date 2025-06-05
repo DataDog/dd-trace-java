@@ -2,38 +2,55 @@ package datadog.trace.instrumentation.testng.execution;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
+import java.util.Collection;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
 
   private volatile TestExecutionPolicy executionPolicy;
+  private boolean suppressFailures;
+
+  public void createExecutionPolicy(ITestResult result) {
+    if (executionPolicy == null) {
+      synchronized (this) {
+        if (executionPolicy == null) {
+          TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
+          TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
+          Collection<String> testTags = TestNGUtils.getGroups(result);
+          executionPolicy =
+              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+                  testIdentifier, testSourceData, testTags);
+        }
+      }
+    }
+  }
 
   @Override
   public boolean retry(ITestResult result) {
     if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
       return false;
     }
-    if (executionPolicy == null) {
-      synchronized (this) {
-        if (executionPolicy == null) {
-          TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
-          TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
-          executionPolicy =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-                  testIdentifier, testSourceData);
-        }
-      }
-    }
-    return executionPolicy.retry(
-        result.isSuccess(), result.getEndMillis() - result.getStartMillis());
+    createExecutionPolicy(result);
+    return !executionPolicy.wasLastExecution();
   }
 
-  public RetryReason currentExecutionRetryReason() {
-    return executionPolicy != null ? executionPolicy.currentExecutionRetryReason() : null;
+  public void setSuppressFailures(ITestResult result) {
+    createExecutionPolicy(result);
+    suppressFailures = executionPolicy.suppressFailures();
+  }
+
+  public boolean getAndResetSuppressFailures() {
+    boolean suppressFailures = this.suppressFailures;
+    this.suppressFailures = false;
+    return suppressFailures;
+  }
+
+  public TestExecutionHistory getExecutionHistory() {
+    return executionPolicy;
   }
 }

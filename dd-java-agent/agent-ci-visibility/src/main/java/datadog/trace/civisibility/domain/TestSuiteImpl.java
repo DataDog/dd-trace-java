@@ -1,17 +1,18 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.api.civisibility.CIConstants.CI_VISIBILITY_INSTRUMENTATION_NAME;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
+import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -27,6 +28,7 @@ import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +54,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
+  private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public TestSuiteImpl(
@@ -72,6 +75,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
@@ -88,6 +92,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
+    this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
     AgentTracer.SpanBuilder spanBuilder =
@@ -126,7 +131,7 @@ public class TestSuiteImpl implements DDTestSuite {
     testDecorator.afterStart(span);
 
     if (!parallelized) {
-      activateSpan(span, true);
+      activateSpanWithoutScope(span);
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.SUITE);
@@ -193,26 +198,25 @@ public class TestSuiteImpl implements DDTestSuite {
   @Override
   public void end(@Nullable Long endTime) {
     if (!parallelized) {
-      final AgentScope scope = AgentTracer.activeScope();
-      if (scope == null) {
+      final AgentSpan activeSpan = AgentTracer.activeSpan();
+      if (activeSpan == null) {
         throw new IllegalStateException(
-            "No active scope present, it is possible that end() was called multiple times");
+            "No active span present, it is possible that end() was called multiple times");
       }
 
-      AgentSpan scopeSpan = scope.span();
-      if (scopeSpan != span) {
+      if (activeSpan != this.span) {
         throw new IllegalStateException(
-            "Active scope does not correspond to the finished suite, "
+            "Active span does not correspond to the finished suite, "
                 + "it is possible that end() was called multiple times "
                 + "or an operation that was started by the suite is still in progress; "
-                + "active scope span is: "
-                + scopeSpan
+                + "active span is: "
+                + activeSpan
                 + "; "
                 + "expected span is: "
-                + span);
+                + this.span);
       }
 
-      scope.close();
+      AgentTracer.closeActive();
     }
 
     onSpanFinish.accept(span);
@@ -259,6 +263,7 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
+        capabilities,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

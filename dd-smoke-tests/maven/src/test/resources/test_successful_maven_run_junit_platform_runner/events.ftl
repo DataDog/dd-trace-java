@@ -4,6 +4,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
@@ -47,6 +48,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
+      "_dd.test.is_user_provided_service" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "component" : "maven",
       "env" : "integration-test",
@@ -88,6 +90,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default",
       "language" : "jvm",
@@ -119,6 +122,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default",
       "language" : "jvm",
@@ -150,6 +154,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-compile",
       "language" : "jvm",
@@ -181,6 +186,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testCompile",
       "language" : "jvm",
@@ -212,6 +218,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-resources",
       "language" : "jvm",
@@ -243,6 +250,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
+      "_dd.test.is_user_provided_service" : "true",
       "env" : "integration-test",
       "execution" : "default-testResources",
       "language" : "jvm",
@@ -274,9 +282,10 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_9},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "component" : "junit",
+      "component" : "spock",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -302,7 +311,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2}
     },
-    "name" : "junit.test_suite",
+    "name" : "spock.test_suite",
     "resource" : "test_successful_maven_run_junit_platform_runner.src.test.groovy.SampleSpockTest",
     "service" : "test-maven-service",
     "start" : ${content_start_9},
@@ -317,10 +326,18 @@
     "duration" : ${content_duration_10},
     "error" : 0,
     "meta" : {
+      "_dd.library_capabilities.auto_test_retries" : "1",
+      "_dd.library_capabilities.early_flake_detection" : "1",
+      "_dd.library_capabilities.impacted_tests" : "1",
+      "_dd.library_capabilities.test_impact_analysis" : "1",
+      "_dd.library_capabilities.test_management.attempt_to_fix" : "4",
+      "_dd.library_capabilities.test_management.disable" : "1",
+      "_dd.library_capabilities.test_management.quarantine" : "1",
       "_dd.p.tid" : ${content_meta__dd_p_tid_10},
+      "_dd.test.is_user_provided_service" : "true",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
-      "component" : "junit",
+      "component" : "spock",
       "env" : "integration-test",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
@@ -348,7 +365,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2}
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "test_successful_maven_run_junit_platform_runner.src.test.groovy.SampleSpockTest.test should pass",
     "service" : "test-maven-service",

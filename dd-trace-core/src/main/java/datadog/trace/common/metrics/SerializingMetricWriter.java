@@ -5,7 +5,9 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
@@ -28,6 +30,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
   private static final byte[] OK_SUMMARY = "OkSummary".getBytes(ISO_8859_1);
   private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(ISO_8859_1);
+  private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
@@ -48,7 +51,9 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
-    writer.startMap(6);
+    final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
+    final boolean writeProcessTags = processTags != null;
+    writer.startMap(6 + (writeProcessTags ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);
     writer.writeUTF8(wellKnownTags.getRuntimeId());
@@ -65,7 +70,13 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(VERSION);
     writer.writeUTF8(wellKnownTags.getVersion());
 
+    if (writeProcessTags) {
+      writer.writeUTF8(PROCESS_TAGS);
+      writer.writeUTF8(processTags);
+    }
+
     writer.writeUTF8(STATS);
+
     writer.startArray(1);
 
     writer.startMap(3);

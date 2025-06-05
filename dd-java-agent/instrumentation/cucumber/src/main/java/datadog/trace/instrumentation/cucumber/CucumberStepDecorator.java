@@ -26,9 +26,8 @@ public class CucumberStepDecorator extends BaseDecorator {
     return "cucumber";
   }
 
-  public void onStepStart(StepDefinition step, Object[] arguments) {
+  public AgentScope onStepStart(StepDefinition step, Object[] arguments) {
     AgentSpan span = AgentTracer.startSpan("cucumber", "cucumber.step");
-    AgentScope scope = AgentTracer.activateSpan(span);
     afterStart(span);
 
     span.setResourceName(step.getPattern());
@@ -38,20 +37,14 @@ public class CucumberStepDecorator extends BaseDecorator {
     if (arguments != null && arguments.length > 0) {
       span.setTag("step.arguments", Arrays.toString(arguments));
     }
+
+    return AgentTracer.activateSpan(span);
   }
 
-  public void onStepFinish(StepDefinition step) {
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
-    }
-
-    AgentScope scope = AgentTracer.activeScope();
-    if (scope != null) {
-      scope.close();
-    }
-
+  public void onStepFinish(AgentScope scope) {
+    AgentSpan span = scope.span();
     beforeFinish(span);
     span.finish();
+    scope.close();
   }
 }

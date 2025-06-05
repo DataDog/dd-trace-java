@@ -12,11 +12,13 @@ public class ModuleExecutionResult extends ModuleSignal {
   private static final int TEST_SKIPPING_ENABLED_FLAG = 2;
   private static final int EARLY_FLAKE_DETECTION_ENABLED_FLAG = 4;
   private static final int EARLY_FLAKE_DETECTION_FAULTY_FLAG = 8;
+  private static final int TEST_MANAGEMENT_ENABLED_FLAG = 16;
 
   private final boolean coverageEnabled;
   private final boolean testSkippingEnabled;
   private final boolean earlyFlakeDetectionEnabled;
   private final boolean earlyFlakeDetectionFaulty;
+  private final boolean testManagementEnabled;
   private final long testsSkippedTotal;
   private final Collection<TestFramework> testFrameworks;
 
@@ -27,6 +29,7 @@ public class ModuleExecutionResult extends ModuleSignal {
       boolean testSkippingEnabled,
       boolean earlyFlakeDetectionEnabled,
       boolean earlyFlakeDetectionFaulty,
+      boolean testManagementEnabled,
       long testsSkippedTotal,
       Collection<TestFramework> testFrameworks) {
     super(sessionId, moduleId);
@@ -34,6 +37,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     this.testSkippingEnabled = testSkippingEnabled;
     this.earlyFlakeDetectionEnabled = earlyFlakeDetectionEnabled;
     this.earlyFlakeDetectionFaulty = earlyFlakeDetectionFaulty;
+    this.testManagementEnabled = testManagementEnabled;
     this.testsSkippedTotal = testsSkippedTotal;
     this.testFrameworks = testFrameworks;
   }
@@ -52,6 +56,10 @@ public class ModuleExecutionResult extends ModuleSignal {
 
   public boolean isEarlyFlakeDetectionFaulty() {
     return earlyFlakeDetectionFaulty;
+  }
+
+  public boolean isTestManagementEnabled() {
+    return testManagementEnabled;
   }
 
   public long getTestsSkippedTotal() {
@@ -131,6 +139,9 @@ public class ModuleExecutionResult extends ModuleSignal {
     if (earlyFlakeDetectionFaulty) {
       flags |= EARLY_FLAKE_DETECTION_FAULTY_FLAG;
     }
+    if (testManagementEnabled) {
+      flags |= TEST_MANAGEMENT_ENABLED_FLAG;
+    }
     s.write(flags);
 
     s.write(testsSkippedTotal);
@@ -148,6 +159,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
     boolean earlyFlakeDetectionEnabled = (flags & EARLY_FLAKE_DETECTION_ENABLED_FLAG) != 0;
     boolean earlyFlakeDetectionFaulty = (flags & EARLY_FLAKE_DETECTION_FAULTY_FLAG) != 0;
+    boolean testManagementEnabled = (flags & TEST_MANAGEMENT_ENABLED_FLAG) != 0;
 
     long testsSkippedTotal = Serializer.readLong(buffer);
     Collection<TestFramework> testFrameworks =
@@ -160,6 +172,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         testSkippingEnabled,
         earlyFlakeDetectionEnabled,
         earlyFlakeDetectionFaulty,
+        testManagementEnabled,
         testsSkippedTotal,
         testFrameworks);
   }

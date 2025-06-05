@@ -10,7 +10,6 @@ import io.opentelemetry.context.ImplicitContextKeyed
 import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
-import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
 import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_ROOT_SPAN_KEY
 import static datadog.opentelemetry.shim.context.OtelContext.OTEL_CONTEXT_SPAN_KEY
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
@@ -48,7 +47,7 @@ class ContextTest extends AgentTestRunner {
 
     when:
     def ddSpan = TEST_TRACER.startSpan("dd-api", "other-name")
-    def ddScope = TEST_TRACER.activateSpan(ddSpan, MANUAL)
+    def ddScope = TEST_TRACER.activateManualSpan(ddSpan)
     currentSpan = Span.current()
 
     then:
@@ -97,7 +96,7 @@ class ContextTest extends AgentTestRunner {
   def "test Context.makeCurrent() to activate a span with another currently active span"() {
     setup:
     def ddSpan = TEST_TRACER.startSpan("dd-api", "some-name")
-    def ddScope = TEST_TRACER.activateSpan(ddSpan, MANUAL)
+    def ddScope = TEST_TRACER.activateManualSpan(ddSpan)
     def builder = tracer.spanBuilder("other-name")
     def otelSpan = builder.startSpan()
 
@@ -135,7 +134,7 @@ class ContextTest extends AgentTestRunner {
   def "test Context.makeCurrent() to activate an already active span"() {
     when:
     def ddSpan = TEST_TRACER.startSpan("dd-api", "some-name")
-    def ddScope = TEST_TRACER.activateSpan(ddSpan, MANUAL)
+    def ddScope = TEST_TRACER.activateManualSpan(ddSpan)
     def currentSpan = Span.current()
 
     then:
@@ -170,6 +169,10 @@ class ContextTest extends AgentTestRunner {
     then:
     currentSpan != null
     !currentSpan.spanContext.isValid()
+
+    cleanup:
+    ddScope.close()
+    ddSpan.finish()
   }
 
   def "test clearing context"() {
@@ -196,7 +199,7 @@ class ContextTest extends AgentTestRunner {
 
     when:
     def ddChildSpan = TEST_TRACER.startSpan("dd-api", "other-name")
-    def ddChildScope = TEST_TRACER.activateSpan(ddChildSpan, MANUAL)
+    def ddChildScope = TEST_TRACER.activateManualSpan(ddChildSpan)
     def current = Span.current()
 
     then:
@@ -239,6 +242,14 @@ class ContextTest extends AgentTestRunner {
         }
       }
     }
+
+    cleanup:
+    otelGrandChildScope?.close()
+    otelGrandChildSpan?.end()
+    ddChildScope?.close()
+    ddChildSpan?.finish()
+    otelParentScope.close()
+    otelParentSpan.end()
   }
 
   def "test context spans retrieval"() {

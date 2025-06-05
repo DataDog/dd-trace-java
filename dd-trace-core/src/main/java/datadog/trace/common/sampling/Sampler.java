@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -35,7 +36,7 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (config.isAppSecStandaloneEnabled()) {
+        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
           return new AsmStandaloneSampler(Clock.systemUTC());
         }
@@ -98,6 +99,12 @@ public interface Sampler {
         sampler = new AllSampler();
       }
       return sampler;
+    }
+
+    private static boolean isAsmEnabled(Config config) {
+      return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+          || config.getIastActivation() == ProductActivation.FULLY_ENABLED
+          || config.isAppSecScaEnabled();
     }
 
     public static Sampler forConfig(final Properties config) {

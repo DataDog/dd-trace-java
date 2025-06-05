@@ -1,6 +1,7 @@
 package datadog.remoteconfig.tuf;
 
 import com.squareup.moshi.Json;
+import datadog.trace.api.ProcessTags;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -26,7 +27,14 @@ public class RemoteConfigRequest {
 
     ClientInfo.TracerInfo tracerInfo =
         new RemoteConfigRequest.ClientInfo.TracerInfo(
-            runtimeId, tracerVersion, serviceName, extraServices, serviceEnv, serviceVersion, tags);
+            runtimeId,
+            tracerVersion,
+            serviceName,
+            extraServices,
+            serviceEnv,
+            serviceVersion,
+            tags,
+            ProcessTags.getTagsAsStringList());
 
     ClientInfo clientInfo =
         new RemoteConfigRequest.ClientInfo(
@@ -174,6 +182,9 @@ public class RemoteConfigRequest {
       @Json(name = "app_version")
       private final String serviceVersion;
 
+      @Json(name = "process_tags")
+      private final List<String> processTags;
+
       public TracerInfo(
           String runtimeId,
           String tracerVersion,
@@ -181,7 +192,8 @@ public class RemoteConfigRequest {
           List<String> extraServices,
           String serviceEnv,
           String serviceVersion,
-          List<String> tags) {
+          List<String> tags,
+          List<String> processTags) {
         this.runtimeId = runtimeId;
         this.tracerVersion = tracerVersion;
         this.serviceName = serviceName;
@@ -189,6 +201,7 @@ public class RemoteConfigRequest {
         this.serviceEnv = serviceEnv;
         this.serviceVersion = serviceVersion;
         this.tags = tags;
+        this.processTags = processTags;
       }
 
       public String getServiceName() {
@@ -209,6 +222,10 @@ public class RemoteConfigRequest {
 
       public List<String> getTags() {
         return tags;
+      }
+
+      public List<String> getProcessTags() {
+        return processTags;
       }
     }
 

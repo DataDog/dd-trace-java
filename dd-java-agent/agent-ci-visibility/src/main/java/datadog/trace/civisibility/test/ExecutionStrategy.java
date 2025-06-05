@@ -1,16 +1,21 @@
 package datadog.trace.civisibility.test;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.TestManagementSettings;
+import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
+import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
@@ -50,14 +55,37 @@ public class ExecutionStrategy {
     return executionSettings;
   }
 
-  public boolean isNew(TestIdentifier test) {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    return knownTests != null && !knownTests.contains(test.withoutParameters());
+  public boolean isNew(@Nonnull TestIdentifier test) {
+    return executionSettings.isKnownTestsDataAvailable()
+        && !executionSettings.isKnown(test.toFQN());
   }
 
-  public boolean isFlaky(TestIdentifier test) {
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-    return flakyTests != null && flakyTests.contains(test.withoutParameters());
+  private boolean isFlaky(@Nonnull TestIdentifier test) {
+    return executionSettings.isFlaky(test.toFQN());
+  }
+
+  public boolean isQuarantined(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isQuarantined(test.toFQN());
+  }
+
+  public boolean isDisabled(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isDisabled(test.toFQN());
+  }
+
+  public boolean isAttemptToFix(TestIdentifier test) {
+    TestManagementSettings testManagementSettings = executionSettings.getTestManagementSettings();
+    if (!testManagementSettings.isEnabled()) {
+      return false;
+    }
+    return executionSettings.isAttemptToFix(test.toFQN());
   }
 
   @Nullable
@@ -65,9 +93,20 @@ public class ExecutionStrategy {
     if (test == null) {
       return null;
     }
+
+    // test should not be skipped if it is an attempt to fix, independent of TIA or Disabled
+    if (isAttemptToFix(test)) {
+      return null;
+    }
+
+    if (isDisabled(test)) {
+      return SkipReason.DISABLED;
+    }
+
     if (!executionSettings.isTestSkippingEnabled()) {
       return null;
     }
+
     Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
     TestMetadata testMetadata = skippableTests.get(test);
     if (testMetadata == null) {
@@ -80,42 +119,70 @@ public class ExecutionStrategy {
   }
 
   @Nonnull
-  public TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource) {
+  public TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
     if (test == null) {
       return Regular.INSTANCE;
     }
 
-    EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
-    if (efdSettings.isEnabled() && !isEFDLimitReached()) {
-      if (isNew(test) || isModified(testSource)) {
-        // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        earlyFlakeDetectionsUsed.incrementAndGet();
-        return new RunNTimes(efdSettings);
-      }
+    if (isAttemptToFix(test)) {
+      return new RunNTimes(
+          executionSettings.getTestManagementSettings().getAttemptToFixExecutions(),
+          isQuarantined(test) || isDisabled(test),
+          RetryReason.attemptToFix);
     }
 
-    if (executionSettings.isFlakyTestRetriesEnabled()) {
-      Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests();
-      if ((flakyTests == null || flakyTests.contains(test.withoutParameters()))
-          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
-        // check-then-act with "autoRetriesUsed" is not atomic here,
-        // but we don't care if we go "a bit" over the limit, it does not have to be precise
-        return new RetryUntilSuccessful(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
-      }
+    if (isEFDApplicable(test, testSource, testTags)) {
+      // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      earlyFlakeDetectionsUsed.incrementAndGet();
+      return new RunNTimes(
+          executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
+          isQuarantined(test),
+          RetryReason.efd);
+    }
+
+    if (isAutoRetryApplicable(test)) {
+      // check-then-act with "autoRetriesUsed" is not atomic here,
+      // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      return new RetryUntilSuccessful(
+          config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
+    }
+
+    if (isQuarantined(test)) {
+      return new RunOnceIgnoreOutcome();
     }
 
     return Regular.INSTANCE;
   }
 
+  private boolean isAutoRetryApplicable(TestIdentifier test) {
+    if (!executionSettings.isFlakyTestRetriesEnabled()) {
+      return false;
+    }
+
+    return (!executionSettings.isFlakyTestsDataAvailable()
+            || executionSettings.isFlaky(test.toFQN()))
+        && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
+  }
+
+  private boolean isEFDApplicable(
+      @Nonnull TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+    EarlyFlakeDetectionSettings efdSettings = executionSettings.getEarlyFlakeDetectionSettings();
+    return efdSettings.isEnabled()
+        && !isEFDLimitReached()
+        && (isNew(test) || isModified(testSource))
+        // endsWith matching is needed for JUnit4-based frameworks, where tags are classes
+        && testTags.stream().noneMatch(t -> t.endsWith(CIConstants.Tags.EFD_DISABLE_TAG));
+  }
+
   public boolean isEFDLimitReached() {
-    Collection<TestIdentifier> knownTests = executionSettings.getKnownTests();
-    if (knownTests == null) {
+    if (!executionSettings.isKnownTestsDataAvailable()) {
       return false;
     }
 
     int detectionsUsed = earlyFlakeDetectionsUsed.get();
-    int totalTests = knownTests.size() + detectionsUsed;
+    int totalTests = executionSettings.getSettingCount(TestSetting.KNOWN) + detectionsUsed;
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
         executionSettings.getEarlyFlakeDetectionSettings();
     int threshold =
@@ -126,7 +193,7 @@ public class ExecutionStrategy {
     return detectionsUsed > threshold;
   }
 
-  public boolean isModified(TestSourceData testSourceData) {
+  public boolean isModified(@Nonnull TestSourceData testSourceData) {
     Class<?> testClass = testSourceData.getTestClass();
     if (testClass == null) {
       return false;
@@ -143,7 +210,7 @@ public class ExecutionStrategy {
           .contains(sourcePath, lines.getStartLineNumber(), lines.getEndLineNumber());
 
     } catch (Exception e) {
-      LOGGER.error("Could not determine if {} was modified, assuming false", testSourceData, e);
+      LOGGER.debug("Could not determine if {} was modified, assuming false", testSourceData, e);
       return false;
     }
   }
@@ -157,5 +224,29 @@ public class ExecutionStrategy {
     } else {
       return linesResolver.getMethodLines(testMethod);
     }
+  }
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  public int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource) {
+    if (test == null) {
+      return 0;
+    }
+    if (isNew(test)) {
+      // execute new tests first
+      return 300;
+    }
+    if (isModified(testSource)) {
+      // then modified tests
+      return 200;
+    }
+    if (isFlaky(test)) {
+      // then tests known to be flaky
+      return 100;
+    }
+    // then the rest
+    return 0;
   }
 }

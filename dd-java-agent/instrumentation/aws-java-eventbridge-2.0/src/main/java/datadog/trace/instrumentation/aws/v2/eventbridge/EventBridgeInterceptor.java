@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.eventbridge;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.BUS_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -8,9 +8,10 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,12 +86,13 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
 
-    // Inject trace context
-    propagate().inject(span, jsonBuilder, SETTER);
-
+    // Inject context
+    datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
-      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(eventBusName));
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(eventBusName));
+      context = context.with(dsmContext);
     }
+    defaultPropagator().inject(context, jsonBuilder, SETTER);
 
     // Add bus name and start time
     jsonBuilder

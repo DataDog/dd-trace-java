@@ -7,10 +7,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,20 @@ public class ThirdPartyLibraries {
   private static final JsonAdapter<InternalConfig> ADAPTER =
       new Moshi.Builder().build().adapter(InternalConfig.class);
   private static final String FILE_NAME = "/third_party_libraries.json";
+  private static final Set<String> DEFAULT_SHADING_IDENTIFIERS =
+      new HashSet<>(
+          Arrays.asList(
+              "shaded",
+              "thirdparty",
+              "dependencies",
+              "relocated",
+              "bundled",
+              "embedded",
+              "vendor",
+              "repackaged",
+              "shadow",
+              "shim",
+              "wrapper"));
 
   private ThirdPartyLibraries() {}
 
@@ -43,6 +59,13 @@ public class ThirdPartyLibraries {
   public Set<String> getThirdPartyExcludes(Config config) {
     return config.getThirdPartyExcludes().stream()
         .filter(s -> !s.isEmpty())
+        .collect(Collectors.toSet());
+  }
+
+  public Set<String> getShadingIdentifiers(Config config) {
+    Stream<String> configStream =
+        config.getThirdPartyShadingIdentifiers().stream().filter(s -> !s.isEmpty());
+    return Stream.concat(configStream, DEFAULT_SHADING_IDENTIFIERS.stream())
         .collect(Collectors.toSet());
   }
 

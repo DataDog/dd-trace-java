@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.googlepubsub;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
@@ -22,6 +22,7 @@ import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -80,8 +81,8 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
       sortedTags.put(TYPE_TAG, "google-pubsub");
 
       PubsubMessage.Builder builder = msg.toBuilder();
-      propagate().inject(span, builder, SETTER);
-      propagate().injectPathwayContext(span, builder, SETTER, sortedTags);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
+      defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
       msg = builder.build();
       return activateSpan(span);
     }

@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.testng;
 
 import datadog.json.JsonWriter;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.util.ComparableVersion;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
@@ -13,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.IClass;
@@ -44,6 +47,9 @@ public abstract class TestNGUtils {
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer", ITestResult.class);
   private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_LEGACY =
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
+
+  private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
+  private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
 
   private static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -234,6 +240,7 @@ public abstract class TestNGUtils {
     }
   }
 
+  @Nonnull
   public static TestIdentifier toTestIdentifier(
       Method method, Object instance, Object[] parameters) {
     Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
@@ -243,6 +250,7 @@ public abstract class TestNGUtils {
     return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
+  @Nonnull
   public static TestIdentifier toTestIdentifier(ITestResult result) {
     String testSuiteName = result.getInstanceName();
     String testName =
@@ -251,9 +259,47 @@ public abstract class TestNGUtils {
     return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
+  @Nonnull
   public static TestSuiteDescriptor toSuiteDescriptor(ITestClass testClass) {
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();
     return new TestSuiteDescriptor(testSuiteName, testSuiteClass);
+  }
+
+  public static boolean isEFDSupported(String version) {
+    return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static boolean isExceptionSuppressionSupported(String version) {
+    return version != null && testNGv75.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static boolean isTestOrderingSupported(String version) {
+    return version != null && testNGv70.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static List<LibraryCapability> capabilities(String version) {
+    List<LibraryCapability> baseCapabilities =
+        new ArrayList<>(
+            Arrays.asList(
+                LibraryCapability.TIA, LibraryCapability.IMPACTED, LibraryCapability.DISABLED));
+
+    boolean isEFDSupported = isEFDSupported(version);
+    boolean isExceptionSuppressionSupported = isExceptionSuppressionSupported(version);
+    if (isExceptionSuppressionSupported) {
+      baseCapabilities.add(LibraryCapability.ATR);
+      baseCapabilities.add(LibraryCapability.QUARANTINE);
+    }
+    if (isEFDSupported) {
+      baseCapabilities.add(LibraryCapability.EFD);
+    }
+    if (isExceptionSuppressionSupported && isEFDSupported) {
+      baseCapabilities.add(LibraryCapability.ATTEMPT_TO_FIX);
+    }
+    if (isTestOrderingSupported(version)) {
+      baseCapabilities.add(LibraryCapability.FAIL_FAST);
+    }
+
+    return baseCapabilities;
   }
 }

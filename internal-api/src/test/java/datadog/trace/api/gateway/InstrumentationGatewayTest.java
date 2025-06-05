@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import datadog.appsec.api.blocking.BlockingContentType;
-import datadog.trace.api.appsec.LoginEventCallback;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -215,9 +214,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.fileLoaded(), callback);
     cbp.getCallback(events.fileLoaded()).apply(null, null);
     ss.registerCallback(events.user(), callback);
-    cbp.getCallback(events.user()).apply(null, null, null);
-    ss.registerCallback(events.loginEvent(), callback.asLoginEventCallback());
-    cbp.getCallback(events.loginEvent()).apply(null, null, null, null, null, null);
+    cbp.getCallback(events.user()).apply(null, null);
+    ss.registerCallback(events.loginEvent(), callback);
+    cbp.getCallback(events.loginEvent()).apply(null, null, null);
     ss.registerCallback(events.requestSession(), callback);
     cbp.getCallback(events.requestSession()).apply(null, null);
     ss.registerCallback(events.execCmd(), callback);
@@ -285,9 +284,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.fileLoaded(), throwback);
     cbp.getCallback(events.fileLoaded()).apply(null, null);
     ss.registerCallback(events.user(), throwback);
-    cbp.getCallback(events.user()).apply(null, null, null);
-    ss.registerCallback(events.loginEvent(), throwback.asLoginEventCallback());
-    cbp.getCallback(events.loginEvent()).apply(null, null, null, null, null, null);
+    cbp.getCallback(events.user()).apply(null, null);
+    ss.registerCallback(events.loginEvent(), throwback);
+    cbp.getCallback(events.loginEvent()).apply(null, null, null);
     ss.registerCallback(events.requestSession(), throwback);
     cbp.getCallback(events.requestSession()).apply(null, null);
     ss.registerCallback(events.execCmd(), throwback);
@@ -339,7 +338,7 @@ public class InstrumentationGatewayTest {
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
         (requestContext, igSpanInfo) -> {
           assertThat(requestContext).isSameAs(callback.ctxt);
-          assertThat(igSpanInfo).isSameAs(AgentTracer.NoopAgentSpan.INSTANCE);
+          assertThat(igSpanInfo).isSameAs(AgentTracer.noopSpan());
           count[0]++;
           return new Flow.ResultFlow<>(null);
         };
@@ -347,7 +346,7 @@ public class InstrumentationGatewayTest {
     ssIast.registerCallback(events.requestEnded(), cb);
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
         gateway.getUniversalCallbackProvider().getCallback(events.requestEnded());
-    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.NoopAgentSpan.INSTANCE);
+    Flow<Void> res = uniCb.apply(callback.ctxt, AgentTracer.noopSpan());
 
     assertThat(count[0]).isEqualTo(2);
     assertThat(res).isNotNull();
@@ -507,13 +506,6 @@ public class InstrumentationGatewayTest {
       count++;
       return flow;
     }
-
-    public LoginEventCallback asLoginEventCallback() {
-      return (context, mode, eventName, exists, user, metadata) -> {
-        count++;
-        return flow;
-      };
-    }
   }
 
   private static class Throwback<D, T>
@@ -578,13 +570,6 @@ public class InstrumentationGatewayTest {
 
     public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
       return (requestContext, storedBodySupplier) -> {
-        count++;
-        throw new IllegalArgumentException();
-      };
-    }
-
-    public LoginEventCallback asLoginEventCallback() {
-      return (context, mode, eventName, exists, user, metadata) -> {
         count++;
         throw new IllegalArgumentException();
       };

@@ -1,11 +1,10 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.core.DDSpan;
 
 public class CodeOrigin02 {
@@ -15,7 +14,7 @@ public class CodeOrigin02 {
 
   public static int main(String arg) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    AgentScope scope = tracerAPI.activateManualSpan(span);
     if (arg.equals("debug_1")) {
       ((DDSpan) span.getLocalRootSpan()).setTag("_dd.p.debug", "1");
     } else if (arg.equals("debug_0")) {
@@ -32,13 +31,13 @@ public class CodeOrigin02 {
 
   private static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    AgentScope scope = tracerAPI.activateManualSpan(span);
     entry();
     span.finish();
     scope.close();
 
     span = newSpan("exit");
-    scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    scope = tracerAPI.activateManualSpan(span);
     exit();
     span.finish();
     scope.close();
@@ -57,7 +56,7 @@ public class CodeOrigin02 {
   }
 
   public static void exit() {
-    int x = 47 / 3;
+    int x = 47 / 3;  // code origin 2
   }
 
 }

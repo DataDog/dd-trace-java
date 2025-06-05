@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.synapse3;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_SPAN_KEY;
@@ -86,7 +87,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
 
       // add trace id to client-side request before it gets submitted as an HttpRequest
-      propagate().inject(span, TargetContext.getRequest(connection), SETTER);
+      defaultPropagator()
+          .inject(getCurrentContext().with(span), TargetContext.getRequest(connection), SETTER);
 
       // capture span to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);

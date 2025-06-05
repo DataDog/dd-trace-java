@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
@@ -12,6 +13,9 @@ import io.cucumber.core.resource.ClassLoaders;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +47,11 @@ public abstract class CucumberUtils {
     return "unknown";
   }
 
+  private static final String NO_STEP_PICKLE_RUNNER_CLASSNAME =
+      "io.cucumber.junit.PickleRunners$NoStepDescriptions";
+  private static final String WITH_STEP_PICKLE_RUNNER_CLASSNAME =
+      "io.cucumber.junit.PickleRunners$WithStepDescriptions";
+
   private static final MethodHandles REFLECTION = new MethodHandles(CUCUMBER_CLASS_LOADER);
   private static final MethodHandle FEATURE_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.FeatureRunner", "feature");
@@ -54,13 +63,26 @@ public abstract class CucumberUtils {
       REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "pickleLine");
   private static final MethodHandle PICKLE_RUNNER_GET_DESCRIPTION =
       REFLECTION.method("io.cucumber.junit.PickleRunners$PickleRunner", "getDescription");
+  private static final MethodHandle PICKLE_RUNNER_NO_STEP_GET_PICKLE =
+      REFLECTION.privateFieldGetter(NO_STEP_PICKLE_RUNNER_CLASSNAME, "pickle");
+  private static final MethodHandle PICKLE_RUNNER_WITH_STEP_GET_PICKLE =
+      REFLECTION.privateFieldGetter(WITH_STEP_PICKLE_RUNNER_CLASSNAME, "pickle");
+
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private CucumberUtils() {}
 
   public static Map<Object, Pickle> getPicklesById(List<ParentRunner<?>> featureRunners) {
     Map<Object, Pickle> pickleById = new HashMap<>();
     for (ParentRunner<?> featureRunner : featureRunners) {
-      Feature feature = (Feature) REFLECTION.invoke(FEATURE_GETTER, featureRunner);
+      Feature feature = REFLECTION.invoke(FEATURE_GETTER, featureRunner);
       for (Pickle pickle : feature.getPickles()) {
         Object pickleId = REFLECTION.invoke(PICKLE_ID_CONSTRUCTOR, pickle);
         pickleById.put(pickleId, pickle);
@@ -118,7 +140,7 @@ public abstract class CucumberUtils {
 
     Integer pickleLine = getPickleLine(scenarioDescription);
     if (pickleLine != null) {
-      return "LINE:" + pickleLine + "";
+      return "LINE:" + pickleLine;
     }
 
     return "EMPTY_NAME";
@@ -176,6 +198,32 @@ public abstract class CucumberUtils {
   public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
     String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
     return new TestSuiteDescriptor(testSuiteName, null);
+  }
+
+  public static Collection<String> getPickleRunnerTags(Object pickleRunner) {
+    Pickle pickle = getPickle(pickleRunner);
+    return getCategories(pickle);
+  }
+
+  private static Pickle getPickle(Object pickleRunner) {
+    try {
+      if (pickleRunner.getClass().getName().equals(NO_STEP_PICKLE_RUNNER_CLASSNAME)) {
+        return REFLECTION.invoke(PICKLE_RUNNER_NO_STEP_GET_PICKLE, pickleRunner);
+      } else {
+        return REFLECTION.invoke(PICKLE_RUNNER_WITH_STEP_GET_PICKLE, pickleRunner);
+      }
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  public static List<String> getCategories(Pickle pickle) {
+    List<String> pickleTags = pickle.getTags();
+    List<String> categories = new ArrayList<>(pickleTags.size());
+    for (String tag : pickleTags) {
+      categories.add(tag.substring(1)); // remove leading "@"
+    }
+    return categories;
   }
 
   public static final class MuzzleHelper {

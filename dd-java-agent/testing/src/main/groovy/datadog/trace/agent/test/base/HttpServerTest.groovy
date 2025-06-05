@@ -26,9 +26,13 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.telemetry.Endpoint
+import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -37,6 +41,7 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
+import net.bytebuddy.utility.RandomString
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.MultipartBody
@@ -74,19 +79,22 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.JSON
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -153,6 +161,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
+    injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
+    // allow endpoint discover for the tests
+    injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -211,9 +222,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.message"  : { it == null || it == EXCEPTION.body },
-        "error.type" : { it == null || it == Exception.name },
-        "error.stack": { it == null || it instanceof String }]
+      ["error.message": { it == null || it == EXCEPTION.body },
+        "error.type"   : { it == null || it == Exception.name },
+        "error.stack"  : { it == null || it instanceof String }]
     } else {
       Collections.emptyMap()
     }
@@ -354,6 +365,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBlockingErrorTypeSet() {
+    true
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -386,6 +401,27 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testParallelRequest() {
     true
+  }
+
+  boolean testWebsockets() {
+    server instanceof WebsocketServer
+  }
+
+  WebsocketClient websocketClient() {
+    new OkHttpWebsocketClient()
+  }
+
+  boolean testEndpointDiscovery() {
+    false
+  }
+
+  /**
+   * To be set if the integration name (_dd.integration) differs from the component.
+   * This happen when the controller integration modify the parent component name (i.e. jaxrs)
+   * @return
+   */
+  String expectedIntegrationName() {
+    null
   }
 
   @Override
@@ -440,6 +476,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     SECURE_SUCCESS("secure/success", 200, null),
 
     SESSION_ID("session", 200, null),
+    WEBSOCKET("websocket", 101, null),
+
+    ENDPOINT_DISCOVERY('discovery', 200, 'OK')
 
     private final String path
     private final String rawPath
@@ -499,8 +538,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     private static final Map<String, ServerEndpoint> PATH_MAP = {
-      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it]}
-      map.putAll(values().collectEntries { [it.rawPath, it]})
+      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it] }
+      map.putAll(values().collectEntries { [it.rawPath, it] })
       map
     }.call()
 
@@ -524,7 +563,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
     assert activeSpan() != noopSpan(): "Parent span shouldn't be noopSpan"
-    assert activeScope().asyncPropagating: "Scope should be propagating async."
+    assert isAsyncPropagationEnabled(): "Span should be propagating async."
     if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
     }
@@ -537,7 +576,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responses
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
-      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      // Limit pool size. Too many threads overwhelm the server and starve the host
+      def availableProcessorsOverride = System.getenv().get("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+      def poolSize = availableProcessorsOverride == null ? Runtime.getRuntime().availableProcessors() : Integer.valueOf(availableProcessorsOverride)
+      def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
         completionService.submit {
@@ -546,7 +588,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       responses = (1..count).collect { completionService.take().get() }
     } else {
-      responses = (1..count).collect {client.newCall(request).execute()}
+      responses = (1..count).collect { client.newCall(request).execute() }
     }
 
     if (isDataStreamsEnabled()) {
@@ -719,9 +761,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    method | body | header                           | value | tags
-    'GET'  | null | 'x-datadog-test-both-header'     | 'foo' | [ 'both_header_tag': 'foo' ]
-    'GET'  | null | 'x-datadog-test-request-header'  | 'bar' | [ 'request_header_tag': 'bar' ]
+    method | body | header                          | value | tags
+    'GET'  | null | 'x-datadog-test-both-header'    | 'foo' | ['both_header_tag': 'foo']
+    'GET'  | null | 'x-datadog-test-request-header' | 'bar' | ['request_header_tag': 'bar']
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
@@ -733,7 +775,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def body = null
     def header = IG_RESPONSE_HEADER
     def mapping = 'mapped_response_header_tag'
-    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE" ]
+    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE"]
 
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
@@ -816,13 +858,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    rawQuery | endpoint               | encoded
-    true     | SUCCESS                | false
-    true     | QUERY_PARAM            | false
-    true     | QUERY_ENCODED_QUERY    | true
-    false    | SUCCESS                | false
-    false    | QUERY_PARAM            | false
-    false    | QUERY_ENCODED_QUERY    | true
+    rawQuery | endpoint            | encoded
+    true     | SUCCESS             | false
+    true     | QUERY_PARAM         | false
+    true     | QUERY_ENCODED_QUERY | true
+    false    | SUCCESS             | false
+    false    | QUERY_PARAM         | false
+    false    | QUERY_ENCODED_QUERY | true
 
     method = "GET"
     body = null
@@ -935,7 +977,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     then:
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
 
     and:
@@ -1258,7 +1300,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
@@ -1629,7 +1671,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
-    assert trace.find {it.isError() } == null
+    assert trace.find { it.isError() } == null
   }
 
   def 'test blocking of request for path parameters'() {
@@ -1708,9 +1750,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     List<DDSpan> spans = TEST_WRITER.flatten()
     spans.find { it.tags['http.status_code'] == 413 } != null
     spans.find { it.tags['appsec.blocked'] == 'true' } != null
-    spans.find {
-      it.error &&
-      it.tags['error.type'] == BlockingException.name } != null
+    if (testBlockingErrorTypeSet()) {
+      spans.find {
+        it.error &&
+        it.tags['error.type'] == BlockingException.name
+      } != null
+    }
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1742,6 +1787,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     requestBodyNoStreaming ? IG_BODY_CONVERTED_HEADER : IG_BODY_END_BLOCK_HEADER
   }
 
+  @Flaky(value = "APPSEC-56822", suites = ["PlayScalaAsyncServerTest"])
   def 'user blocking'() {
     setup:
     assumeTrue(testUserBlocking())
@@ -1890,12 +1936,217 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
-    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
     span != null
     final sessionId = span.tags[IG_SESSION_ID_TAG]
     sessionId != null
     secondResponse.body().string().contains(sessionId as String)
   }
+
+
+  def 'test websocket server send #msgType message of size #size and #chunks chunks'() {
+    setup:
+    assumeTrue(testWebsockets())
+    def wsServer = getServer() as WebsocketServer
+    def client = websocketClient()
+    when:
+    client.connect(WEBSOCKET.resolve(address).toString())
+    wsServer.awaitConnected()
+    runUnderTrace("parent", {
+      if (messages[0] instanceof String) {
+        wsServer.serverSendText(messages as String[])
+      } else {
+        wsServer.serverSendBinary(messages as byte[][])
+      }
+      wsServer.serverClose()
+    })
+
+    then:
+    assertTraces(2, {
+      DDSpan handshake
+      trace(hasHandlerSpan() ? 2 : 1, {
+        handshake = span(0)
+        serverSpan(it, null, null, "GET", WEBSOCKET)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, WEBSOCKET)
+        }
+      })
+      trace(3, {
+        sortSpansByStart()
+        basicSpan(it, "parent")
+        websocketSendSpan(it, handshake, msgType, size, chunks, span(0))
+        websocketCloseSpan(it, handshake, true, 1000, null, span(0))
+      })
+    })
+
+    where:
+
+    messages                                      | msgType  | chunks | size
+    [RandomString.make(10)]                       | "text"   | 1      | 10
+    [someBytes(20)]                               | "binary" | 1      | 20
+    [RandomString.make(10), RandomString.make(5)] | "text"   | 2      | 10 + 5
+    [someBytes(10), someBytes(15), someBytes(30)] | "binary" | 3      | 10 + 15 + 30
+  }
+
+  def 'test websocket server receive #msgType message of size #size and #chunks chunks'() {
+    setup:
+    assumeTrue(testWebsockets())
+    def wsServer = getServer() as WebsocketServer
+    def client = websocketClient()
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads() || client.supportMessageChunks())
+
+    when:
+    client.connect(WEBSOCKET.resolve(address).toString())
+    wsServer.awaitConnected()
+    wsServer.setMaxPayloadSize(10)
+    // in case the client can also send partial fragments
+    client.setSplitChunksAfter(10)
+    if (message instanceof String) {
+      client.send(message as String)
+    } else {
+      client.send(message as byte[])
+    }
+    client.close(1000, "goodbye")
+
+    then:
+    assertTraces(3, {
+      DDSpan handshake
+      trace(hasHandlerSpan() ? 2 : 1, {
+        handshake = span(0)
+        serverSpan(it, null, null, "GET", WEBSOCKET)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, WEBSOCKET)
+        }
+      })
+      trace(1 + chunks, {
+        websocketReceiveSpan(it, handshake, msgType, size, chunks)
+        for (int i = 0; i < chunks; i++) {
+          basicSpan(it, "onRead", span(0))
+        }
+      })
+      trace(1, {
+        websocketCloseSpan(it, handshake, false, 1000, "goodbye")
+      })
+    })
+    where:
+
+    message               | msgType  | chunks | size
+    RandomString.make(10) | "text"   | 1      | 10
+    someBytes(10)         | "binary" | 1      | 10
+    RandomString.make(20) | "text"   | 2      | 20
+    someBytes(30)         | "binary" | 3      | 30
+  }
+
+  static def someBytes(nb) {
+    def b = new byte[nb]
+    new Random().nextBytes(b)
+    b
+  }
+
+  static void websocketSendSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength,
+  int nbOfChunks = 1, DDSpan parentSpan = null, Map extraTags = [:]) {
+    websocketSpan(trace, handshake, "websocket.send", messageType, messageLength, nbOfChunks,
+    false, parentSpan, extraTags)
+  }
+
+  static void websocketReceiveSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength, int nbOfChunks = 1, Map extraTags = [:]) {
+    websocketSpan(trace, handshake, "websocket.receive", messageType, messageLength, nbOfChunks, true,
+    Config.get().isWebsocketMessagesSeparateTraces() ? null : handshake,
+    extraTags + [(InstrumentationTags.WEBSOCKET_MESSAGE_RECEIVE_TIME): { Number }])
+  }
+
+  static void websocketCloseSpan(TraceAssert trace, DDSpan handshake, boolean closeStarter, int closeCode, closeReason = null,
+  DDSpan parentSpan = null, Map extraTags = [:]) {
+    Map tags = new HashMap(extraTags)
+    tags.put(InstrumentationTags.WEBSOCKET_CLOSE_REASON, closeReason)
+    tags.put(InstrumentationTags.WEBSOCKET_CLOSE_CODE, closeCode)
+    websocketSpan(trace, handshake, "websocket.close", null, null, null, !closeStarter, parentSpan, tags)
+  }
+
+  static void websocketSpan(TraceAssert trace, DDSpan handshake, String operation,
+  String messageType, Integer messageLength, Integer nbOfChunks,
+  boolean traceStarter,
+  DDSpan parentSpan,
+  Map<String, ?> extraTags = [:]) {
+    byte linkFlags = SpanLink.DEFAULT_FLAGS
+    if (handshake.getSamplingPriority() > 0 && Config.get().isWebsocketMessagesInheritSampling()) {
+      linkFlags |= SpanLink.SAMPLED_FLAG
+    }
+
+    def linkAttributes = SpanAttributes.builder()
+    .put("dd.kind", traceStarter ? "executed_from" : "resuming")
+    .build()
+
+    trace.span {
+      operationName operation
+      if (handshake.getTag(Tags.HTTP_ROUTE) != null) {
+        resourceName "websocket ${handshake.getTag(Tags.HTTP_ROUTE) as String}"
+      } else {
+        resourceName "websocket ${URI.create(handshake.getTag(Tags.HTTP_URL) as String).path}"
+      }
+      if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
+        parent()
+      } else {
+        if (parentSpan != null) {
+          childOf(parentSpan)
+        } else {
+          childOfPrevious()
+        }
+      }
+      spanType(DDSpanTypes.WEBSOCKET)
+      if (Config.get().isWebsocketMessagesSeparateTraces() || !traceStarter) {
+        links {
+          link(handshake, linkFlags, linkAttributes)
+        }
+      }
+      tags {
+        tag(Tags.SPAN_KIND, traceStarter ? Tags.SPAN_KIND_CONSUMER : Tags.SPAN_KIND_PRODUCER)
+        tag(Tags.COMPONENT, "websocket")
+        if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
+          if (Config.get().isWebsocketMessagesInheritSampling()) {
+            tag(DDTags.DECISION_MAKER_INHERITED, 1)
+            tag(DDTags.DECISION_MAKER_SERVICE, handshake.getServiceName())
+            tag(DDTags.DECISION_MAKER_RESOURCE, handshake.getResourceName())
+          }
+        }
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_LENGTH, messageLength)
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_TYPE, messageType)
+        tag(InstrumentationTags.WEBSOCKET_MESSAGE_FRAMES, nbOfChunks)
+        tag(Tags.PEER_HOSTNAME, handshake.getTag(Tags.PEER_HOSTNAME))
+        if (Config.get().isWebsocketTagSessionId()) {
+          tag(InstrumentationTags.WEBSOCKET_SESSION_ID, { it != null }) // it can be an incremental thing
+        }
+        extraTags.each { tag(it.key, it.value) }
+        defaultTagsNoPeerService()
+      }
+    }
+  }
+
+  void 'test endpoint discovery'() {
+    setup:
+    assumeTrue(testEndpointDiscovery())
+
+    when:
+    final endpoints = EndpointCollector.get().drain().toList()
+    final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+
+    then:
+    !endpoints.isEmpty()
+    endpoints.eachWithIndex { Endpoint entry, int i ->
+      assert entry.first == (i == 0)
+    }
+
+    !discovered.isEmpty()
+    discovered.eachWithIndex { endpoint, index ->
+      assert endpoint.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+      assert endpoint.type == Endpoint.Type.REST
+      assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
+    }
+    assertEndpointDiscovery(discovered)
+  }
+
+  // to be overridden for more specific asserts
+  void assertEndpointDiscovery(final List<?> endpoints) { }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
@@ -1949,6 +2200,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
+    def expectedIntegrationName = expectedIntegrationName()
     trace.span {
       serviceName expectedServiceName()
       operationName operation()
@@ -1968,8 +2220,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+          } else {
+            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
@@ -1995,6 +2252,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
+        }
+        if (expectedIntegrationName != null) {
+          withCustomIntegrationName(expectedIntegrationName)
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {

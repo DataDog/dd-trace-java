@@ -21,14 +21,7 @@ class DependencyResolverSpecification extends DepSpecification {
       'Implementation-Title'  : implementationTitle,
       'Implementation-Version': implementationVersion,
     ]
-    File file = new File(testDir, filename)
-    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(file))
-    ZipEntry e = new ZipEntry("META-INF/MANIFEST.MF")
-    def manifest = attributes.findAll { it.value != null }.collect { k, v -> "$k: $v" }.join('\n')
-    out.putNextEntry(e)
-    out.write(manifest.getBytes(Charset.forName('UTF-8')))
-    out.closeEntry()
-    out.close()
+    File file = prepareJar(filename, attributes)
 
     when:
     def dependencies = DependencyResolver.resolve(file.toURI())
@@ -64,6 +57,18 @@ class DependencyResolverSpecification extends DepSpecification {
     'org.liquibase.core'                        | 'liquibase-core'                | '0.0.0.SNAPSHOT'           | null                              | null                  | 'liquibase-core-4.6.2.jar'         || 'liquibase-core'                            | '4.6.2'
     'org.roaringbitmap.RoaringBitmap'           | 'RoaringBitmap'                 | '0.0.1'                    | null                              | null                  | 'RoaringBitmap-0.0.1.jar'          || 'org.roaringbitmap:RoaringBitmap'           | '0.0.1'
     'com.samskivert.jmustache'                  | 'jmustache'                     | '1.14.0'                   | null                              | null                  | 'jmustache-1.14.jar'               || 'com.samskivert:jmustache'                  | '1.14'
+  }
+
+  private File prepareJar(final filename, final attributes) {
+    File file = new File(testDir, filename)
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(file))
+    ZipEntry e = new ZipEntry("META-INF/MANIFEST.MF")
+    def manifest = attributes.findAll { it.value != null }.collect { k, v -> "$k: $v" }.join('\n')
+    out.putNextEntry(e)
+    out.write(manifest.getBytes(Charset.forName('UTF-8')))
+    out.closeEntry()
+    out.close()
+    file
   }
 
   void 'jar without pom.properties get resolved with hash'() {
@@ -327,5 +332,24 @@ class DependencyResolverSpecification extends DepSpecification {
     assert dep.name == opts['name']
     assert dep.version == opts['version']
     assert dep.hash == opts['hash']
+  }
+
+  void 'JBoss may use the "jar:file" format to reference jar files instead of nested jars'(){
+    setup:
+    final attributes = [
+      'Bundle-SymbolicName'   : null,
+      'Bundle-Name'           : null,
+      'Bundle-Version'        : null,
+      'Implementation-Title'  : 'JUnit',
+      'Implementation-Version': '4.12',
+    ]
+    final file = prepareJar("junit-4.12.jar", attributes)
+    final uri = new URI("jar:"+file.toURI()+"!/")
+
+    when:
+    final deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.size() == 1
   }
 }

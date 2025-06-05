@@ -2,7 +2,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
   id "me.champeau.jmh"
   id 'java-test-fixtures'
 }
@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '11.2.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '13.0.1'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
@@ -23,6 +23,7 @@ dependencies {
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
+  testImplementation libs.logback.classic
 
   testFixturesApi project(':dd-java-agent:testing')
 }
@@ -67,7 +68,8 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = [
     'com.datadog.appsec.config.MergedAsmData.InvalidAsmDataException',
-    'com.datadog.appsec.powerwaf.LibSqreenInitialization',
+    'com.datadog.appsec.ddwaf.WafInitialization',
+    'com.datadog.appsec.ddwaf.WAFModule.WAFDataCallback',
     'com.datadog.appsec.report.*',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
     'com.datadog.appsec.util.StandardizedLogging',
@@ -80,6 +82,7 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
+    'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
@@ -87,8 +90,6 @@ ext {
     'com.datadog.appsec.config.CurrentAppSecConfig',
     // equals() / hashCode() are not well covered
     'com.datadog.appsec.config.AppSecConfig.Helper',
-    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFDataCallback',
-    'com.datadog.appsec.powerwaf.PowerWAFModule.PowerWAFEventsCallback',
     // assert never fails
     'com.datadog.appsec.util.StandardizedLogging',
     'com.datadog.appsec.util.AbortStartupException',

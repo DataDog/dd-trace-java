@@ -7,8 +7,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.flare.TracerFlare
 import datadog.trace.api.time.SystemTimeSource
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.context.TraceScope
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
@@ -495,8 +494,8 @@ class PendingTraceBufferTest extends DDSpecification {
 
 
   def addContinuation(DDSpan span) {
-    def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
-    continuations << scope.capture()
+    def scope = scopeManager.activateSpan(span)
+    continuations << scopeManager.captureSpan(span)
     scope.close()
     return span
   }

@@ -1,7 +1,6 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
-import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
@@ -16,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static utils.TestHelper.assertWithTimeout;
 
 import com.datadog.debugger.agent.ConfigurationAcceptor;
 import com.datadog.debugger.agent.ConfigurationUpdater;
@@ -67,7 +67,7 @@ public class DefaultExceptionDebuggerTest {
             new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     exceptionDebugger =
         new DefaultExceptionDebugger(
-            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100);
+            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100, 3);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -275,7 +275,7 @@ public class DefaultExceptionDebuggerTest {
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100);
+        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100, 3);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
@@ -407,13 +407,13 @@ public class DefaultExceptionDebuggerTest {
 
   public static Config createConfig() {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;
   }
 }

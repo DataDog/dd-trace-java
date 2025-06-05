@@ -9,6 +9,7 @@ import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
@@ -34,11 +35,12 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
 import datadog.trace.util.Strings;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +49,7 @@ public class CiVisibilityRepoServices {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityRepoServices.class);
 
-  final String repoRoot;
+  @Nullable final String repoRoot;
   final String moduleName;
   final Provider ciProvider;
   final Map<String, String> ciTags;
@@ -63,13 +65,14 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    PullRequestInfo pullRequestInfo = ciProviderInfo.buildPullRequestInfo();
+    PullRequestInfo pullRequestInfo =
+        buildPullRequestInfo(services.config, services.environment, ciProviderInfo);
 
     if (pullRequestInfo.isNotEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
     }
 
-    repoRoot = appendSlashIfNeeded(getRepoRoot(ciInfo, services.gitClientFactory));
+    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
     moduleName = getModuleName(services.config, repoRoot, path);
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
@@ -106,8 +109,44 @@ public class CiVisibilityRepoServices {
     }
   }
 
+  @Nonnull
+  private static PullRequestInfo buildPullRequestInfo(
+      Config config, CiEnvironment environment, CIProviderInfo ciProviderInfo) {
+    PullRequestInfo info = buildUserPullRequestInfo(config, environment);
+
+    if (info.isComplete()) {
+      return info;
+    }
+
+    // complete with CI vars if user didn't provide all information
+    return PullRequestInfo.merge(info, ciProviderInfo.buildPullRequestInfo());
+  }
+
+  @Nonnull
+  private static PullRequestInfo buildUserPullRequestInfo(
+      Config config, CiEnvironment environment) {
+    PullRequestInfo userInfo =
+        new PullRequestInfo(
+            config.getGitPullRequestBaseBranch(),
+            config.getGitPullRequestBaseBranchSha(),
+            config.getGitCommitHeadSha());
+
+    if (userInfo.isComplete()) {
+      return userInfo;
+    }
+
+    // logs-backend specific vars
+    PullRequestInfo ddCiInfo =
+        new PullRequestInfo(
+            null,
+            environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
+            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
+
+    return PullRequestInfo.merge(userInfo, ddCiInfo);
+  }
+
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
-    String ciWorkspace = ciInfo.getNormalizedCiWorkspace();
+    String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;
 
@@ -127,15 +166,7 @@ public class CiVisibilityRepoServices {
     }
   }
 
-  private static String appendSlashIfNeeded(String repoRoot) {
-    if (repoRoot != null && !repoRoot.endsWith(File.separator)) {
-      return repoRoot + File.separator;
-    } else {
-      return repoRoot;
-    }
-  }
-
-  static String getModuleName(Config config, String repoRoot, Path path) {
+  static String getModuleName(Config config, @Nullable String repoRoot, Path path) {
     // if parent process is instrumented, it will provide build system's module name
     String parentModuleName = config.getCiVisibilityModuleName();
     if (parentModuleName != null) {
@@ -175,7 +206,7 @@ public class CiVisibilityRepoServices {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      String repoRoot) {
+      @Nullable String repoRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
       LOGGER.warn(
@@ -208,7 +239,7 @@ public class CiVisibilityRepoServices {
       GitClient gitClient,
       GitRepoUnshallow gitRepoUnshallow,
       BackendApi backendApi,
-      String repoRoot) {
+      @Nullable String repoRoot) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
       return () -> CompletableFuture.completedFuture(null);
     }
@@ -239,7 +270,7 @@ public class CiVisibilityRepoServices {
   }
 
   private static SourcePathResolver buildSourcePathResolver(
-      String repoRoot, RepoIndexProvider indexProvider) {
+      @Nullable String repoRoot, RepoIndexProvider indexProvider) {
     SourcePathResolver compilerAidedResolver =
         repoRoot != null
             ? new CompilerAidedSourcePathResolver(repoRoot)
@@ -248,7 +279,7 @@ public class CiVisibilityRepoServices {
     return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }
 
-  private static Codeowners buildCodeowners(String repoRoot) {
+  private static Codeowners buildCodeowners(@Nullable String repoRoot) {
     if (repoRoot != null) {
       return new CodeownersProvider().build(repoRoot);
     } else {

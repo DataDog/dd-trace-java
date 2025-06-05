@@ -1,5 +1,7 @@
 package com.datadog.profiling.agent;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
@@ -140,23 +142,33 @@ public class CompositeController implements Controller {
     List<Controller> controllers = new ArrayList<>();
     boolean isOracleJDK8 = Platform.isOracleJDK8();
     boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
-    if (provider.getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false)) {
-      log.warn("JFR is disabled by configuration");
+    boolean isJfrEnabled =
+        !provider.getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false);
+    if (!isJfrEnabled) {
+      log.warn(SEND_TELEMETRY, "JFR is disabled by configuration");
     } else {
       if (isOracleJDK8 && !isDatadogProfilerEnabled) {
         try {
           Class.forName("com.oracle.jrockit.jfr.Producer");
           controllers.add(OracleJdkController.instance(provider));
-        } catch (Throwable ignored) {
-          log.debug("Failed to load oracle profiler", ignored);
+        } catch (Throwable t) {
+          log.debug(SEND_TELEMETRY, "Failed to load oracle profiler: " + t.getMessage(), t);
         }
       }
       if (!isOracleJDK8) {
         try {
-          Class.forName("jdk.jfr.Event");
-          controllers.add(OpenJdkController.instance(provider));
-        } catch (Throwable ignored) {
-          log.debug("Failed to load openjdk profiler", ignored);
+          if (Platform.hasJfr()) {
+            controllers.add(OpenJdkController.instance(provider));
+          } else {
+            log.debug(
+                SEND_TELEMETRY,
+                "JFR is not available on this platform: "
+                    + OperatingSystem.current()
+                    + ", "
+                    + Arch.current());
+          }
+        } catch (Throwable t) {
+          log.debug(SEND_TELEMETRY, "Failed to load openjdk profiler: " + t.getMessage(), t);
         }
       }
     }
@@ -172,16 +184,20 @@ public class CompositeController implements Controller {
         context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
         OperatingSystem os = OperatingSystem.current();
         if (os != OperatingSystem.linux) {
-          log.debug("Datadog profiler only supported on Linux", rootCause);
-        } else if (log.isDebugEnabled()) {
-          log.warn(
-              "failed to instantiate Datadog profiler on {} {}", os, Arch.current(), rootCause);
-        } else {
+          log.debug(SEND_TELEMETRY, "Datadog profiler only supported on Linux", rootCause);
+        } else if (!log.isDebugEnabled()) {
           log.warn(
               "failed to instantiate Datadog profiler on {} {} because: {}",
               os,
               Arch.current(),
               rootCause.getMessage());
+        } else {
+          log.debug(
+              SEND_TELEMETRY,
+              "failed to instantiate Datadog profiler on {} {}",
+              os,
+              Arch.current(),
+              rootCause);
         }
       }
     } else {
@@ -199,14 +215,18 @@ public class CompositeController implements Controller {
     }
     controllers.forEach(controller -> controller.configure(context));
     if (controllers.isEmpty()) {
-      throw new UnsupportedEnvironmentException(getFixProposalMessage());
+      throw new UnsupportedEnvironmentException(
+          getFixProposalMessage(isDatadogProfilerEnabled, isJfrEnabled));
     } else if (controllers.size() == 1) {
       return controllers.get(0);
     }
     return new CompositeController(controllers);
   }
 
-  private static String getFixProposalMessage() {
+  private static String getFixProposalMessage(boolean datadogProfilerEnabled, boolean jfrEnabled) {
+    if (!datadogProfilerEnabled && !jfrEnabled) {
+      return "Profiling is disabled by configuration. Please, make sure that your configuration is correct.";
+    }
     final String javaVendor = System.getProperty("java.vendor");
     final String javaVersion = System.getProperty("java.version");
     final String javaRuntimeName = System.getProperty("java.runtime.name");

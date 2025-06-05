@@ -1,5 +1,6 @@
 package com.datadog.debugger.symbol;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 
 class SymDBEnablementTest {
@@ -50,15 +53,19 @@ class SymDBEnablementTest {
     when(instr.isModifiableClass(any())).thenReturn(true);
     config = mock(Config.class);
     when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger"));
-    when(config.isDebuggerSymbolEnabled()).thenReturn(true);
+    when(config.isSymbolDatabaseEnabled()).thenReturn(true);
     symbolSink = mock(SymbolSink.class);
   }
 
   @Test
   public void enableDisableSymDBThroughRC() throws Exception {
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(
-            instr, config, new SymbolAggregator(symbolSink, 1), ClassNameFiltering.allowAll());
+            instr,
+            config,
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
+            classNameFiltering);
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
     waitForUpload(symDBEnablement);
     verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
@@ -68,9 +75,13 @@ class SymDBEnablementTest {
 
   @Test
   public void removeSymDBConfig() throws Exception {
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(
-            instr, config, new SymbolAggregator(symbolSink, 1), ClassNameFiltering.allowAll());
+            instr,
+            config,
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
+            classNameFiltering);
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
     waitForUpload(symDBEnablement);
     symDBEnablement.remove(ParsedConfigKey.parse(CONFIG_KEY), null);
@@ -81,21 +92,25 @@ class SymDBEnablementTest {
   public void noIncludesFilterOutDatadogClass() {
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger."));
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(
-            instr, config, new SymbolAggregator(symbolSink, 1), new ClassNameFiltering(config));
+            instr,
+            config,
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
+            classNameFiltering);
     symDBEnablement.startSymbolExtraction();
     ArgumentCaptor<SymbolExtractionTransformer> captor =
         ArgumentCaptor.forClass(SymbolExtractionTransformer.class);
     verify(instr).addTransformer(captor.capture());
     SymbolExtractionTransformer transformer = captor.getValue();
-    ClassNameFilter classNameFiltering = transformer.getClassNameFiltering();
-    assertTrue(classNameFiltering.isExcluded("com.datadog.debugger.test.TestClass"));
-    assertFalse(classNameFiltering.isExcluded("org.foobar.test.TestClass"));
+    ClassNameFilter classNameFilter = transformer.getClassNameFiltering();
+    assertTrue(classNameFilter.isExcluded("com.datadog.debugger.test.TestClass"));
+    assertFalse(classNameFilter.isExcluded("org.foobar.test.TestClass"));
   }
 
   @Test
-  public void parseLoadedClass() throws ClassNotFoundException, IOException, URISyntaxException {
+  public void parseLoadedClass() throws ClassNotFoundException, IOException {
     final String CLASS_NAME = "com.datadog.debugger.symbol.SymbolExtraction01";
     URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
     URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
@@ -106,14 +121,16 @@ class SymDBEnablementTest {
         .thenReturn(
             Stream.of("com.datadog.debugger.", "org.springframework.samples.")
                 .collect(Collectors.toSet()));
-    SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
+    SymbolAggregator symbolAggregator =
+        spy(new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1));
     SymDBEnablement symDBEnablement =
-        new SymDBEnablement(instr, config, symbolAggregator, ClassNameFiltering.allowAll());
+        new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     symDBEnablement.startSymbolExtraction();
     verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(symbolAggregator, times(2))
-        .parseClass(captor.capture(), any(), eq(jarFileUrl.getFile()));
+        .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
     assertEquals(
         "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(0));
     assertEquals(
@@ -132,26 +149,31 @@ class SymDBEnablementTest {
         .thenReturn(
             Stream.of("com.datadog.debugger.", "org.springframework.samples.")
                 .collect(Collectors.toSet()));
-    SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
+    SymbolAggregator symbolAggregator =
+        spy(new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1));
     SymDBEnablement symDBEnablement =
-        new SymDBEnablement(instr, config, symbolAggregator, ClassNameFiltering.allowAll());
+        new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     symDBEnablement.startSymbolExtraction();
     verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(symbolAggregator, atLeastOnce()).parseClass(captor.capture(), any(), anyString());
+    verify(symbolAggregator, atLeastOnce()).parseClass(any(), captor.capture(), any(), anyString());
     // verify that we called parseClass on this test class
     assertTrue(captor.getAllValues().contains(getClass().getSimpleName() + ".class"));
   }
 
   @Test
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
   public void noDuplicateSymbolExtraction() {
     final String CLASS_NAME_PATH = "com/datadog/debugger/symbol/SymbolExtraction01";
     SymbolSink mockSymbolSink = mock(SymbolSink.class);
-    SymbolAggregator symbolAggregator = new SymbolAggregator(mockSymbolSink, 1);
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
             Collections.singleton("org.springframework."),
-            Collections.singleton("com.datadog.debugger."));
+            Collections.singleton("com.datadog.debugger."),
+            Collections.emptySet());
+    SymbolAggregator symbolAggregator =
+        new SymbolAggregator(classNameFiltering, emptyList(), mockSymbolSink, 1);
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     doAnswer(

@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
@@ -49,8 +49,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       updateRoutingContextWithRoute(routingContext);
     }
 
-    try (final AgentScope scope =
-        span != null ? activateSpan(span, true) : AgentTracer.NoopAgentScope.INSTANCE) {
+    try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {

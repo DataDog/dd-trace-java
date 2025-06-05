@@ -55,10 +55,10 @@ public class ProbeStatusSink {
     this.diagnosticUploader = diagnosticUploader;
     this.useMultiPart = useMultiPart;
     this.messageBuilder = new Builder(config);
-    this.interval = Duration.ofSeconds(config.getDebuggerDiagnosticsInterval());
-    this.batchSize = config.getDebuggerUploadBatchSize();
+    this.interval = Duration.ofSeconds(config.getDynamicInstrumentationDiagnosticsInterval());
+    this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.queue = new ArrayBlockingQueue<>(2 * this.batchSize);
-    this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
+    this.isInstrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
   }
 
   public void stop() {

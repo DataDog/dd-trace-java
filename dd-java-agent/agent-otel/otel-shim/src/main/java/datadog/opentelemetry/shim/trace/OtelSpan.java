@@ -43,6 +43,7 @@ public class OtelSpan implements Span, WithAgentSpan {
     }
     this.statusCode = UNSET;
     this.recording = true;
+    delegate.context().setIntegrationName("otel");
   }
 
   public static Span invalid() {
@@ -172,7 +173,7 @@ public class OtelSpan implements Span, WithAgentSpan {
 
   @Override
   public AgentSpan asAgentSpan() {
-    return delegate;
+    return this.delegate;
   }
 
   private static class NoopSpan implements Span {

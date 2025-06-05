@@ -38,12 +38,15 @@ addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
-
+[ee8LatestDepTest, ee9LatestDepTest, ee10LatestDepTest].each {
+  it.configure {
+    it.jvmArgs += ['-Dtest.dd.latestDepTest=true']
+  }
+}
 forbiddenApisMain_java17 {
   failOnMissingClasses = false
 }
-
-compileTestGroovy {
+tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(17)
 }
 
@@ -68,6 +71,11 @@ dependencies {
   testImplementation(project(':dd-java-agent:instrumentation:jetty-appsec-9.3'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12")
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
@@ -84,21 +92,40 @@ dependencies {
   ee8TestImplementation group: 'org.eclipse.jetty.ee8', name: 'jetty-ee8-servlet', version: '12.0.0' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  ee8TestImplementation group: 'org.eclipse.jetty.ee8.websocket', name: 'jetty-ee8-websocket-javax-server', version: '12.0.0' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+
   ee8LatestDepTestImplementation group: 'org.eclipse.jetty.ee8', name: 'jetty-ee8-servlet', version: '12.+' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  ee8LatestDepTestImplementation group: 'org.eclipse.jetty.ee8.websocket', name: 'jetty-ee8-websocket-javax-server', version: '12.+' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 
   ee9TestImplementation group: 'org.eclipse.jetty.ee9', name: 'jetty-ee9-servlet', version: '12.0.0' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  ee9TestImplementation group: 'org.eclipse.jetty.ee9.websocket', name: 'jetty-ee9-websocket-jakarta-server', version: '12.0.0' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
   ee9LatestDepTestImplementation group: 'org.eclipse.jetty.ee9', name: 'jetty-ee9-servlet', version: '12.+' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  ee9LatestDepTestImplementation group: 'org.eclipse.jetty.ee9.websocket', name: 'jetty-ee9-websocket-jakarta-server', version: '12.+' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 
   ee10TestImplementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: '12.0.0' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  ee10TestImplementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: '12.0.0' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
   ee10LatestDepTestImplementation group: 'org.eclipse.jetty.ee10', name: 'jetty-ee10-servlet', version: '12.+' , {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  ee10LatestDepTestImplementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: '12.+' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 }

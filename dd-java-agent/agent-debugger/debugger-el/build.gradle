@@ -12,7 +12,8 @@ excludedClassesCoverage += [
   'com.datadog.debugger.el.Script*',
   'com.datadog.debugger.el.ValueScript*',
   'com.datadog.debugger.el.values.CollectionValue*',
-  'com.datadog.debugger.el.InvalidValueException'
+  'com.datadog.debugger.el.InvalidValueException',
+  'com.datadog.debugger.el.EvaluationException'
 ]
 
 dependencies {

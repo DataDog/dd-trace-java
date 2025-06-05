@@ -26,7 +26,6 @@ import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.test.util.Flaky;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,7 +53,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
-  @Flaky
   @Test
   @DisplayName("testFullMethod")
   void testFullMethod() throws Exception {
@@ -81,8 +79,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "java.lang.String",
               "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
           assertNotNull(snapshot.getCaptures().getReturn().getLocals());
-          // ex & @return are the only locals
-          assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+          // @return is the only locals
+          assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
           assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
           snapshotReceived.set(true);
         });
@@ -250,6 +248,33 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
       assertTrue(probeIds.contains(String.valueOf(i)));
     }
     assertFalse(logHasErrors(logFilePath, it -> false));
+  }
+
+  @Test
+  @DisplayName("testLineProbe")
+  void testLineProbe() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(LINE_PROBE_ID1)
+            .where("DebuggerTestApplication.java", 88)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
+          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(88);
+          assertFullMethodCaptureArgs(capturedContext);
+          assertNull(capturedContext.getLocals());
+          assertNull(capturedContext.getCapturedThrowable());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
   }
 
   @Test

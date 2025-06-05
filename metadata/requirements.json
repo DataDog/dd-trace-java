@@ -202,6 +202,210 @@
       "envars": null
     },
     {
+      "id": "oracle_dbca",
+      "description": "Skip Oracle Database Configuration Assistant",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.assistants.dbca.driver.DBConfigurator"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_dbua",
+      "description": "Skip Oracle Database Upgrade Assistant",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.assistants.dbua.driver.StartDBUA"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_emca",
+      "description": "Skip Oracle Enterprise Manager Configuration Assistant",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.sysman.assistants.emca.sdkimpl.EMConfigAssistant"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_invctl",
+      "description": "Skip Oracle Inventory Control",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.install.common.endpoints.cli.CliExecutor"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_netca",
+      "description": "Skip Oracle Net Configuration Assistant",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.net.ca.NetCA"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_rconfig",
+      "description": "Skip Oracle RAC Converter",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.sysman.assistants.rconfig.RConfig"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_roohctl",
+      "description": "Skip Oracle Read-Only Oracle Home Control",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.assistants.roohctl.RoohCtl"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_srvctl",
+      "description": "Skip Oracle Server Control Utility",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.ops.opsctl.OPSCTLDriver"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_diagsetup",
+      "description": "Skip Oracle Setup Diagnostic Tool",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.diagfw.adr.diagsetup.DiagSetup"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_ldifmigrator",
+      "description": "Skip Oracle LDIF Migration Tool",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.ldap.util.LDIFMigration"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_trcasst",
+      "description": "Skip Oracle Trace Assistant",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.net.trcasst.Jtrcasst"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
+      "id": "oracle_trcsess",
+      "description": "Skip Oracle Session Tracer",
+      "os": null,
+      "cmds": [
+        "**/java"
+      ],
+      "args": [
+        {
+          "args": [
+            "oracle.ss.tools.trcsess.TrcSess"
+          ],
+          "position": null
+        }
+      ],
+      "envars": null
+    },
+    {
       "id": "apache_lucene8_luke",
       "description": "Skip Lucene 8 Luke",
       "os": null,

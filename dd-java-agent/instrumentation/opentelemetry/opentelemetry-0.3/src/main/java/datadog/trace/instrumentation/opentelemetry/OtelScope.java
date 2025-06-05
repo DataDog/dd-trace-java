@@ -12,16 +12,6 @@ public class OtelScope implements Scope, TraceScope {
   }
 
   @Override
-  public Continuation capture() {
-    return delegate.capture();
-  }
-
-  @Override
-  public Continuation captureConcurrent() {
-    return delegate.captureConcurrent();
-  }
-
-  @Override
   public void close() {
     delegate.close();
   }

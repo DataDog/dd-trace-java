@@ -93,7 +93,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
 
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -149,7 +149,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
 
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

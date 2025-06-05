@@ -6,7 +6,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString

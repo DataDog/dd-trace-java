@@ -6,7 +6,25 @@ public class DDTags {
 
   public static final String DD_CODE_ORIGIN_TYPE = DD_CODE_ORIGIN_PREFIX + "type";
   // _dd.code_origin.frames.%d.file|line|method|type|snapshot_id
-  public static final String DD_CODE_ORIGIN_FRAME = DD_CODE_ORIGIN_PREFIX + "frames.%d.%s";
+  public static final String DD_CODE_ORIGIN_FRAME_FILE = DD_CODE_ORIGIN_PREFIX + "frames.0.file";
+  public static final String DD_CODE_ORIGIN_FRAME_TYPE = DD_CODE_ORIGIN_PREFIX + "frames.0.type";
+  public static final String DD_CODE_ORIGIN_FRAME_METHOD =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.method";
+  public static final String DD_CODE_ORIGIN_FRAME_SIGNATURE =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.signature";
+  public static final String DD_CODE_ORIGIN_FRAME_LINE = DD_CODE_ORIGIN_PREFIX + "frames.0.line";
+  public static final String DD_CODE_ORIGIN_FRAME_SNAPSHOT_ID =
+      DD_CODE_ORIGIN_PREFIX + "frames.0.snapshot_id";
+
+  public static final String[] REQUIRED_CODE_ORIGIN_TAGS =
+      new String[] {
+        DD_CODE_ORIGIN_TYPE,
+        DD_CODE_ORIGIN_FRAME_FILE,
+        DD_CODE_ORIGIN_FRAME_METHOD,
+        DD_CODE_ORIGIN_FRAME_LINE,
+        DD_CODE_ORIGIN_FRAME_TYPE,
+        DD_CODE_ORIGIN_FRAME_SIGNATURE,
+      };
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
@@ -37,6 +55,7 @@ public class DDTags {
 
   /** Manually force tracer to keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";
+
   /** Manually force tracer to drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 
@@ -58,6 +77,7 @@ public class DDTags {
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
+  public static final String TEST_IS_USER_PROVIDED_SERVICE = "_dd.test.is_user_provided_service";
   public static final String MEASURED = "_dd.measured";
   public static final String PID_TAG = "process_id";
   public static final String SCHEMA_VERSION_TAG_KEY = "_dd.trace_span_attribute_schema";
@@ -75,4 +95,9 @@ public class DDTags {
   public static final String BASE_SERVICE = "_dd.base_service";
   public static final String PARENT_ID = "_dd.parent_id";
   public static final String APM_ENABLED = "_dd.apm.enabled";
+  public static final String DECISION_MAKER_INHERITED = "_dd.dm.inherited";
+  public static final String DECISION_MAKER_SERVICE = "_dd.dm.service";
+  public static final String DECISION_MAKER_RESOURCE = "_dd.dm.resource";
+  public static final String PROCESS_TAGS = "_dd.tags.process";
+  public static final String DD_INTEGRATION = "_dd.integration";
 }

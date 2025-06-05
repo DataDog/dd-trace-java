@@ -49,4 +49,7 @@ public class InternalSpanTypes {
   public static final UTF8BytesString TIBCO_BW = UTF8BytesString.create("tibco_bw");
   public static final UTF8BytesString MULE = UTF8BytesString.create(DDSpanTypes.MULE);
   public static final CharSequence VALKEY = UTF8BytesString.create(DDSpanTypes.VALKEY);
+  public static final UTF8BytesString WEBSOCKET = UTF8BytesString.create(DDSpanTypes.WEBSOCKET);
+
+  public static final CharSequence SERVERLESS = UTF8BytesString.create(DDSpanTypes.SERVERLESS);
 }

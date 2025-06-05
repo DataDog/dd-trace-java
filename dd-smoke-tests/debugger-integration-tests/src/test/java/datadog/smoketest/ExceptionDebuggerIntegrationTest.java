@@ -3,7 +3,7 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Platform;
@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +21,11 @@ import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
-  private String snapshotId0;
-  private String snapshotId1;
-  private String snapshotId2;
+  private List<String> snapshotIdTags = new ArrayList<>();
   private boolean traceReceived;
   private boolean snapshotReceived;
   private Map<String, Snapshot> snapshots = new HashMap<>();
+  private List<String> additionalJvmArgs = new ArrayList<>();
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -36,6 +36,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     commandParams.add("-Ddd.third.party.excludes=datadog.smoketest");
     // disable DI to make sure exception debugger works alone
     commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
+    commandParams.addAll(additionalJvmArgs);
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }
@@ -46,6 +47,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testSimpleSingleFrameException() throws Exception {
+    appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // collecting snapshots and sending them
@@ -53,6 +55,10 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     registerSnapshotListener(this::receiveSnapshot);
     processRequests(
         () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          String snapshotId0 = snapshotIdTags.get(0);
           if (traceReceived && snapshotReceived && snapshots.containsKey(snapshotId0)) {
             Snapshot snapshot = snapshots.get(snapshotId0);
             assertNotNull(snapshot);
@@ -71,6 +77,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testNoSubsequentCaptureAfterFirst() throws Exception {
+    appUrl = startAppAndAndGetUrl();
     testSimpleSingleFrameException();
     resetSnapshotsAndTraces();
     // we should not receive any more snapshots after the first one
@@ -88,12 +95,22 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     processRequests(() -> traceReceived && !snapshotReceived);
   }
 
+  // DeepOops exception stacktrace:
+  // java.lang.RuntimeException: oops
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException(ServerDebuggerTestApplication.java:190)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5(ServerDebuggerTestApplication.java:210)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4(ServerDebuggerTestApplication.java:206)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3(ServerDebuggerTestApplication.java:202)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2(ServerDebuggerTestApplication.java:198)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException1(ServerDebuggerTestApplication.java:194)
+  // datadog.smoketest.debugger.ServerDebuggerTestApplication.runTracedMethod(ServerDebuggerTestApplication.java:140)
   @Test
   @DisplayName("test3CapturedFrames")
   @DisabledIf(
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void test3CapturedFrames() throws Exception {
+    appUrl = startAppAndAndGetUrl();
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // instrumenting first exception
     waitForInstrumentation(appUrl);
     execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // collecting snapshots and sending them
@@ -101,26 +118,17 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     registerSnapshotListener(this::receiveSnapshot);
     processRequests(
         () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          String snapshotId0 = snapshotIdTags.get(0);
+          String snapshotId1 = snapshotIdTags.get(1);
+          String snapshotId2 = snapshotIdTags.get(2);
           if (traceReceived
               && snapshotReceived
               && snapshots.containsKey(snapshotId0)
               && snapshots.containsKey(snapshotId1)
               && snapshots.containsKey(snapshotId2)) {
-            // java.lang.RuntimeException: oops
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException(ServerDebuggerTestApplication.java:190)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5(ServerDebuggerTestApplication.java:210)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4(ServerDebuggerTestApplication.java:206)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3(ServerDebuggerTestApplication.java:202)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2(ServerDebuggerTestApplication.java:198)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException1(ServerDebuggerTestApplication.java:194)
-            //   at
-            // datadog.smoketest.debugger.ServerDebuggerTestApplication.runTracedMethod(ServerDebuggerTestApplication.java:140)
             // snapshot 0
             Snapshot snapshot = snapshots.get(snapshotId0);
             assertNotNull(snapshot);
@@ -152,14 +160,168 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
         });
   }
 
+  @Test
+  @DisplayName("test5CapturedFrames")
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  void test5CapturedFrames() throws Exception {
+    additionalJvmArgs.add("-Ddd.exception.replay.capture.max.frames=5");
+    appUrl = startAppAndAndGetUrl();
+    execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // instrumenting first exception
+    waitForInstrumentation(appUrl);
+    execute(appUrl, TRACED_METHOD_NAME, "deepOops"); // collecting snapshots and sending them
+    registerTraceListener(this::receiveExceptionReplayTrace);
+    registerSnapshotListener(this::receiveSnapshot);
+    processRequests(
+        () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          String snapshotId0 = snapshotIdTags.get(0);
+          String snapshotId1 = snapshotIdTags.get(1);
+          String snapshotId2 = snapshotIdTags.get(2);
+          String snapshotId3 = snapshotIdTags.get(3);
+          String snapshotId4 = snapshotIdTags.get(4);
+          if (traceReceived
+              && snapshotReceived
+              && snapshots.containsKey(snapshotId0)
+              && snapshots.containsKey(snapshotId1)
+              && snapshots.containsKey(snapshotId2)
+              && snapshots.containsKey(snapshotId3)
+              && snapshots.containsKey(snapshotId4)) {
+            // snapshot 0
+            Snapshot snapshot = snapshots.get(snapshotId0);
+            assertNotNull(snapshot);
+            assertEquals(
+                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithException",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            // snapshot 1
+            snapshot = snapshots.get(snapshotId1);
+            assertEquals(
+                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException5",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            // snapshot 2
+            snapshot = snapshots.get(snapshotId2);
+            assertEquals(
+                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException4",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            // snapshot 3
+            snapshot = snapshots.get(snapshotId3);
+            assertEquals(
+                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException3",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            // snapshot 4
+            snapshot = snapshots.get(snapshotId4);
+            assertEquals(
+                "oops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithDeepException2",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            return true;
+          }
+          return false;
+        });
+  }
+
+  @Test
+  @DisplayName("test3CapturedRecursiveFrames")
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  void test3CapturedRecursiveFrames() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // instrumenting first exception
+    waitForInstrumentation(appUrl);
+    execute(appUrl, TRACED_METHOD_NAME, "recursiveOops"); // collecting snapshots and sending them
+    registerTraceListener(this::receiveExceptionReplayTrace);
+    registerSnapshotListener(this::receiveSnapshot);
+    processRequests(
+        () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          if (traceReceived
+              && snapshotReceived
+              && snapshots.containsKey(snapshotIdTags.get(0))
+              && snapshots.containsKey(snapshotIdTags.get(1))
+              && snapshots.containsKey(snapshotIdTags.get(2))) {
+            assertEquals(3, snapshotIdTags.size());
+            assertEquals(3, snapshots.size());
+            // snapshot 0
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(0)));
+            // snapshot 1
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(1)));
+            // snapshot 2
+            assertRecursiveSnapshot(snapshots.get(snapshotIdTags.get(2)));
+            return true;
+          }
+          return false;
+        });
+  }
+
+  private static void assertRecursiveSnapshot(Snapshot snapshot) {
+    assertNotNull(snapshot);
+    assertEquals(
+        "recursiveOops", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+    assertEquals(
+        "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithRecursiveException",
+        snapshot.getStack().get(0).getFunction());
+  }
+
+  @Test
+  @DisplayName("testLambdaHiddenFrames")
+  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "HotSpot specific test")
+  void testLambdaHiddenFrames() throws Exception {
+    additionalJvmArgs.add("-XX:+UnlockDiagnosticVMOptions");
+    additionalJvmArgs.add("-XX:+ShowHiddenFrames");
+    appUrl = startAppAndAndGetUrl();
+    execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // instrumenting first exception
+    waitForInstrumentation(appUrl);
+    execute(appUrl, TRACED_METHOD_NAME, "lambdaOops"); // collecting snapshots and sending them
+    registerTraceListener(this::receiveExceptionReplayTrace);
+    registerSnapshotListener(this::receiveSnapshot);
+    processRequests(
+        () -> {
+          if (snapshotIdTags.isEmpty()) {
+            return false;
+          }
+          String snapshotId0 = snapshotIdTags.get(0);
+          if (traceReceived && snapshotReceived && snapshots.containsKey(snapshotId0)) {
+            Snapshot snapshot = snapshots.get(snapshotId0);
+            assertNotNull(snapshot);
+            assertEquals(
+                "lambdaOops",
+                snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+            assertEquals(
+                "datadog.smoketest.debugger.ServerDebuggerTestApplication.tracedMethodWithLambdaException",
+                snapshot.getStack().get(0).getFunction());
+            assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
+            return true;
+          }
+          return false;
+        });
+  }
+
   private void resetSnapshotsAndTraces() {
     resetTraceListener();
     traceReceived = false;
     snapshotReceived = false;
     snapshots.clear();
-    snapshotId0 = null;
-    snapshotId1 = null;
-    snapshotId2 = null;
+    snapshotIdTags.clear();
   }
 
   private void assertFullMethodCaptureArgs(CapturedContext context) {
@@ -178,10 +340,13 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
     for (DecodedSpan span : decodedTrace.getSpans()) {
       if (isTracedFullMethodSpan(span) && span.getMeta().containsKey("error.debug_info_captured")) {
         // assert that we have received the trace with ER tags only once
-        assertNull(snapshotId0);
-        snapshotId0 = span.getMeta().get("_dd.debug.error.0.snapshot_id");
-        snapshotId1 = span.getMeta().get("_dd.debug.error.1.snapshot_id");
-        snapshotId2 = span.getMeta().get("_dd.debug.error.2.snapshot_id");
+        assertTrue(snapshotIdTags.isEmpty());
+        for (int i = 0; i < 5; i++) {
+          String snapshotId = span.getMeta().get("_dd.debug.error." + i + ".snapshot_id");
+          if (snapshotId != null) {
+            snapshotIdTags.add(snapshotId);
+          }
+        }
         assertFalse(traceReceived);
         traceReceived = true;
       }

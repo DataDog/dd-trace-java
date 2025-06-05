@@ -12,10 +12,6 @@ java {
   sourceCompatibility = '1.8'
 }
 
-repositories {
-  mavenCentral()
-}
-
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
   implementation group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'

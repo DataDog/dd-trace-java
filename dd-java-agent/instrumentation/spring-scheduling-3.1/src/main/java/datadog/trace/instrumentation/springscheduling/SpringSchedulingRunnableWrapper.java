@@ -58,7 +58,7 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
         LEGACY_TRACING ? startSpan(SCHEDULED_CALL) : startSpan(SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
 
-    try (final AgentScope scope = activateSpan(span, true)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.onRun(span, runnable);
 
       try {

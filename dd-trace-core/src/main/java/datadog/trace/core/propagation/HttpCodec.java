@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DD64bTraceId;
@@ -51,8 +52,7 @@ public class HttpCodec {
   static final String CF_CONNECTING_IP_V6_KEY = "cf-connecting-ipv6";
 
   public interface Injector {
-    <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
+    <C> void inject(final DDSpanContext context, final C carrier, final CarrierSetter<C> setter);
   }
 
   /** This interface defines propagated context extractor. */
@@ -125,6 +125,8 @@ public class HttpCodec {
         case TRACECONTEXT:
           result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
           break;
+        case BAGGAGE:
+          break;
         default:
           log.debug("No implementation found to inject propagation style: {}", style);
           break;
@@ -159,6 +161,8 @@ public class HttpCodec {
         case TRACECONTEXT:
           extractors.add(W3CHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
+        case BAGGAGE:
+          break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
           break;
@@ -184,7 +188,7 @@ public class HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       log.debug("Inject context {}", context);
       for (final Injector injector : injectors) {
         injector.inject(context, carrier, setter);

@@ -31,7 +31,7 @@ public class SendAsyncAdvice {
         return null;
       }
       final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       if (bodyHandler != null) {
         bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));
       }

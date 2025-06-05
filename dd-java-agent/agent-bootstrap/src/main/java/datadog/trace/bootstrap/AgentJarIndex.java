@@ -142,6 +142,12 @@ public final class AgentJarIndex {
       if (null != prefixRoot) {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
+          int existingPrefixId = prefixTrie.apply(entryKey);
+          if (-1 != existingPrefixId && prefixId != existingPrefixId) {
+            log.warn(
+                "Detected duplicate content under '{}'. Ensure your content is under a distinct directory.",
+                entryKey);
+          }
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
             // optimization: wildcard will match everything under here so can skip

@@ -8,6 +8,7 @@ import groovy.transform.CompileDynamic
 
 import static datadog.trace.api.iast.VulnerabilityMarks.SQL_INJECTION_MARK
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
+import static datadog.trace.api.iast.VulnerabilityMarks.EMAIL_HTML_INJECTION_MARK
 
 @CompileDynamic
 class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
@@ -27,15 +28,32 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintStringIfTainted(_ as String, args[0], false, mark)
+    1 * module.taintStringIfTainted(_ as String, args[0], false, XSS_MARK | EMAIL_HTML_INJECTION_MARK)
     0 * _
 
     where:
-    method             | args                  | mark               | expected
-    'escapeHtml'       | ['Ø-This is a quote'] | XSS_MARK           | '&Oslash;-This is a quote'
-    'escapeJava'       | ['Ø-This is a quote'] | XSS_MARK           | '\\u00D8-This is a quote'
-    'escapeJavaScript' | ['Ø-This is a quote'] | XSS_MARK           | '\\u00D8-This is a quote'
-    'escapeXml'        | ['Ø-This is a quote'] | XSS_MARK           | '&#216;-This is a quote'
-    'escapeSql'        | ['Ø-This is a quote'] | SQL_INJECTION_MARK | 'Ø-This is a quote'
+    method             | args                  | expected
+    'escapeHtml'       | ['Ø-This is a quote'] | '&Oslash;-This is a quote'
+    'escapeJava'       | ['Ø-This is a quote'] | '\\u00D8-This is a quote'
+    'escapeJavaScript' | ['Ø-This is a quote'] | '\\u00D8-This is a quote'
+    'escapeXml'        | ['Ø-This is a quote'] | '&#216;-This is a quote'
+  }
+
+  void 'test #method sql'() {
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringEscapeUtilsSuite.&"$method".call(args)
+
+    then:
+    result == expected
+    1 * module.taintStringIfTainted(_ as String, args[0], false, SQL_INJECTION_MARK)
+    0 * _
+
+    where:
+    method             | args                  | expected
+    'escapeSql'        | ['Ø-This is a quote'] | 'Ø-This is a quote'
   }
 }

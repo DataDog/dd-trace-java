@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.grpc.client;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
 import io.grpc.Metadata;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-public final class GrpcInjectAdapter implements AgentPropagation.Setter<Metadata> {
-
+@ParametersAreNonnullByDefault
+public final class GrpcInjectAdapter implements CarrierSetter<Metadata> {
   public static final GrpcInjectAdapter SETTER = new GrpcInjectAdapter();
 
   @Override

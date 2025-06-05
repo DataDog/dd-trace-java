@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.kafka_streams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -29,9 +31,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -229,7 +234,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext = propagate().extract(record, SR_GETTER);
+        final AgentSpanContext extractedContext =
+            extractContextAndGetSpanContext(record, SR_GETTER);
         long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
@@ -260,12 +266,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
+              .setCheckpoint(span, create(sortedTags, record.timestamp, payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-            propagate()
-                .injectPathwayContext(
-                    span, record, SR_SETTER, sortedTags, record.timestamp, payloadSize);
+            Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+            DataStreamsContext dsmContext = create(sortedTags, record.timestamp, payloadSize);
+            dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
           }
         }
       } else {
@@ -304,7 +310,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext = propagate().extract(record, PR_GETTER);
+        final AgentSpanContext extractedContext =
+            extractContextAndGetSpanContext(record, PR_GETTER);
         long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
         if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
           span = startSpan(KAFKA_CONSUME, extractedContext);
@@ -342,12 +349,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);
+              .setCheckpoint(span, create(sortedTags, record.timestamp(), payloadSize));
         } else {
           if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-            propagate()
-                .injectPathwayContext(
-                    span, record, PR_SETTER, sortedTags, record.timestamp(), payloadSize);
+            Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+            DataStreamsContext dsmContext = create(sortedTags, record.timestamp(), payloadSize);
+            dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
           }
         }
       } else {

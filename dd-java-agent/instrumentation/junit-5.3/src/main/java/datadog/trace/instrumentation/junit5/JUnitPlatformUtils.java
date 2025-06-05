@@ -2,24 +2,33 @@ package datadog.trace.instrumentation.junit5;
 
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.engine.ConfigurationParameters;
+import org.junit.platform.engine.EngineExecutionListener;
+import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestSource;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -35,10 +44,54 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class JUnitPlatformUtils {
 
-  public static final String RETRY_DESCRIPTOR_REASON_SUFFIX = "retry-reason";
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
+
+  public static final String ENGINE_ID_CUCUMBER = "cucumber";
+  public static final String ENGINE_ID_SPOCK = "spock";
+
+  public static final ComparableVersion junitV58 = new ComparableVersion("5.8");
+
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX,
+          LibraryCapability.FAIL_FAST);
+
+  public static final List<LibraryCapability> SPOCK_CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
+
+  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private JUnitPlatformUtils() {}
 
@@ -54,6 +107,65 @@ public abstract class JUnitPlatformUtils {
       METHOD_HANDLES.method(MethodSource.class, "getJavaClass");
   private static final MethodHandle GET_JAVA_METHOD =
       METHOD_HANDLES.method(MethodSource.class, "getJavaMethod");
+
+  /*
+   * From 5.13.0-RC1 onwards ExecutionRequest requires two additional arguments on creation.
+   * - OutputDirectoryProvider outputDirectoryProvider
+   * - NamespacedHierarchicalStore<Namespace> requestLevelStore
+   */
+  private static final MethodHandle GET_OUTPUT_DIRECTORY_PROVIDER =
+      METHOD_HANDLES.method(ExecutionRequest.class, "getOutputDirectoryProvider");
+  private static final MethodHandle GET_STORE =
+      METHOD_HANDLES.method(ExecutionRequest.class, "getStore");
+  private static final String[] CREATE_PARAMETER_TYPES =
+      new String[] {
+        "org.junit.platform.engine.TestDescriptor",
+        "org.junit.platform.engine.EngineExecutionListener",
+        "org.junit.platform.engine.ConfigurationParameters",
+        "org.junit.platform.engine.reporting.OutputDirectoryProvider",
+        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore"
+      };
+  private static final MethodHandle EXECUTION_REQUEST_CREATE = createExecutionRequestHandle();
+
+  private static MethodHandle createExecutionRequestHandle() {
+    if (GET_STORE != null && GET_OUTPUT_DIRECTORY_PROVIDER != null) {
+      return METHOD_HANDLES.method(
+          ExecutionRequest.class,
+          m ->
+              "create".equals(m.getName())
+                  && m.getParameterCount() == 5
+                  && Arrays.equals(
+                      Arrays.stream(m.getParameterTypes()).map(Class::getName).toArray(),
+                      CREATE_PARAMETER_TYPES));
+    } else {
+      return METHOD_HANDLES.constructor(
+          ExecutionRequest.class,
+          TestDescriptor.class,
+          EngineExecutionListener.class,
+          ConfigurationParameters.class);
+    }
+  }
+
+  public static ExecutionRequest createExecutionRequest(
+      ExecutionRequest request, EngineExecutionListener listener) {
+    if (GET_STORE != null && GET_OUTPUT_DIRECTORY_PROVIDER != null) {
+      Object provider = METHOD_HANDLES.invoke(GET_OUTPUT_DIRECTORY_PROVIDER, request);
+      Object store = METHOD_HANDLES.invoke(GET_STORE, request);
+      return METHOD_HANDLES.invoke(
+          EXECUTION_REQUEST_CREATE,
+          request.getRootTestDescriptor(),
+          listener,
+          request.getConfigurationParameters(),
+          provider,
+          store);
+    } else {
+      return METHOD_HANDLES.invoke(
+          EXECUTION_REQUEST_CREATE,
+          request.getRootTestDescriptor(),
+          listener,
+          request.getConfigurationParameters());
+    }
+  }
 
   private static Class<?> getTestClass(MethodSource methodSource) {
     Class<?> javaClass = METHOD_HANDLES.invoke(GET_JAVA_CLASS, methodSource);
@@ -145,11 +257,7 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static boolean isTestInProgress() {
-    AgentScope activeScope = AgentTracer.activeScope();
-    if (activeScope == null) {
-      return false;
-    }
-    AgentSpan span = activeScope.span();
+    AgentSpan span = AgentTracer.activeSpan();
     if (span == null) {
       return false;
     }
@@ -186,11 +294,6 @@ public abstract class JUnitPlatformUtils {
     return "test-template".equals(lastSegment.getType());
   }
 
-  public static RetryReason retryReason(TestDescriptor testDescriptor) {
-    String retryReasonSegment = getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_REASON_SUFFIX);
-    return retryReasonSegment != null ? RetryReason.valueOf(retryReasonSegment) : null;
-  }
-
   public static boolean isRetry(TestDescriptor testDescriptor) {
     return getIDSegmentValue(testDescriptor, RETRY_DESCRIPTOR_ID_SUFFIX) != null;
   }
@@ -211,5 +314,68 @@ public abstract class JUnitPlatformUtils {
       testDescriptor = testDescriptor.getParent().orElse(null);
     }
     return testDescriptor;
+  }
+
+  public static TestFrameworkInstrumentation engineToFramework(TestEngine testEngine) {
+    String testEngineClassName = testEngine.getClass().getName();
+    if (testEngineClassName.startsWith("io.cucumber")) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (testEngineClassName.startsWith("org.spockframework")) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT5;
+    }
+  }
+
+  public static String getEngineId(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    ListIterator<UniqueId.Segment> it = segments.listIterator(segments.size());
+    while (it.hasPrevious()) {
+      UniqueId.Segment segment = it.previous();
+      if ("engine".equals(segment.getType())) {
+        return segment.getValue();
+      }
+    }
+    return null;
+  }
+
+  public static TestFrameworkInstrumentation engineIdToFramework(String engineId) {
+    if (ENGINE_ID_CUCUMBER.equals(engineId)) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (ENGINE_ID_SPOCK.equals(engineId)) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT5;
+    }
+  }
+
+  // only used in junit5 and spock, cucumber has its own utils method
+  @Nullable
+  public static String getFrameworkVersion(TestEngine testEngine) {
+    return testEngine.getVersion().orElse(null);
+  }
+
+  public static boolean isJunitTestOrderingSupported(String version) {
+    return version != null && junitV58.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static List<LibraryCapability> capabilities(TestEngine testEngine) {
+    TestFrameworkInstrumentation framework = engineToFramework(testEngine);
+    if (framework.equals(TestFrameworkInstrumentation.CUCUMBER)) {
+      return CUCUMBER_CAPABILITIES;
+    } else if (framework.equals(TestFrameworkInstrumentation.SPOCK)) {
+      return SPOCK_CAPABILITIES;
+    } else {
+      if (isJunitTestOrderingSupported(getFrameworkVersion(testEngine))) {
+        return JUNIT_CAPABILITIES_ORDERING;
+      } else {
+        return JUNIT_CAPABILITIES_BASE;
+      }
+    }
+  }
+
+  public static List<String> getTags(TestDescriptor testDescriptor) {
+    return testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
   }
 }

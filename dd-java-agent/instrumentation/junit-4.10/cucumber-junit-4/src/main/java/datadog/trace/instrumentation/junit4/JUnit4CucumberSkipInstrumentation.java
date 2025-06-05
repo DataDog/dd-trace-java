@@ -9,9 +9,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
@@ -34,7 +35,9 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
+    return super.isApplicable(enabledSystems)
+        && (Config.get().isCiVisibilityTestSkippingEnabled()
+            || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -81,7 +84,10 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Argument(0) RunNotifier notifier) {
 
       TestIdentifier test = CucumberUtils.toTestIdentifier(description);
-      SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(test);
+      SkipReason skipReason =
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.CUCUMBER)
+              .skipReason(test);
       if (skipReason == null) {
         return null;
       }
@@ -89,7 +95,7 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
       if (skipReason == SkipReason.ITR) {
         List<String> tags = pickle.getTags();
         for (String tag : tags) {
-          if (tag.endsWith(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
+          if (tag.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
             return null;
           }
         }

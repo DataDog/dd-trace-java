@@ -1,15 +1,17 @@
 package datadog.trace.instrumentation.playws1;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
@@ -25,14 +27,12 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
-      final AgentSpan span = startSpan(PLAY_WS_REQUEST);
+      final AgentSpan span = startSpan("play-ws", PLAY_WS_REQUEST);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      propagate().inject(span, request, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+      defaultPropagator().inject(getCurrentContext().with(span).with(dsmContext), request, SETTER);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);

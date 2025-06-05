@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import net.bytebuddy.asm.Advice;
 
 public class PayloadSizeAdvice {

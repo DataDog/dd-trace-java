@@ -558,12 +558,12 @@ public class LogProbesInstrumentationTest {
 
   private TestSnapshotListener installProbes(Configuration configuration) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     DebuggerContext.ProbeResolver resolver =
         (encodedProbeId) -> resolver(encodedProbeId, configuration.getLogProbes());
     currentTransformer = new DebuggerTransformer(config, configuration);

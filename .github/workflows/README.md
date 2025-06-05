@@ -57,7 +57,7 @@ _Notes:_ This action will not apply to release candidate versions using `-RC` ta
 
 _Trigger:_ Quarterly released, loosely [a day after the new image tag is created](https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml).
 
-_Action:_ Update the Docker build image used in CircleCI and GitLab CI with the latest tag.
+_Action:_ Update the Docker build image used in GitLab CI with the latest tag.
 
 _Recovery:_ Download artifacts and upload them manually to the related _download release_.
 
@@ -87,7 +87,7 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
 
-_Trigger:_ Every week or manually.
+_Trigger:_ Every day or manually.
 
 _Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
 
@@ -106,15 +106,24 @@ _Recovery:_ Manually trigger the action again.
 
 ### analyze-changes [🔗](analyze-changes.yaml)
 
-_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
+_Trigger:_ When pushing commits to `master`.
 
 _Action:_
 
-* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
 * Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab -- do not apply to pull request, only when pushing to `master`,
 * Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
 
 _Notes:_ Results are sent on both production and staging environments.
+
+### check-ci-pipelines [🔗](check-ci-pipelines.yaml)
+
+_Trigger:_ When opening or updating a PR.
+
+_Action:_ This action will check all other continuous integration jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails.
+The purpose of this job is to be required for PR merges, achieving Green CI Policy.
+It got an `ignored` parameters to exclude some jobs if they are temprorary failing.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
@@ -130,6 +139,13 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
+### run-system-tests [🔗](run-system-tests.yaml)
+
+_Trigger:_ When pushing commits to `master` or manually.
+
+_Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
+
+_Recovery:_ Manually trigger the action on the desired branch.
 
 ## Maintenance
 
@@ -138,7 +154,7 @@ While GitHub owned actions are allowed by default, the other ones must be declar
 
 Run the following script to get the list of actions to declare according the state of your working copy:
 ```bash
-find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sed 's/@.*/@*/' | sort | uniq
 ```
 
 ## Testing

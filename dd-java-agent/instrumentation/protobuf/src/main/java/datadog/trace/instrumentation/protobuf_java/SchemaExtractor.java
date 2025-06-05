@@ -4,7 +4,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
@@ -44,6 +44,7 @@ public class SchemaExtractor implements SchemaIterator {
     this.descriptor = descriptor;
   }
 
+  /** @return false if no more properties should be extracted */
   public static boolean extractProperty(
       FieldDescriptor field,
       String schemaName,
@@ -107,9 +108,7 @@ public class SchemaExtractor implements SchemaIterator {
       case TYPE_MESSAGE:
         ref = "#/components/schemas/" + field.getMessageType().getFullName();
         // Recursively add nested message schemas
-        if (!extractSchema(field.getMessageType(), builder, depth)) {
-          return false;
-        }
+        extractSchema(field.getMessageType(), builder, depth);
         builder.addToHash(field.getMessageType().getFullName());
         break;
       case TYPE_BYTES:
@@ -154,22 +153,20 @@ public class SchemaExtractor implements SchemaIterator {
         schemaName, fieldName, array, type, description, ref, format, enumValues, extensions);
   }
 
-  public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
+  public static void extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
     depth++;
     String schemaName = descriptor.getFullName();
-    if (!builder.shouldExtractSchema(schemaName, depth)) {
-      return false;
-    }
-    // iterate fields in number order to ensure hash stability
-    for (FieldDescriptor field :
-        descriptor.getFields().stream()
-            .sorted(Comparator.comparingInt(FieldDescriptor::getNumber))
-            .collect(Collectors.toList())) {
-      if (!extractProperty(field, schemaName, field.getName(), builder, depth)) {
-        return false;
+    if (builder.shouldExtractSchema(schemaName, depth)) {
+      for (FieldDescriptor field :
+          descriptor.getFields().stream()
+              // iterate fields in number order to ensure hash stability
+              .sorted(Comparator.comparingInt(FieldDescriptor::getNumber))
+              .collect(Collectors.toList())) {
+        if (!extractProperty(field, schemaName, field.getName(), builder, depth)) {
+          break; // we have reached the max nb of properties to extract
+        }
       }
     }
-    return true;
   }
 
   public static Schema extractSchemas(Descriptor descriptor) {

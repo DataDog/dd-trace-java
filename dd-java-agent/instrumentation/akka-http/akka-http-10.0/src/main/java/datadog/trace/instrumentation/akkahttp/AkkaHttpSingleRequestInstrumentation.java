@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.AkkaHttpHeaders;
@@ -16,9 +18,9 @@ import akka.http.scaladsl.model.HttpResponse;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
@@ -78,10 +80,9 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
       DECORATE.onRequest(span, request);
 
       if (request != null) {
-        propagate().inject(span, request, headers);
-        propagate()
-            .injectPathwayContext(
-                span, request, headers, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+        defaultPropagator()
+            .inject(getCurrentContext().with(span).with(dsmContext), request, headers);
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }

@@ -112,9 +112,12 @@ public class TagInterceptor {
         return false;
       case Tags.SAMPLING_PRIORITY:
         return interceptSamplingPriority(span, value);
-      case Tags.PROPAGATED_APPSEC:
-        span.updateAppsecPropagation(asBoolean(value));
-        return true;
+      case Tags.PROPAGATED_TRACE_SOURCE:
+        if (value instanceof Integer) {
+          span.addPropagatedTraceSource((Integer) value);
+          return true;
+        }
+        return false;
       case Tags.PROPAGATED_DEBUG:
         span.updateDebugPropagation(String.valueOf(value));
         return true;

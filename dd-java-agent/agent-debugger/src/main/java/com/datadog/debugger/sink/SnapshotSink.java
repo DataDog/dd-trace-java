@@ -48,7 +48,7 @@ public class SnapshotSink {
 
   public SnapshotSink(Config config, String tags, BatchUploader snapshotUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
-    this.batchSize = config.getDebuggerUploadBatchSize();
+    this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.tags = tags;
     this.snapshotUploader = snapshotUploader;
   }

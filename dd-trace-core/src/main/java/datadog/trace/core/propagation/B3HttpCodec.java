@@ -4,6 +4,7 @@ import static datadog.trace.api.TracePropagationStyle.B3MULTI;
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -11,7 +12,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,7 +112,7 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
@@ -137,7 +137,7 @@ class B3HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       final String injectedTraceId = getInjectedTraceId(context);
       final String injectedSpanId = getInjectedSpanId(context);
       final StringBuilder injectedB3IdBuilder = new StringBuilder(100);

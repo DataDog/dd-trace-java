@@ -26,14 +26,6 @@ public class GlobalTracer {
         }
 
         @Override
-        public boolean isAsyncPropagationEnabled() {
-          return false;
-        }
-
-        @Override
-        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
-
-        @Override
         public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
           return false;
         }
@@ -42,6 +34,19 @@ public class GlobalTracer {
         public TraceScope muteTracing() {
           return NoopTraceScope.INSTANCE;
         }
+
+        @Override
+        public TraceScope.Continuation captureActiveSpan() {
+          return NoopTraceScope.NoopContinuation.INSTANCE;
+        }
+
+        @Override
+        public boolean isAsyncPropagationEnabled() {
+          return false;
+        }
+
+        @Override
+        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
       };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
@@ -80,6 +85,8 @@ public class GlobalTracer {
     return provider;
   }
 
+  /** @deprecated use static methods in {@link EventTrackerV2} directly */
+  @Deprecated
   public static EventTracker getEventTracker() {
     return eventTracker;
   }

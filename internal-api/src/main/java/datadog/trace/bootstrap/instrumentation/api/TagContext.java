@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -233,6 +234,11 @@ public class TagContext implements AgentSpanContext.Extracted {
   @Override
   public PathwayContext getPathwayContext() {
     return this.pathwayContext;
+  }
+
+  @Override
+  public boolean isRemote() {
+    return true;
   }
 
   public TagContext withPathwayContext(PathwayContext pathwayContext) {

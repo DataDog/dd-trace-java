@@ -1,47 +1,60 @@
 package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
 public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private final int maxExecutions;
+  private final boolean suppressFailures;
   private int executions;
+  private boolean successfulExecutionSeen;
 
-  /** Total execution counter that is shared by all retry policies */
-  private final AtomicInteger totalExecutions;
+  /** Total retry counter that is shared by all retry until successful policies (currently ATR) */
+  private final AtomicInteger totalRetryCount;
 
-  public RetryUntilSuccessful(int maxExecutions, AtomicInteger totalExecutions) {
+  public RetryUntilSuccessful(
+      int maxExecutions, boolean suppressFailures, AtomicInteger totalRetryCount) {
     this.maxExecutions = maxExecutions;
-    this.totalExecutions = totalExecutions;
+    this.suppressFailures = suppressFailures;
+    this.totalRetryCount = totalRetryCount;
     this.executions = 0;
   }
 
   @Override
+  public void registerExecution(TestStatus status, long durationMillis) {
+    ++executions;
+    successfulExecutionSeen |= (status != TestStatus.fail);
+    if (executions > 1) {
+      totalRetryCount.incrementAndGet();
+    }
+  }
+
+  @Override
+  public boolean wasLastExecution() {
+    return successfulExecutionSeen || executions == maxExecutions;
+  }
+
+  private boolean currentExecutionIsLast() {
+    return executions == maxExecutions - 1;
+  }
+
+  @Override
   public boolean applicable() {
-    // the last execution is not altered by the policy
-    // (no retries, no exceptions suppressing)
-    return executions < maxExecutions - 1;
+    // executions must always be registered, therefore consider it applicable as long as there are
+    // retries left
+    return !wasLastExecution();
   }
 
   @Override
   public boolean suppressFailures() {
-    // if this isn't the last execution,
-    // possible failures should be suppressed
-    return applicable();
-  }
-
-  @Override
-  public boolean retry(boolean successful, long durationMillis) {
-    if (!successful && ++executions < maxExecutions) {
-      totalExecutions.incrementAndGet();
-      return true;
-    } else {
-      return false;
-    }
+    // do not suppress failures for last execution
+    // (unless flag to suppress all failures is set)
+    return !currentExecutionIsLast() || suppressFailures;
   }
 
   @Nullable
@@ -52,5 +65,15 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private boolean currentExecutionIsRetry() {
     return executions > 0;
+  }
+
+  @Override
+  public boolean hasFailedAllRetries() {
+    return wasLastExecution() && !successfulExecutionSeen;
+  }
+
+  @Override
+  public boolean hasSucceededAllRetries() {
+    return false;
   }
 }

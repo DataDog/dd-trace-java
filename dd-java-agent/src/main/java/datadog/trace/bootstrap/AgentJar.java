@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,6 +13,7 @@ public final class AgentJar {
 
   private static Class<?> agentClass;
 
+  @SuppressForbidden
   public static void main(final String[] args) {
     if (args.length == 0) {
       printAgentVersion();
@@ -32,6 +34,9 @@ public final class AgentJar {
             break;
           case "scanDependencies":
             scanDependencies(args);
+            break;
+          case "checkProfilerEnv":
+            checkProfilerEnv(args);
             break;
           case "--list-integrations":
           case "-li":
@@ -58,11 +63,13 @@ public final class AgentJar {
     }
   }
 
+  @SuppressForbidden
   private static void printUsage() {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash file ...");
     System.out.println("  scanDependencies <path> ...");
+    System.out.println("  checkProfilerEnv [temp]");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -129,6 +136,7 @@ public final class AgentJar {
     return (Class<?>) agentClass.getMethod("installAgentCLI").invoke(null);
   }
 
+  @SuppressForbidden
   private static void printAgentVersion() {
     try {
       System.out.println(getAgentVersion());
@@ -163,5 +171,11 @@ public final class AgentJar {
     }
 
     return sb.toString().trim();
+  }
+
+  private static void checkProfilerEnv(final String[] args) throws Exception {
+    String tmpDir = args.length == 2 ? args[1] : System.getProperty("java.io.tmpdir");
+
+    installAgentCLI().getMethod("checkProfilerEnv", String.class).invoke(null, tmpDir);
   }
 }

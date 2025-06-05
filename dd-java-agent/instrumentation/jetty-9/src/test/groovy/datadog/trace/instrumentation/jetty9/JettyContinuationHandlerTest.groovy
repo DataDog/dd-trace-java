@@ -8,6 +8,7 @@ import org.eclipse.jetty.continuation.Continuation
 import org.eclipse.jetty.continuation.ContinuationSupport
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.handler.AbstractHandler
+import org.eclipse.jetty.server.session.SessionHandler
 
 import javax.servlet.MultipartConfigElement
 import javax.servlet.ServletException
@@ -16,7 +17,7 @@ import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-import static TestHandler.handleRequest
+import static test.TestHandler.handleRequest
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -26,7 +27,9 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
 
   @Override
   AbstractHandler handler() {
-    ContinuationTestHandler.INSTANCE
+    def ret = new SessionHandler()
+    ret.handler = ContinuationTestHandler.INSTANCE
+    ret
   }
 
   static class ContinuationTestHandler extends AbstractHandler {

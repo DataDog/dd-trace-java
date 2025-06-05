@@ -1,9 +1,12 @@
 package datadog.opentracing;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -18,9 +21,9 @@ class TypeConverter {
 
   public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
-    noopSpanWrapper = new OTSpan(AgentTracer.NoopAgentSpan.INSTANCE, this, logHandler);
-    noopContextWrapper = new OTSpanContext(AgentTracer.NoopContext.INSTANCE);
-    noopScopeWrapper = new OTScopeManager.OTScope(AgentTracer.NoopAgentScope.INSTANCE, false, this);
+    noopSpanWrapper = new OTSpan(noopSpan(), this, logHandler);
+    noopContextWrapper = new OTSpanContext(noopSpanContext());
+    noopScopeWrapper = new OTScopeManager.OTScope(noopScope(), false, this);
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -30,7 +33,7 @@ class TypeConverter {
       return ((OTSpan) span).asAgentSpan();
     } else {
       // NOOP Span
-      return AgentTracer.NoopAgentSpan.INSTANCE;
+      return noopSpan();
     }
   }
 
@@ -48,7 +51,7 @@ class TypeConverter {
       attachableSpanWrapper.attachWrapper(spanWrapper);
       return spanWrapper;
     }
-    if (agentSpan == AgentTracer.NoopAgentSpan.INSTANCE) {
+    if (agentSpan == noopSpan()) {
       return noopSpanWrapper;
     }
     return new OTSpan(agentSpan, this, logHandler);
@@ -58,20 +61,7 @@ class TypeConverter {
     if (scope == null) {
       return null;
     }
-    if (scope instanceof AttachableWrapper) {
-      AttachableWrapper attachableScopeWrapper = (AttachableWrapper) scope;
-      Object wrapper = attachableScopeWrapper.getWrapper();
-      if (wrapper instanceof OTScopeManager.OTScope) {
-        OTScopeManager.OTScope attachedScopeWrapper = (OTScopeManager.OTScope) wrapper;
-        if (attachedScopeWrapper.isFinishSpanOnClose() == finishSpanOnClose) {
-          return (Scope) wrapper;
-        }
-      }
-      Scope otScope = new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
-      attachableScopeWrapper.attachWrapper(otScope);
-      return otScope;
-    }
-    if (scope == AgentTracer.NoopAgentScope.INSTANCE) {
+    if (scope == noopScope()) {
       return noopScopeWrapper;
     }
     return new OTScopeManager.OTScope(scope, finishSpanOnClose, this);
@@ -82,7 +72,7 @@ class TypeConverter {
       return null;
     }
     // avoid a new SpanContext wrapper allocation for the noop context
-    if (context == AgentTracer.NoopContext.INSTANCE) {
+    if (context == noopSpanContext()) {
       return noopContextWrapper;
     }
     return new OTSpanContext(context);
@@ -94,7 +84,7 @@ class TypeConverter {
     } else if (spanContext instanceof OTSpanContext) {
       return ((OTSpanContext) spanContext).getDelegate();
     } else {
-      return AgentTracer.NoopContext.INSTANCE;
+      return noopSpanContext();
     }
   }
 }

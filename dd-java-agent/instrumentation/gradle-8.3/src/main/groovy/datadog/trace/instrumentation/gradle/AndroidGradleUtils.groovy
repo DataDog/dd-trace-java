@@ -92,7 +92,7 @@ class AndroidGradleUtils {
       destinationsTree = javaTree
     }
 
-    LOGGER.debug("Using destination tree: {}", destinationsTree.sourceTrees)
+    LOGGER.debug("Using destination tree: {}", destinationsTree.files)
     return destinationsTree.files
   }
 

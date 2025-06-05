@@ -1,5 +1,8 @@
 package datadog.communication.ddagent;
 
+import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static java.util.Collections.singletonList;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -11,7 +14,6 @@ import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       new Moshi.Builder()
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+
+  // Currently all the endpoints that we probe expect a msgpack body of an array of arrays, v3/v4
+  // arbitrary size and v5 two elements, so let's give them a two element array of empty arrays
+  private static final byte[] PROBE_MESSAGE = {
+    (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
+  };
 
   public static final String V3_ENDPOINT = "v0.3/traces";
   public static final String V4_ENDPOINT = "v0.4/traces";
@@ -191,7 +199,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           client
               .newCall(
                   new Request.Builder()
-                      .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
+                      .put(
+                          OkHttpUtils.msgpackRequestBodyOf(
+                              singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .url(agentBaseUrl.resolve(candidate))
                       .build())
               .execute()) {

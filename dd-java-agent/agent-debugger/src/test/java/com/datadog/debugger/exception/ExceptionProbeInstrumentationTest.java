@@ -6,13 +6,13 @@ import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_E
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
-import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.TestHelper.assertWithTimeout;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.agent.ClassesToRetransformFinder;
 import com.datadog.debugger.agent.Configuration;
@@ -56,6 +56,7 @@ import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -82,6 +83,11 @@ public class ExceptionProbeInstrumentationTest {
   private MockSampler probeSampler;
   private MockSampler globalSampler;
 
+  @BeforeAll
+  public static void beforeAll() {
+    setFieldInConfig(Config.get(), "agentUrl", "http://localhost:8126");
+  }
+
   @BeforeEach
   public void before() {
     CoreTracer tracer = CoreTracer.builder().build();
@@ -92,8 +98,12 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
+    DebuggerContext.ProductConfigUpdater mockProductConfigUpdater =
+        mock(DebuggerContext.ProductConfigUpdater.class);
+    when(mockProductConfigUpdater.isExceptionReplayEnabled()).thenReturn(true);
+    DebuggerContext.initProductConfigUpdater(mockProductConfigUpdater);
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
-    setFieldInConfig(Config.get(), "debuggerClassFileDumpEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
   }
 
   @AfterEach
@@ -216,7 +226,8 @@ public class ExceptionProbeInstrumentationTest {
     callMethodFiboException(testClass); // generate snapshots
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
-    assertEquals(10, listener.snapshots.size());
+    // limited by Config::getDebuggerExceptionMaxCapturedFrames
+    assertEquals(3, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
     assertEquals(
@@ -226,8 +237,6 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot2 = listener.snapshots.get(2);
     assertEquals("3", getValue(snapshot2.getCaptures().getReturn().getArguments().get("n")));
-    Snapshot snapshot9 = listener.snapshots.get(9);
-    assertEquals("10", getValue(snapshot9.getCaptures().getReturn().getArguments().get("n")));
     // sampling happens only once ont he first snapshot then forced for coordinated sampling
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
@@ -374,7 +383,7 @@ public class ExceptionProbeInstrumentationTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100);
+            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;
@@ -382,13 +391,13 @@ public class ExceptionProbeInstrumentationTest {
 
   private static Config createConfig() {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;
   }
 

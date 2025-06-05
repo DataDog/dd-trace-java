@@ -30,4 +30,16 @@ public final class SystemUtils {
       return defaultValue;
     }
   }
+
+  private static String toEnvVar(String string) {
+    return string.replace('.', '_').replace('-', '_').toUpperCase();
+  }
+
+  public static String getPropertyOrEnvVar(String property) {
+    String envVarValue = System.getenv(toEnvVar(property));
+    if (envVarValue != null) {
+      return envVarValue;
+    }
+    return System.getProperty(property);
+  }
 }

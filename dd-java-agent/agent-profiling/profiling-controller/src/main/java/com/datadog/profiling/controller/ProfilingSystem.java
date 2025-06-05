@@ -19,7 +19,6 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
 import datadog.trace.api.Platform;
-import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
@@ -265,7 +264,6 @@ public final class ProfilingSystem {
             recording.snapshot(
                 lastSnapshot,
                 onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
-        ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(recordingData);
         log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be

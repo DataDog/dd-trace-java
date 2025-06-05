@@ -4,7 +4,8 @@ setlocal enabledelayedexpansion
 :: Check if PID is provided
 if "%1"=="" (
     echo "Error: No PID provided. Running in legacy mode."
-    java -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
+    call :ensureJava "!JAVA_ERROR_FILE!"
+    "!JAVA_HOME!\bin\java" -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
     if %ERRORLEVEL% EQU 0 (
         echo "Uploaded error file \"!JAVA_ERROR_FILE!\""
     ) else (
@@ -38,10 +39,11 @@ for /f "tokens=1,2 delims=: " %%a in (%configFile%.cfg) do (
 :: Debug: Print the loaded values (Optional)
 echo Agent Jar: %agent%
 echo Error Log: %hs_err%
+echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-java -jar "%agent%" uploadCrash "%hs_err%"
+"%java_home%\bin\java" -jar "%agent%" uploadCrash "%hs_err%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (

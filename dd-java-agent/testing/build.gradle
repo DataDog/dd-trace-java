@@ -1,5 +1,5 @@
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -8,13 +8,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
-repositories {
-  ivy {
-    artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
-    ivyPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
-  }
-}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
@@ -31,6 +24,7 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.AgentTestRunner',
   'datadog.trace.agent.test.AbortTransformationException',
   'datadog.trace.agent.test.naming.VersionedNamingTestBase',
+  'datadog.trace.agent.test.server.http.HttpProxy.AsyncPipe',
   'datadog.trace.agent.test.server.http.TestHttpServer.*',
   'datadog.trace.agent.test.utils.*',
   // Avoid applying jacoco instrumentation to classes instrumented by tested agent
@@ -43,6 +37,10 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration',
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
+
+configurations.api {
+  exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+}
 
 dependencies {
   api libs.bytebuddy
@@ -65,6 +63,8 @@ dependencies {
 
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
   implementation project(':dd-java-agent:appsec')
+
+  implementation project(':dd-java-agent:agent-debugger')
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')

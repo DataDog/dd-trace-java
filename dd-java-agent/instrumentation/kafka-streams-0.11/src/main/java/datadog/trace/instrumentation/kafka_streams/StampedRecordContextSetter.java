@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.Setter;
+import datadog.context.propagation.CarrierSetter;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
-public class StampedRecordContextSetter implements Setter<StampedRecord> {
+public class StampedRecordContextSetter implements CarrierSetter<StampedRecord> {
   public static final StampedRecordContextSetter SR_SETTER = new StampedRecordContextSetter();
 
   @Override

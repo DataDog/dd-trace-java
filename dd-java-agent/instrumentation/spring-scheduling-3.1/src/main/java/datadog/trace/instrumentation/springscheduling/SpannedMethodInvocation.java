@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springscheduling;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 
@@ -34,19 +34,22 @@ public class SpannedMethodInvocation implements MethodInvocation {
   @Override
   public Object proceed() throws Throwable {
     CharSequence spanName = DECORATE.spanNameForMethod(delegate.getMethod());
-    return null == continuation ? invokeWithSpan(spanName) : invokeWithContinuation(spanName);
+    if (continuation != noopContinuation()) {
+      return invokeWithContinuation(spanName);
+    } else {
+      return invokeWithSpan(spanName);
+    }
   }
 
   private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
     try (AgentScope scope = continuation.activate()) {
-      setAsyncPropagationEnabled(true);
       return invokeWithSpan(spanName);
     }
   }
 
   private Object invokeWithSpan(CharSequence spanName) throws Throwable {
     AgentSpan span = startSpan(spanName);
-    try (AgentScope scope = activateSpan(span, true)) {
+    try (AgentScope scope = activateSpan(span)) {
       return delegate.proceed();
     } finally {
       span.finish();

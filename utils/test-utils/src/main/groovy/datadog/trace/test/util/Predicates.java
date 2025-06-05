@@ -7,14 +7,21 @@ public abstract class Predicates {
 
   private Predicates() {}
 
-  public static final class IBM8 implements Predicate<String> {
-    private static final String VENDOR_STRING = "IBM";
+  public static class IBM implements Predicate<String> {
+    private static final String IBM_VENDOR_STRING = "IBM";
+
+    @Override
+    public boolean test(String s) {
+      return System.getProperty("java.vendor", "").contains(IBM_VENDOR_STRING);
+    }
+  }
+
+  public static final class IBM8 extends IBM {
     private static final BigDecimal VERSION = new BigDecimal("1.8");
 
     @Override
     public boolean test(final String spec) {
-      final String vendor = System.getProperty("java.vendor", "");
-      if (!vendor.contains(VENDOR_STRING)) {
+      if (!super.test(spec)) {
         return false;
       }
       final BigDecimal version =

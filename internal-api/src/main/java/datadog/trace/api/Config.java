@@ -114,12 +114,14 @@ public class Config {
   private final String runtimeVersion;
 
   private final String applicationKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
    * sending data (including traces) to backend
    */
   private final String apiKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -144,9 +146,11 @@ public class Config {
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
   private final int spanAttributeSchemaVersion;
+  private final boolean peerHostNameEnabled;
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -188,7 +192,10 @@ public class Config {
   private final boolean tracePropagationStyleB3PaddingEnabled;
   private final Set<TracePropagationStyle> tracePropagationStylesToExtract;
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
+  private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
+  private final int traceBaggageMaxItems;
+  private final int traceBaggageMaxBytes;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -286,9 +293,14 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean appSecStandaloneEnabled;
+  private final boolean appSecCollectAllHeaders;
+  private final boolean appSecHeaderCollectionRedactionEnabled;
+  private final int appSecMaxCollectedHeaders;
+  private final boolean appSecRaspCollectRequestBody;
   private final boolean apiSecurityEnabled;
-  private final float apiSecurityRequestSampleRate;
+  private final float apiSecuritySampleDelay;
+  private final boolean apiSecurityEndpointCollectionEnabled;
+  private final int apiSecurityEndpointCollectionMessageLimit;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -359,6 +371,7 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityImpactedTestsDetectionEnabled;
+  private final boolean ciVisibilityImpactedTestsBackendRequestEnabled;
   private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
@@ -374,6 +387,12 @@ public class Config {
   private final String ciVisibilityRemoteEnvVarsProviderUrl;
   private final String ciVisibilityRemoteEnvVarsProviderKey;
   private final String ciVisibilityTestOrder;
+  private final boolean ciVisibilityTestManagementEnabled;
+  private final Integer ciVisibilityTestManagementAttemptToFixRetries;
+  private final boolean ciVisibilityScalatestForkMonitorEnabled;
+  private final String gitPullRequestBaseBranch;
+  private final String gitPullRequestBaseBranchSha;
+  private final String gitCommitHeadSha;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -388,30 +407,29 @@ public class Config {
   private final String DBMPropagationMode;
   private final boolean DBMTracePreparedStatements;
 
-  private final boolean debuggerEnabled;
-  private final int debuggerUploadTimeout;
-  private final int debuggerUploadFlushInterval;
-  private final boolean debuggerClassFileDumpEnabled;
-  private final int debuggerPollInterval;
-  private final int debuggerDiagnosticsInterval;
-  private final boolean debuggerMetricEnabled;
-  private final String debuggerProbeFileLocation;
-  private final int debuggerUploadBatchSize;
-  private final long debuggerMaxPayloadSize;
-  private final boolean debuggerVerifyByteCode;
-  private final boolean debuggerInstrumentTheWorld;
-  private final String debuggerExcludeFiles;
-  private final String debuggerIncludeFiles;
-  private final int debuggerCaptureTimeout;
-  private final String debuggerRedactedIdentifiers;
-  private final Set<String> debuggerRedactionExcludedIdentifiers;
-  private final String debuggerRedactedTypes;
-  private final boolean debuggerHoistLocalVarsEnabled;
-  private final boolean debuggerSymbolEnabled;
-  private final boolean debuggerSymbolForceUpload;
-  private final String debuggerSymbolIncludes;
-  private final int debuggerSymbolFlushThreshold;
-  private final boolean debuggerSymbolCompressed;
+  private final boolean dynamicInstrumentationEnabled;
+  private final int dynamicInstrumentationUploadTimeout;
+  private final int dynamicInstrumentationUploadFlushInterval;
+  private final boolean dynamicInstrumentationClassFileDumpEnabled;
+  private final int dynamicInstrumentationPollInterval;
+  private final int dynamicInstrumentationDiagnosticsInterval;
+  private final boolean dynamicInstrumentationMetricEnabled;
+  private final String dynamicInstrumentationProbeFile;
+  private final int dynamicInstrumentationUploadBatchSize;
+  private final long dynamicInstrumentationMaxPayloadSize;
+  private final boolean dynamicInstrumentationVerifyByteCode;
+  private final String dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationExcludeFiles;
+  private final String dynamicInstrumentationIncludeFiles;
+  private final int dynamicInstrumentationCaptureTimeout;
+  private final String dynamicInstrumentationRedactedIdentifiers;
+  private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
+  private final String dynamicInstrumentationRedactedTypes;
+  private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
+  private final boolean symbolDatabaseEnabled;
+  private final boolean symbolDatabaseForceUpload;
+  private final int symbolDatabaseFlushThreshold;
+  private final boolean symbolDatabaseCompressed;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
@@ -420,9 +438,11 @@ public class Config {
   private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
+  private final boolean distributedDebuggerEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
+  private final Set<String> debuggerShadingIdentifiers;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -478,6 +498,7 @@ public class Config {
   private final boolean secureRandom;
 
   private final boolean trace128bitTraceIdGenerationEnabled;
+  private final boolean logs128bitTraceIdEnabled;
 
   private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
@@ -490,6 +511,7 @@ public class Config {
 
   private final boolean dataJobsEnabled;
   private final String dataJobsCommandPattern;
+  private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -509,10 +531,12 @@ public class Config {
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
+  private final boolean azureFunctions;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -531,7 +555,9 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
-
+  private final boolean websocketMessagesInheritSampling;
+  private final boolean websocketMessagesSeparateTraces;
+  private final boolean websocketTagSessionId;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
@@ -551,6 +577,13 @@ public class Config {
   private final int cloudPayloadTaggingMaxTags;
 
   private final long dependecyResolutionPeriodMillis;
+
+  private final boolean apmTracingEnabled;
+  private final Set<String> experimentalFeaturesEnabled;
+
+  private final boolean jdkSocketEnabled;
+
+  private final int stackTraceLengthLimit;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -608,13 +641,19 @@ public class Config {
       serviceNameSetByUser = false;
       serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
     } else {
-      serviceNameSetByUser = true;
+      // might be an auto-detected name propagated from instrumented parent process
+      serviceNameSetByUser = configProvider.getBoolean(SERVICE_NAME_SET_BY_USER, true);
       serviceName = userProvidedServiceName;
     }
 
     rootContextServiceName =
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+
+    experimentalFeaturesEnabled =
+        configProvider.getString(TRACE_EXPERIMENTAL_FEATURES_ENABLED, "").equals("all")
+            ? DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED
+            : configProvider.getSet(TRACE_EXPERIMENTAL_FEATURES_ENABLED, new HashSet<>());
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
@@ -647,6 +686,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
             DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED);
+
+    logs128bitTraceIdEnabled =
+        configProvider.getBoolean(
+            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     if (secureRandom) {
       strategyName = "SECURE_RANDOM";
     }
@@ -760,7 +804,14 @@ public class Config {
 
     {
       final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
-      tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      if (experimentalFeaturesEnabled.contains("DD_TAGS")) {
+        tags.putAll(configProvider.getMergedTagsMap(TRACE_TAGS, TAGS));
+      } else {
+        tags.putAll(configProvider.getMergedMap(TRACE_TAGS, TAGS));
+      }
+      if (serviceNameSetByUser) { // prioritize service name set by DD_SERVICE over DD_TAGS config
+        tags.remove("service");
+      }
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 
@@ -791,7 +842,12 @@ public class Config {
 
     baggageMapping = configProvider.getMergedMapWithOptionalMappings(null, true, BAGGAGE_MAPPING);
 
+    azureFunctions =
+        getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
+
     spanAttributeSchemaVersion = schemaVersionFromConfig();
+
+    peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
     // following two only used in v0.
     // in v1+ defaults are always calculated regardless this feature flag
@@ -802,6 +858,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -914,6 +972,22 @@ public class Config {
 
     tracePropagationStyleB3PaddingEnabled =
         isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+
+    TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
+    try {
+      tmpTracePropagationBehaviorExtract =
+          TracePropagationBehaviorExtract.valueOf(
+              configProvider
+                  .getString(
+                      TRACE_PROPAGATION_BEHAVIOR_EXTRACT,
+                      DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT.toString())
+                  .toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      tmpTracePropagationBehaviorExtract = TracePropagationBehaviorExtract.CONTINUE;
+      log.warn("Error while parsing TRACE_PROPAGATION_BEHAVIOR_EXTRACT, defaulting to `continue`");
+    }
+    tracePropagationBehaviorExtract = tmpTracePropagationBehaviorExtract;
+
     {
       // The dd.propagation.style.(extract|inject) settings have been deprecated in
       // favor of dd.trace.propagation.style(|.extract|.inject) settings.
@@ -985,9 +1059,17 @@ public class Config {
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
       // Now we can check if we should pick the default injection/extraction
+
       tracePropagationStylesToExtract =
           extract.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : extract;
+
       tracePropagationStylesToInject = inject.isEmpty() ? DEFAULT_TRACE_PROPAGATION_STYLE : inject;
+
+      traceBaggageMaxItems =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS);
+      traceBaggageMaxBytes =
+          configProvider.getInteger(TRACE_BAGGAGE_MAX_BYTES, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
+
       // These setting are here for backwards compatibility until they can be removed in a major
       // release of the tracer
       propagationStylesToExtract =
@@ -1002,15 +1084,23 @@ public class Config {
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
-    logsInjectionEnabled =
-        configProvider.getBoolean(
-            LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    if (experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(LOGS_INJECTION))) {
+      logsInjectionEnabled =
+          configProvider.getBoolean(LOGS_INJECTION_ENABLED, false, LOGS_INJECTION);
+    } else {
+      logsInjectionEnabled =
+          configProvider.getBoolean(
+              LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
+    }
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
     dogStatsDStartDelay =
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
 
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
@@ -1057,7 +1147,8 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
-    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    // Enable tracer computed trace metrics by default for Azure Functions
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -1177,7 +1268,9 @@ public class Config {
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     profilingUploadCompression =
         configProvider.getString(
-            PROFILING_UPLOAD_COMPRESSION, PROFILING_UPLOAD_COMPRESSION_DEFAULT);
+            PROFILING_DEBUG_UPLOAD_COMPRESSION,
+            PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+            PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
@@ -1291,7 +1384,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
@@ -1308,12 +1400,27 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
+    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
+    appSecHeaderCollectionRedactionEnabled =
+        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
+    appSecMaxCollectedHeaders =
+        configProvider.getInteger(
+            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
+    appSecRaspCollectRequestBody =
+        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
-    apiSecurityRequestSampleRate =
-        configProvider.getFloat(
-            API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    apiSecuritySampleDelay =
+        configProvider.getFloat(API_SECURITY_SAMPLE_DELAY, DEFAULT_API_SECURITY_SAMPLE_DELAY);
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionMessageLimit =
+        configProvider.getInteger(
+            API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -1500,6 +1607,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityImpactedTestsDetectionEnabled =
         configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
+    ciVisibilityImpactedTestsBackendRequestEnabled =
+        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED, false);
     ciVisibilityKnownTestsRequestEnabled =
         configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
@@ -1524,6 +1633,14 @@ public class Config {
     ciVisibilityRemoteEnvVarsProviderKey =
         configProvider.getString(CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY);
     ciVisibilityTestOrder = configProvider.getString(CIVISIBILITY_TEST_ORDER);
+    ciVisibilityTestManagementEnabled = configProvider.getBoolean(TEST_MANAGEMENT_ENABLED, true);
+    ciVisibilityTestManagementAttemptToFixRetries =
+        configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
+    ciVisibilityScalatestForkMonitorEnabled =
+        configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
+    gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
+    gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
+    gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1549,57 +1666,80 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    debuggerEnabled = configProvider.getBoolean(DEBUGGER_ENABLED, DEFAULT_DEBUGGER_ENABLED);
-    debuggerUploadTimeout =
-        configProvider.getInteger(DEBUGGER_UPLOAD_TIMEOUT, DEFAULT_DEBUGGER_UPLOAD_TIMEOUT);
-    debuggerUploadFlushInterval =
-        configProvider.getInteger(
-            DEBUGGER_UPLOAD_FLUSH_INTERVAL, DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL);
-    debuggerClassFileDumpEnabled =
+    dynamicInstrumentationEnabled =
         configProvider.getBoolean(
-            DEBUGGER_CLASSFILE_DUMP_ENABLED, DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED);
-    debuggerPollInterval =
-        configProvider.getInteger(DEBUGGER_POLL_INTERVAL, DEFAULT_DEBUGGER_POLL_INTERVAL);
-    debuggerDiagnosticsInterval =
+            DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
+    distributedDebuggerEnabled =
+        configProvider.getBoolean(
+            DISTRIBUTED_DEBUGGER_ENABLED, DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED);
+    dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
-            DEBUGGER_DIAGNOSTICS_INTERVAL, DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL);
-    debuggerMetricEnabled =
+            DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
+    dynamicInstrumentationUploadFlushInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    dynamicInstrumentationClassFileDumpEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED);
+    dynamicInstrumentationPollInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_POLL_INTERVAL, DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL);
+    dynamicInstrumentationDiagnosticsInterval =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL);
+    dynamicInstrumentationMetricEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(
-                DEBUGGER_METRICS_ENABLED, DEFAULT_DEBUGGER_METRICS_ENABLED);
-    debuggerProbeFileLocation = configProvider.getString(DEBUGGER_PROBE_FILE_LOCATION);
-    debuggerUploadBatchSize =
-        configProvider.getInteger(DEBUGGER_UPLOAD_BATCH_SIZE, DEFAULT_DEBUGGER_UPLOAD_BATCH_SIZE);
-    debuggerMaxPayloadSize =
-        configProvider.getInteger(DEBUGGER_MAX_PAYLOAD_SIZE, DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE)
-            * 1024;
-    debuggerVerifyByteCode =
-        configProvider.getBoolean(DEBUGGER_VERIFY_BYTECODE, DEFAULT_DEBUGGER_VERIFY_BYTECODE);
-    debuggerInstrumentTheWorld =
-        configProvider.getBoolean(
-            DEBUGGER_INSTRUMENT_THE_WORLD, DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD);
-    debuggerExcludeFiles = configProvider.getString(DEBUGGER_EXCLUDE_FILES);
-    debuggerIncludeFiles = configProvider.getString(DEBUGGER_INCLUDE_FILES);
-    debuggerCaptureTimeout =
-        configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
-    debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
-    debuggerRedactionExcludedIdentifiers =
-        tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
-    debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
-    debuggerHoistLocalVarsEnabled =
-        configProvider.getBoolean(
-            DEBUGGER_HOIST_LOCALVARS_ENABLED, DEFAULT_DEBUGGER_HOIST_LOCALVARS_ENABLED);
-    debuggerSymbolEnabled =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
-    debuggerSymbolForceUpload =
-        configProvider.getBoolean(
-            DEBUGGER_SYMBOL_FORCE_UPLOAD, DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD);
-    debuggerSymbolIncludes = configProvider.getString(DEBUGGER_SYMBOL_INCLUDES, null);
-    debuggerSymbolFlushThreshold =
+                DYNAMIC_INSTRUMENTATION_METRICS_ENABLED,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED);
+    dynamicInstrumentationProbeFile = configProvider.getString(DYNAMIC_INSTRUMENTATION_PROBE_FILE);
+    dynamicInstrumentationUploadBatchSize =
         configProvider.getInteger(
-            DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
-    debuggerSymbolCompressed =
-        configProvider.getBoolean(DEBUGGER_SYMBOL_COMPRESSED, DEFAULT_DEBUGGER_SYMBOL_COMPRESSED);
+            DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE);
+    dynamicInstrumentationMaxPayloadSize =
+        configProvider.getInteger(
+                DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE,
+                DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE)
+            * 1024;
+    dynamicInstrumentationVerifyByteCode =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
+    dynamicInstrumentationInstrumentTheWorld =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+    dynamicInstrumentationExcludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
+    dynamicInstrumentationIncludeFiles =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationCaptureTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+    dynamicInstrumentationRedactedIdentifiers =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
+    dynamicInstrumentationRedactionExcludedIdentifiers =
+        tryMakeImmutableSet(
+            configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
+    dynamicInstrumentationRedactedTypes =
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
+    dynamicInstrumentationHoistLocalVarsEnabled =
+        configProvider.getBoolean(
+            DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
+    symbolDatabaseEnabled =
+        configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
+    symbolDatabaseForceUpload =
+        configProvider.getBoolean(
+            SYMBOL_DATABASE_FORCE_UPLOAD, DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD);
+    symbolDatabaseFlushThreshold =
+        configProvider.getInteger(
+            SYMBOL_DATABASE_FLUSH_THRESHOLD, DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD);
+    symbolDatabaseCompressed =
+        configProvider.getBoolean(SYMBOL_DATABASE_COMPRESSED, DEFAULT_SYMBOL_DATABASE_COMPRESSED);
     debuggerExceptionEnabled =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ENABLED,
@@ -1632,6 +1772,8 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+    debuggerShadingIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_SHADING_IDENTIFIERS));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -1724,6 +1866,9 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsOpenLineageEnabled =
+        configProvider.getBoolean(
+            DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
     dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
@@ -1801,6 +1946,15 @@ public class Config {
             JAX_RS_EXCEPTION_AS_ERROR_ENABLED, DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED);
 
     axisPromoteResourceName = configProvider.getBoolean(AXIS_PROMOTE_RESOURCE_NAME, false);
+
+    websocketMessagesInheritSampling =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING);
+    websocketMessagesSeparateTraces =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES);
+    websocketTagSessionId =
+        configProvider.getBoolean(TRACE_WEBSOCKET_TAG_SESSION_ID, DEFAULT_WEBSOCKET_TAG_SESSION_ID);
 
     this.traceFlushIntervalSeconds =
         configProvider.getFloat(
@@ -1889,6 +2043,17 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
+
+    this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    int defaultStackTraceLengthLimit =
+        instrumenterConfig.isCiVisibilityEnabled()
+            ? 5000 // EVP limit
+            : Integer.MAX_VALUE; // no effective limit (old behavior)
+    this.stackTraceLengthLimit =
+        configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
+
     log.debug("New instance: {}", this);
   }
 
@@ -1953,6 +2118,14 @@ public class Config {
 
   public String getRootContextServiceName() {
     return rootContextServiceName;
+  }
+
+  public Set<String> getExperimentalFeaturesEnabled() {
+    return experimentalFeaturesEnabled;
+  }
+
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -2049,6 +2222,10 @@ public class Config {
 
   public int getSpanAttributeSchemaVersion() {
     return spanAttributeSchemaVersion;
+  }
+
+  public boolean isPeerHostNameEnabled() {
+    return peerHostNameEnabled;
   }
 
   public boolean isPeerServiceDefaultsEnabled() {
@@ -2217,8 +2394,32 @@ public class Config {
     return tracePropagationStylesToInject;
   }
 
+  public TracePropagationBehaviorExtract getTracePropagationBehaviorExtract() {
+    return tracePropagationBehaviorExtract;
+  }
+
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isBaggageExtract() {
+    return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggageInject() {
+    return tracePropagationStylesToInject.contains(TracePropagationStyle.BAGGAGE);
+  }
+
+  public boolean isBaggagePropagationEnabled() {
+    return isBaggageInject() || isBaggageExtract();
+  }
+
+  public int getTraceBaggageMaxItems() {
+    return traceBaggageMaxItems;
+  }
+
+  public int getTraceBaggageMaxBytes() {
+    return traceBaggageMaxBytes;
   }
 
   public int getClockSyncPeriod() {
@@ -2311,7 +2512,7 @@ public class Config {
 
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
-    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
+    return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -2616,8 +2817,16 @@ public class Config {
     return apiSecurityEnabled;
   }
 
-  public float getApiSecurityRequestSampleRate() {
-    return apiSecurityRequestSampleRate;
+  public float getApiSecuritySampleDelay() {
+    return apiSecuritySampleDelay;
+  }
+
+  public int getApiSecurityEndpointCollectionMessageLimit() {
+    return apiSecurityEndpointCollectionMessageLimit;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
   }
 
   public ProductActivation getIastActivation() {
@@ -2921,6 +3130,10 @@ public class Config {
     return ciVisibilityImpactedTestsDetectionEnabled;
   }
 
+  public boolean isCiVisibilityImpactedTestsBackendRequestEnabled() {
+    return ciVisibilityImpactedTestsBackendRequestEnabled;
+  }
+
   public boolean isCiVisibilityKnownTestsRequestEnabled() {
     return ciVisibilityKnownTestsRequestEnabled;
   }
@@ -2937,8 +3150,19 @@ public class Config {
     return ciVisibilityEarlyFlakeDetectionLowerLimit;
   }
 
+  /**
+   * @return {@code true} if any of the features that require CI Visibility execution policies are
+   *     enabled. This is used to enable corresponding instrumentations only when they're needed,
+   *     avoiding unnecessary overhead.
+   */
   public boolean isCiVisibilityExecutionPoliciesEnabled() {
-    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
+    return ciVisibilityFlakyRetryEnabled
+        || ciVisibilityEarlyFlakeDetectionEnabled
+        || ciVisibilityTestManagementEnabled;
+  }
+
+  public boolean isCiVisibilityScalatestForkMonitorEnabled() {
+    return ciVisibilityScalatestForkMonitorEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
@@ -2985,6 +3209,26 @@ public class Config {
     return ciVisibilityTestOrder;
   }
 
+  public boolean isCiVisibilityTestManagementEnabled() {
+    return ciVisibilityTestManagementEnabled;
+  }
+
+  public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
+    return ciVisibilityTestManagementAttemptToFixRetries;
+  }
+
+  public String getGitPullRequestBaseBranch() {
+    return gitPullRequestBaseBranch;
+  }
+
+  public String getGitPullRequestBaseBranchSha() {
+    return gitPullRequestBaseBranchSha;
+  }
+
+  public String getGitCommitHeadSha() {
+    return gitCommitHeadSha;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -3021,76 +3265,76 @@ public class Config {
     return remoteConfigMaxExtraServices;
   }
 
-  public boolean isDebuggerEnabled() {
-    return debuggerEnabled;
+  public boolean isDynamicInstrumentationEnabled() {
+    return dynamicInstrumentationEnabled;
   }
 
-  public int getDebuggerUploadTimeout() {
-    return debuggerUploadTimeout;
+  public int getDynamicInstrumentationUploadTimeout() {
+    return dynamicInstrumentationUploadTimeout;
   }
 
-  public int getDebuggerUploadFlushInterval() {
-    return debuggerUploadFlushInterval;
+  public int getDynamicInstrumentationUploadFlushInterval() {
+    return dynamicInstrumentationUploadFlushInterval;
   }
 
-  public boolean isDebuggerClassFileDumpEnabled() {
-    return debuggerClassFileDumpEnabled;
+  public boolean isDynamicInstrumentationClassFileDumpEnabled() {
+    return dynamicInstrumentationClassFileDumpEnabled;
   }
 
-  public int getDebuggerPollInterval() {
-    return debuggerPollInterval;
+  public int getDynamicInstrumentationPollInterval() {
+    return dynamicInstrumentationPollInterval;
   }
 
-  public int getDebuggerDiagnosticsInterval() {
-    return debuggerDiagnosticsInterval;
+  public int getDynamicInstrumentationDiagnosticsInterval() {
+    return dynamicInstrumentationDiagnosticsInterval;
   }
 
-  public boolean isDebuggerMetricsEnabled() {
-    return debuggerMetricEnabled;
+  public boolean isDynamicInstrumentationMetricsEnabled() {
+    return dynamicInstrumentationMetricEnabled;
   }
 
-  public int getDebuggerUploadBatchSize() {
-    return debuggerUploadBatchSize;
+  public int getDynamicInstrumentationUploadBatchSize() {
+    return dynamicInstrumentationUploadBatchSize;
   }
 
-  public long getDebuggerMaxPayloadSize() {
-    return debuggerMaxPayloadSize;
+  public long getDynamicInstrumentationMaxPayloadSize() {
+    return dynamicInstrumentationMaxPayloadSize;
   }
 
-  public boolean isDebuggerVerifyByteCode() {
-    return debuggerVerifyByteCode;
+  public boolean isDynamicInstrumentationVerifyByteCode() {
+    return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDebuggerInstrumentTheWorld() {
-    return debuggerInstrumentTheWorld;
+  public String getDynamicInstrumentationInstrumentTheWorld() {
+    return dynamicInstrumentationInstrumentTheWorld;
   }
 
-  public String getDebuggerExcludeFiles() {
-    return debuggerExcludeFiles;
+  public String getDynamicInstrumentationExcludeFiles() {
+    return dynamicInstrumentationExcludeFiles;
   }
 
-  public String getDebuggerIncludeFiles() {
-    return debuggerIncludeFiles;
+  public String getDynamicInstrumentationIncludeFiles() {
+    return dynamicInstrumentationIncludeFiles;
   }
 
-  public int getDebuggerCaptureTimeout() {
-    return debuggerCaptureTimeout;
+  public int getDynamicInstrumentationCaptureTimeout() {
+    return dynamicInstrumentationCaptureTimeout;
   }
 
-  public boolean isDebuggerSymbolEnabled() {
-    return debuggerSymbolEnabled;
+  public boolean isSymbolDatabaseEnabled() {
+    return symbolDatabaseEnabled;
   }
 
-  public boolean isDebuggerSymbolForceUpload() {
-    return debuggerSymbolForceUpload;
+  public boolean isSymbolDatabaseForceUpload() {
+    return symbolDatabaseForceUpload;
   }
 
-  public int getDebuggerSymbolFlushThreshold() {
-    return debuggerSymbolFlushThreshold;
+  public int getSymbolDatabaseFlushThreshold() {
+    return symbolDatabaseFlushThreshold;
   }
 
-  public boolean isDebuggerSymbolCompressed() {
-    return debuggerSymbolCompressed;
+  public boolean isSymbolDatabaseCompressed() {
+    return symbolDatabaseCompressed;
   }
 
   public boolean isDebuggerExceptionEnabled() {
@@ -3125,12 +3369,20 @@ public class Config {
     return debuggerCodeOriginMaxUserFrames;
   }
 
+  public boolean isDistributedDebuggerEnabled() {
+    return distributedDebuggerEnabled;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
 
   public Set<String> getThirdPartyExcludes() {
     return debuggerThirdPartyExcludes;
+  }
+
+  public Set<String> getThirdPartyShadingIdentifiers() {
+    return debuggerShadingIdentifiers;
   }
 
   private String getFinalDebuggerBaseUrl() {
@@ -3150,24 +3402,24 @@ public class Config {
     return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
-  public String getDebuggerProbeFileLocation() {
-    return debuggerProbeFileLocation;
+  public String getDynamicInstrumentationProbeFile() {
+    return dynamicInstrumentationProbeFile;
   }
 
-  public String getDebuggerRedactedIdentifiers() {
-    return debuggerRedactedIdentifiers;
+  public String getDynamicInstrumentationRedactedIdentifiers() {
+    return dynamicInstrumentationRedactedIdentifiers;
   }
 
-  public Set<String> getDebuggerRedactionExcludedIdentifiers() {
-    return debuggerRedactionExcludedIdentifiers;
+  public Set<String> getDynamicInstrumentationRedactionExcludedIdentifiers() {
+    return dynamicInstrumentationRedactionExcludedIdentifiers;
   }
 
-  public String getDebuggerRedactedTypes() {
-    return debuggerRedactedTypes;
+  public String getDynamicInstrumentationRedactedTypes() {
+    return dynamicInstrumentationRedactedTypes;
   }
 
-  public boolean isDebuggerHoistLocalVarsEnabled() {
-    return debuggerHoistLocalVarsEnabled;
+  public boolean isDynamicInstrumentationHoistLocalVarsEnabled() {
+    return dynamicInstrumentationHoistLocalVarsEnabled;
   }
 
   public boolean isAwsPropagationEnabled() {
@@ -3332,6 +3584,10 @@ public class Config {
     return dogStatsDArgs;
   }
 
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
+  }
+
   public String getConfigFileStatus() {
     return configFileStatus;
   }
@@ -3342,6 +3598,10 @@ public class Config {
 
   public boolean isTrace128bitTraceIdGenerationEnabled() {
     return trace128bitTraceIdGenerationEnabled;
+  }
+
+  public boolean isLogs128bitTraceIdEnabled() {
+    return logs128bitTraceIdEnabled;
   }
 
   public Set<String> getGrpcIgnoredInboundMethods() {
@@ -3400,12 +3660,40 @@ public class Config {
     return axisPromoteResourceName;
   }
 
+  public boolean isWebsocketMessagesInheritSampling() {
+    return websocketMessagesInheritSampling;
+  }
+
+  public boolean isWebsocketMessagesSeparateTraces() {
+    return websocketMessagesSeparateTraces;
+  }
+
+  public boolean isWebsocketTagSessionId() {
+    return websocketTagSessionId;
+  }
+
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
   }
 
+  public boolean isDataJobsOpenLineageEnabled() {
+    return dataJobsOpenLineageEnabled;
+  }
+
   public String getDataJobsCommandPattern() {
     return dataJobsCommandPattern;
+  }
+
+  public boolean isApmTracingEnabled() {
+    return apmTracingEnabled;
+  }
+
+  public boolean isJdkSocketEnabled() {
+    return jdkSocketEnabled;
+  }
+
+  public int getStackTraceLengthLimit() {
+    return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3416,7 +3704,7 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (isAppSecStandaloneEnabled()) {
+    if (!isApmTracingEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
@@ -3456,7 +3744,8 @@ public class Config {
         System.getProperty("java.vendor"),
         System.getProperty("os.arch"),
         System.getProperty("os.name"),
-        System.getProperty("os.version"));
+        System.getProperty("os.version"),
+        isServiceNameSetByUser() ? "true" : "false");
   }
 
   public String getPrimaryTag() {
@@ -3690,8 +3979,14 @@ public class Config {
   }
 
   private int schemaVersionFromConfig() {
-    String versionStr =
-        configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, "v" + SpanNaming.SCHEMA_MIN_VERSION);
+    String defaultVersion;
+    // use v1 so Azure Functions operation name is consistent with that of other tracers
+    if (azureFunctions) {
+      defaultVersion = "v1";
+    } else {
+      defaultVersion = "v" + SpanNaming.SCHEMA_MIN_VERSION;
+    }
+    String versionStr = configProvider.getString(TRACE_SPAN_ATTRIBUTE_SCHEMA, defaultVersion);
     Matcher matcher = Pattern.compile("^v?(0|[1-9]\\d*)$").matcher(versionStr);
     int parsedVersion = -1;
     if (matcher.matches()) {
@@ -3930,12 +4225,8 @@ public class Config {
     return agentlessLogSubmissionProduct;
   }
 
-  public Boolean getAppSecScaEnabled() {
-    return appSecScaEnabled;
-  }
-
-  public boolean isAppSecStandaloneEnabled() {
-    return appSecStandaloneEnabled;
+  public boolean isAppSecScaEnabled() {
+    return appSecScaEnabled != null && appSecScaEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -3952,6 +4243,22 @@ public class Config {
 
   public int getAppSecMaxStackTraceDepth() {
     return appSecMaxStackTraceDepth;
+  }
+
+  public boolean isAppSecCollectAllHeaders() {
+    return appSecCollectAllHeaders;
+  }
+
+  public boolean isAppSecHeaderCollectionRedactionEnabled() {
+    return appSecHeaderCollectionRedactionEnabled;
+  }
+
+  public int getAppsecMaxCollectedHeaders() {
+    return appSecMaxCollectedHeaders;
+  }
+
+  public boolean isAppSecRaspCollectRequestBody() {
+    return appSecRaspCollectRequestBody;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
@@ -4251,6 +4558,8 @@ public class Config {
         + serviceNameSetByUser
         + ", rootContextServiceName="
         + rootContextServiceName
+        + ", experimentalFeaturesEnabled="
+        + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
         + ", writerType='"
@@ -4324,6 +4633,8 @@ public class Config {
         + dbClientSplitByHost
         + ", DBMPropagationMode="
         + DBMPropagationMode
+        + ", DBMTracePreparedStatements="
+        + DBMTracePreparedStatements
         + ", splitByTags="
         + splitByTags
         + ", jeeSplitByDeployment="
@@ -4346,6 +4657,8 @@ public class Config {
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
         + tracePropagationStylesToInject
+        + ", tracePropagationBehaviorExtract="
+        + tracePropagationBehaviorExtract
         + ", tracePropagationExtractFirst="
         + tracePropagationExtractFirst
         + ", clockSyncPeriod="
@@ -4465,47 +4778,49 @@ public class Config {
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
         + ", debuggerEnabled="
-        + debuggerEnabled
+        + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="
-        + debuggerUploadTimeout
+        + dynamicInstrumentationUploadTimeout
         + ", debuggerUploadFlushInterval="
-        + debuggerUploadFlushInterval
+        + dynamicInstrumentationUploadFlushInterval
         + ", debuggerClassFileDumpEnabled="
-        + debuggerClassFileDumpEnabled
+        + dynamicInstrumentationClassFileDumpEnabled
         + ", debuggerPollInterval="
-        + debuggerPollInterval
+        + dynamicInstrumentationPollInterval
         + ", debuggerDiagnosticsInterval="
-        + debuggerDiagnosticsInterval
+        + dynamicInstrumentationDiagnosticsInterval
         + ", debuggerMetricEnabled="
-        + debuggerMetricEnabled
+        + dynamicInstrumentationMetricEnabled
         + ", debuggerProbeFileLocation="
-        + debuggerProbeFileLocation
+        + dynamicInstrumentationProbeFile
         + ", debuggerUploadBatchSize="
-        + debuggerUploadBatchSize
+        + dynamicInstrumentationUploadBatchSize
         + ", debuggerMaxPayloadSize="
-        + debuggerMaxPayloadSize
+        + dynamicInstrumentationMaxPayloadSize
         + ", debuggerVerifyByteCode="
-        + debuggerVerifyByteCode
+        + dynamicInstrumentationVerifyByteCode
         + ", debuggerInstrumentTheWorld="
-        + debuggerInstrumentTheWorld
+        + dynamicInstrumentationInstrumentTheWorld
         + ", debuggerExcludeFiles="
-        + debuggerExcludeFiles
+        + dynamicInstrumentationExcludeFiles
         + ", debuggerIncludeFiles="
-        + debuggerIncludeFiles
+        + dynamicInstrumentationIncludeFiles
         + ", debuggerCaptureTimeout="
-        + debuggerCaptureTimeout
+        + dynamicInstrumentationCaptureTimeout
         + ", debuggerRedactIdentifiers="
-        + debuggerRedactedIdentifiers
+        + dynamicInstrumentationRedactedIdentifiers
         + ", debuggerRedactTypes="
-        + debuggerRedactedTypes
+        + dynamicInstrumentationRedactedTypes
         + ", debuggerSymbolEnabled="
-        + debuggerSymbolEnabled
+        + symbolDatabaseEnabled
         + ", debuggerSymbolForceUpload="
-        + debuggerSymbolForceUpload
+        + symbolDatabaseForceUpload
         + ", debuggerSymbolFlushThreshold="
-        + debuggerSymbolFlushThreshold
-        + ", debuggerSymbolIncludes="
-        + debuggerSymbolIncludes
+        + symbolDatabaseFlushThreshold
+        + ", thirdPartyIncludes="
+        + debuggerThirdPartyIncludes
+        + ", thirdPartyExcludes="
+        + debuggerThirdPartyExcludes
         + ", debuggerExceptionEnabled="
         + debuggerExceptionEnabled
         + ", debuggerCodeOriginEnabled="
@@ -4565,6 +4880,8 @@ public class Config {
         + idGenerationStrategy
         + ", trace128bitTraceIdGenerationEnabled="
         + trace128bitTraceIdGenerationEnabled
+        + ", logs128bitTraceIdEnabled="
+        + logs128bitTraceIdEnabled
         + ", grpcIgnoredInboundMethods="
         + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
@@ -4588,8 +4905,10 @@ public class Config {
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
-        + ", apiSecurityRequestSampleRate="
-        + apiSecurityRequestSampleRate
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
+        + ", apiSecurityEndpointCollectionMessageLimit="
+        + apiSecurityEndpointCollectionMessageLimit
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="
@@ -4624,6 +4943,8 @@ public class Config {
         + jaxRsExceptionAsErrorsEnabled
         + ", axisPromoteResourceName="
         + axisPromoteResourceName
+        + ", peerHostNameEnabled="
+        + peerHostNameEnabled
         + ", peerServiceDefaultsEnabled="
         + peerServiceDefaultsEnabled
         + ", peerServiceComponentOverrides="
@@ -4644,12 +4965,18 @@ public class Config {
         + dataJobsEnabled
         + ", dataJobsCommandPattern="
         + dataJobsCommandPattern
-        + ", appSecStandaloneEnabled="
-        + appSecStandaloneEnabled
+        + ", apmTracingEnabled="
+        + apmTracingEnabled
+        + ", jdkSocketEnabled="
+        + jdkSocketEnabled
+        + ", cloudPayloadTaggingServices="
+        + cloudPayloadTaggingServices
         + ", cloudRequestPayloadTagging="
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }

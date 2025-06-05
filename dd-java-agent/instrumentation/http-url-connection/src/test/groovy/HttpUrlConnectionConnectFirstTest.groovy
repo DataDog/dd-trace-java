@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.Timeout
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
 class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0{
@@ -15,7 +15,7 @@ class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements
       connection.setRequestProperty("Connection", "close")
       connection.connectTimeout = CONNECT_TIMEOUT_MS
       connection.readTimeout = READ_TIMEOUT_MS
-      def parentSpan = activeScope()
+      def parentSpan = activeSpan()
       connection.connect() // test connect before getting stream
       def stream
       try {
@@ -24,7 +24,7 @@ class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements
         stream = connection.errorStream
         ex.printStackTrace()
       }
-      assert activeScope() == parentSpan
+      assert activeSpan() == parentSpan
       stream?.readLines()
       stream?.close()
       callback?.call()

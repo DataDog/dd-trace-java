@@ -38,7 +38,10 @@ public class SpockRunner extends JUnitPlatform {
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
     "datadog.slf4j",
+    "datadog.json",
+    "datadog.yaml",
     "datadog.context",
+    "datadog.cli",
     "datadog.appsec.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
@@ -48,18 +51,18 @@ public class SpockRunner extends JUnitPlatform {
     "datadog.trace.util",
   };
 
+  private static final String[] TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES = {
+    "ch.qos.logback.classic.servlet", // this draws javax.servlet deps that are not needed
+  };
+
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
 
   static {
     ByteBuddyAgent.install();
     final String[] testBS = {
-      "org.slf4j",
-      "ch.qos.logback",
-      // Tomcat's servlet classes must be on boostrap
-      // when running tomcat test
-      "javax.servlet.ServletContainerInitializer",
-      "javax.servlet.ServletContext"
+      "org.slf4j", "ch.qos.logback",
     };
+
     TEST_BOOTSTRAP_PREFIXES =
         Arrays.copyOf(
             BOOTSTRAP_PACKAGE_PREFIXES_COPY,
@@ -114,7 +117,8 @@ public class SpockRunner extends JUnitPlatform {
   private static boolean isBootstrapClass(final String className) {
     for (int i = 0; i < TEST_BOOTSTRAP_PREFIXES.length; ++i) {
       if (className.startsWith(TEST_BOOTSTRAP_PREFIXES[i])) {
-        return true;
+        return Arrays.stream(TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES)
+            .noneMatch(className::startsWith);
       }
     }
     return false;

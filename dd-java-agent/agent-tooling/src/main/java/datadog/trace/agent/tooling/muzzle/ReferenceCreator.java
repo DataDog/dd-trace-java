@@ -5,6 +5,7 @@ import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.bootstrap.Constants;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -47,6 +48,7 @@ public class ReferenceCreator extends ClassVisitor {
    * @return Map of [referenceClassName -> Reference]
    * @throws IllegalStateException if class is not found or unable to be loaded.
    */
+  @SuppressForbidden
   public static Map<String, Reference> createReferencesFrom(
       final String entryPointClassName, final AdviceShader adviceShader, final ClassLoader loader)
       throws IllegalStateException {
@@ -390,6 +392,9 @@ public class ReferenceCreator extends ClassVisitor {
 
     @Override
     public void visitTypeInsn(final int opcode, final String stype) {
+      if (ignoreReference(stype)) {
+        return;
+      }
       Type type = underlyingType(Type.getObjectType(stype));
 
       if (ignoreReference(type.getInternalName())) {

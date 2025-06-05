@@ -39,15 +39,17 @@ public abstract class DeterministicSampler implements RateSampler {
   private static final double MAX = Math.pow(2, 64) - 1;
 
   private final float rate;
+  private final long threshold;
 
   public DeterministicSampler(final double rate) {
     this.rate = (float) rate;
+    this.threshold = cutoff(rate);
   }
 
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
-    // unsigned 64 bit comparison with cutoff
-    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE < cutoff(rate);
+    // unsigned 64 bit comparison with cutoff/threshold
+    return getSamplingId(span) * KNUTH_FACTOR + Long.MIN_VALUE <= threshold;
   }
 
   protected abstract <T extends CoreSpan<T>> long getSamplingId(T span);

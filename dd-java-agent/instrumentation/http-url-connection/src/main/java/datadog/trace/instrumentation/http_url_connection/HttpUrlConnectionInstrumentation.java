@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.http_url_connection;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -13,11 +15,11 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
 import java.net.HttpURLConnection;
 import java.util.Map;
@@ -85,10 +87,9 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
         if (!state.hasSpan() && !state.isFinished()) {
           final AgentSpan span = state.start(thiz);
           if (!connected) {
-            propagate().inject(span, thiz, SETTER);
-            propagate()
-                .injectPathwayContext(
-                    span, thiz, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+            DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+            defaultPropagator()
+                .inject(getCurrentContext().with(span).with(dsmContext), thiz, SETTER);
           }
         }
         return state;

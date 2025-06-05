@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
@@ -53,8 +53,8 @@ public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
-      AgentScope active = AgentTracer.activeScope();
-      if (active != null) {
+      AgentSpan activeSpan = AgentTracer.activeSpan();
+      if (activeSpan != null) {
         AgentTracer.get().getProfilingContext().onDetach();
         return true;
       }

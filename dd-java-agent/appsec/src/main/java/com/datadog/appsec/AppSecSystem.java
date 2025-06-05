@@ -1,13 +1,15 @@
 package com.datadog.appsec;
 
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
+import com.datadog.appsec.api.security.ApiSecuritySampler;
+import com.datadog.appsec.api.security.ApiSecuritySamplerImpl;
+import com.datadog.appsec.api.security.AppSecSpanPostProcessor;
 import com.datadog.appsec.blocking.BlockingServiceImpl;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
+import com.datadog.appsec.ddwaf.WAFModule;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
-import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
@@ -17,11 +19,11 @@ import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -67,16 +69,23 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+    ApiSecuritySampler requestSampler;
+    if (Config.get().isApiSecurityEnabled()) {
+      requestSampler = new ApiSecuritySamplerImpl();
+      // When DD_API_SECURITY_ENABLED=true, ths post-processor is set even when AppSec is inactive.
+      // This should be low overhead since the post-processor exits early if there's no AppSec
+      // context.
+      SpanPostProcessor.Holder.INSTANCE =
+          new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+    } else {
+      requestSampler = new ApiSecuritySampler.NoOp();
+    }
 
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
-            config,
-            configurationPoller,
-            requestSampler,
-            () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
+            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     APP_SEC_CONFIG_SERVICE.init();
 
     sco.createRemaining(config);
@@ -99,8 +108,6 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
     Blocking.setBlockingService(new BlockingServiceImpl(REPLACEABLE_EVENT_PRODUCER));
-
-    AppSecEventTracker.setEventTracker(new AppSecEventTracker());
 
     STARTED.set(true);
 
@@ -144,7 +151,7 @@ public class AppSecSystem {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(monitoring));
+    final List<AppSecModule> modules = Collections.singletonList(new WAFModule(monitoring));
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {

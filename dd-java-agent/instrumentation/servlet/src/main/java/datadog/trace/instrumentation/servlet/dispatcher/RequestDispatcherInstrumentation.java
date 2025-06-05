@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
@@ -24,12 +25,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
@@ -110,7 +111,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       }
 
       final AgentSpan span =
-          startSpan(SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX), parent);
+          startSpan("servlet", SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX), parent);
       DECORATE.afterStart(span);
       span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
       span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
@@ -121,16 +122,14 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
       // In case we lose context, inject trace into to the request.
-      propagate().inject(span, request, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+      defaultPropagator().inject(span.with(dsmContext), request, SETTER);
 
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

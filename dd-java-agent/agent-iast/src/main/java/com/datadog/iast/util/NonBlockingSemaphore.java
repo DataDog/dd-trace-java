@@ -66,7 +66,7 @@ public interface NonBlockingSemaphore {
     @Override
     public int release(final int count) {
       reset();
-      return available();
+      return 1;
     }
 
     @Override

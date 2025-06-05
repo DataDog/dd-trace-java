@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.netty38;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES;
 import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -65,21 +66,18 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static void addConnectContinuation(@Advice.This final Channel channel) {
-      final AgentScope scope = activeScope();
-      if (scope != null) {
-        final AgentScope.Continuation continuation = scope.capture();
-        if (continuation != null) {
-          final ContextStore<Channel, ChannelTraceContext> contextStore =
-              InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
+      AgentScope.Continuation continuation = captureActiveSpan();
+      if (continuation != noopContinuation()) {
+        final ContextStore<Channel, ChannelTraceContext> contextStore =
+            InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
-          if (contextStore
-                  .putIfAbsent(channel, ChannelTraceContext.Factory.INSTANCE)
-                  .getConnectionContinuation()
-              != null) {
-            continuation.cancel();
-          } else {
-            contextStore.get(channel).setConnectionContinuation(continuation);
-          }
+        if (contextStore
+                .putIfAbsent(channel, ChannelTraceContext.Factory.INSTANCE)
+                .getConnectionContinuation()
+            != null) {
+          continuation.cancel();
+        } else {
+          contextStore.get(channel).setConnectionContinuation(continuation);
         }
       }
     }

@@ -1,3 +1,7 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
 muzzle {
   pass {
     group = "org.apache.axis2"
@@ -16,6 +20,18 @@ configurations.all {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'
+  }
+}
+
+[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
+  it.configure {
+    javaLauncher = getJavaLauncherFor(11)
+  }
+}
+
+[compileLatestDepForkedTestJava, compileLatestDepTestJava].each {
+  it.configure {
+    setJavaVersion(it, 11)
   }
 }
 

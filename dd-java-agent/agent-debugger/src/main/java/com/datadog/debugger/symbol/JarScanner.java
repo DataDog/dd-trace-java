@@ -51,9 +51,7 @@ public class JarScanner {
     } else if (locationStr.startsWith(FILE_PREFIX)) {
       return getPathFromPrefixedFileName(locationStr, FILE_PREFIX, locationStr.length());
     }
-    if (symDBReport != null) {
-      symDBReport.addLocationError(locationStr);
-    }
+    symDBReport.addLocationError(locationStr);
     return null;
   }
 

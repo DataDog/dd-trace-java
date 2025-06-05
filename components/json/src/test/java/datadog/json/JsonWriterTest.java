@@ -74,7 +74,6 @@ class JsonWriterTest {
   void testArray() {
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginArray().value("foo").value("baz").value("bar").value("quux").endArray();
-
       assertEquals("[\"foo\",\"baz\",\"bar\",\"quux\"]", writer.toString(), "Check array writer");
     }
   }

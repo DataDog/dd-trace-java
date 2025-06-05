@@ -125,7 +125,8 @@ class ValueRefExpressionTest {
   @Test
   public void redactedType() {
     Config config = Config.get();
-    setFieldInConfig(config, "debuggerRedactedTypes", "com.datadog.debugger.el.expressions.*");
+    setFieldInConfig(
+        config, "dynamicInstrumentationRedactedTypes", "com.datadog.debugger.el.expressions.*");
     try {
       Redaction.addUserDefinedTypes(Config.get());
       ValueRefExpression valueRef = new ValueRefExpression("store");

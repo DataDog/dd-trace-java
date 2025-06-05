@@ -22,7 +22,8 @@ class JarScannerTest {
     URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
-    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, null).toString());
+    assertEquals(
+        jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
     assertEquals(
         jarFileUrl.getFile(),
         JarScanner.extractJarPath(testClass.getProtectionDomain(), null).toString());
@@ -34,7 +35,8 @@ class JarScannerTest {
     URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
     URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarFileUrl}, null);
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
-    assertEquals(jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, null).toString());
+    assertEquals(
+        jarFileUrl.getFile(), JarScanner.extractJarPath(testClass, SymDBReport.NO_OP).toString());
   }
 
   @Test

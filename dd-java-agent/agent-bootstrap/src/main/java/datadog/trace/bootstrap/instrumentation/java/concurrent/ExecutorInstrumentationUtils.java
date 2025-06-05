@@ -1,11 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import java.util.concurrent.Executor;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,42 +17,36 @@ public final class ExecutorInstrumentationUtils {
    * Checks if given task should get state attached.
    *
    * @param task task object
-   * @param executor executor this task was scheduled on
+   * @param span active span
    * @return true iff given task object should be wrapped
    */
-  public static boolean shouldAttachStateToTask(final Object task, final Executor executor) {
+  public static boolean shouldAttachStateToTask(final Object task, final AgentSpan span) {
     if (task == null) {
       return false;
     }
-
     if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, task)) {
       return false;
     }
-
-    final AgentScope scope = activeScope();
-
-    return scope != null && scope.isAsyncPropagating();
+    return span != null && span.isValid() && isAsyncPropagationEnabled();
   }
 
   /**
-   * Create task state given current scope.
+   * Create task state given current span.
    *
    * @param contextStore context storage
    * @param task task instance
-   * @param scope current scope
+   * @param span current span
    * @param <T> task class type
    * @return new state
    */
   public static <T> State setupState(
-      final ContextStore<T, State> contextStore, final T task, final AgentScope scope) {
+      final ContextStore<T, State> contextStore, final T task, final AgentSpan span) {
 
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
 
-    if (!state.captureAndSetContinuation(scope)) {
+    if (!state.captureAndSetContinuation(span)) {
       log.debug(
-          "continuation was already set for {} in scope {}, no continuation captured.",
-          task,
-          scope);
+          "continuation was already set for {} in span {}, no continuation captured.", task, span);
     }
 
     return state;
@@ -62,12 +55,10 @@ public final class ExecutorInstrumentationUtils {
   /**
    * Clean up after job submission method has exited.
    *
-   * @param executor the current executor
    * @param state task instrumentation state
    * @param throwable throwable that may have been thrown
    */
-  public static void cleanUpOnMethodExit(
-      final Executor executor, final State state, final Throwable throwable) {
+  public static void cleanUpOnMethodExit(final State state, final Throwable throwable) {
     if (null != state && null != throwable) {
       /*
       Note: this may potentially close somebody else's continuation if we didn't set it

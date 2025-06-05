@@ -1,3 +1,5 @@
+// run gradle target generateTestProto when you modify this
+
 syntax = "proto3";
 
 package com.datadog.instrumentation.protobuf.generated;
@@ -12,4 +14,9 @@ message MyMessage {
   string value = 2;
   repeated OtherMessage other_message = 3;
   OtherMessage nested = 4;
+}
+
+message RecursiveMessage {
+  int32 value = 1;
+  RecursiveMessage next = 2;
 }

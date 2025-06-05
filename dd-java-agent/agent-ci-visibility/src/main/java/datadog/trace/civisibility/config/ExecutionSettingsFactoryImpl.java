@@ -3,7 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
-import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
@@ -54,7 +54,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
   private final PullRequestInfo pullRequestInfo;
-  private final String repositoryRoot;
+  @Nullable private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
@@ -63,7 +63,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      String repositoryRoot) {
+      @Nullable String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
     this.gitClient = gitClient;
@@ -75,21 +75,19 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   /** @return Executions settings by module name */
   public Map<String, ExecutionSettings> create(@Nonnull JvmInfo jvmInfo) {
-    TracerEnvironment tracerEnvironment = buildTracerEnvironment(repositoryRoot, jvmInfo, null);
+    TracerEnvironment tracerEnvironment = buildTracerEnvironment(jvmInfo, null);
     return create(tracerEnvironment);
   }
 
   @Override
   public ExecutionSettings create(@Nonnull JvmInfo jvmInfo, @Nullable String moduleName) {
-    TracerEnvironment tracerEnvironment =
-        buildTracerEnvironment(repositoryRoot, jvmInfo, moduleName);
+    TracerEnvironment tracerEnvironment = buildTracerEnvironment(jvmInfo, moduleName);
     Map<String, ExecutionSettings> settingsByModule = create(tracerEnvironment);
     ExecutionSettings settings = settingsByModule.get(moduleName);
     return settings != null ? settings : settingsByModule.get(DEFAULT_SETTINGS);
   }
 
-  private TracerEnvironment buildTracerEnvironment(
-      String repositoryRoot, JvmInfo jvmInfo, @Nullable String moduleName) {
+  private TracerEnvironment buildTracerEnvironment(JvmInfo jvmInfo, @Nullable String moduleName) {
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(repositoryRoot);
 
     TracerEnvironment.Builder builder = TracerEnvironment.builder();
@@ -108,7 +106,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .env(config.getEnv())
         .repositoryUrl(gitInfo.getRepositoryURL())
         .branch(gitInfo.getBranch())
+        .tag(gitInfo.getTag())
         .sha(gitInfo.getCommit().getSha())
+        .commitMessage(gitInfo.getCommit().getFullMessage())
         .osPlatform(wellKnownTags.getOsPlatform().toString())
         .osArchitecture(wellKnownTags.getOsArch().toString())
         .osVersion(wellKnownTags.getOsVersion().toString())
@@ -178,6 +178,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
 
+    TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
+
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
             + "Intelligent Test Runner - {},\n"
@@ -186,7 +188,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Early flakiness detection - {},\n"
             + "Impacted tests detection - {},\n"
             + "Known tests marking - {},\n"
-            + "Auto test retries - {}",
+            + "Auto test retries - {},\n"
+            + "Test Management - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -197,25 +200,49 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         earlyFlakeDetectionEnabled,
         impactedTestsEnabled,
         knownTestsRequest,
-        flakyTestRetriesEnabled);
+        flakyTestRetriesEnabled,
+        testManagementSettings.isEnabled());
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
-    Future<Map<String, Collection<TestIdentifier>>> flakyTestsFuture =
+    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
         executor.submit(() -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled));
-    Future<Map<String, Collection<TestIdentifier>>> knownTestsFuture =
+    Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
         executor.submit(() -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest));
+    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
+        executor.submit(
+            () ->
+                getTestManagementTestsByModule(
+                    tracerEnvironment, testManagementSettings.isEnabled()));
     Future<Diff> pullRequestDiffFuture =
         executor.submit(() -> getPullRequestDiff(tracerEnvironment, impactedTestsEnabled));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
-    Map<String, Collection<TestIdentifier>> flakyTestsByModule = flakyTestsFuture.get();
-    Map<String, Collection<TestIdentifier>> knownTestsByModule = knownTestsFuture.get();
+    Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
+    Map<String, Collection<TestFQN>> knownTestsByModule = knownTestsFuture.get();
+
+    Map<TestSetting, Map<String, Collection<TestFQN>>> testManagementTestsByModule =
+        testManagementTestsFuture.get();
+    Map<String, Collection<TestFQN>> quarantinedTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.QUARANTINED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> disabledTestsByModule =
+        testManagementTestsByModule.getOrDefault(TestSetting.DISABLED, Collections.emptyMap());
+    Map<String, Collection<TestFQN>> attemptToFixTestsByModule =
+        testManagementTestsByModule.getOrDefault(
+            TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
+
     Diff pullRequestDiff = pullRequestDiffFuture.get();
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     Set<String> moduleNames =
-        getModuleNames(skippableTests, flakyTestsByModule, knownTestsByModule);
+        getModuleNames(
+            skippableTests,
+            flakyTestsByModule,
+            knownTestsByModule,
+            quarantinedTestsByModule,
+            disabledTestsByModule,
+            attemptToFixTestsByModule);
+
     for (String moduleName : moduleNames) {
       settingsByModule.put(
           moduleName,
@@ -228,6 +255,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
+              testManagementSettings,
               skippableTests.getCorrelationId(),
               skippableTests
                   .getIdentifiersByModule()
@@ -237,6 +265,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
                   ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
                   : null,
               knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
+              quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
+              attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               pullRequestDiff));
     }
     return settingsByModule;
@@ -267,6 +298,26 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       Function<CiVisibilitySettings, Boolean> remoteSetting,
       Function<Config, Boolean> killSwitch) {
     return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
+  }
+
+  @Nonnull
+  private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
+    boolean testManagementEnabled =
+        isFeatureEnabled(
+            settings,
+            s -> s.getTestManagementSettings().isEnabled(),
+            Config::isCiVisibilityTestManagementEnabled);
+
+    if (!testManagementEnabled) {
+      return TestManagementSettings.DEFAULT;
+    }
+
+    Integer retries = config.getCiVisibilityTestManagementAttemptToFixRetries();
+    if (retries != null) {
+      return new TestManagementSettings(true, retries);
+    }
+
+    return settings.getTestManagementSettings();
   }
 
   @Nonnull
@@ -301,7 +352,6 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
       return SkippableTests.EMPTY;
-
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
       return SkippableTests.EMPTY;
@@ -309,7 +359,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nullable
-  private Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
+  private Map<String, Collection<TestFQN>> getFlakyTestsByModule(
       TracerEnvironment tracerEnvironment, boolean flakyTestRetriesEnabled) {
     if (!(flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes())
         && !CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())) {
@@ -324,7 +374,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nullable
-  private Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
+  private Map<String, Collection<TestFQN>> getKnownTestsByModule(
       TracerEnvironment tracerEnvironment, boolean knownTestsRequest) {
     if (!knownTestsRequest) {
       return null;
@@ -335,6 +385,21 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of known tests", e);
       return null;
+    }
+  }
+
+  @Nullable
+  private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+      TracerEnvironment tracerEnvironment, boolean testManagementTestsRequest) {
+    if (!testManagementTestsRequest) {
+      return Collections.emptyMap();
+    }
+    try {
+      return configurationApi.getTestManagementTestsByModule(tracerEnvironment);
+
+    } catch (Exception e) {
+      LOGGER.error("Could not obtain list of test management tests", e);
+      return Collections.emptyMap();
     }
   }
 
@@ -366,28 +431,30 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
     }
 
-    try {
-      ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
+    if (config.isCiVisibilityImpactedTestsBackendRequestEnabled()) {
+      try {
+        ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
 
-      // attempting to use base SHA returned by the backend to calculate git diff
-      if (repositoryRoot != null) {
-        // ensure repo is not shallow before attempting to get git diff
-        gitRepoUnshallow.unshallow();
-        Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
-        if (diff != null) {
-          return diff;
+        // attempting to use base SHA returned by the backend to calculate git diff
+        if (repositoryRoot != null) {
+          // ensure repo is not shallow before attempting to get git diff
+          gitRepoUnshallow.unshallow();
+          Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
+          if (diff != null) {
+            return diff;
+          }
         }
+
+        // falling back to file-level granularity
+        return new FileDiff(changedFiles.getFiles());
+
+      } catch (InterruptedException e) {
+        LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
+        Thread.currentThread().interrupt();
+
+      } catch (Exception e) {
+        LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
       }
-
-      // falling back to file-level granularity
-      return new FileDiff(changedFiles.getFiles());
-
-    } catch (InterruptedException e) {
-      LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
-      Thread.currentThread().interrupt();
-
-    } catch (Exception e) {
-      LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
     }
 
     return LineDiff.EMPTY;
@@ -395,9 +462,12 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private static Set<String> getModuleNames(
-      SkippableTests skippableTests,
-      Map<String, Collection<TestIdentifier>> flakyTestsByModule,
-      Map<String, Collection<TestIdentifier>> knownTestsByModule) {
+      @Nonnull SkippableTests skippableTests,
+      @Nullable Map<String, Collection<TestFQN>> flakyTestsByModule,
+      @Nullable Map<String, Collection<TestFQN>> knownTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> quarantinedTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> disabledTestsByModule,
+      @Nonnull Map<String, Collection<TestFQN>> attemptToFixTestsByModule) {
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTests.getIdentifiersByModule().keySet());
     if (flakyTestsByModule != null) {
@@ -406,6 +476,9 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     if (knownTestsByModule != null) {
       moduleNames.addAll(knownTestsByModule.keySet());
     }
+    moduleNames.addAll(quarantinedTestsByModule.keySet());
+    moduleNames.addAll(disabledTestsByModule.keySet());
+    moduleNames.addAll(attemptToFixTestsByModule.keySet());
     return moduleNames;
   }
 }

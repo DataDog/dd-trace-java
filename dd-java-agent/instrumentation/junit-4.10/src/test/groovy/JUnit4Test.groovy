@@ -1,37 +1,14 @@
 import datadog.trace.api.DisableTestTrace
+import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
+import datadog.trace.instrumentation.junit4.JUnit4Utils
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
-import junit.runner.Version
-import org.example.TestAssumption
-import org.example.TestAssumptionAndSucceed
-import org.example.TestError
-import org.example.TestFailed
-import org.example.TestFailedAndSucceed
-import org.example.TestFailedParameterized
-import org.example.TestFailedSuiteSetUpAssumption
-import org.example.TestFailedSuiteSetup
-import org.example.TestFailedSuiteTearDown
-import org.example.TestFailedThenSucceed
-import org.example.TestInheritance
-import org.example.TestParameterized
-import org.example.TestParameterizedJUnitParams
-import org.example.TestSkipped
-import org.example.TestSkippedClass
-import org.example.TestSucceed
-import org.example.TestSucceedAndSkipped
-import org.example.TestSucceedExpectedException
-import org.example.TestSucceedKotlin
-import org.example.TestSucceedLegacy
-import org.example.TestSucceedParameterizedKotlin
-import org.example.TestSucceedSlow
-import org.example.TestSucceedSuite
-import org.example.TestSucceedUnskippable
-import org.example.TestSucceedUnskippableSuite
-import org.example.TestSucceedVerySlow
-import org.example.TestSucceedWithCategories
+import org.example.*
+import org.junit.jupiter.api.Assumptions
 import org.junit.runner.JUnitCore
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -40,34 +17,34 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
   def runner = new JUnitCore()
 
   def "test #testcaseName"() {
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                                         | tests
-    "test-succeed"                                       | [TestSucceed]
-    "test-inheritance"                                   | [TestInheritance]
-    "test-failed"                                        | [TestFailed]
-    "test-error"                                         | [TestError]
-    "test-skipped"                                       | [TestSkipped]
-    "test-class-skipped"                                 | [TestSkippedClass]
-    "test-success-and-skipped"                           | [TestSucceedAndSkipped]
-    "test-success-and-failure"                           | [TestFailedAndSucceed]
-    "test-suite-teardown-failure"                        | [TestFailedSuiteTearDown]
-    "test-suite-setup-failure"                           | [TestFailedSuiteSetup]
-    "test-assumption-failure"                            | [TestAssumption]
-    "test-categories-are-included-in-spans"              | [TestSucceedWithCategories]
-    "test-assumption-failure-during-suite-setup"         | [TestFailedSuiteSetUpAssumption]
-    "test-assumption-failure-in-a-multi-test-case-suite" | [TestAssumptionAndSucceed]
-    "test-multiple-successful-suites"                    | [TestSucceed, TestSucceedAndSkipped]
-    "test-successful-suite-and-failing-suite"            | [TestSucceed, TestFailedAndSucceed]
-    "test-parameterized"                                 | [TestParameterized]
-    "test-suite-runner"                                  | [TestSucceedSuite]
-    "test-legacy"                                        | [TestSucceedLegacy]
-    "test-parameterized-junit-params"                    | [TestParameterizedJUnitParams]
-    "test-succeed-kotlin"                                | [TestSucceedKotlin]
-    "test-succeed-parameterized-kotlin"                  | [TestSucceedParameterizedKotlin]
+    testcaseName                                         | success | tests
+    "test-succeed"                                       | true    | [TestSucceed]
+    "test-inheritance"                                   | true    | [TestInheritance]
+    "test-failed"                                        | false   | [TestFailed]
+    "test-error"                                         | false   | [TestError]
+    "test-skipped"                                       | true    | [TestSkipped]
+    "test-class-skipped"                                 | true    | [TestSkippedClass]
+    "test-success-and-skipped"                           | true    | [TestSucceedAndSkipped]
+    "test-success-and-failure"                           | false   | [TestFailedAndSucceed]
+    "test-suite-teardown-failure"                        | false   | [TestFailedSuiteTearDown]
+    "test-suite-setup-failure"                           | false   | [TestFailedSuiteSetup]
+    "test-assumption-failure"                            | true    | [TestAssumption]
+    "test-categories-are-included-in-spans"              | true    | [TestSucceedWithCategories]
+    "test-assumption-failure-during-suite-setup"         | true    | [TestFailedSuiteSetUpAssumption]
+    "test-assumption-failure-in-a-multi-test-case-suite" | true    | [TestAssumptionAndSucceed]
+    "test-multiple-successful-suites"                    | true    | [TestSucceed, TestSucceedAndSkipped]
+    "test-successful-suite-and-failing-suite"            | false   | [TestSucceed, TestFailedAndSucceed]
+    "test-parameterized"                                 | true    | [TestParameterized]
+    "test-suite-runner"                                  | true    | [TestSucceedSuite]
+    "test-legacy"                                        | true    | [TestSucceedLegacy]
+    "test-parameterized-junit-params"                    | true    | [TestParameterizedJUnitParams]
+    "test-succeed-kotlin"                                | true    | [TestSucceedKotlin]
+    "test-succeed-parameterized-kotlin"                  | true    | [TestSucceedParameterizedKotlin]
   }
 
   def "test ITR #testcaseName"() {
@@ -95,44 +72,45 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     givenFlakyRetryEnabled(true)
     givenFlakyTests(retriedTests)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                             | tests                          | retriedTests
-    "test-failed"                            | [TestFailed]                   | []
-    "test-retry-failed"                      | [TestFailed]                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
-    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
-    "test-assumption-is-not-retried"         | [TestAssumption]               | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
-    "test-skipped-is-not-retried"            | [TestSkipped]                  | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
-    "test-retry-parameterized"               | [TestFailedParameterized]      | [
-      new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null)
+    testcaseName                             | success | tests                          | retriedTests
+    "test-failed"                            | false   | [TestFailed]                   | []
+    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
+    "test-assumption-is-not-retried"         | true    | [TestAssumption]               | [new TestFQN("org.example.TestAssumption", "test_fail_assumption")]
+    "test-skipped-is-not-retried"            | true    | [TestSkipped]                  | [new TestFQN("org.example.TestSkipped", "test_skipped")]
+    "test-retry-parameterized"               | false   | [TestFailedParameterized]      | [
+      new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized") /* backend cannot provide parameters for flaky parameterized tests yet */
     ]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
+    "test-expected-exception-is-not-retried" | true    | [TestSucceedExpectedException] | [new TestFQN("org.example.TestSucceedExpectedException", "test_succeed")]
   }
 
   def "test early flakiness detection #testcaseName"() {
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
-    runTests(tests)
+    runTests(tests, success)
 
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                  | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
-    "test-efd-new-test"                 | [TestSucceed]          | []
-    "test-efd-new-parameterized-test"   | [TestParameterized]    | []
-    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
+    testcaseName                        | success | tests                  | knownTestsList
+    "test-efd-known-test"               | true    | [TestSucceed]          | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+    "test-efd-known-parameterized-test" | true    | [TestParameterized]    | [new TestFQN("org.example.TestParameterized", "parameterized_test_succeed")]
+    "test-efd-new-test"                 | true    | [TestSucceed]          | []
+    "test-efd-new-parameterized-test"   | true    | [TestParameterized]    | []
+    "test-efd-known-tests-and-new-test" | false   | [TestFailedAndSucceed] | [
+      new TestFQN("org.example.TestFailedAndSucceed", "test_failed"),
+      new TestFQN("org.example.TestFailedAndSucceed", "test_succeed")
     ]
-    "test-efd-new-slow-test"            | [TestSucceedSlow]      | [] // is executed only twice
-    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | [] // is executed only once
-    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | []
+    "test-efd-new-slow-test"            | true    | [TestSucceedSlow]      | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
+    "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -152,15 +130,110 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-succeed-impacted" | [TestSucceed] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
 
-  private void runTests(Collection<Class<?>> tests) {
-    TestEventsHandlerHolder.start()
+  def "test quarantined #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                            | tests                     | quarantined
+    "test-quarantined-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+  }
+
+  def "test quarantined auto-retries #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests(retried)
+
+    // every test retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                  | tests        | quarantined                                            | retried
+    "test-quarantined-failed-atr" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+  }
+
+  def "test quarantined early flakiness detection #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests(known)
+
+    // every retry fails, but the build status is successful
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                    | tests        | quarantined                                            | known
+    "test-quarantined-failed-known" | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-quarantined-failed-efd"   | [TestFailed] | [new TestFQN("org.example.TestFailed", "test_failed")] | []
+  }
+
+  def "test disabled #testcaseName"() {
+    givenDisabledTests(disabled)
+
+    runTests(tests, true)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                         | tests                     | disabled
+    "test-disabled-failed"               | [TestFailed]              | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-disabled-failed-parameterized" | [TestFailedParameterized] | [new TestFQN("org.example.TestFailedParameterized", "test_failed_parameterized")]
+  }
+
+  def "test attempt to fix #testcaseName"() {
+    givenQuarantinedTests(quarantined)
+    givenDisabledTests(disabled)
+    givenAttemptToFixTests(attemptToFix)
+
+    runTests(tests, success)
+
+    assertSpansData(testcaseName)
+
+    where:
+    testcaseName                                | success | tests         | attemptToFix                                             | quarantined                                              | disabled
+    "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | []
+    "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | []
+    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | [new TestFQN("org.example.TestFailed", "test_failed")]   | []
+    "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []
+    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "test_failed")]   | []                                                       | [new TestFQN("org.example.TestFailed", "test_failed")]
+    "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "test_succeed")] | []                                                       | [new TestFQN("org.example.TestSucceed", "test_succeed")]
+  }
+
+  def "test capabilities tagging #testcaseName"() {
+    setup:
+    Assumptions.assumeFalse(JUnit4Utils.isTestOrderingSupported(JUnit4Utils.getVersion()))
+    runTests([TestSucceed], true)
+
+    expect:
+    assertCapabilities(JUnit4Utils.BASE_CAPABILITIES, 4)
+  }
+
+  private void runTests(Collection<Class<?>> tests, boolean expectSuccess = true) {
+    TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(false))
     try {
       Class[] array = tests.toArray(new Class[0])
-      runner.run(array)
-    } catch (Throwable ignored) {
-      // Ignored
+      def result = runner.run(array)
+      if (expectSuccess) {
+        if (result.getFailureCount() > 0) {
+          throw new AssertionError("Expected successful execution, got following failures: " + result.getFailures())
+        }
+      } else {
+        if (result.getFailureCount() == 0) {
+          throw new AssertionError("Expected a failed execution, got no failures")
+        }
+      }
+    } finally {
+      TestEventsHandlerHolder.stop(TestFrameworkInstrumentation.JUNIT4)
     }
-    TestEventsHandlerHolder.stop()
   }
 
   @Override
@@ -170,6 +243,6 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    return Version.id()
+    return JUnit4Utils.getVersion()
   }
 }

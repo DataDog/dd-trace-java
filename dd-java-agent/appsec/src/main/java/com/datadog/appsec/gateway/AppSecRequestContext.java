@@ -7,16 +7,13 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import com.datadog.ddwaf.WafContext;
+import com.datadog.ddwaf.WafHandle;
+import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
-import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackTraceEvent;
-import io.sqreen.powerwaf.Additive;
-import io.sqreen.powerwaf.PowerwafContext;
-import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,6 +87,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String scheme;
   private String method;
   private String savedRawURI;
+  private String route;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -115,24 +113,37 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean throttled;
 
   // should be guarded by this
-  private volatile Additive additive;
-  private volatile boolean additiveClosed;
-  // set after additive is set
-  private volatile PowerwafMetrics wafMetrics;
-  private volatile PowerwafMetrics raspMetrics;
+  private volatile WafContext wafContext;
+  private volatile boolean wafContextClosed;
+  // set after wafContext is set
+  private volatile WafMetrics wafMetrics;
+  private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
-  private volatile boolean blocked;
+
+  private volatile boolean wafBlocked;
+  private volatile boolean wafErrors;
+  private volatile boolean wafTruncated;
+  private volatile boolean wafRequestBlockFailure;
+  private volatile boolean wafRateLimited;
+
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
 
+  private volatile Object processedRequestBody;
+  private volatile boolean raspMatched;
+
   // keep a reference to the last published usr.id
   private volatile String userId;
-  private volatile UserIdCollectionMode userIdSource;
   // keep a reference to the last published usr.login
   private volatile String userLogin;
-  private volatile UserIdCollectionMode userLoginSource;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
+
+  // Used to detect missing request-end event at close.
+  private volatile boolean requestEndCalled;
+
+  private volatile boolean keepOpenForApiSecurityPostProcessing;
+  private volatile Long apiSecurityEndpointHash;
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
@@ -160,11 +171,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public PowerwafMetrics getWafMetrics() {
+  public WafMetrics getWafMetrics() {
     return wafMetrics;
   }
 
-  public PowerwafMetrics getRaspMetrics() {
+  public WafMetrics getRaspMetrics() {
     return raspMetrics;
   }
 
@@ -172,12 +183,44 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspMetricsCounter;
   }
 
-  public void setBlocked() {
-    this.blocked = true;
+  public void setWafBlocked() {
+    this.wafBlocked = true;
   }
 
-  public boolean isBlocked() {
-    return blocked;
+  public boolean isWafBlocked() {
+    return wafBlocked;
+  }
+
+  public void setWafErrors() {
+    this.wafErrors = true;
+  }
+
+  public boolean hasWafErrors() {
+    return wafErrors;
+  }
+
+  public void setWafTruncated() {
+    this.wafTruncated = true;
+  }
+
+  public boolean isWafTruncated() {
+    return wafTruncated;
+  }
+
+  public void setWafRequestBlockFailure() {
+    this.wafRequestBlockFailure = true;
+  }
+
+  public boolean isWafRequestBlockFailure() {
+    return wafRequestBlockFailure;
+  }
+
+  public void setWafRateLimited() {
+    this.wafRateLimited = true;
+  }
+
+  public boolean isWafRateLimited() {
+    return wafRateLimited;
   }
 
   public void increaseWafTimeouts() {
@@ -196,7 +239,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspTimeouts;
   }
 
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+  public WafContext getOrCreateWafContext(WafHandle ctx, boolean createMetrics, boolean isRasp) {
 
     if (createMetrics) {
       if (wafMetrics == null) {
@@ -207,27 +250,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    Additive curAdditive;
+    WafContext curWafContext;
     synchronized (this) {
-      curAdditive = this.additive;
-      if (curAdditive != null) {
-        return curAdditive;
+      curWafContext = this.wafContext;
+      if (curWafContext != null) {
+        return curWafContext;
       }
-      curAdditive = ctx.openAdditive();
-      this.additive = curAdditive;
+      curWafContext = ctx.openContext();
+      this.wafContext = curWafContext;
     }
-    return curAdditive;
+    return curWafContext;
   }
 
-  public void closeAdditive() {
-    if (additive != null) {
+  public void closeWafContext() {
+    if (wafContext != null) {
       synchronized (this) {
-        if (additive != null) {
+        if (wafContext != null) {
           try {
-            additiveClosed = true;
-            additive.close();
+            wafContextClosed = true;
+            wafContext.close();
           } finally {
-            additive = null;
+            wafContext = null;
           }
         }
       }
@@ -272,7 +315,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.scheme = scheme;
   }
 
-  String getMethod() {
+  public String getMethod() {
     return method;
   }
 
@@ -290,6 +333,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           "Forbidden attempt to set different raw URI for given request context");
     }
     this.savedRawURI = savedRawURI;
+  }
+
+  public String getRoute() {
+    return route;
+  }
+
+  public void setRoute(String route) {
+    this.route = route;
+  }
+
+  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
+    this.keepOpenForApiSecurityPostProcessing = flag;
+  }
+
+  public boolean isKeepOpenForApiSecurityPostProcessing() {
+    return this.keepOpenForApiSecurityPostProcessing;
+  }
+
+  public void setApiSecurityEndpointHash(long hash) {
+    this.apiSecurityEndpointHash = hash;
+  }
+
+  public Long getApiSecurityEndpointHash() {
+    return this.apiSecurityEndpointHash;
   }
 
   void addRequestHeader(String name, String value) {
@@ -443,36 +510,30 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.respDataPublished = respDataPublished;
   }
 
-  public String getUserId() {
-    return userId;
-  }
-
-  public void setUserId(String userId) {
+  /**
+   * Updates the current used usr.id
+   *
+   * @return {@code false} if the user id has not been updated
+   */
+  public boolean updateUserId(String userId) {
+    if (Objects.equals(this.userId, userId)) {
+      return false;
+    }
     this.userId = userId;
+    return true;
   }
 
-  public UserIdCollectionMode getUserIdSource() {
-    return userIdSource;
-  }
-
-  public void setUserIdSource(UserIdCollectionMode userIdSource) {
-    this.userIdSource = userIdSource;
-  }
-
-  public String getUserLogin() {
-    return userLogin;
-  }
-
-  public void setUserLogin(String userLogin) {
+  /**
+   * Updates current used usr.login
+   *
+   * @return {@code false} if the user login has not been updated
+   */
+  public boolean updateUserLogin(String userLogin) {
+    if (Objects.equals(this.userLogin, userLogin)) {
+      return false;
+    }
     this.userLogin = userLogin;
-  }
-
-  public UserIdCollectionMode getUserLoginSource() {
-    return userLoginSource;
-  }
-
-  public void setUserLoginSource(UserIdCollectionMode userLoginSource) {
-    this.userLoginSource = userLoginSource;
+    return true;
   }
 
   public void setSessionId(String sessionId) {
@@ -483,34 +544,34 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return sessionId;
   }
 
+  /**
+   * Close the context and release all resources. This method is idempotent and can be called
+   * multiple times. For each root span, this method is always called from
+   * CoreTracer#onRootSpanPublished.
+   */
   @Override
   public void close() {
-    final AgentSpan span = AgentTracer.activeSpan();
-    close(span != null && span.isRequiresPostProcessing());
-  }
-
-  /* end interface for GatewayBridge */
-
-  /* Should be accessible from the modules */
-
-  public void close(boolean requiresPostProcessing) {
-    if (additive != null || derivatives != null) {
-      log.debug(
-          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-      closeAdditive();
-      derivatives = null;
+    if (!requestEndCalled) {
+      log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-
-    // check if we might need to further post process data related to the span in order to not free
-    // related data
-    if (requiresPostProcessing) {
-      return;
+    // For API Security, we sometimes keep contexts open for late processing. In that case, this
+    // flag needs to be
+    // later reset by the API Security post-processor and close must be called again.
+    if (!keepOpenForApiSecurityPostProcessing) {
+      if (wafContext != null) {
+        log.debug(
+            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+        closeWafContext();
+      }
+      collectedCookies = null;
+      requestHeaders.clear();
+      responseHeaders.clear();
+      persistentData.clear();
+      if (derivatives != null) {
+        derivatives.clear();
+        derivatives = null;
+      }
     }
-
-    collectedCookies = null;
-    requestHeaders.clear();
-    responseHeaders.clear();
-    persistentData.clear();
   }
 
   /** @return the portion of the body read so far, if any */
@@ -576,6 +637,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void reportDerivatives(Map<String, String> data) {
+    log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
     if (derivatives == null) {
@@ -585,11 +647,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  boolean commitDerivatives(TraceSegment traceSegment) {
+  public boolean commitDerivatives(TraceSegment traceSegment) {
+    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null || derivatives == null) {
       return false;
     }
     derivatives.forEach(traceSegment::setTagTop);
+    log.debug("Committed derivatives: {} for {}", derivatives, traceSegment);
     derivatives = null;
     return true;
   }
@@ -606,7 +670,28 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return throttled;
   }
 
-  public boolean isAdditiveClosed() {
-    return additiveClosed;
+  public boolean isWafContextClosed() {
+    return wafContextClosed;
+  }
+
+  /** Must be called during request end event processing. */
+  void setRequestEndCalled() {
+    requestEndCalled = true;
+  }
+
+  public void setProcessedRequestBody(Object processedRequestBody) {
+    this.processedRequestBody = processedRequestBody;
+  }
+
+  public Object getProcessedRequestBody() {
+    return processedRequestBody;
+  }
+
+  public boolean isRaspMatched() {
+    return raspMatched;
+  }
+
+  public void setRaspMatched(boolean raspMatched) {
+    this.raspMatched = raspMatched;
   }
 }

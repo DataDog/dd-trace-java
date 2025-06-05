@@ -4,7 +4,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -24,7 +24,7 @@
       "test.source.end" : 19,
       "test.source.start" : 11
     },
-    "name" : "junit.test_suite",
+    "name" : "spock.test_suite",
     "resource" : "org.example.TestSucceedAndFailedSpock",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start},
@@ -41,7 +41,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -69,7 +69,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test another success",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -89,7 +89,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -120,7 +120,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test failure",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -140,7 +140,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -157,7 +157,7 @@
       "test.is_retry" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test failure",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test failure()V",
       "test.status" : "fail",
@@ -173,7 +173,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test failure",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -193,7 +193,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
@@ -206,11 +206,12 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
+      "test.has_failed_all_retries" : "true",
       "test.is_new" : "true",
       "test.is_retry" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test failure",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test failure()V",
       "test.status" : "fail",
@@ -226,7 +227,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test failure",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -246,7 +247,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -274,7 +275,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test success",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -294,7 +295,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -308,7 +309,7 @@
       "test.is_retry" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test success",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test success()V",
       "test.status" : "pass",
@@ -324,7 +325,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test success",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -344,7 +345,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -358,7 +359,7 @@
       "test.is_retry" : "true",
       "test.module" : "spock-junit-5",
       "test.name" : "test success",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test success()V",
       "test.status" : "pass",
@@ -374,7 +375,7 @@
       "test.source.end" : 18,
       "test.source.start" : 12
     },
-    "name" : "junit.test",
+    "name" : "spock.test",
     "parent_id" : ${content_parent_id},
     "resource" : "org.example.TestSucceedAndFailedSpock.test success",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -395,7 +396,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -417,7 +418,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test_session",
+    "name" : "spock.test_session",
     "resource" : "spock-junit-5",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_9},
@@ -431,7 +432,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
-      "component" : "junit",
+      "component" : "spock",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -448,7 +449,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_10}
     },
-    "name" : "junit.test_module",
+    "name" : "spock.test_module",
     "resource" : "spock-junit-5",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_10},

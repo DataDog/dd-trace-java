@@ -4,7 +4,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
@@ -77,12 +77,11 @@ abstract class DDCoreSpecification extends DDSpecification {
       null,
       null,
       ciVisibilityContextData,
-      AgentTracer.NoopPathwayContext.INSTANCE,
+      NoopPathwayContext.INSTANCE,
       false,
       propagationTags,
       ProfilingContextIntegration.NoOp.INSTANCE,
-      true,
-      false)
+      true)
 
     def span = DDSpan.create("test", timestamp, context, null)
     for (Map.Entry<String, Object> e : tags.entrySet()) {

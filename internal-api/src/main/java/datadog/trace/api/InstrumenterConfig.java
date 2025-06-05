@@ -11,7 +11,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
@@ -19,6 +18,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
@@ -32,6 +32,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_EXECUTOR_TASK_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_POOL_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
@@ -51,7 +54,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_L
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
@@ -65,7 +67,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -105,7 +109,6 @@ public class InstrumenterConfig {
   private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
-  private final boolean logs128bTraceIdEnabled;
   private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -126,6 +129,12 @@ public class InstrumenterConfig {
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
+  private final boolean websocketTracingEnabled;
+  private final boolean pekkoSchedulerEnabled;
+
+  private final String akkaForkJoinTaskName;
+  private final String akkaForkJoinExecutorTaskName;
+  private final String akkaForkJoinPoolName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -182,9 +191,7 @@ public class InstrumenterConfig {
             CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    logs128bTraceIdEnabled =
-        configProvider.getBoolean(
-            TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
+
     profilingEnabled =
         ProfilingEnablement.of(
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
@@ -227,6 +234,10 @@ public class InstrumenterConfig {
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
+
+    akkaForkJoinTaskName = configProvider.getString(AKKA_FORK_JOIN_TASK_NAME, "");
+    akkaForkJoinExecutorTaskName = configProvider.getString(AKKA_FORK_JOIN_EXECUTOR_TASK_NAME, "");
+    akkaForkJoinPoolName = configProvider.getString(AKKA_FORK_JOIN_POOL_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -277,6 +288,10 @@ public class InstrumenterConfig {
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+    this.websocketTracingEnabled =
+        configProvider.getBoolean(
+            TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
+    this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -334,10 +349,6 @@ public class InstrumenterConfig {
 
   public boolean isTraceOtelEnabled() {
     return traceOtelEnabled;
-  }
-
-  public boolean isLogs128bTraceIdEnabled() {
-    return logs128bTraceIdEnabled;
   }
 
   public boolean isProfilingEnabled() {
@@ -402,6 +413,18 @@ public class InstrumenterConfig {
 
   public String getAxisTransportClassName() {
     return axisTransportClassName;
+  }
+
+  public String getAkkaForkJoinTaskName() {
+    return akkaForkJoinTaskName;
+  }
+
+  public String getAkkaForkJoinExecutorTaskName() {
+    return akkaForkJoinExecutorTaskName;
+  }
+
+  public String getAkkaForkJoinPoolName() {
+    return akkaForkJoinPoolName;
   }
 
   public boolean isDirectAllocationProfilingEnabled() {
@@ -504,6 +527,14 @@ public class InstrumenterConfig {
     return additionalJaxRsAnnotations;
   }
 
+  public boolean isWebsocketTracingEnabled() {
+    return websocketTracingEnabled;
+  }
+
+  public boolean isPekkoSchedulerEnabled() {
+    return pekkoSchedulerEnabled;
+  }
+
   /**
    * Check whether asynchronous result types are supported with @Trace annotation.
    *
@@ -557,8 +588,6 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
-        + ", logs128bTraceIdEnabled="
-        + logs128bTraceIdEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
@@ -636,6 +665,10 @@ public class InstrumenterConfig {
         + internalExitOnFailure
         + ", additionalJaxRsAnnotations="
         + additionalJaxRsAnnotations
+        + ", websocketTracingEnabled="
+        + websocketTracingEnabled
+        + ", pekkoSchedulerEnabled="
+        + pekkoSchedulerEnabled
         + '}';
   }
 }

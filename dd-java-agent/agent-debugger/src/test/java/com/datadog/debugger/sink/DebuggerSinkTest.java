@@ -1,6 +1,8 @@
 package com.datadog.debugger.sink;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,6 +26,7 @@ import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -44,6 +47,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -72,7 +77,7 @@ public class DebuggerSinkTest {
     when(config.getServiceName()).thenReturn("service-name");
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(1);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -84,8 +89,11 @@ public class DebuggerSinkTest {
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
   }
 
-  @Test
-  public void addSnapshot() throws IOException {
+  @ParameterizedTest(name = "Process tags enabled ''{0}''")
+  @ValueSource(booleans = {true, false})
+  public void addSnapshot(boolean processTagsEnabled) throws IOException {
+    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    ProcessTags.reset(config);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot = createSnapshot();
@@ -107,11 +115,18 @@ public class DebuggerSinkTest {
             .getDebugger()
             .getRuntimeId()
             .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+    if (processTagsEnabled) {
+      assertNotNull(ProcessTags.getTagsForSerialization());
+      assertEquals(
+          ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
+    } else {
+      assertNull(intakeRequest.getProcessTags());
+    }
   }
 
   @Test
   public void addMultipleSnapshots() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(2);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot snapshot = createSnapshot();
@@ -130,7 +145,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitSnapshotBatch() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(10);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(10);
     DebuggerSink sink = createDefaultDebuggerSink();
     DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
     Snapshot largeSnapshot = createSnapshot();
@@ -278,7 +293,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void addMultipleDiagnostics() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     for (String probeId : Arrays.asList("1", "2")) {
@@ -296,7 +311,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void addMultipleDiagnosticsDebuggerTrack() throws IOException {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
     for (String probeId : Arrays.asList("1", "2")) {
@@ -317,7 +332,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitDiagnosticsBatch() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
@@ -337,7 +352,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void splitDiagnosticsBatchDebuggerTrack() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     BatchUploader diagnosticUploader = mock(BatchUploader.class);
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
@@ -358,7 +373,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void tooLargeDiagnostic() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = createDefaultDebuggerSink();
     StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
     for (int i = 0; i < MAX_PAYLOAD; i++) {
@@ -372,7 +387,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void tooLargeUTF8Diagnostic() {
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     DebuggerSink sink = createDefaultDebuggerSink();
     StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
     for (int i = 0; i < MAX_PAYLOAD; i += 4) {

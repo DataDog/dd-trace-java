@@ -1,0 +1,14 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "io.vertx"
+    module = "vertx-sql-client"
+    versions = "[3.9.0,)"
+    javaVersion = "11"
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.vertx', name: 'vertx-sql-client', version: '3.9.0'
+}

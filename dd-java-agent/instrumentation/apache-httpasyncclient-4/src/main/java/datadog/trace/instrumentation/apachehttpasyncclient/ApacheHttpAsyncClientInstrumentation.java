@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.HTTP_REQUEST;
@@ -90,13 +90,14 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(2) HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final AgentScope parentScope = activeScope();
+      final AgentScope.Continuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
-          new TraceContinuedFutureCallback(parentScope, clientSpan, context, futureCallback);
+          new TraceContinuedFutureCallback<>(
+              parentContinuation, clientSpan, context, futureCallback);
 
       return clientSpan;
     }

@@ -1,0 +1,23 @@
+plugins {
+  id 'application'
+  id 'com.gradleup.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'JDK 8 Concurrent Integration Tests'
+
+application {
+  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+}
+
+dependencies {
+  implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '2.13.3'
+  testImplementation project(':dd-smoke-tests')
+}
+
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}

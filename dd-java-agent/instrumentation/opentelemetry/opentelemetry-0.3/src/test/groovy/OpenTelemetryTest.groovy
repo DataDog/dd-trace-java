@@ -19,8 +19,6 @@ import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
@@ -84,6 +82,7 @@ class OpenTelemetryTest extends AgentTestRunner {
             }
             defaultTags()
           }
+          assert span.context().integrationName == "otel"
         }
       }
     }
@@ -234,7 +233,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def span = tracer.spanBuilder("some name").startSpan()
     TraceScope scope = tracer.withSpan(span)
-    setAsyncPropagationEnabled(true)
 
     expect:
     tracer.currentSpan.delegate == span.delegate

@@ -1,7 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.core.tagprocessor.SpanPointersProcessor
-import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -16,7 +18,7 @@ import spock.lang.Shared
 import java.time.Duration
 
 class S3ClientTest extends AgentTestRunner {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "s3")
   .withReuse(true)
@@ -70,6 +72,14 @@ class S3ClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "S3.PutObject"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
+              SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.hash","6d1a2fe194c6579187408f827f942be3")
+              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -82,24 +92,11 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
-            tag "_dd.span_links", { it != null }
-
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            assert link["attributes"]["ptr.hash"] == "6d1a2fe194c6579187408f827f942be3"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -134,6 +131,14 @@ class S3ClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "S3.PutObject"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
+              SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.hash","6d1a2fe194c6579187408f827f942be3")
+              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -146,12 +151,11 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$sourceKey") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$sourceKey") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
-            tag "_dd.span_links", { it != null }
           }
         }
       }
@@ -161,6 +165,14 @@ class S3ClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "S3.CopyObject"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
+              SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.hash","1542053ce6d393c424b1374bac1fc0c5")
+              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -173,24 +185,11 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$destKey") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$destKey") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
-            tag "_dd.span_links", { it != null }
-
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            assert link["attributes"]["ptr.hash"] == "1542053ce6d393c424b1374bac1fc0c5"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }
@@ -277,8 +276,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "POST"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -304,8 +303,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -331,8 +330,8 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "PUT"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
@@ -346,6 +345,14 @@ class S3ClientTest extends AgentTestRunner {
           operationName "aws.http"
           resourceName "S3.CompleteMultipartUpload"
           spanType DDSpanTypes.HTTP_CLIENT
+          links {
+            link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
+              SpanAttributes.builder()
+              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.hash","422412aa6b472a7194f3e24f4b12b4a6")
+              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+          }
           tags {
             defaultTags()
             tag "component", "java-aws-sdk"
@@ -358,25 +365,12 @@ class S3ClientTest extends AgentTestRunner {
             tag "bucketname", bucketName
             tag "http.method", "POST"
             tag "http.status_code", 200
-            tag "http.url", { it.startsWith("http://localhost") && it.contains("/$key") }
-            tag "peer.hostname", "localhost"
+            tag "http.url", { it.startsWith("http://" + LOCALSTACK.getHost()) && it.contains("/$key") }
+            tag "peer.hostname", LOCALSTACK.getHost()
             tag "peer.port", { it instanceof Integer }
             tag "span.kind", "client"
             tag "aws.requestId", { it != null }
             tag "http.query.string", { it != null }
-            tag "_dd.span_links", { it != null }
-
-            // Assert the span links
-            def spanLinks = tags["_dd.span_links"]
-            assert spanLinks != null
-            def links = new JsonSlurper().parseText(spanLinks)
-            assert links.size() == 1
-            def link = links[0]
-            assert link["attributes"] != null
-            assert link["attributes"]["ptr.kind"] == SpanPointersProcessor.S3_PTR_KIND
-            assert link["attributes"]["ptr.dir"] == SpanPointersProcessor.DOWN_DIRECTION
-            assert link["attributes"]["ptr.hash"] == "422412aa6b472a7194f3e24f4b12b4a6"
-            assert link["attributes"]["link.kind"] == SpanPointersProcessor.LINK_KIND
           }
         }
       }

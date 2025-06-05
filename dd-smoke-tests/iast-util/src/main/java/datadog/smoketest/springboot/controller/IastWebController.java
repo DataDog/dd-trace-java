@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParser;
 import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
+import datadog.smoketest.springboot.controller.mock.JakartaMockTransport;
 import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -18,6 +19,7 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.servlet.ServletException;
@@ -33,6 +35,8 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -330,6 +334,46 @@ public class IastWebController {
     } catch (IOException e) {
     }
     return "fileName: " + file.getName();
+  }
+
+  @PostMapping("/jakartaMailHtmlVulnerability")
+  public String jakartaMailHtmlVulnerability(HttpServletRequest request)
+      throws jakarta.mail.MessagingException {
+    jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
+    jakarta.mail.Provider provider =
+        new jakarta.mail.Provider(
+            jakarta.mail.Provider.Type.TRANSPORT,
+            "smtp",
+            JakartaMockTransport.class.getName(),
+            "MockTransport",
+            "1.0");
+    session.setProvider(provider);
+    boolean sanitize =
+        StringUtils.isNotEmpty(request.getParameter("sanitize"))
+            && request.getParameter("sanitize").equalsIgnoreCase("true");
+    jakarta.mail.internet.MimeMessage message = new jakarta.mail.internet.MimeMessage(session);
+    if (request.getParameter("messageText") != null) {
+      message.setText(
+          sanitize
+              ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
+              : request.getParameter("messageText"),
+          "utf-8",
+          "html");
+    } else {
+      jakarta.mail.Multipart content = new jakarta.mail.internet.MimeMultipart();
+      content.addBodyPart(new jakarta.mail.internet.MimeBodyPart());
+      content
+          .getBodyPart(0)
+          .setContent(
+              sanitize
+                  ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
+                  : request.getParameter("messageContent"),
+              "text/html");
+      message.setContent(content, "multipart/*");
+    }
+    message.setRecipients(jakarta.mail.Message.RecipientType.TO, "abc@datadoghq.com");
+    jakarta.mail.Transport.send(message);
+    return "ok";
   }
 
   @GetMapping(value = "/xcontenttypeoptionsecure", produces = "text/html")

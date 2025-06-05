@@ -31,7 +31,7 @@ public final class S3ClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".S3Interceptor", packageName + ".TextMapInjectAdapter"};
+    return new String[] {packageName + ".S3Interceptor"};
   }
 
   public static class AwsS3BuilderAdvice {

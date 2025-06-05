@@ -4,33 +4,25 @@ import com.intuit.karate.core.Scenario;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import java.util.Collection;
 
 public class ExecutionContext {
 
   private final TestExecutionPolicy executionPolicy;
-  private boolean failed;
-  private long startTimestamp;
+  private boolean suppressFailures;
 
   public ExecutionContext(TestExecutionPolicy executionPolicy) {
     this.executionPolicy = executionPolicy;
   }
 
-  public void setStartTimestamp(long startTimestamp) {
-    this.startTimestamp = startTimestamp;
+  public void setSuppressFailures(boolean suppressFailures) {
+    this.suppressFailures = suppressFailures;
   }
 
-  public long getStartTimestamp() {
-    return startTimestamp;
-  }
-
-  public void setFailed(boolean failed) {
-    this.failed = failed;
-  }
-
-  public boolean getAndResetFailed() {
-    boolean failed = this.failed;
-    this.failed = false;
-    return failed;
+  public boolean getAndResetSuppressFailures() {
+    boolean suppressFailures = this.suppressFailures;
+    this.suppressFailures = false;
+    return suppressFailures;
   }
 
   public TestExecutionPolicy getExecutionPolicy() {
@@ -39,8 +31,9 @@ public class ExecutionContext {
 
   public static ExecutionContext create(Scenario scenario) {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
+    Collection<String> testTags = scenario.getTagsEffective().getTagKeys();
     return new ExecutionContext(
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-            testIdentifier, TestSourceData.UNKNOWN));
+            testIdentifier, TestSourceData.UNKNOWN, testTags));
   }
 }

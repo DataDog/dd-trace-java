@@ -72,7 +72,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
 
       span.setResourceName(DECORATE.spanNameForMethod(HttpServletResponse.class, method));
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

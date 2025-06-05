@@ -2,11 +2,11 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
@@ -88,7 +88,7 @@ public class CapturingTestBase {
 
   @BeforeEach
   public void before() {
-    setFieldInConfig(Config.get(), "debuggerCaptureTimeout", 200);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationCaptureTimeout", 200);
     instr = ByteBuddyAgent.install();
   }
 
@@ -381,9 +381,9 @@ public class CapturingTestBase {
 
   public static Config getConfig() {
     Config config = Config.get();
-    setFieldInConfig(config, "debuggerEnabled", true);
-    setFieldInConfig(config, "debuggerClassFileDumpEnabled", true);
-    setFieldInConfig(config, "debuggerVerifyByteCode", false);
+    setFieldInConfig(config, "dynamicInstrumentationEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationClassFileDumpEnabled", true);
+    setFieldInConfig(config, "dynamicInstrumentationVerifyByteCode", false);
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
 
     return config;

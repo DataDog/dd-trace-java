@@ -6,6 +6,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
 import java.util.Queue;
 
@@ -43,13 +44,19 @@ interface EventSource {
 
   ProductChange nextProductChangeEvent();
 
+  boolean hasEndpoint();
+
+  Endpoint nextEndpoint();
+
   default boolean isEmpty() {
     return !hasConfigChangeEvent()
         && !hasIntegrationEvent()
         && !hasDependencyEvent()
         && !hasMetricEvent()
         && !hasDistributionSeriesEvent()
-        && !hasLogMessageEvent();
+        && !hasLogMessageEvent()
+        && !hasProductChangeEvent()
+        && !hasEndpoint();
   }
 
   final class Queued implements EventSource {
@@ -60,6 +67,7 @@ interface EventSource {
     private final Queue<DistributionSeries> distributionSeriesQueue;
     private final Queue<LogMessage> logMessageQueue;
     private final Queue<ProductChange> productChanges;
+    private final Queue<Endpoint> endpoints;
 
     Queued(
         Queue<ConfigSetting> configChangeQueue,
@@ -68,7 +76,8 @@ interface EventSource {
         Queue<Metric> metricQueue,
         Queue<DistributionSeries> distributionSeriesQueue,
         Queue<LogMessage> logMessageQueue,
-        Queue<ProductChange> productChanges) {
+        Queue<ProductChange> productChanges,
+        Queue<Endpoint> endpoints) {
       this.configChangeQueue = configChangeQueue;
       this.integrationQueue = integrationQueue;
       this.dependencyQueue = dependencyQueue;
@@ -76,6 +85,7 @@ interface EventSource {
       this.distributionSeriesQueue = distributionSeriesQueue;
       this.logMessageQueue = logMessageQueue;
       this.productChanges = productChanges;
+      this.endpoints = endpoints;
     }
 
     @Override
@@ -146,6 +156,16 @@ interface EventSource {
     @Override
     public ProductChange nextProductChangeEvent() {
       return productChanges.poll();
+    }
+
+    @Override
+    public boolean hasEndpoint() {
+      return !endpoints.isEmpty();
+    }
+
+    @Override
+    public Endpoint nextEndpoint() {
+      return endpoints.poll();
     }
   }
 }

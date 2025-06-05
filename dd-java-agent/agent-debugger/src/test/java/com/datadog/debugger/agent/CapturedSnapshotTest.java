@@ -7,7 +7,6 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
-import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +26,7 @@ import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestHelper.getFixtureContent;
+import static utils.TestHelper.setFieldInConfig;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
@@ -155,7 +155,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureArgs(snapshot.getCaptures().getEntry(), "arg", "java.lang.String", "1");
+    // no entry values capture
+    assertEquals(CapturedContext.EMPTY_CAPTURING_CONTEXT, snapshot.getCaptures().getEntry());
     assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", "java.lang.String", "1");
     assertTrue(snapshot.getDuration() > 0);
     assertTrue(snapshot.getStack().size() > 0);
@@ -289,7 +290,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   public void oldJavacBug() throws Exception {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
       TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "main", null);
@@ -301,7 +302,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       // resolved
       assertEquals(1, listener.snapshots.size());
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -935,27 +936,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertCaptureFieldsNotCaptured(
         snapshot.getCaptures().getReturn(),
         "vlist",
-        "Field is not accessible: module java.base does not opens/exports to the current module");
-  }
-
-  @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  public void staticFieldExtractorNotAccessible() throws IOException, URISyntaxException {
-    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
-    LogProbe logProbe =
-        createMethodProbe(PROBE_ID, CLASS_NAME + "$MyHttpURLConnection", "process", "()");
-    TestSnapshotListener listener = installProbes(logProbe);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.onClass(testClass).call("main", "static").get();
-    assertEquals(42, result);
-    Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureStaticFieldsNotCaptured(
-        snapshot.getCaptures().getReturn(),
-        "followRedirects",
-        "Field is not accessible: module java.base does not opens/exports to the current module");
-    assertCaptureStaticFieldsNotCaptured(
-        snapshot.getCaptures().getReturn(),
-        "factory",
         "Field is not accessible: module java.base does not opens/exports to the current module");
   }
 
@@ -1610,12 +1590,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
-    assertEquals(7, staticFields.size());
+    // inherited static fields are not collected
+    assertEquals(2, staticFields.size());
     assertEquals("barfoo", MoshiSnapshotTestHelper.getValue(staticFields.get("strValue")));
-    assertEquals("48", MoshiSnapshotTestHelper.getValue(staticFields.get("intValue")));
-    assertEquals("6.28", MoshiSnapshotTestHelper.getValue(staticFields.get("doubleValue")));
-    assertEquals("[1, 2, 3, 4]", MoshiSnapshotTestHelper.getValue(staticFields.get("longValues")));
-    assertEquals("[foo, bar]", MoshiSnapshotTestHelper.getValue(staticFields.get("strValues")));
   }
 
   @Test
@@ -1889,7 +1866,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "CapturedSnapshot05";
       LogProbe probe =
@@ -1919,7 +1896,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       // at the beginning of the method by instrumentation
       assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -1952,7 +1929,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
       LogProbe probe = createMethodProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
@@ -1964,7 +1941,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
       assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -2056,7 +2033,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       value = "datadog.trace.api.Platform#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
-    setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", true);
+    setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", true);
     try {
       final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
       LogProbe probe =
@@ -2069,7 +2046,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertCaptureLocals(
           snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
     } finally {
-      setFieldInConfig(Config.get(), "debuggerHoistLocalVarsEnabled", false);
+      setFieldInConfig(Config.get(), "dynamicInstrumentationHoistLocalVarsEnabled", false);
     }
   }
 
@@ -2328,7 +2305,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void typeRedactionBlockedProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes()).thenReturn("com.datadog.debugger.CapturedSnapshot27");
+    when(config.getDynamicInstrumentationRedactedTypes())
+        .thenReturn("com.datadog.debugger.CapturedSnapshot27");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
@@ -2351,7 +2329,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String LOG_TEMPLATE =
         "arg={arg} credentials={creds} user={this.creds.user} code={creds.secretCode} dave={credMap['dave'].user}";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
@@ -2388,7 +2366,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void typeRedactionCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot27";
     Config config = mock(Config.class);
-    when(config.getDebuggerRedactedTypes())
+    when(config.getDynamicInstrumentationRedactedTypes())
         .thenReturn("com.datadog.debugger.CapturedSnapshot27$Creds");
     Redaction.addUserDefinedTypes(config);
     LogProbe probe1 =
@@ -2637,15 +2615,15 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
-    when(config.isDebuggerEnabled()).thenReturn(true);
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerInstrumentTheWorld()).thenReturn(true);
-    when(config.getDebuggerExcludeFiles()).thenReturn(excludeFileName);
-    when(config.getDebuggerIncludeFiles()).thenReturn(includeFileName);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
+    when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
+    when(config.getDynamicInstrumentationInstrumentTheWorld()).thenReturn("method");
+    when(config.getDynamicInstrumentationExcludeFiles()).thenReturn(excludeFileName);
+    when(config.getDynamicInstrumentationIncludeFiles()).thenReturn(includeFileName);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     TestSnapshotListener listener = new TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
@@ -2653,8 +2631,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             config,
             instr,
             new DebuggerSink(
-                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)),
-            null);
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
   }

@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -87,15 +88,15 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         this.getClass().getName() + "$ClientAdvice");
   }
 
-  @SuppressWarnings("unused")
   public static class ClientAdvice {
+    @SuppressFBWarnings("UC_USELESS_OBJECT")
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer,
         @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final AgentScope parentScope = activeScope();
+      final AgentScope.Continuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
@@ -106,7 +107,8 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
-          new TraceContinuedFutureCallback<>(parentScope, clientSpan, context, futureCallback);
+          new TraceContinuedFutureCallback<>(
+              parentContinuation, clientSpan, context, futureCallback);
 
       return clientScope;
     }

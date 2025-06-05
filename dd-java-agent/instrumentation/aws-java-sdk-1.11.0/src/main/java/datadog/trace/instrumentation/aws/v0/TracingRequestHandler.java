@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -16,13 +17,14 @@ import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,7 +55,7 @@ public class TracingRequestHandler extends RequestHandler2 {
     if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
       // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
       // so we can tell when receive call is complete without affecting the rest of the trace
-      activateSpan(blackholeSpan());
+      activateSpanWithoutScope(blackholeSpan());
     } else {
       span = requestSpanStore.remove(request.getOriginalRequest());
       if (span != null) {
@@ -69,16 +71,16 @@ public class TracingRequestHandler extends RequestHandler2 {
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
       if (Config.get().isAwsPropagationEnabled()) {
         try {
-          propagate().inject(span, request, DECORATE, TracePropagationStyle.XRAY);
+          Propagators.forConcern(XRAY_TRACING_CONCERN).inject(span, request, DECORATE);
         } catch (Throwable e) {
           log.warn("Unable to inject trace header", e);
         }
       }
       // This scope will be closed by AwsHttpClientInstrumentation
       if (AWS_LEGACY_TRACING) {
-        activateSpan(span);
+        activateSpanWithoutScope(span);
       } else {
-        activateSpan(blackholeSpan());
+        activateSpanWithoutScope(blackholeSpan());
       }
     }
   }
@@ -122,8 +124,8 @@ public class TracingRequestHandler extends RequestHandler2 {
             AgentDataStreamsMonitoring dataStreamsMonitoring =
                 AgentTracer.get().getDataStreamsMonitoring();
             PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-            pathwayContext.setCheckpoint(
-                sortedTags, dataStreamsMonitoring::add, arrivalTime.getTime());
+            DataStreamsContext context = create(sortedTags, arrivalTime.getTime(), 0);
+            pathwayContext.setCheckpoint(context, dataStreamsMonitoring::add);
             if (!span.context().getPathwayContext().isStarted()) {
               span.context().mergePathwayContext(pathwayContext);
             }

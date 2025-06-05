@@ -55,11 +55,15 @@ class MuzzlePlugin implements Plugin<Project> {
 
   static {
     RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    // Only needed for restlet
-    RemoteRepository restlet = new RemoteRepository.Builder("restlet", "default", "https://maven.restlet.talend.com/").build()
-    // Only needed  for play-2.3
-    RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/maven-releases/").build()
-    MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, restlet, typesafe))
+
+    String mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+
+    if (mavenProxyUrl == null) {
+      MUZZLE_REPOS = Collections.singletonList(central)
+    } else {
+      RemoteRepository proxy = new RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
+      MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(proxy, central))
+    }
   }
 
   static class TestedArtifact {
@@ -338,7 +342,7 @@ class MuzzlePlugin implements Plugin<Project> {
    */
   private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, VersionRangeResult rangeResult) {
 
-    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
+    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions, muzzleDirective.includeSnapshots)
 
     final Set<Artifact> allVersionArtifacts = versions.collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, muzzleDirective.classifier ?: "", "jar", version.toString())
@@ -371,7 +375,7 @@ class MuzzlePlugin implements Plugin<Project> {
     final Set<Version> versions = rangeResult.versions.toSet()
     allRangeResult.versions.removeAll(versions)
 
-    return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions).collect { version ->
+    return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions, muzzleDirective.includeSnapshots).collect { version ->
       final MuzzleDirective inverseDirective = new MuzzleDirective()
       inverseDirective.name = muzzleDirective.name
       inverseDirective.group = muzzleDirective.group
@@ -379,12 +383,13 @@ class MuzzlePlugin implements Plugin<Project> {
       inverseDirective.versions = "$version"
       inverseDirective.assertPass = !muzzleDirective.assertPass
       inverseDirective.excludedDependencies = muzzleDirective.excludedDependencies
+      inverseDirective.includeSnapshots = muzzleDirective.includeSnapshots
       inverseDirective
     }.toSet()
   }
 
-  private static Set<Version> filterAndLimitVersions(VersionRangeResult result, Set<String> skipVersions) {
-    return limitLargeRanges(result, filterVersion(result.versions.toSet(), skipVersions), skipVersions)
+  private static Set<Version> filterAndLimitVersions(VersionRangeResult result, Set<String> skipVersions, boolean includeSnapshots) {
+    return limitLargeRanges(result, filterVersion(result.versions.toSet(), skipVersions, includeSnapshots), skipVersions)
   }
 
   private static Set<Version> limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
@@ -506,26 +511,30 @@ class MuzzlePlugin implements Plugin<Project> {
   /**
    * Filter out snapshot-type builds from versions list.
    */
-  private static filterVersion(Set<Version> list, Set<String> skipVersions) {
+  private static filterVersion(Set<Version> list, Set<String> skipVersions, boolean includeSnapshots) {
     list.removeIf {
       def version = it.toString().toLowerCase(Locale.ROOT)
-      return version.endsWith("-snapshot") ||
-        version.contains("rc") ||
-        version.contains(".cr") ||
-        version.contains("alpha") ||
-        version.contains("beta") ||
-        version.contains("-b") ||
-        version.contains(".m") ||
-        version.contains("-m") ||
-        version.contains("-dev") ||
-        version.contains("-ea") ||
-        version.contains("-atlassian-") ||
-        version.contains("public_draft") ||
-        version.contains("-cr") ||
-        version.contains("-preview") ||
-        skipVersions.contains(version) ||
-        version.matches(END_NMN_PATTERN) ||
-        version.matches(GIT_SHA_PATTERN)
+      if (includeSnapshots) {
+        return skipVersions.contains(version)
+      } else {
+        return version.endsWith("-snapshot") ||
+          version.contains("rc") ||
+          version.contains(".cr") ||
+          version.contains("alpha") ||
+          version.contains("beta") ||
+          version.contains("-b") ||
+          version.contains(".m") ||
+          version.contains("-m") ||
+          version.contains("-dev") ||
+          version.contains("-ea") ||
+          version.contains("-atlassian-") ||
+          version.contains("public_draft") ||
+          version.contains("-cr") ||
+          version.contains("-preview") ||
+          skipVersions.contains(version) ||
+          version.matches(END_NMN_PATTERN) ||
+          version.matches(GIT_SHA_PATTERN)
+      }
     }
     return list
   }
@@ -559,6 +568,7 @@ class MuzzleDirective {
   boolean assertInverse = false
   boolean skipFromReport = false
   boolean coreJdk = false
+  boolean includeSnapshots = false
   String javaVersion
 
   void coreJdk(version = null) {

@@ -9,12 +9,14 @@ import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.NumericValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -75,6 +77,18 @@ class IndexExpressionTest {
   }
 
   @Test
+  void testUnsupported() {
+    IndexExpression expr =
+        new IndexExpression(new SetValue(new HashSet<>()), new StringValue("foo"));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Cannot evaluate the expression for unsupported type: com.datadog.debugger.el.values.SetValue",
+        evaluationException.getMessage());
+  }
+
+  @Test
   void undefined() {
     IndexExpression expr = new IndexExpression(ValueExpression.UNDEFINED, new NumericValue(1));
     EvaluationException exception =
@@ -110,7 +124,7 @@ class IndexExpressionTest {
     Config config = Config.get();
     setFieldInConfig(
         config,
-        "debuggerRedactedTypes",
+        "dynamicInstrumentationRedactedTypes",
         "com.datadog.debugger.el.expressions.IndexExpressionTest*");
     try {
       Redaction.addUserDefinedTypes(Config.get());

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.scala;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
@@ -28,9 +28,9 @@ public class PromiseHelper {
    * @return the Span or null
    */
   public static AgentSpan getSpan() {
-    final AgentScope scope = activeScope();
-    if (null != scope && scope.isAsyncPropagating()) {
-      return scope.span();
+    final AgentSpan span = activeSpan();
+    if (null != span && span.isValid() && isAsyncPropagationEnabled()) {
+      return span;
     }
     return null;
   }

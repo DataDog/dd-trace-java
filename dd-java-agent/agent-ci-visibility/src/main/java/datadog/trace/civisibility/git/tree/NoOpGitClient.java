@@ -5,8 +5,8 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class NoOpGitClient implements GitClient {
 
@@ -54,7 +54,7 @@ public class NoOpGitClient implements GitClient {
     return null;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public List<String> getTags(String commit) {
     return Collections.emptyList();
@@ -108,13 +108,13 @@ public class NoOpGitClient implements GitClient {
     return null;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public List<String> getLatestCommits() {
     return Collections.emptyList();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public List<String> getObjects(
       Collection<String> commitsToSkip, Collection<String> commitsToInclude) {

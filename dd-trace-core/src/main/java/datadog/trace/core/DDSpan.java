@@ -1,8 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
@@ -19,7 +18,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
-import datadog.trace.api.profiling.TransientProfilingContextHolder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -29,8 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import datadog.trace.core.util.StackTraces;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -48,11 +45,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan
-    implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
-
-  public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(
       final String instrumentationName,
@@ -113,7 +107,7 @@ public class DDSpan
    */
   private volatile int longRunningVersion = 0;
 
-  private final List<AgentSpanLink> links;
+  protected final List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -355,22 +349,22 @@ public class DDSpan
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
         setError(true, errorPriority);
-        final StringWriter errorString = new StringWriter();
-        error.printStackTrace(new PrintWriter(errorString));
-        setTag(DDTags.ERROR_STACK, errorString.toString());
+        setTag(
+            DDTags.ERROR_STACK,
+            StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit()));
       }
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (isExceptionDebuggingEnabled()) {
+      if (isExceptionReplayEnabled()) {
         DebuggerContext.handleException(error, this);
       }
     }
     return this;
   }
 
-  private boolean isExceptionDebuggingEnabled() {
-    if (!Config.get().isDebuggerExceptionEnabled()) {
+  private boolean isExceptionReplayEnabled() {
+    if (!DebuggerContext.isExceptionReplayEnabled()) {
       return false;
     }
     boolean captureOnlyRootSpan =
@@ -557,12 +551,6 @@ public class DDSpan
   public final DDSpan setResourceName(final CharSequence resourceName, byte priority) {
     context.setResourceName(resourceName, priority);
     return this;
-  }
-
-  @Override
-  public boolean eligibleForDropping() {
-    int samplingPriority = context.getSamplingPriority();
-    return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
   }
 
   @Override
@@ -837,16 +825,6 @@ public class DDSpan
     }
   }
 
-  @Override
-  public boolean isRequiresPostProcessing() {
-    return context.isRequiresPostProcessing();
-  }
-
-  @Override
-  public void setRequiresPostProcessing(boolean requiresPostProcessing) {
-    context.setRequiresPostProcessing(requiresPostProcessing);
-  }
-
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;
@@ -867,5 +845,21 @@ public class DDSpan
   public boolean isOutbound() {
     Object spanKind = context.getTag(Tags.SPAN_KIND);
     return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+  }
+
+  @Override
+  public void copyPropagationAndBaggage(final AgentSpan source) {
+    if (source instanceof DDSpan) {
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      // align the sampling priority for this span context
+      setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
+      // the sampling mechanism determine the dm tag hence we need to override and lock the current
+      // ptags
+      context
+          .getPropagationTags()
+          .updateAndLockDecisionMaker(sourceSpanContext.getPropagationTags());
+      context.setOrigin(sourceSpanContext.getOrigin());
+      sourceSpanContext.getBaggageItems().forEach(context::setBaggageItem);
+    }
   }
 }

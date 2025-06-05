@@ -4,7 +4,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -20,7 +20,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count}
     },
-    "name" : "junit.test_suite",
+    "name" : "cucumber.test_suite",
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_slow.feature:Basic Arithmetic",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start},
@@ -37,7 +37,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -61,7 +61,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_slow.feature:Basic Arithmetic.Addition",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -81,7 +81,7 @@
     "meta" : {
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -94,7 +94,7 @@
       "test.is_retry" : "true",
       "test.module" : "cucumber-junit-5",
       "test.name" : "Addition",
-      "test.retry_reason" : "efd",
+      "test.retry_reason" : "early_flake_detection",
       "test.status" : "pass",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic_slow.feature:Basic Arithmetic",
       "test.traits" : "{\"category\":[\"foo\"]}",
@@ -107,7 +107,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test",
+    "name" : "cucumber.test",
     "parent_id" : ${content_parent_id},
     "resource" : "classpath:org/example/cucumber/calculator/basic_arithmetic_slow.feature:Basic Arithmetic.Addition",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
@@ -128,7 +128,7 @@
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "_dd.profiling.ctx" : "test",
       "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "language" : "jvm",
@@ -149,7 +149,7 @@
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
     },
-    "name" : "junit.test_session",
+    "name" : "cucumber.test_session",
     "resource" : "cucumber-junit-5",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
@@ -163,7 +163,7 @@
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
-      "component" : "junit",
+      "component" : "cucumber",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "library_version" : ${content_meta_library_version},
@@ -179,7 +179,7 @@
     "metrics" : {
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5}
     },
-    "name" : "junit.test_module",
+    "name" : "cucumber.test_module",
     "resource" : "cucumber-junit-5",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_5},

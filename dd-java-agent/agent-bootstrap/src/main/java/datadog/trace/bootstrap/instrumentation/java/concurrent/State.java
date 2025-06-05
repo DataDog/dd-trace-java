@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
 import datadog.trace.api.profiling.Timing;
@@ -25,7 +26,7 @@ public final class State {
 
   private State() {}
 
-  public boolean captureAndSetContinuation(final AgentScope scope) {
+  public boolean captureAndSetContinuation(final AgentSpan span) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // it's a real pain to do this twice, and this can actually
       // happen systematically - WITHOUT RACES - because of broken
@@ -33,7 +34,7 @@ public final class State {
       // "double instruments" calls to ScheduledExecutorService.submit/schedule
       //
       // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, scope.capture());
+      CONTINUATION.lazySet(this, captureSpan(span));
       return true;
     }
     return false;
@@ -60,7 +61,7 @@ public final class State {
   public AgentSpan getSpan() {
     AgentScope.Continuation continuation = CONTINUATION.get(this);
     if (null != continuation) {
-      return continuation.getSpan();
+      return continuation.span();
     }
     return null;
   }

@@ -1,5 +1,8 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
+import datadog.trace.test.util.Predicates.IBM
+
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
@@ -27,6 +30,7 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     return processBuilder
   }
 
+  @Flaky(value = 'Race condition with IMB. Check APMAPI-1194', condition = IBM)
   def "resource types loaded by custom system class-loader are transformed"() {
     when:
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)

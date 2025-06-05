@@ -9,12 +9,14 @@ import com.google.auto.service.AutoService;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
@@ -45,8 +47,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
       packageName + ".KarateUtils",
+      packageName + ".TestEventsHandlerHolder",
       packageName + ".KarateTracingHook",
       packageName + ".ExecutionContext"
     };
@@ -76,13 +78,26 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
-      InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-          .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create)
-          .setStartTimestamp(System.currentTimeMillis());
+      ExecutionContext executionContext =
+          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+              .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create);
+
+      // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
+      // rest of the frameworks
+      TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
+      executionContext.setSuppressFailures(executionPolicy.suppressFailures());
+
+      scenarioRuntime.magicVariables.putIfAbsent(
+          KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
     }
 
     @Advice.OnMethodExit
     public static void afterExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
+        // nested call
+        return;
+      }
+
       Scenario scenario = scenarioRuntime.scenario;
       ExecutionContext context =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
@@ -90,16 +105,21 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
 
+      ScenarioResult finalResult = scenarioRuntime.result;
+
       TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
-      long duration = System.currentTimeMillis() - context.getStartTimestamp();
-      if (executionPolicy.retry(!context.getAndResetFailed(), duration)) {
+      while (!executionPolicy.wasLastExecution()) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
-        retry.magicVariables.put(
-            KarateUtils.RETRY_MAGIC_VARIABLE, executionPolicy.currentExecutionRetryReason());
+        retry.magicVariables.put(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
+        finalResult = retry.result;
       }
+
+      KarateUtils.setResult(scenarioRuntime, finalResult);
+
+      CallDepthThreadLocalMap.reset(ScenarioRuntime.class);
     }
 
     // Karate 1.0.0 and above
@@ -122,10 +142,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
           return;
         }
 
-        executionContext.setFailed(true);
-
-        TestExecutionPolicy retryPolicy = executionContext.getExecutionPolicy();
-        if (retryPolicy.suppressFailures()) {
+        if (executionContext.getAndResetSuppressFailures()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);

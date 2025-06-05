@@ -10,7 +10,9 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.CucumberUtils;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
@@ -18,6 +20,7 @@ import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -62,7 +65,7 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionPolicy.class.getName());
+        "org.junit.runner.Description", TestExecutionHistory.class.getName());
   }
 
   @Override
@@ -95,31 +98,27 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
 
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
+      Collection<String> testTags = CucumberUtils.getPickleRunnerTags(pickleRunner);
       TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-              testIdentifier, TestSourceData.UNKNOWN);
+          TestEventsHandlerHolder.HANDLERS
+              .get(TestFrameworkInstrumentation.CUCUMBER)
+              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestExecutionPolicy.class)
+      InstrumentationContext.get(Description.class, TestExecutionHistory.class)
           .put(description, executionPolicy);
 
       FailureSuppressingNotifier failureSuppressingNotifier =
           new FailureSuppressingNotifier(executionPolicy, notifier);
-      long duration;
-      boolean testFailed;
       do {
-        long startTimestamp = System.currentTimeMillis();
         try {
           runPickle.invokeWithArguments(featureRunner, pickleRunner, failureSuppressingNotifier);
-          testFailed = failureSuppressingNotifier.getAndResetFailedFlag();
-        } catch (Throwable throwable) {
-          testFailed = true;
+        } catch (Throwable ignored) {
         }
-        duration = System.currentTimeMillis() - startTimestamp;
-      } while (executionPolicy.retry(!testFailed, duration));
+      } while (!executionPolicy.wasLastExecution());
 
       // skip original method
       return Boolean.TRUE;

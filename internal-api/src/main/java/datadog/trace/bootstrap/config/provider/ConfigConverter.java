@@ -84,6 +84,19 @@ final class ConfigConverter {
     return map;
   }
 
+  @Nonnull
+  static Map<String, String> parseTraceTagsMap(
+      final String str, final char keyValueSeparator, final List<Character> argSeparators) {
+    // If we ever want to have default values besides an empty map, this will need to change.
+    String trimmed = Strings.trim(str);
+    if (trimmed.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> map = new HashMap<>();
+    loadTraceTagsMap(map, trimmed, keyValueSeparator, argSeparators);
+    return map;
+  }
+
   /**
    * This parses a mixed map that can have both key value pairs, and also keys only, that will get
    * values on the form "defaultPrefix.key". For keys without a value, the corresponding value will
@@ -198,6 +211,63 @@ final class ConfigConverter {
         log.warn("Unexpected exception during config parsing of {}.", settingName, t);
       }
       map.clear();
+    }
+  }
+
+  private static void loadTraceTagsMap(
+      Map<String, String> map,
+      String str,
+      char keyValueSeparator,
+      final List<Character> argSeparators) {
+    int start = 0;
+    int splitter = str.indexOf(keyValueSeparator, start);
+    char argSeparator = '\0';
+    int argSeparatorInd = -1;
+
+    // Given a list of separators ordered by priority, find the first (highest priority) separator
+    // that appears in the string and store its value and first occurrence in the string
+    for (Character sep : argSeparators) {
+      argSeparatorInd = str.indexOf(sep);
+      if (argSeparatorInd != -1) {
+        argSeparator = sep;
+        break;
+      }
+    }
+    while (start < str.length()) {
+      int nextSplitter =
+          argSeparatorInd == -1
+              ? -1
+              : str.indexOf(
+                  keyValueSeparator,
+                  argSeparatorInd + 1); // next splitter after the next argSeparator
+      int nextArgSeparator =
+          argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
+      int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
+
+      if (start >= end) { // the character is only the delimiter
+        start = end + 1;
+        splitter = nextSplitter;
+        argSeparatorInd = nextArgSeparator;
+        continue;
+      }
+
+      String key, value;
+      if (splitter >= end
+          || splitter
+              == -1) { // only key, no value; either due end of string or substring not having
+        // splitter
+        key = str.substring(start, end).trim();
+        value = "";
+      } else {
+        key = str.substring(start, splitter).trim();
+        value = str.substring(splitter + 1, end).trim();
+      }
+      if (!key.isEmpty()) {
+        map.put(key, value);
+      }
+      splitter = nextSplitter;
+      argSeparatorInd = nextArgSeparator;
+      start = end + 1;
     }
   }
 

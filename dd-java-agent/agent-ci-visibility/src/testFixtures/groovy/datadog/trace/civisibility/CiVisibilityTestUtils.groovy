@@ -7,6 +7,10 @@ import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.ReadContext
 import com.jayway.jsonpath.WriteContext
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.civisibility.config.LibraryCapability
+import datadog.trace.api.civisibility.config.TestFQN
+import datadog.trace.core.DDSpan
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
@@ -18,6 +22,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.regex.Pattern
+import java.util.stream.Collectors
 
 abstract class CiVisibilityTestUtils {
 
@@ -49,6 +54,10 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.stack']", false),
   ]
 
+  // ignored tags on assertion and fixture build
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList()) +
+  ["content.meta.['_dd.integration']"]
+
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
   private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
@@ -62,48 +71,129 @@ abstract class CiVisibilityTestUtils {
   /**
    * Use this method to generate expected data templates
    */
-  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Collection<String> additionalDynamicPaths, List<String> ignoredTags = []) {
+    if (!ignoredTags.empty) {
+      events = removeTags(events, ignoredTags)
+    }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def templateGenerator = new TemplateGenerator(new LabelGenerator())
-    def compiledAdditionalReplacements = compile(additionalReplacements.keySet())
+    def compiledAdditionalReplacements = compile(additionalDynamicPaths)
 
     Files.createDirectories(Paths.get(baseTemplatesPath))
     Files.write(Paths.get(baseTemplatesPath, "events.ftl"), templateGenerator.generateTemplate(events, EVENT_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags, List<String> additionalDynamicPaths = []) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
     def templateGenerator = new TemplateGenerator(labelGenerator)
 
     def replacementMap
-    replacementMap = templateGenerator.generateReplacementMap(events, EVENT_DYNAMIC_PATHS)
+    replacementMap = templateGenerator.generateReplacementMap(events, EVENT_DYNAMIC_PATHS + compile(additionalDynamicPaths))
     replacementMap = templateGenerator.generateReplacementMap(coverages, COVERAGE_DYNAMIC_PATHS)
 
     for (Map.Entry<String, String> e : additionalReplacements.entrySet()) {
       replacementMap.put(labelGenerator.forKey(e.key), "\"$e.value\"")
     }
 
+    // ignore provided tags
+    events = removeTags(events, ignoredTags)
+
+    def environment = System.getenv()
+    def ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null
+    def comparisonMode = ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE
+
     def expectedEvents = getFreemarkerTemplate(baseTemplatesPath + "/events.ftl", replacementMap, events)
     def actualEvents = JSON_MAPPER.writeValueAsString(events)
+
     try {
-      JSONAssert.assertEquals(expectedEvents, actualEvents, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedEvents, actualEvents, comparisonMode)
     } catch (AssertionError e) {
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected events: $expectedEvents"
+        println "Actual events: $actualEvents"
+      }
       throw new org.opentest4j.AssertionFailedError("Events mismatch", expectedEvents, actualEvents, e)
     }
 
     def expectedCoverages = getFreemarkerTemplate(baseTemplatesPath + "/coverages.ftl", replacementMap, coverages)
     def actualCoverages = JSON_MAPPER.writeValueAsString(coverages)
     try {
-      JSONAssert.assertEquals(expectedCoverages, actualCoverages, JSONCompareMode.LENIENT)
+      JSONAssert.assertEquals(expectedCoverages, actualCoverages, comparisonMode)
     } catch (AssertionError e) {
+      if (ciRun) {
+        // When running in CI the assertion error message does not contain the actual diff,
+        // so we print the events to the console to help debug the issue
+        println "Expected coverages: $expectedCoverages"
+        println "Actual coverages: $actualCoverages"
+      }
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
 
     return replacementMap
+  }
+
+  static boolean assertTestsOrder(List<Map<?, ?>> events, List<TestFQN> expectedOrder) {
+    def identifiers = getTestIdentifiers(events)
+    if (identifiers != expectedOrder) {
+      throw new AssertionError("Expected order: $expectedOrder, but got: $identifiers")
+    }
+    return true
+  }
+
+  static List<TestFQN> getTestIdentifiers(List<Map<?,?>> events) {
+    events.sort(Comparator.comparing { it['content']['start'] as Long })
+    def testIdentifiers = []
+    for (Map event : events) {
+      if (event['content']['meta']['test.name']) {
+        testIdentifiers.add(new TestFQN(event['content']['meta']['test.suite'] as String, event['content']['meta']['test.name'] as String))
+      }
+    }
+    return testIdentifiers
+  }
+
+  static List<Map<?, ?>> removeTags(List<Map<?, ?>> events, List<String> tags) {
+    def filteredEvents = []
+
+    for (Map<?, ?> event : events) {
+      ReadContext ctx = JsonPath.parse(event, JSON_PATH_CONFIG)
+      for (String tag : tags) {
+        ctx.delete(path(tag).path)
+      }
+      filteredEvents.add(ctx.json())
+    }
+
+    return filteredEvents
+  }
+
+  // Will sort traces in the following order: TEST -> SUITE -> MODULE -> SESSION
+  static class SortTracesByType implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Integer.compare(rootSpanTypeToVal(o1), rootSpanTypeToVal(o2))
+    }
+
+    int rootSpanTypeToVal(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def spanType = trace.get(0).getSpanType()
+      switch (spanType) {
+        case DDSpanTypes.TEST:
+        return 0
+        case DDSpanTypes.TEST_SUITE_END:
+        return 1
+        case DDSpanTypes.TEST_MODULE_END:
+        return 2
+        case DDSpanTypes.TEST_SESSION_END:
+        return 3
+        default:
+        return 4
+      }
+    }
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()

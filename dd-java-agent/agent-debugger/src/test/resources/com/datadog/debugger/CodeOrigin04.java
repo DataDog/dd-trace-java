@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 
 public class CodeOrigin04 {
   private int intField = 42;
@@ -24,7 +23,7 @@ public class CodeOrigin04 {
       AgentSpan span;
       AgentScope scope;
       span = newSpan("exit");
-      scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+      scope = tracerAPI.activateManualSpan(span);
       exit();
       span.finish();
       scope.close();
@@ -36,7 +35,7 @@ public class CodeOrigin04 {
   }
 
   private static void exit() {
-    int x = 47 / 3;
+    int x = 47 / 3; // code origin 2
   }
 
 }

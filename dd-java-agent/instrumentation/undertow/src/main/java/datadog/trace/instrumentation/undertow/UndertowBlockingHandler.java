@@ -119,7 +119,7 @@ public class UndertowBlockingHandler implements HttpHandler {
   private static void markAsEffectivelyBlocked(HttpServerExchange xchg) {
     AgentScope.Continuation continuation = xchg.getAttachment(DD_UNDERTOW_CONTINUATION);
     if (continuation != null) {
-      continuation.getSpan().getRequestContext().getTraceSegment().effectivelyBlocked();
+      continuation.span().getRequestContext().getTraceSegment().effectivelyBlocked();
     }
   }
 }

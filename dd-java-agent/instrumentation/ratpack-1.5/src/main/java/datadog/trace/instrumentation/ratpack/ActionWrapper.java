@@ -22,7 +22,7 @@ public class ActionWrapper<T> implements Action<T> {
 
   @Override
   public void execute(final T t) throws Exception {
-    try (final AgentScope scope = activateSpan(span, true)) {
+    try (final AgentScope scope = activateSpan(span)) {
       delegate.execute(t);
     }
   }

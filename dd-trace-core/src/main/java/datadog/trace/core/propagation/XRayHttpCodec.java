@@ -7,6 +7,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -15,7 +16,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
@@ -68,7 +68,7 @@ class XRayHttpCodec {
     }
 
     @Override
-    public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
+    public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
 
       StringBuilder buf =

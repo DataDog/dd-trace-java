@@ -77,6 +77,6 @@ public interface GitClient {
       throws IOException, TimeoutException, InterruptedException;
 
   interface Factory {
-    GitClient create(String repoRoot);
+    GitClient create(@Nullable String repoRoot);
   }
 }

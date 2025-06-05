@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.AROUND;
+
 import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.agent.tooling.csi.InvokeAdvice;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
@@ -44,6 +46,7 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
       return Collections.singletonList(
           (container -> {
             container.addAdvice(
+                AROUND,
                 "javax/servlet/ServletRequest",
                 "getParameter",
                 "(Ljava/lang/String;)Ljava/lang/String;",

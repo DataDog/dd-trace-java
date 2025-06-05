@@ -4,11 +4,11 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DECORATE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
@@ -17,7 +17,7 @@ public class JettyServerAdvice {
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
@@ -26,9 +26,9 @@ public class JettyServerAdvice {
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
+      final Context extractedContext = DECORATE.extractContext(req);
       span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span, true);
+      final ContextScope scope = extractedContext.with(span).attach();
       span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
@@ -40,7 +40,7 @@ public class JettyServerAdvice {
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final AgentScope scope) {
+    public static void closeScope(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
 

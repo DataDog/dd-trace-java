@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
 import com.google.api.client.http.HttpRequest;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.context.propagation.CarrierSetter;
+import javax.annotation.ParametersAreNonnullByDefault;
 
-public class HeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
+@ParametersAreNonnullByDefault
+public class HeadersInjectAdapter implements CarrierSetter<HttpRequest> {
 
   public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 

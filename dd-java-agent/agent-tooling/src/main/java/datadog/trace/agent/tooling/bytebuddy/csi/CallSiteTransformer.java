@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.csi;
 
+import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.AFTER;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
 
@@ -126,7 +127,7 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
   private static class CallSiteMethodVisitor extends MethodVisitor
       implements CallSiteAdvice.MethodHandler {
-    private final Advices advices;
+    protected final Advices advices;
 
     private CallSiteMethodVisitor(
         @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
@@ -144,10 +145,20 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
       CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
       if (advice instanceof InvokeAdvice) {
-        ((InvokeAdvice) advice).apply(this, opcode, owner, name, descriptor, isInterface);
+        invokeAdvice((InvokeAdvice) advice, opcode, owner, name, descriptor, isInterface);
       } else {
         mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       }
+    }
+
+    protected void invokeAdvice(
+        final InvokeAdvice advice,
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor,
+        final boolean isInterface) {
+      advice.apply(this, opcode, owner, name, descriptor, isInterface);
     }
 
     @Override
@@ -158,12 +169,25 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final Object... bootstrapMethodArguments) {
       CallSiteAdvice advice = advices.findAdvice(bootstrapMethodHandle);
       if (advice instanceof InvokeDynamicAdvice) {
-        ((InvokeDynamicAdvice) advice)
-            .apply(this, name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+        invokeDynamicAdvice(
+            (InvokeDynamicAdvice) advice,
+            name,
+            descriptor,
+            bootstrapMethodHandle,
+            bootstrapMethodArguments);
       } else {
         mv.visitInvokeDynamicInsn(
             name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
       }
+    }
+
+    protected void invokeDynamicAdvice(
+        final InvokeDynamicAdvice advice,
+        final String name,
+        final String descriptor,
+        final Handle bootstrapMethodHandle,
+        final Object... bootstrapMethodArguments) {
+      advice.apply(this, name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
     @Override
@@ -346,6 +370,23 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     public void dupParameters(final String methodDescriptor, final StackDupMode mode) {
       super.dupParameters(
           methodDescriptor, isSuperCall ? StackDupMode.PREPEND_ARRAY_SUPER_CTOR : mode);
+    }
+
+    @Override
+    protected void invokeAdvice(
+        final InvokeAdvice advice,
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor,
+        final boolean isInterface) {
+      if (isSuperCall && advices.typeOf(advice) != AFTER) {
+        // TODO APPSEC-57009 calls to super are only instrumented by after call sites
+        // just ignore the advice and keep on
+        mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+      } else {
+        super.invokeAdvice(advice, opcode, owner, name, descriptor, isInterface);
+      }
     }
   }
 }

@@ -46,9 +46,13 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
   @Nonnull
   @Override
   public String operationForFaas(@Nonnull final String provider) {
-    // for now only aws is implemented. For the future provider might be used to return specific
-    // function as a service name
-    // (e.g. azure automation)
-    return "aws.lambda.invoke";
+    switch (provider) {
+      case "aws":
+        return "aws.lambda.invoke";
+      case "azure":
+        return "azure.functions.invoke";
+      default:
+        return "aws.lambda.invoke";
+    }
   }
 }

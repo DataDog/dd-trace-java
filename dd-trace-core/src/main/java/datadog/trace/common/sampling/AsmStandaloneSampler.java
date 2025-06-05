@@ -1,5 +1,8 @@
 package datadog.trace.common.sampling;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
 import java.time.Clock;
@@ -39,10 +42,10 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
     if (shouldSample()) {
       log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
-      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.APPSEC);
+      span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
     } else {
       log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
-      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.APPSEC);
+      span.setSamplingPriority(SAMPLER_DROP, SamplingMechanism.APPSEC);
     }
   }
 

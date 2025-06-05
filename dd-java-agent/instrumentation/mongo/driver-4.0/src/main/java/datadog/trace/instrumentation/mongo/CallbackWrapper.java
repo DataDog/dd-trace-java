@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.mongo;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -54,9 +55,9 @@ public class CallbackWrapper<T> implements SingleResultCallback<Object> {
   }
 
   public static SingleResultCallback<Object> wrapIfRequired(SingleResultCallback<Object> callback) {
-    AgentScope scope = activeScope();
-    if (null != scope && scope.isAsyncPropagating()) {
-      return new CallbackWrapper<>(scope.capture(), callback);
+    AgentScope.Continuation continuation = captureActiveSpan();
+    if (continuation != noopContinuation()) {
+      return new CallbackWrapper<>(continuation, callback);
     }
     return callback;
   }

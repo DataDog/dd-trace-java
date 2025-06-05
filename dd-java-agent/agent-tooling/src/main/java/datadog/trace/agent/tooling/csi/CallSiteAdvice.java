@@ -72,4 +72,13 @@ public interface CallSiteAdvice {
     /** Copies the parameters in an array and appends it */
     APPEND_ARRAY
   }
+
+  abstract class AdviceType {
+
+    private AdviceType() {}
+
+    public static final byte BEFORE = -1;
+    public static final byte AROUND = 0;
+    public static final byte AFTER = 1;
+  }
 }

@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import io.cucumber.core.backend.StepDefinition;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -46,14 +47,14 @@ public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
 
   public static class CucumberAdvice {
     @Advice.OnMethodEnter
-    public static void onCucumberStepStart(
+    public static AgentScope onCucumberStepStart(
         @Advice.This StepDefinition step, @Advice.Argument(0) Object[] arguments) {
-      CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
+      return CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
     }
 
     @Advice.OnMethodExit
-    public static void onCucumberStepFinish(@Advice.This StepDefinition step) {
-      CucumberStepDecorator.DECORATE.onStepFinish(step);
+    public static void onCucumberStepFinish(@Advice.Enter AgentScope scope) {
+      CucumberStepDecorator.DECORATE.onStepFinish(scope);
     }
 
     // Cucumber 5.0.0 and above

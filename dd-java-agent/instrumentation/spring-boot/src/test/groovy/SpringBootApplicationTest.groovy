@@ -1,15 +1,20 @@
+import datadog.trace.api.ProcessTags
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Config
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.SpringApplication
+
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
 class SpringBootApplicationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
   }
+
   static class BeanWhoTraces implements InitializingBean {
 
     @Override
@@ -32,15 +37,19 @@ class SpringBootApplicationTest extends AgentTestRunner {
         }
       }
     })
+    and:
+    def processTags = ProcessTags.getTagsForSerialization()
+    assert processTags.toString() =~ ".+,springboot.application:$expectedService,springboot.profile:$expectedProfile"
     context != null
     cleanup:
     context?.stop()
     where:
-    expectedService | args
-    "application-name-from-args"          | new String[]{
-      "--spring.application.name=application-name-from-args"
+    expectedService                    | expectedProfile | args
+    "application-name-from-args"       | "prod"          | new String[]{
+      "--spring.application.name=application-name-from-args",
+      "--spring.profiles.active=prod,common",
     }
-    "application-name-from-properties"         | new String[0] // will load from properties
+    "application-name-from-properties" | "default"       | new String[0] // will load from properties
   }
 }
 

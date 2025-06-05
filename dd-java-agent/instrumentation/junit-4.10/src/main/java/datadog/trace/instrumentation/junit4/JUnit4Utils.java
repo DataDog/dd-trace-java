@@ -2,26 +2,33 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import junit.framework.TestCase;
+import junit.runner.Version;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
+import org.junit.runner.Request;
 import org.junit.runner.RunWith;
+import org.junit.runner.Runner;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
@@ -50,6 +57,17 @@ public abstract class JUnit4Utils {
       accessListenerFieldInSynchronizedListener();
   private static final MethodHandle DESCRIPTION_UNIQUE_ID =
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
+
+  public static final ComparableVersion junitV413 = new ComparableVersion("4.13");
+  public static final List<LibraryCapability> BASE_CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.ATR,
+          LibraryCapability.EFD,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private static MethodHandle accessListenersFieldInRunNotifier() {
     MethodHandle listeners = METHOD_HANDLES.privateFieldGetter(RunNotifier.class, "listeners");
@@ -139,7 +157,6 @@ public abstract class JUnit4Utils {
       return testClass.getMethod(methodName);
     } catch (NoSuchMethodException e) {
       LOGGER.debug("Could not get method named {} in class {}", methodName, testClass, e);
-      LOGGER.warn("Could not get test method", e);
       return null;
     }
   }
@@ -321,6 +338,47 @@ public abstract class JUnit4Utils {
     String testSuiteName = getSuiteName(testClass, description);
     // relying exclusively on class name: some runners (such as PowerMock) may redefine test classes
     return new TestSuiteDescriptor(testSuiteName, null);
+  }
+
+  public static TestFrameworkInstrumentation runnerToFramework(Runner runner) {
+    String runnerClassName = runner.getClass().getName();
+    if ("datadog.trace.agent.test.SpockRunner".equals(runnerClassName)) {
+      return TestFrameworkInstrumentation.SPOCK;
+    } else if (runnerClassName.startsWith("com.intuit.karate")) {
+      return TestFrameworkInstrumentation.KARATE;
+    } else if (runnerClassName.startsWith("io.cucumber")) {
+      return TestFrameworkInstrumentation.CUCUMBER;
+    } else if (runnerClassName.startsWith("munit")) {
+      return TestFrameworkInstrumentation.MUNIT;
+    } else {
+      return TestFrameworkInstrumentation.JUNIT4;
+    }
+  }
+
+  public static TestFrameworkInstrumentation classToFramework(Class<?> testClass) {
+    Runner runner = Request.aClass(testClass).getRunner();
+    return runnerToFramework(runner);
+  }
+
+  public static List<Description> getClassChildren(Class<?> testClass) {
+    Runner runner = Request.aClass(testClass).getRunner();
+    return runner.getDescription().getChildren();
+  }
+
+  public static String getVersion() {
+    return Version.id();
+  }
+
+  public static boolean isTestOrderingSupported(String version) {
+    return version != null && junitV413.compareTo(new ComparableVersion(version)) <= 0;
+  }
+
+  public static List<LibraryCapability> capabilities(boolean classOrdering) {
+    List<LibraryCapability> capabilities = new ArrayList<>(BASE_CAPABILITIES);
+    if (classOrdering || isTestOrderingSupported(getVersion())) {
+      capabilities.add(LibraryCapability.FAIL_FAST);
+    }
+    return capabilities;
   }
 
   /**

@@ -125,7 +125,12 @@ jobs:
             }
             function cleanUpTitle(title) {
               // Remove tags between brackets
-              return title.replace(/\[[^\]]+\]/g, '')
+              title = title.replace(/\[[^\]]+\]/g, '')
+              // Remove cherry-pick prefix
+              if (title.startsWith('🍒 ') && title.includes(' - ')) {
+                title = title.substring(title.indexOf(' - ') + 3)
+              }
+              return title
             }
             function format(pullRequest) {
               var line = `${decorate(pullRequest)}${cleanUpTitle(pullRequest.title)} (#${pullRequest.number} - @${pullRequest.user.login}`

@@ -28,7 +28,7 @@ public class RequestFilterHelper {
         parent = activeSpan();
         span = startSpan(JAKARTA_RS_REQUEST_ABORT);
 
-        final AgentScope scope = activateSpan(span, true);
+        final AgentScope scope = activateSpan(span);
 
         DECORATE.afterStart(span);
         DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);

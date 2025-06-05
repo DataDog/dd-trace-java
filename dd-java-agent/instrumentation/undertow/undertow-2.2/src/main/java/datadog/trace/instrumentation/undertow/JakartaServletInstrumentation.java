@@ -58,7 +58,7 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
       AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
       if (continuation != null) {
-        AgentSpan undertowSpan = continuation.getSpan();
+        AgentSpan undertowSpan = continuation.span();
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_SPAN_ATTRIBUTE, undertowSpan);
         undertowSpan.setSpanName(SERVLET_REQUEST);

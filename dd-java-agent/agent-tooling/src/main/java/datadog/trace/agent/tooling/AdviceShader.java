@@ -65,7 +65,10 @@ public final class AdviceShader {
   public String uniqueHelper(String dottedName) {
     int packageEnd = dottedName.lastIndexOf('.');
     if (packageEnd > 0) {
-      return dottedName.substring(0, packageEnd + 1) + "shaded" + dottedName.substring(packageEnd);
+      return dottedName.substring(0, packageEnd + 1)
+          + "shaded"
+          + relocations.hashCode()
+          + dottedName.substring(packageEnd);
     }
     return dottedName;
   }

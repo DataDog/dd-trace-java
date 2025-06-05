@@ -63,7 +63,7 @@ public class SymbolSink {
     this.version = TagsHelper.sanitize(config.getVersion());
     this.symbolUploader = symbolUploader;
     this.maxPayloadSize = maxPayloadSize;
-    this.isCompressed = config.isDebuggerSymbolCompressed();
+    this.isCompressed = config.isSymbolDatabaseCompressed();
     byte[] eventContent =
         String.format(
                 EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
@@ -105,16 +105,37 @@ public class SymbolSink {
     String json =
         SERVICE_VERSION_ADAPTER.toJson(
             new ServiceVersion(serviceName, env, version, "JAVA", scopesToSerialize));
-    if (json.length() > maxPayloadSize) {
-      LOGGER.debug(
-          "Upload split is required for {} scopes: {}/{}",
-          scopesToSerialize.size(),
-          json.length(),
-          maxPayloadSize);
-      splitAndSend(scopesToSerialize);
+    updateStats(scopesToSerialize, json);
+    doUpload(scopesToSerialize, json);
+  }
+
+  private void doUpload(List<Scope> scopesToSerialize, String json) {
+    byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
+    byte[] payload = null;
+    if (isCompressed) {
+      payload = compressPayload(jsonBytes);
+    }
+    if (payload == null) {
+      if (json.length() > maxPayloadSize) {
+        LOGGER.warn("Payload is too big: {}/{}", json.length(), maxPayloadSize);
+        splitAndSend(scopesToSerialize);
+        return;
+      }
+      symbolUploader.uploadAsMultipart(
+          "",
+          event,
+          new BatchUploader.MultiPartContent(jsonBytes, "file", "file.json", APPLICATION_JSON));
     } else {
-      LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), json.length());
-      doUpload(scopesToSerialize, json);
+      if (payload.length > maxPayloadSize) {
+        LOGGER.warn("Compressed payload is too big: {}/{}", payload.length, maxPayloadSize);
+        splitAndSend(scopesToSerialize);
+        return;
+      }
+      LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), payload.length);
+      symbolUploader.uploadAsMultipart(
+          "",
+          event,
+          new BatchUploader.MultiPartContent(payload, "file", "file.gz", APPLICATION_GZIP));
     }
   }
 
@@ -146,16 +167,6 @@ public class SymbolSink {
               SERVICE_VERSION_ADAPTER.toJson(
                   new ServiceVersion(
                       serviceName, env, version, "JAVA", Collections.singletonList(scope)));
-          if (json.length() > maxPayloadSize) {
-            // this jar scope is still too big, split it by classes
-            LOGGER.debug(
-                "Upload split is required for jar scope {}: {}/{}",
-                scope.getName(),
-                json.length(),
-                maxPayloadSize);
-            splitAndSend(Collections.singletonList(scope));
-            continue;
-          }
           LOGGER.debug("Sending {} jar scope size={}", scope.getName(), json.length());
           doUpload(Collections.singletonList(scope), json);
         }
@@ -168,22 +179,10 @@ public class SymbolSink {
         String jsonFirstHalf =
             SERVICE_VERSION_ADAPTER.toJson(
                 new ServiceVersion(serviceName, env, version, "JAVA", firstHalf));
-        if (jsonFirstHalf.length() > maxPayloadSize) {
-          LOGGER.warn(
-              "Cannot split jar scope list in 2, first half is too big: {}",
-              jsonFirstHalf.length());
-          return;
-        }
         doUpload(firstHalf, jsonFirstHalf);
         String jsonSecondHalf =
             SERVICE_VERSION_ADAPTER.toJson(
                 new ServiceVersion(serviceName, env, version, "JAVA", secondHalf));
-        if (jsonSecondHalf.length() > maxPayloadSize) {
-          LOGGER.warn(
-              "Cannot split jar scope list in 2, second half is too big: {}",
-              jsonSecondHalf.length());
-          return;
-        }
         doUpload(secondHalf, jsonSecondHalf);
       }
     } else {
@@ -210,31 +209,6 @@ public class SymbolSink {
           Arrays.asList(
               createJarScope(jarScope.getName(), firstHalf),
               createJarScope(jarScope.getName(), secondHalf)));
-    }
-  }
-
-  private void doUpload(List<Scope> scopes, String json) {
-    updateStats(scopes, json);
-    byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
-    byte[] payload = null;
-    if (isCompressed) {
-      payload = compressPayload(jsonBytes);
-    }
-    if (payload == null) {
-      if (jsonBytes.length > maxPayloadSize) {
-        LOGGER.warn("Compressed payload is too big: {}/{}", payload.length, maxPayloadSize);
-        splitAndSend(scopes);
-        return;
-      }
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(jsonBytes, "file", "file.json", APPLICATION_JSON));
-    } else {
-      symbolUploader.uploadAsMultipart(
-          "",
-          event,
-          new BatchUploader.MultiPartContent(payload, "file", "file.gz", APPLICATION_GZIP));
     }
   }
 

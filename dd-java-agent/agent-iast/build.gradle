@@ -1,7 +1,7 @@
 import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
   id 'java-test-fixtures'
   id 'com.google.protobuf' version '0.8.18'
@@ -15,8 +15,8 @@ java {
   toolchain {
     languageVersion.set(JavaLanguageVersion.of(11))
   }
-  sourceCompatibility = 1.8
-  targetCompatibility = 1.8
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 tasks.withType(AbstractCompile).configureEach {
@@ -61,6 +61,8 @@ dependencies {
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
+
+  testImplementation libs.logback.classic
 
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')

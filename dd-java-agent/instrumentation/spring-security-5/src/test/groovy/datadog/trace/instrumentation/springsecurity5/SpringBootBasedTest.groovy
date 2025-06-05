@@ -11,6 +11,7 @@ import datadog.trace.api.config.AppSecConfig
 import datadog.trace.core.DDSpan
 import okhttp3.FormBody
 import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
@@ -290,17 +291,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
   void 'test user event'() {
     setup:
     def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
-    def formBody = new FormBody.Builder()
-      .add("username", "admin")
-      .add("password", "admin")
-      .build()
-
-    def loginRequest = request(LOGIN, "POST", formBody).build()
-    def loginResponse = client.newCall(loginRequest).execute()
-    assert loginResponse.code() == LOGIN.status
-    assert loginResponse.body().string() == LOGIN.body
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.start() // clear all traces
+    doLogin(client, 'admin', 'admin')
 
     when:
     def request = request(SUCCESS, "GET", null).build()
@@ -322,13 +313,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     setup:
     def logMessagePrefix = 'Attempt to replace'
     def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
-    def formBody = new FormBody.Builder()
-      .add('username', 'admin')
-      .add('password', 'admin')
-      .build()
-    def loginRequest = request(LOGIN, 'POST', formBody).build()
-    def loginResponse = client.newCall(loginRequest).execute()
-    assert loginResponse.code() == LOGIN.status
+    doLogin(client, 'admin', 'admin')
 
     when: 'sdk with different user'
     def sdkBody = new FormBody.Builder().add("sdkUser", "sdkUser").build()
@@ -349,5 +334,38 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     0 * reqCtxLogAppender.doAppend({ LoggingEvent event ->
       event.message.startsWith(logMessagePrefix)
     })
+  }
+
+  void 'test automated user tracking and setUser SDK used simultaneously'() {
+    setup:
+    def client = clientBuilder().cookieJar(cookieJar()).followRedirects(false).build()
+    doLogin(client, 'admin', 'admin')
+
+    when:
+    def sdkBody = new FormBody.Builder().add("sdkEvent", "setUser").add("sdkUser", "sdkUser").build()
+    def sdkRequest = request(SDK, 'POST', sdkBody).build()
+    final response = client.newCall(sdkRequest).execute()
+    TEST_WRITER.waitForTraces(1)
+    def span = TEST_WRITER.flatten().first() as DDSpan
+
+    then:
+    response.code() == SDK.status
+    response.body().string() == SDK.body
+    span.getTag('_dd.appsec.usr.id') == 'admin' //
+    // SDK should take priority over automated login events
+    span.getTag('usr.id') == 'sdkUser'
+    span.getTag('_dd.appsec.user.collection_mode') == 'sdk'
+  }
+
+  private void doLogin(final OkHttpClient client, final String username, final String password) {
+    def formBody = new FormBody.Builder()
+      .add('username', username)
+      .add('password', password)
+      .build()
+    def loginRequest = request(LOGIN, 'POST', formBody).build()
+    def loginResponse = client.newCall(loginRequest).execute()
+    assert loginResponse.code() == LOGIN.status
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.start() // clear all traces
   }
 }

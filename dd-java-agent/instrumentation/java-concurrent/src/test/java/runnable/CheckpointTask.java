@@ -1,6 +1,6 @@
 package runnable;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.trace.api.Trace;
 import java.util.concurrent.CountDownLatch;
@@ -29,6 +29,6 @@ public class CheckpointTask implements Runnable {
 
   @Trace
   private void traceableChild() {
-    assert null != activeScope();
+    assert null != activeSpan();
   }
 }

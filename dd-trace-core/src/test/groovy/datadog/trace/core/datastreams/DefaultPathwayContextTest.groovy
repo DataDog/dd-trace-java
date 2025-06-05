@@ -3,22 +3,26 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext
-import datadog.trace.bootstrap.instrumentation.api.StatsPoint
-import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.function.Consumer
 
+import static datadog.context.Context.root
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
+import static datadog.trace.api.datastreams.DataStreamsContext.create
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTags
+import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DefaultPathwayContextTest extends DDCoreSpecification {
@@ -49,7 +53,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
 
     then:
     context.isStarted()
@@ -64,10 +68,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
 
     then:
     context.isStarted()
@@ -91,7 +95,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     when:
     timeSource.advance(25)
     context.setCheckpoint(
-      new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer, 0, 72)
+      create(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), 0, 72),
+      pointConsumer)
 
     then:
     context.isStarted()
@@ -111,13 +116,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["direction": "out", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["direction": "out", "type": "kafka"])), pointConsumer)
     timeSource.advance(25)
     context.setCheckpoint(
-      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      fromTags(new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
     timeSource.advance(30)
     context.setCheckpoint(
-      new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+      fromTags(new LinkedHashMap<>(["direction": "in", "group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
 
     then:
     context.isStarted()
@@ -163,12 +168,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "in"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "in"])), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "out"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "out"])), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -189,12 +194,12 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(2))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -216,7 +221,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     def timeFromQueue = timeSource.getCurrentTimeMillis() - 200
     when:
-    context.setCheckpoint(["type": "internal"], pointConsumer, timeFromQueue)
+    context.setCheckpoint(create(["type": "internal"], timeFromQueue, 0), pointConsumer)
     then:
     context.isStarted()
     pointConsumer.points.size() == 1
@@ -238,13 +243,13 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
 
     def encoded = context.encode()
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.decode(timeSource, baseHash, null, encoded)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -263,7 +268,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.decode(timeSource, baseHash, null, secondEncode)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"])), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -287,14 +292,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
 
     def encoded = context.encode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -310,11 +315,11 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.encode()
-    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
+    carrier = [(PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topicB", "type": "kafka"])), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -338,14 +343,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
 
     def encoded = context.encode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     timeSource.advance(MILLISECONDS.toNanos(1))
     def decodedContext = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(25))
-    context.setCheckpoint(new LinkedHashMap<>(["topic": "topic", "type": "sqs"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["topic": "topic", "type": "sqs"])), pointConsumer)
 
     then:
     decodedContext.isStarted()
@@ -361,11 +366,11 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     def secondEncode = decodedContext.encode()
-    carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): secondEncode]
+    carrier = [(PROPAGATION_KEY_BASE64): secondEncode]
     timeSource.advance(MILLISECONDS.toNanos(2))
     def secondDecode = DefaultPathwayContext.extract(carrier, contextVisitor, timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(30))
-    context.setCheckpoint(new LinkedHashMap<>(["topic": "topicB", "type": "sqs"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["topic": "topicB", "type": "sqs"])), pointConsumer)
 
     then:
     secondDecode.isStarted()
@@ -387,11 +392,11 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "type"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "type"])), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(new LinkedHashMap<>(), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>()), pointConsumer)
 
     then:
     context.isStarted()
@@ -425,6 +430,23 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     firstBaseHash != secondBaseHash
   }
 
+  def "Process Tags used in hash calculation"() {
+    when:
+    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    ProcessTags.addTag("000", "first")
+    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    then:
+    firstBaseHash != secondBaseHash
+    assert ProcessTags.getTagsForSerialization().startsWithAny("000:first,")
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
+  }
+
   def "Check context extractor decorator behavior"() {
     given:
     def sink = Mock(Sink)
@@ -446,16 +468,24 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     def encoded = context.encode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
 
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, localTraceConfig, DATADOG)
+    def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
+    def propagator = dataStreams.propagator()
+
     when:
-    def extractor = new FakeExtractor()
-    extractor.traceConfig = localTraceConfig
-    def decorated = dataStreams.extractor(extractor)
-    def extracted = decorated.extract(carrier, contextVisitor)
+    def extractedContext = propagator.extract(baseContext, carrier, contextVisitor)
+    def extractedSpan = AgentSpan.fromContext(extractedContext)
+
+    then:
+    extractedSpan != null
+
+    when:
+    def extracted = extractedSpan.context()
 
     then:
     extracted != null
@@ -492,24 +522,25 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     def encoded = context.encode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new NullExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def propagator = dataStreams.propagator()
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    def extractedContext = propagator.extract(root(), carrier, contextVisitor)
+    def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
-
     if (globalDsmEnabled) {
+      extractedSpan != null
+      def extracted = extractedSpan.context()
       extracted != null
       extracted.pathwayContext != null
       extracted.pathwayContext.isStarted()
     } else {
-      extracted == null
+      extractedSpan == null
     }
 
     where:
@@ -533,15 +564,24 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(new LinkedHashMap<>(["type": "internal"]), pointConsumer)
+    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     def encoded = context.encode()
-    Map<String, String> carrier = [(PathwayContext.PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new FakeExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, null, DATADOG)
+    def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
+    def propagator = dataStreams.propagator()
+
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    def extractedContext = propagator.extract(baseContext, carrier, contextVisitor)
+    def extractedSpan = AgentSpan.fromContext(extractedContext)
+
+    then:
+    extractedSpan != null
+
+    when:
+    def extracted = extractedSpan.context()
 
     then:
     extracted != null
@@ -573,30 +613,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def extractor = new NullExtractor()
-    def decorated = dataStreams.extractor(extractor)
+    def propagator = dataStreams.propagator()
 
     when:
-    def extracted = decorated.extract(carrier, contextVisitor)
+    def extractedContext = propagator.extract(root(), carrier, contextVisitor)
+    def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
-    extracted == null
-  }
-
-  class FakeExtractor implements HttpCodec.Extractor {
-    TraceConfig traceConfig
-
-    @Override
-    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, traceConfig, DATADOG)
-    }
-  }
-
-  class NullExtractor implements HttpCodec.Extractor {
-    @Override
-    <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return null
-    }
+    extractedSpan == null
   }
 
   class Base64MapContextVisitor implements AgentPropagation.ContextVisitor<Map<String, String>> {

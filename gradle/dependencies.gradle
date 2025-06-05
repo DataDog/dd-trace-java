@@ -18,6 +18,8 @@ final class CachedData {
       exclude(project(':communication'))
       exclude(project(':components:context'))
       exclude(project(':components:json'))
+      exclude(project(':components:yaml'))
+      exclude(project(':components:cli'))
       exclude(project(':remote-config:remote-config-api'))
       exclude(project(':remote-config:remote-config-core'))
       exclude(project(':telemetry'))
@@ -48,6 +50,9 @@ final class CachedData {
 
       // cafe_crypto and its transitives
       exclude(dependency('cafe.cryptography::'))
+
+      // snakeyaml-engine and its transitives
+      exclude(dependency('org.snakeyaml:snakeyaml-engine'))
     }
   ]
 }

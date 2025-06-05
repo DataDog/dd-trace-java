@@ -131,6 +131,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -158,6 +159,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
+            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
             "asdf" "testing"
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
@@ -180,6 +182,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -204,6 +207,7 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
             "testing" 123
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }

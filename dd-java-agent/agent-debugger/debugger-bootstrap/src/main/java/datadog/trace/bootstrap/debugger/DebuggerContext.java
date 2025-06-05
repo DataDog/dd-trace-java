@@ -50,6 +50,22 @@ public class DebuggerContext {
     public abstract String tag();
   }
 
+  public interface ProductConfigUpdater {
+    void updateConfig(
+        Boolean dynamicInstrumentationEnabled,
+        Boolean exceptionReplayEnabled,
+        Boolean codeOriginEnabled,
+        Boolean liveDebuggingEnabled);
+
+    boolean isDynamicInstrumentationEnabled();
+
+    boolean isExceptionReplayEnabled();
+
+    boolean isCodeOriginEnabled();
+
+    boolean isDistributedDebuggerEnabled();
+  }
+
   public interface ProbeResolver {
     ProbeImplementation resolve(String encodedProbeId);
   }
@@ -103,6 +119,7 @@ public class DebuggerContext {
     String captureCodeOrigin(Method method, boolean entry);
   }
 
+  private static volatile ProductConfigUpdater productConfigUpdater;
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile ClassNameFilter classNameFilter;
@@ -111,6 +128,10 @@ public class DebuggerContext {
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
   private static volatile CodeOriginRecorder codeOriginRecorder;
+
+  public static void initProductConfigUpdater(ProductConfigUpdater productConfigUpdater) {
+    DebuggerContext.productConfigUpdater = productConfigUpdater;
+  }
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -142,6 +163,59 @@ public class DebuggerContext {
 
   public static void initCodeOrigin(CodeOriginRecorder codeOriginRecorder) {
     DebuggerContext.codeOriginRecorder = codeOriginRecorder;
+  }
+
+  public static void updateConfig(
+      Boolean dynamicInstrumentationEnabled,
+      Boolean exceptionReplayEnabled,
+      Boolean codeOriginEnabled,
+      Boolean liveDebuggingEnabled) {
+    LOGGER.debug(
+        "Updating config: dynamicInstrumentationEnabled: {}, exceptionReplayEnabled: {}, codeOriginEnabled: {}, liveDebuggingEnabled: {}",
+        dynamicInstrumentationEnabled,
+        exceptionReplayEnabled,
+        codeOriginEnabled,
+        liveDebuggingEnabled);
+    ProductConfigUpdater updater = productConfigUpdater;
+    if (updater != null) {
+      updater.updateConfig(
+          dynamicInstrumentationEnabled,
+          exceptionReplayEnabled,
+          codeOriginEnabled,
+          liveDebuggingEnabled);
+    }
+  }
+
+  public static boolean isDynamicInstrumentationEnabled() {
+    ProductConfigUpdater updater = productConfigUpdater;
+    if (updater != null) {
+      return updater.isDynamicInstrumentationEnabled();
+    }
+    return Config.get().isDynamicInstrumentationEnabled();
+  }
+
+  public static boolean isExceptionReplayEnabled() {
+    ProductConfigUpdater updater = productConfigUpdater;
+    if (updater != null) {
+      return updater.isExceptionReplayEnabled();
+    }
+    return Config.get().isDebuggerExceptionEnabled();
+  }
+
+  public static boolean isCodeOriginEnabled() {
+    ProductConfigUpdater updater = productConfigUpdater;
+    if (updater != null) {
+      return updater.isCodeOriginEnabled();
+    }
+    return Config.get().isDebuggerCodeOriginEnabled();
+  }
+
+  public static boolean isDistributedDebuggerEnabled() {
+    ProductConfigUpdater updater = productConfigUpdater;
+    if (updater != null) {
+      return updater.isDistributedDebuggerEnabled();
+    }
+    return Config.get().isDistributedDebuggerEnabled();
   }
 
   /**
@@ -307,7 +381,8 @@ public class DebuggerContext {
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        Duration timeout =
+            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
         context.freeze(new TimeoutChecker(timeout));
       }
     } catch (Exception ex) {
@@ -391,28 +466,28 @@ public class DebuggerContext {
     }
   }
 
-  public static String captureCodeOrigin(boolean entry) {
+  public static void marker() {}
+
+  public static void captureCodeOrigin(boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(entry);
+        recorder.captureCodeOrigin(entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
     }
-    return null;
   }
 
-  public static String captureCodeOrigin(Method method, boolean entry) {
+  public static void captureCodeOrigin(Method method, boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        return recorder.captureCodeOrigin(method, entry);
+        recorder.captureCodeOrigin(method, entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);
     }
-    return null;
   }
 
   public static void handleException(Throwable t, AgentSpan span) {

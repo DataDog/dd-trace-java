@@ -1,5 +1,6 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
+import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.PayloadDispatcherImpl
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -7,36 +8,33 @@ import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
-import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import spock.lang.Requires
-import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
 import static TraceGenerator.generateRandomTraces
 
-@Requires({
-  "true" == System.getenv("CI")
-})
-class TraceMapperRealAgentTest extends DDSpecification {
+class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
 
-  @Shared
-  HttpUrl agentUrl = HttpUrl.get("http://localhost:8126")
-  @Shared
-  OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
+  OkHttpClient client
+  MonitoringImpl monitoring
+  DDAgentFeaturesDiscovery v05Discovery
+  DDAgentFeaturesDiscovery v04Discovery
+  DDAgentApi v05Api
+  DDAgentApi v04Api
 
-  @Shared
-  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
-  @Shared
-  DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
-  @Shared
-  DDAgentFeaturesDiscovery v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
-  @Shared
-  DDAgentApi v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
-  @Shared
-  DDAgentApi v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
+  def setup() {
+    def agentUrl = HttpUrl.parse(Config.get().getAgentUrl())
+
+    client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
+    monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+
+    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
+    v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
+  }
 
   def "send random traces"() {
     setup:

@@ -109,6 +109,7 @@ public final class CrashUploaderScriptInitializer {
 
   private static String template(String line, String execClass, String crashFile) {
     line = Strings.replace(line, "!AGENT_JAR!", execClass);
+    line = Strings.replace(line, "!JAVA_HOME!", System.getProperty("java.home"));
     if (crashFile != null) {
       line = Strings.replace(line, "!JAVA_ERROR_FILE!", crashFile);
     }

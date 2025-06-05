@@ -23,6 +23,10 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
       span.meta
     }
 
+    Map<String, Number> getMetrics() {
+      span.metrics
+    }
+
     List<Map<String, Object>> getTriggers() {
       def appsecJSON = meta.get("_dd.appsec.json")
       if (appsecJSON) {
@@ -44,6 +48,10 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   protected String[] defaultAppSecProperties = [
     "-Ddd.appsec.enabled=${System.getProperty('smoke_test.appsec.enabled') ?: 'true'}",
     "-Ddd.profiling.enabled=false",
+    // TODO: Remove once this is the default value
+    "-Ddd.api-security.enabled=true",
+    "-Ddd.appsec.waf.timeout=300000",
+    "-DPOWERWAF_EXIT_ON_LEAK=true",
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?

@@ -201,18 +201,13 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public String toString() {
     return "MetricProbe{"
-        + "language='"
-        + language
-        + '\''
-        + ", id='"
+        + "id='"
         + id
         + '\''
         + ", version="
         + version
         + ", tags="
         + Arrays.toString(tags)
-        + ", tagMap="
-        + tagMap
         + ", where="
         + where
         + ", evaluateAt="

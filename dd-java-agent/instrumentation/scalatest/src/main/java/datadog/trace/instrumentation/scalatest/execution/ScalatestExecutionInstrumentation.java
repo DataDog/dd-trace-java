@@ -87,7 +87,8 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
         TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
         TestExecutionPolicy executionPolicy =
-            context.executionPolicy(testIdentifier, testSourceData);
+            context.getOrCreateExecutionPolicy(
+                testIdentifier, testSourceData, context.tags(testIdentifier));
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, executionPolicy);
       }
@@ -106,7 +107,7 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
         @Advice.Return(readOnly = false) Status status)
         throws Throwable {
       TestExecutionWrapper invokeWrapper = (TestExecutionWrapper) invokeWithFixture;
-      if (invokeWrapper.retry()) {
+      if (!invokeWrapper.wasLastExecution()) {
         status =
             (Status)
                 runTest.invokeWithArguments(

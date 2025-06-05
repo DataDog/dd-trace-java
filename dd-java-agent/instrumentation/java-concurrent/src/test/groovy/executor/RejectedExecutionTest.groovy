@@ -21,7 +21,6 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class RejectedExecutionTest extends AgentTestRunner {
 
@@ -193,7 +192,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     when:
     runUnderTrace("parent") {
-      setAsyncPropagationEnabled(true)
       // must be rejected because the queue will be full until some
       // time after the first task is released
       executor.submit((Runnable) new JavaAsyncChild(true, false))
@@ -237,7 +235,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     return {
       runUnderTrace("parent") {
-        setAsyncPropagationEnabled(true)
         pool.submit({})
       }
     }
@@ -261,7 +258,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     return {
       runUnderTrace("parent") {
-        setAsyncPropagationEnabled(true)
         // must be rejected because the queue will be full until some
         // time after the first task is released
         def testTask = new JavaAsyncChild(true, false)

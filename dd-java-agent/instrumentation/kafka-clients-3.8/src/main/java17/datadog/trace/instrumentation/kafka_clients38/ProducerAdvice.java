@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -14,26 +16,26 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODU
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 
+import datadog.context.propagation.Propagator;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
-import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
-import org.apache.kafka.common.record.RecordBatch;
 
 public class ProducerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-      @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
       @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
       @Advice.FieldValue("sender") Sender sender,
       @Advice.FieldValue("metadata") Metadata metadata,
@@ -59,8 +61,9 @@ public class ProducerAdvice {
     // This can help in mixed client environments where clients < 0.11 that do not support
     // headers attempt to read messages that were produced by clients > 0.11 and the magic
     // value of the broker(s) is >= 2
-    if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
-        && Config.get().isKafkaClientPropagationEnabled()
+
+    // Please note that the minimum magic for kafka 3.8+ is 2 so there is no need to check this
+    if (Config.get().isKafkaClientPropagationEnabled()
         && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
       setter = TextMapInjectAdapter.SETTER;
     }
@@ -72,14 +75,15 @@ public class ProducerAdvice {
     sortedTags.put(TOPIC_TAG, record.topic());
     sortedTags.put(TYPE_TAG, "kafka");
     try {
-      propagate().inject(span, record.headers(), setter);
+      defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         // inject the context in the headers, but delay sending the stats until we know the
         // message size.
         // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
-        propagate()
-            .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+        dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
         AvroSchemaExtractor.tryExtractProducer(record, span);
       }
     } catch (final IllegalStateException e) {
@@ -93,11 +97,12 @@ public class ProducerAdvice {
               record.value(),
               record.headers());
 
-      propagate().inject(span, record.headers(), setter);
+      defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-        propagate()
-            .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+        dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
         AvroSchemaExtractor.tryExtractProducer(record, span);
       }
     }

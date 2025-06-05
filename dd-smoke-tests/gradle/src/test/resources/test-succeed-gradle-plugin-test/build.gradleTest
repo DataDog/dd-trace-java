@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+    id 'java-gradle-plugin'
+}
+
+gradlePlugin {
+    plugins {
+        mySimplePlugin {
+            id = 'datadog.smoke.helloplugin'
+            implementationClass = 'datadog.smoke.HelloPlugin'
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation gradleTestKit()
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

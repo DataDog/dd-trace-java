@@ -2,11 +2,11 @@ package datadog.opentelemetry.shim.trace;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.context.Context;
@@ -77,5 +77,10 @@ public class OtelExtractedContext implements AgentSpanContext {
   @Override
   public PathwayContext getPathwayContext() {
     return null;
+  }
+
+  @Override
+  public boolean isRemote() {
+    return true;
   }
 }

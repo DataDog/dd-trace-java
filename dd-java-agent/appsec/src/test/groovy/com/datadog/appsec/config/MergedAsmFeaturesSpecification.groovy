@@ -25,23 +25,6 @@ class MergedAsmFeaturesSpecification extends Specification {
     features.mergedData.asm.enabled
   }
 
-  void 'test merging and removing api security sampling'() {
-    setup:
-    final features = new MergedAsmFeatures()
-
-    when:
-    features.addConfig('api_security_1', apiSecurity(2.0))
-
-    then:
-    features.mergedData.apiSecurity.requestSampleRate == 2.0
-
-    when:
-    features.addConfig('api_security_1', apiSecurity(3.0))
-
-    then:
-    features.mergedData.apiSecurity.requestSampleRate == 3.0
-  }
-
   void 'test merging and removing auto user instrum'() {
     setup:
     final features = new MergedAsmFeatures()
@@ -61,10 +44,6 @@ class MergedAsmFeaturesSpecification extends Specification {
 
   private static AppSecFeatures asm(boolean enabled) {
     return new AppSecFeatures(asm: new AppSecFeatures.Asm(enabled: enabled))
-  }
-
-  private static AppSecFeatures apiSecurity(float sampling) {
-    new AppSecFeatures(apiSecurity: new AppSecFeatures.ApiSecurity(requestSampleRate: sampling))
   }
 
   private static AppSecFeatures autoUserInstrum(UserIdCollectionMode mode) {

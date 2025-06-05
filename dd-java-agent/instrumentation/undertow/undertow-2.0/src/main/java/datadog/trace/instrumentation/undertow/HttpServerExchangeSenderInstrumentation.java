@@ -69,7 +69,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       }
       xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
-      AgentSpan span = continuation.getSpan();
+      AgentSpan span = continuation.span();
       Flow<Void> flow =
           UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
               span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);

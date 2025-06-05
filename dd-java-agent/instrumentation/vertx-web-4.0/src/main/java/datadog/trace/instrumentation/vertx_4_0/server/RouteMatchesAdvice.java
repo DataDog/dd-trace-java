@@ -20,6 +20,10 @@ class RouteMatchesAdvice {
     if (params.isEmpty()) {
       return;
     }
+    if (params.size() == 1 && params.containsKey("*")) {
+      // vert.x 5 removes the entry after our advice so we must ignore it
+      return;
+    }
 
     Throwable throwable = PathParameterPublishingHelper.publishParams(params);
     t = throwable;
@@ -37,6 +41,10 @@ class RouteMatchesAdvice {
       }
       Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {
+        return;
+      }
+      if (params.size() == 1 && params.containsKey("*")) {
+        // vert.x 5 removes the entry after our advice so we must ignore it
         return;
       }
 

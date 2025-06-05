@@ -6,8 +6,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.jboss.modules.Module;
 
@@ -41,8 +43,15 @@ public class ModulePatchInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Module self,
         @Advice.Argument(0) String name,
         @Advice.Return(readOnly = false) Enumeration<URL> ret) {
-      if (self.getName().endsWith(".jdk")) {
-        ret = Collections.emptyEnumeration();
+      if ("META-INF/services/javax.servlet.ServletContainerInitializer".equals(name)) {
+        final List<URL> list = new ArrayList<>();
+        while (ret.hasMoreElements()) {
+          URL u = ret.nextElement();
+          if (!u.toString().contains("logback-classic")) {
+            list.add(u);
+          }
+        }
+        ret = Collections.enumeration(list);
       }
     }
   }

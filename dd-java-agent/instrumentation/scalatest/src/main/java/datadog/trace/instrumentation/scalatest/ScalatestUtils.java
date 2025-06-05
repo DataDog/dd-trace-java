@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.scalatest;
 
+import datadog.trace.api.civisibility.config.LibraryCapability;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.scalatest.Reporter;
@@ -14,6 +17,16 @@ public abstract class ScalatestUtils {
   private static final Logger log = LoggerFactory.getLogger(ScalatestUtils.class);
 
   private static final ClassLoader CLASS_LOADER = Reporter.class.getClassLoader();
+
+  public static final List<LibraryCapability> CAPABILITIES =
+      Arrays.asList(
+          LibraryCapability.TIA,
+          LibraryCapability.EFD,
+          LibraryCapability.ATR,
+          LibraryCapability.IMPACTED,
+          LibraryCapability.QUARANTINE,
+          LibraryCapability.DISABLED,
+          LibraryCapability.ATTEMPT_TO_FIX);
 
   private ScalatestUtils() {}
 

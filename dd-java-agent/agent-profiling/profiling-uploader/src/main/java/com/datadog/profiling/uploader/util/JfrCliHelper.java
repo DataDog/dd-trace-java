@@ -2,6 +2,7 @@ package com.datadog.profiling.uploader.util;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
@@ -44,7 +45,7 @@ public class JfrCliHelper {
     File tmp = null;
     try {
       Path jfr = Paths.get(System.getProperty("java.home"), "bin", "jfr");
-      if (!Files.exists(jfr)) {
+      if (Platform.isJ9() || !Files.exists(jfr)) {
         ioLogger.error("Failed to gather information on recording, can't find `jfr`");
         return;
       }

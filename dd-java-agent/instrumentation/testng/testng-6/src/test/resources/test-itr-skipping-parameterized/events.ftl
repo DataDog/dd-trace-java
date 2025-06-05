@@ -55,7 +55,7 @@
       "test.module" : "testng-6",
       "test.name" : "parameterized_test_succeed",
       "test.parameters" : "{\"arguments\":{\"0\":\"hello\",\"1\":\"true\"}}",
-      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "parameterized_test_succeed(Ljava/lang/String;Z)V",

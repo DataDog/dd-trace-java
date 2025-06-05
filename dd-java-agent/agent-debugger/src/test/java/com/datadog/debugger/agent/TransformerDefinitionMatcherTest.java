@@ -1,8 +1,8 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.*;
+import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;

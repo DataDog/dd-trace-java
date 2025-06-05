@@ -1,12 +1,9 @@
 package com.datadog.debugger;
 
-import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.core.DDSpan;
 
 public class TriggerProbe01 {
   private int intField = 42;
@@ -15,7 +12,7 @@ public class TriggerProbe01 {
 
   public static int main(String arg) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    AgentScope scope = tracerAPI.activateManualSpan(span);
 
     fullTrace();
 
@@ -27,13 +24,13 @@ public class TriggerProbe01 {
 
   private static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    AgentScope scope = tracerAPI.activateManualSpan(span);
     entry();
     span.finish();
     scope.close();
 
     span = newSpan("exit");
-    scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL);
+    scope = tracerAPI.activateManualSpan(span);
     exit();
     span.finish();
     scope.close();

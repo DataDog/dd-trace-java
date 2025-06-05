@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTINUATION_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -51,12 +52,9 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   public static final class NewClientWorkerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void createWorker(@Advice.Argument(2) final TargetResponse response) {
-      AgentScope scope = activeScope();
-      if (null != scope) {
-        response
-            .getConnection()
-            .getContext()
-            .setAttribute(SYNAPSE_CONTINUATION_KEY, scope.capture());
+      AgentScope.Continuation continuation = captureActiveSpan();
+      if (continuation != noopContinuation()) {
+        response.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
       }
     }
   }

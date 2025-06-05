@@ -7,6 +7,7 @@ import datadog.telemetry.api.Metric
 import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.test.util.DDSpecification
 
 class BufferedEventsSpecification extends DDSpecification {
@@ -22,6 +23,7 @@ class BufferedEventsSpecification extends DDSpecification {
     !events.hasIntegrationEvent()
     !events.hasLogMessageEvent()
     !events.hasMetricEvent()
+    !events.hasEndpoint()
   }
 
   def 'return added events'() {
@@ -32,6 +34,7 @@ class BufferedEventsSpecification extends DDSpecification {
     def integration = new Integration("integration-name", true)
     def logMessage = new LogMessage()
     def metric = new Metric()
+    def endpoint = new Endpoint()
 
     when:
     events.addConfigChangeEvent(configSetting)
@@ -92,6 +95,16 @@ class BufferedEventsSpecification extends DDSpecification {
     events.nextMetricEvent() == metric
     !events.hasMetricEvent()
     events.isEmpty()
+
+    when:
+    events.addEndpointEvent(endpoint)
+
+    then:
+    !events.isEmpty()
+    events.hasEndpoint()
+    events.nextEndpoint() == endpoint
+    !events.hasEndpoint()
+    events.isEmpty()
   }
 
   def 'noop sink'() {
@@ -104,5 +117,6 @@ class BufferedEventsSpecification extends DDSpecification {
     sink.addDistributionSeriesEvent(null)
     sink.addDependencyEvent(null)
     sink.addConfigChangeEvent(null)
+    sink.addEndpointEvent(null)
   }
 }

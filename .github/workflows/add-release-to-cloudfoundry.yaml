@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout "cloudfoundry" branch
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
         with:
           ref: cloudfoundry
       - name: Get release version
@@ -43,7 +43,7 @@ jobs:
         run: |
           echo "${{ steps.get-release-version.outputs.VERSION }}: ${{ steps.get-release-url.outputs.URL }}" >> index.yml
       - name: Commit and push changes
-        uses: planetscale/ghcommit-action@b68767a2e130a71926b365322e62b583404a5e09 # v0.1.43
+        uses: planetscale/ghcommit-action@6a383e778f6620afde4bf4b45069d3c6983c1ae2 # v0.2.15
         with:
           commit_message: "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
           repo: ${{ github.repository }}

@@ -1,6 +1,5 @@
 import annotatedsample.AnnotatedMethods
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 
 class AddingSpanAttributesAnnotationTest extends AgentTestRunner {
   @Override
@@ -14,7 +13,7 @@ class AddingSpanAttributesAnnotationTest extends AgentTestRunner {
     setup:
     def methodName = "sayHelloWith${typeName}Attribute"
     def testSpan = TEST_TRACER.startSpan("test", "operation")
-    def scope = TEST_TRACER.activateSpan(testSpan, ScopeSource.INSTRUMENTATION)
+    def scope = TEST_TRACER.activateManualSpan(testSpan)
     AnnotatedMethods."$methodName"(value)
     scope.close()
     testSpan.finish()

@@ -9,24 +9,14 @@ import io.vertx.core.json.JsonObject
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
 
 abstract class IastVertxHttpServerTest extends IastSourcesTest<IastVertxServer> {
 
-  @Shared
-  boolean isVertxLatest4x = Boolean.getBoolean('test.dd.latest4xTest')
-
   @Override
   HttpServer server() {
     return new IastVertxServer()
-  }
-
-  @Override
-  protected boolean ignoreParameters() {
-    //FIXME: ASM
-    return isVertxLatest4x
   }
 
   boolean isHttps() {

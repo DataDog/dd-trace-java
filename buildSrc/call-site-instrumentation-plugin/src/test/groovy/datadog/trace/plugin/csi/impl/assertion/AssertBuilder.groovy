@@ -83,10 +83,12 @@ class AssertBuilder<C extends CallSiteAssert> {
     return getMethodCalls(acceptMethod).findAll {
       it.nameAsString == 'addAdvice'
     }.collect {
-      def (owner, method, descriptor) = it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
-      final handlerLambda = it.arguments[3].asLambdaExpr()
+      final adviceType = it.arguments.get(0).asFieldAccessExpr().getName()
+      def (owner, method, descriptor) = it.arguments.subList(1, 4)*.asStringLiteralExpr()*.asString()
+      final handlerLambda = it.arguments[4].asLambdaExpr()
       final advice = handlerLambda.body.asBlockStmt().statements*.toString()
       return new AdviceAssert([
+        type      : adviceType,
         owner     : owner,
         method    : method,
         descriptor: descriptor,

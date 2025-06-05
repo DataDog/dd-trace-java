@@ -71,7 +71,9 @@ public class DependencyResolver {
       path = path.substring("file:".length());
       final int sepIdx = path.indexOf("!/");
       if (sepIdx == -1) {
-        throw new IllegalArgumentException("Invalid nested jar path: " + path);
+        // JBoss may use the "jar:file" format to reference jar files instead of nested jars.
+        // These look like: jar:file:/path/to.jar!/
+        return JarReader.readJarFile(path);
       }
       final String outerPath = path.substring(0, sepIdx);
       final String innerPath = path.substring(sepIdx + 2);

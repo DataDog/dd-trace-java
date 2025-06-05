@@ -3,12 +3,11 @@ package datadog.trace.instrumentation.junit4;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
 import java.util.List;
-import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -16,12 +15,12 @@ import org.junit.runner.notification.Failure;
 public class JUnit4TracingListener extends TracingListener {
 
   private static final String FRAMEWORK_NAME = "junit4";
-  private static final String FRAMEWORK_VERSION = Version.id();
+  private static final String FRAMEWORK_VERSION = JUnit4Utils.getVersion();
 
-  private final ContextStore<Description, TestExecutionPolicy> retryPolicies;
+  private final ContextStore<Description, TestExecutionHistory> executionHistories;
 
-  public JUnit4TracingListener(ContextStore<Description, TestExecutionPolicy> retryPolicies) {
-    this.retryPolicies = retryPolicies;
+  public JUnit4TracingListener(ContextStore<Description, TestExecutionHistory> executionHistories) {
+    this.executionHistories = executionHistories;
   }
 
   public void testSuiteStarted(final Description description) {
@@ -36,16 +35,18 @@ public class JUnit4TracingListener extends TracingListener {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        testClass,
-        categories,
-        false,
-        TestFrameworkInstrumentation.JUNIT4,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testClass,
+            categories,
+            false,
+            TestFrameworkInstrumentation.JUNIT4,
+            null);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -57,7 +58,9 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   @Override
@@ -74,19 +77,20 @@ public class JUnit4TracingListener extends TracingListener {
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories =
         JUnit4Utils.getCategories(testSourceData.getTestClass(), testSourceData.getTestMethod());
-    TestExecutionPolicy retryPolicy = retryPolicies.get(description);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        testParameters,
-        categories,
-        testSourceData,
-        retryPolicy != null ? retryPolicy.currentExecutionRetryReason() : null,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestStart(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testParameters,
+            categories,
+            testSourceData,
+            null,
+            executionHistories.get(description));
   }
 
   @Override
@@ -96,7 +100,10 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -110,11 +117,15 @@ public class JUnit4TracingListener extends TracingListener {
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
       Throwable throwable = failure.getException();
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteFailure(suiteDescriptor, throwable);
     } else {
       TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
       Throwable throwable = failure.getException();
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestFailure(testDescriptor, throwable);
     }
   }
 
@@ -135,7 +146,9 @@ public class JUnit4TracingListener extends TracingListener {
 
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteSkip(suiteDescriptor, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(description.getTestClass());
       for (Method testMethod : testMethods) {
@@ -143,7 +156,9 @@ public class JUnit4TracingListener extends TracingListener {
       }
     } else {
       TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSkip(testDescriptor, reason);
     }
   }
 
@@ -167,24 +182,30 @@ public class JUnit4TracingListener extends TracingListener {
       String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
       List<String> categories = JUnit4Utils.getCategories(testClass, null);
 
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          suiteDescriptor,
-          testSuiteName,
-          FRAMEWORK_NAME,
-          FRAMEWORK_VERSION,
-          testClass,
-          categories,
-          false,
-          TestFrameworkInstrumentation.JUNIT4,
-          null);
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteStart(
+              suiteDescriptor,
+              testSuiteName,
+              FRAMEWORK_NAME,
+              FRAMEWORK_VERSION,
+              testClass,
+              categories,
+              false,
+              TestFrameworkInstrumentation.JUNIT4,
+              null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteSkip(suiteDescriptor, reason);
 
       List<Method> testMethods = JUnit4Utils.getTestMethods(testClass);
       for (Method testMethod : testMethods) {
         testIgnored(description, testMethod, reason);
       }
 
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteFinish(suiteDescriptor, null);
     }
   }
 
@@ -203,15 +224,18 @@ public class JUnit4TracingListener extends TracingListener {
     String testName = JUnit4Utils.getTestName(description, testMethod);
     String testParameters = JUnit4Utils.getParameters(description);
     List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-        suiteDescriptor,
-        testDescriptor,
-        testName,
-        FRAMEWORK_NAME,
-        FRAMEWORK_VERSION,
-        testParameters,
-        categories,
-        testSourceData,
-        reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestIgnore(
+            suiteDescriptor,
+            testDescriptor,
+            testName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testParameters,
+            categories,
+            testSourceData,
+            reason,
+            executionHistories.get(description));
   }
 }

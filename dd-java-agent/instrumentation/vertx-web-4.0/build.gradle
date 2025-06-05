@@ -5,8 +5,6 @@ ext {
   // unbound it for latest
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latest4xTestMaxJavaVersionForTests = JavaVersion.VERSION_25
-  latest4xForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_25
   latestDepTestMaxJavaVersionForTests = JavaVersion.VERSION_25
   latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_25
 }
@@ -17,15 +15,17 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = "vertx-web"
-    versions = "[4.0.0,)"
-    assertInverse = true
+    versions = "[4.0.0,5)"
+  }
+  fail {
+    group = 'io.vertx'
+    module = "vertx-web"
+    versions = "(,4.0.0)"
   }
 }
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
-addTestSuiteForDir('latest4xTest', 'test')
-addTestSuiteExtendingForDir('latest4xForkedTest', 'latest4xTest', 'test')
 
 configurations {
   testArtifacts
@@ -54,11 +54,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty-buffer-4')
 
-  latest4xTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
-  latest4xTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
-
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '+'
-  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
 }
 
 [compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
@@ -66,7 +63,4 @@ dependencies {
 }
 [compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
   it.javaLauncher = getJavaLauncherFor(11)
-}
-[latest4xForkedTest, latest4xTest].each {
-  it.jvmArgs += '-Dtest.dd.latest4xTest=true'
 }

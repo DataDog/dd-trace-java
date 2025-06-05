@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.rediscala;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.DECORATE;
 
 import akka.actor.ActorRef;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import scala.runtime.AbstractFunction1;
 import scala.util.Try;
@@ -24,9 +23,8 @@ public final class OnCompleteHandler extends AbstractFunction1<Try<Object>, Void
   @Override
   public Void apply(final Try<Object> result) {
     // propagation handled by scala promise instrumentation
-    AgentScope activeScope = activeScope();
-    if (null != activeScope) {
-      AgentSpan span = activeScope.span();
+    AgentSpan span = activeSpan();
+    if (null != span) {
       try {
         if (actorRef != null) {
           DECORATE.onConnection(span, contextStore.get(actorRef));

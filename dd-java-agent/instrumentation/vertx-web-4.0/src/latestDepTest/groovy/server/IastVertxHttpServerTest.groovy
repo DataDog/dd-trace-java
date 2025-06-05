@@ -23,12 +23,6 @@ abstract class IastVertxHttpServerTest extends IastSourcesTest<IastVertxServer> 
     false
   }
 
-  //FIXME: does not work with latestDep
-  @Override
-  protected boolean ignoreParameters() {
-    true
-  }
-
   void 'test event bus'() {
     when:
     final url = "${address}/iast/sources/eventBus"
@@ -58,7 +52,11 @@ abstract class IastVertxHttpServerTest extends IastSourcesTest<IastVertxServer> 
       final deployment = new DeploymentOptions()
         .setInstances(1)
         .setConfig(new JsonObject().put('https', isHttps()))
-      server.deployVerticle('server.IastSourcesVerticle', deployment).await()
+      server.deployVerticle('server.IastSourcesVerticle', deployment) { res ->
+        if (!res.succeeded()) {
+          throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+        }
+      }
       future.get()
     }
 

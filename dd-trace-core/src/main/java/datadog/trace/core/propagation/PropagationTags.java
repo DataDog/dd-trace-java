@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
 import java.util.Map;
@@ -100,10 +101,28 @@ public abstract class PropagationTags {
    */
   public abstract void fillTagMap(Map<String, String> tagMap);
 
-  /** Add the appsec propagation tag to the propagation tags. */
-  public abstract void updateAppsecPropagation(boolean enabled);
+  /**
+   * Updates the trace source to include the specified product.
+   *
+   * <p>The product value is parsed and interpreted according to the logic in {@link
+   * ProductTraceSource}. This method ensures that the given product is marked as part of the trace
+   * source.
+   *
+   * @param product the product identifier to be added to the trace source. Refer to {@link
+   *     ProductTraceSource} for details on how the value is interpreted.
+   */
+  public abstract void addTraceSource(int product);
 
-  public abstract boolean isAppsecPropagationEnabled();
+  /**
+   * Retrieves the current trace source.
+   *
+   * <p>The returned value is an encoded bitfield that represents the included products. To
+   * understand how this value is parsed and interpreted, refer to {@link ProductTraceSource}.
+   *
+   * @return the trace source as an integer bitfield. See {@link ProductTraceSource} for details on
+   *     its structure and usage.
+   */
+  public abstract int getTraceSource();
 
   public abstract void updateDebugPropagation(String value);
 
@@ -114,4 +133,6 @@ public abstract class PropagationTags {
     fillTagMap(result);
     return result;
   }
+
+  public abstract void updateAndLockDecisionMaker(PropagationTags source);
 }

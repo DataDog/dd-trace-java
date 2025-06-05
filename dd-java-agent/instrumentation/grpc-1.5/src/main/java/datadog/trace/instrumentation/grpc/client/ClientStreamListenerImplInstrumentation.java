@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.grpc.client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -66,9 +66,8 @@ public class ClientStreamListenerImplInstrumentation extends InstrumenterModule.
     @Advice.OnMethodExit
     public static void capture(@Advice.This ClientStreamListener listener) {
       // instrumentation of ClientCallImpl::start ensures this scope is present and valid
-      AgentScope scope = activeScope();
-      if (null != scope) {
-        AgentSpan span = scope.span();
+      AgentSpan span = activeSpan();
+      if (null != span) {
         InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).put(listener, span);
       }
     }

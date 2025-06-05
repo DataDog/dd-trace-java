@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.io.IOException;
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.HttpException;
@@ -27,9 +29,8 @@ public class DelegatingRequestChannel implements RequestChannel {
       throws HttpException, IOException {
     DECORATE.onRequest(span, request);
 
-    propagate().inject(span, request, SETTER);
-    propagate()
-        .injectPathwayContext(span, request, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+    DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
+    defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
     delegate.sendRequest(request, entityDetails, context);
   }
 }

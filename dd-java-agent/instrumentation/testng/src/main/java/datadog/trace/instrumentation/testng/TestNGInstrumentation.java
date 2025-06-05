@@ -21,6 +21,9 @@ import org.testng.annotations.DataProvider;
 @AutoService(InstrumenterModule.class)
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
+  public static final int ORDER = 0;
+
   public TestNGInstrumentation() {
     super("testng");
   }
@@ -28,6 +31,11 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String instrumentedType() {
     return "org.testng.TestNG";
+  }
+
+  @Override
+  public int order() {
+    return ORDER;
   }
 
   @Override

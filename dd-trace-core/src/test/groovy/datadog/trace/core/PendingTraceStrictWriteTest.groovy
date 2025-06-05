@@ -1,14 +1,11 @@
 package datadog.trace.core
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-
 class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
   def "trace is not reported until unfinished continuation is closed"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 
@@ -39,8 +36,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
   def "negative reference count throws an exception"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    setAsyncPropagationEnabled(true)
-    def continuation = scope.capture()
+    def continuation = tracer.captureActiveSpan()
     scope.close()
     rootSpan.finish()
 
@@ -60,8 +56,8 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
     when: "continuation is finished the second time"
     // Yes this should be guarded by the used flag in the continuation,
-    // so cancel it anyway to trigger the exception
-    traceCollector.cancelContinuation(continuation)
+    // so remove it anyway to trigger the exception
+    traceCollector.removeContinuation(continuation)
 
     then:
     thrown IllegalStateException

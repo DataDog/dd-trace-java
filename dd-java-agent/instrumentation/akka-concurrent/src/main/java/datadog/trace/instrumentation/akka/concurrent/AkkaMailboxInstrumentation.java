@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -11,8 +10,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -62,29 +59,15 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.Tracing
    */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter() {
-      AgentScope activeScope = activeScope();
-      // If there is no active scope, we can clean all the way to the bottom
-      if (null == activeScope) {
-        return null;
-      }
-      // If there is a noop span in the active scope, we can clean all the way to this scope
-      if (activeSpan() instanceof AgentTracer.NoopAgentSpan) {
-        return activeScope;
-      }
-      // Create an active scope with a noop span, and clean all the way to the previous scope
-      activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, false);
-      return activeScope;
+    public static void enter() {
+      // remember the currently active scope so we can roll back to this point
+      checkpointActiveForRollback();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope) {
-      // Clean up any leaking scopes from akka-streams/akka-http et.c.
-      AgentScope activeScope = activeScope();
-      while (activeScope != null && activeScope != scope) {
-        activeScope.close();
-        activeScope = activeScope();
-      }
+    public static void exit() {
+      // Clean up any leaking scopes from akka-streams/akka-http etc.
+      rollbackActiveToCheckpoint();
     }
   }
 }

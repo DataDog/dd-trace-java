@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,7 +22,7 @@ public class SpockTracingListener implements EngineExecutionListener {
 
   public SpockTracingListener(TestEngine testEngine) {
     testFramework = testEngine.getId();
-    testFrameworkVersion = testEngine.getVersion().orElse(null);
+    testFrameworkVersion = JUnitPlatformUtils.getFrameworkVersion(testEngine);
   }
 
   @Override
@@ -63,16 +64,18 @@ public class SpockTracingListener implements EngineExecutionListener {
         testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        testFramework,
-        testFrameworkVersion,
-        testClass,
-        tags,
-        false,
-        TestFrameworkInstrumentation.SPOCK,
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            testFramework,
+            testFrameworkVersion,
+            testClass,
+            tags,
+            false,
+            TestFrameworkInstrumentation.SPOCK,
+            null);
   }
 
   private void containerExecutionFinished(
@@ -86,18 +89,24 @@ public class SpockTracingListener implements EngineExecutionListener {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
 
         String reason = throwable.getMessage();
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.SPOCK)
+            .onTestSuiteSkip(suiteDescriptor, reason);
 
         for (TestDescriptor child : suiteDescriptor.getChildren()) {
           executionSkipped(child, reason);
         }
 
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(suiteDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.SPOCK)
+            .onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -111,21 +120,22 @@ public class SpockTracingListener implements EngineExecutionListener {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
     String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
-    List<String> tags =
-        testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
-        suiteDescriptor,
-        testDescriptor,
-        displayName,
-        testFramework,
-        testFrameworkVersion,
-        testParameters,
-        tags,
-        testSourceData,
-        JUnitPlatformUtils.retryReason(testDescriptor),
-        null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestStart(
+            suiteDescriptor,
+            testDescriptor,
+            displayName,
+            testFramework,
+            testFrameworkVersion,
+            testParameters,
+            tags,
+            testSourceData,
+            null,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
   }
 
   private void testCaseExecutionFinished(
@@ -136,18 +146,25 @@ public class SpockTracingListener implements EngineExecutionListener {
     }
   }
 
-  private static void testMethodExecutionFinished(
+  private void testMethodExecutionFinished(
       TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-            testDescriptor, throwable.getMessage());
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.SPOCK)
+            .onTestSkip(testDescriptor, throwable.getMessage());
       } else {
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+        TestEventsHandlerHolder.HANDLERS
+            .get(TestFrameworkInstrumentation.SPOCK)
+            .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null);
+    TestExecutionHistory executionHistory =
+        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestFinish(testDescriptor, null, executionHistory);
   }
 
   @Override
@@ -175,23 +192,29 @@ public class SpockTracingListener implements EngineExecutionListener {
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        suiteDescriptor,
-        testSuiteName,
-        testFramework,
-        testFrameworkVersion,
-        testClass,
-        tags,
-        false,
-        TestFrameworkInstrumentation.SPOCK,
-        null);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestSuiteStart(
+            suiteDescriptor,
+            testSuiteName,
+            testFramework,
+            testFrameworkVersion,
+            testClass,
+            tags,
+            false,
+            TestFrameworkInstrumentation.SPOCK,
+            null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestSuiteSkip(suiteDescriptor, reason);
 
     for (TestDescriptor child : suiteDescriptor.getChildren()) {
       executionSkipped(child, reason);
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testMethodExecutionSkipped(
@@ -203,15 +226,18 @@ public class SpockTracingListener implements EngineExecutionListener {
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
-        suiteDescriptor,
-        testDescriptor,
-        displayName,
-        testFramework,
-        testFrameworkVersion,
-        testParameters,
-        tags,
-        testSourceData,
-        reason);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.SPOCK)
+        .onTestIgnore(
+            suiteDescriptor,
+            testDescriptor,
+            displayName,
+            testFramework,
+            testFrameworkVersion,
+            testParameters,
+            tags,
+            testSourceData,
+            reason,
+            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
   }
 }

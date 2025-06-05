@@ -47,8 +47,8 @@ class ProbeStatusSinkTest {
   @BeforeEach
   void setUp() {
     when(config.getServiceName()).thenReturn(SERVICE_NAME);
-    when(config.getDebuggerDiagnosticsInterval()).thenReturn(DIAGNOSTICS_INTERVAL);
-    when(config.getDebuggerUploadBatchSize()).thenReturn(100);
+    when(config.getDynamicInstrumentationDiagnosticsInterval()).thenReturn(DIAGNOSTICS_INTERVAL);
+    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     builder = new Builder(config);
     probeStatusSink = new ProbeStatusSink(config, "http://localhost:8126/debugger/v1/input", true);
   }

@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -25,11 +26,15 @@ public interface TestFrameworkModule {
    * @return {@code true} if the test is new, {@code false} if it is an existing test <b>or if the
    *     list of known tests is not available</b>.
    */
-  boolean isNew(TestIdentifier test);
+  boolean isNew(@Nonnull TestIdentifier test);
 
-  boolean isFlaky(TestIdentifier test);
+  boolean isModified(@Nonnull TestSourceData testSourceData);
 
-  boolean isModified(TestSourceData testSourceData);
+  boolean isQuarantined(TestIdentifier test);
+
+  boolean isDisabled(TestIdentifier test);
+
+  boolean isAttemptToFix(TestIdentifier test);
 
   /**
    * Returns the reason for skipping a test, IF it can be skipped.
@@ -41,7 +46,14 @@ public interface TestFrameworkModule {
   SkipReason skipReason(TestIdentifier test);
 
   @Nonnull
-  TestExecutionPolicy executionPolicy(TestIdentifier test, TestSourceData testSource);
+  TestExecutionPolicy executionPolicy(
+      TestIdentifier test, TestSourceData testSource, Collection<String> testTags);
+
+  /**
+   * Returns the priority of the test execution that can be used for ordering tests. The higher the
+   * value, the higher the priority, meaning that the test should be executed earlier.
+   */
+  int executionPriority(@Nullable TestIdentifier test, @Nonnull TestSourceData testSource);
 
   void end(Long startTime);
 }
