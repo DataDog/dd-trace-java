@@ -631,7 +631,8 @@ public class Config {
       serviceNameSetByUser = false;
       serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
     } else {
-      serviceNameSetByUser = true;
+      // might be an auto-detected name propagated from instrumented parent process
+      serviceNameSetByUser = configProvider.getBoolean(SERVICE_NAME_SET_BY_USER, true);
       serviceName = userProvidedServiceName;
     }
 
