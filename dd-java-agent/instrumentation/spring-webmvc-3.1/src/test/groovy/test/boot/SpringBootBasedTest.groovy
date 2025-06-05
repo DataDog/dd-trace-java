@@ -78,6 +78,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testResponseBodyJson() {
+    return true
+  }
+
+  @Override
   String expectedServiceName() {
     servletContext
   }
@@ -163,8 +168,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"] +
-    extraServerTags
+    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"] + extraServerTags
   }
 
   @Override
