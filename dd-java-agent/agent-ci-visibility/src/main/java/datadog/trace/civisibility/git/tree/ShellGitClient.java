@@ -606,37 +606,37 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.BASE_COMMIT_SHA,
         () -> {
-          String remoteName = getRemoteName();
-          LOGGER.debug("Remote name: {}", remoteName);
-
           String sourceBranch = getSourceBranch();
           if (sourceBranch == null) {
             return null;
           }
           LOGGER.debug("Source branch: {}", sourceBranch);
 
-          if (baseBranch != null) {
-            return getCommonAncestor(baseBranch, sourceBranch);
+          if (baseBranch == null) {
+            String remoteName = getRemoteName();
+            LOGGER.debug("Remote name: {}", remoteName);
+
+            String defaultBranch =
+                Strings.isNotBlank(settingsDefaultBranch)
+                    ? settingsDefaultBranch
+                    : detectDefaultBranch(remoteName);
+
+            for (String branch : POSSIBLE_BASE_BRANCHES) {
+              tryFetchingIfNotFoundLocally(branch, remoteName);
+            }
+
+            List<String> candidates = getBaseBranchCandidates(sourceBranch, remoteName);
+            if (candidates.isEmpty()) {
+              LOGGER.debug("No base branch candidates found");
+              return null;
+            }
+
+            // select best candidate based on "ahead" metrics
+            Map<String, BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
+            return findBestBranchSha(metrics, defaultBranch, remoteName);
           }
 
-          String defaultBranch =
-              Strings.isNotBlank(settingsDefaultBranch)
-                  ? settingsDefaultBranch
-                  : detectDefaultBranch(remoteName);
-
-          for (String branch : POSSIBLE_BASE_BRANCHES) {
-            checkAndFetchBranch(branch, remoteName);
-          }
-
-          List<String> candidates = getBaseBranchCandidates(sourceBranch, remoteName);
-          if (candidates.isEmpty()) {
-            LOGGER.debug("No base branch candidates found");
-            return null;
-          }
-
-          // select best candidate based on "ahead" metrics
-          Map<String, BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
-          return findBestBranchSha(metrics, defaultBranch, remoteName);
+          return getCommonAncestor(baseBranch, sourceBranch);
         });
   }
 
@@ -736,7 +736,7 @@ public class ShellGitClient implements GitClient {
     return null;
   }
 
-  public void checkAndFetchBranch(String branch, String remoteName)
+  public void tryFetchingIfNotFoundLocally(String branch, String remoteName)
       throws IOException, InterruptedException, TimeoutException {
     try {
       // check if branch exists locally as a remote ref
@@ -763,7 +763,7 @@ public class ShellGitClient implements GitClient {
     } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
     }
 
-    if (!Strings.isNotBlank(remoteHeads)) {
+    if (Strings.isBlank(remoteHeads)) {
       LOGGER.debug("Branch {} does not exist in remote", branch);
       return;
     }
@@ -911,7 +911,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!Strings.isNotBlank(baseCommit)) {
+    if (Strings.isBlank(baseCommit)) {
       LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
     } else if (Strings.isNotBlank(targetCommit)) {
