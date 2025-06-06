@@ -1,23 +1,21 @@
 package datadog.telemetry.api;
 
-import javax.annotation.Nullable;
-
 public enum LogMessageLevel {
   ERROR,
   WARN,
   DEBUG;
 
-  @Nullable
   public static LogMessageLevel fromString(String value) {
+    if (value == null) {
+      return DEBUG;
+    }
     switch (value) {
       case "ERROR":
         return ERROR;
       case "WARN":
         return WARN;
-      case "DEBUG":
-        return DEBUG;
       default:
-        return null;
+        return DEBUG;
     }
   }
 }
