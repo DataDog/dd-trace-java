@@ -237,7 +237,7 @@ publish-artifacts-to-s3:
           "S3 Links": [
             {
               "external_link": {
-                "label": "Public Link to dd-java-agent.jar"
+                "label": "Public Link to dd-java-agent.jar",
                 "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
               }
             }
