@@ -361,7 +361,6 @@ class AdaptiveSamplerTest {
 
   private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
       throws Exception {
-    log.info("DEBUG: begin testSampler");
     int iterations =
         Integer.parseInt(
             System.getProperty("com.datadog.profiling.exceptions.test-iterations", "1"));
@@ -371,7 +370,6 @@ class AdaptiveSamplerTest {
         testSamplerConcurrently(numOfThreads, windowEventsSupplier, maxErrorPercent);
       }
     }
-    log.info("DEBUG: end testSampler");
   }
 
   private void testSamplerInline(
