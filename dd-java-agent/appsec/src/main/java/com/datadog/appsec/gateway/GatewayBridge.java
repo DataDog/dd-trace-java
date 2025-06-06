@@ -135,6 +135,8 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.requestMethodUriRaw(), this::onRequestMethodUriRaw);
     subscriptionService.registerCallback(EVENTS.requestBodyStart(), this::onRequestBodyStart);
     subscriptionService.registerCallback(EVENTS.requestBodyDone(), this::onRequestBodyDone);
+    subscriptionService.registerCallback(EVENTS.responseBodyStart(), this::onResponseBodyStart);
+    subscriptionService.registerCallback(EVENTS.responseBodyDone(), this::onResponseBodyDone);
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(), this::onRequestClientSocketAddress);
     subscriptionService.registerCallback(
@@ -163,6 +165,10 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+    if (additionalIGEvents.contains(EVENTS.responseBodyProcessed())) {
+      subscriptionService.registerCallback(
+          EVENTS.responseBodyProcessed(), this::onResponseBodyProcessed);
     }
   }
 
@@ -596,6 +602,51 @@ public class GatewayBridge {
     }
   }
 
+  private Flow<Void> onResponseBodyProcessed(RequestContext ctx_, Object obj) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    if (ctx.isConvertedResBodyPublished()) {
+      log.debug(
+          "Response body already published; will ignore new value of type {}", obj.getClass());
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setConvertedResBodyPublished(true);
+
+    while (true) {
+      DataSubscriberInfo subInfo = responseBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT);
+        responseBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      Object converted =
+          ObjectIntrospection.convert(
+              obj,
+              ctx,
+              () -> {
+                if (Config.get().isAppSecRaspCollectRequestBody()) {
+                  ctx_.getTraceSegment()
+                      .setTagTop("_dd.appsec.rasp.response_body_size.exceeded", true);
+                }
+              });
+      if (Config.get().isAppSecRaspCollectResponseBody()) {
+        ctx.setProcessedResponseBody(converted);
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_OBJECT, converted);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        responseBodySubInfo = null;
+      }
+    }
+  }
+
   private Flow<Void> onRequestBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null || ctx.isRawReqBodyPublished()) {
@@ -623,6 +674,37 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         rawRequestBodySubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onResponseBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isRawResBodyPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setRawResBodyPublished(true);
+
+    while (true) {
+      DataSubscriberInfo subInfo = rawResponseBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_RAW);
+        rawResponseBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+
+      CharSequence bodyContent = supplier.get();
+      if (bodyContent == null || bodyContent.length() == 0) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_RAW, bodyContent);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        rawResponseBodySubInfo = null;
       }
     }
   }
@@ -660,6 +742,16 @@ public class GatewayBridge {
     }
 
     ctx.setStoredRequestBodySupplier(supplier);
+    return null;
+  }
+
+  private Void onResponseBodyStart(RequestContext ctx_, StoredBodySupplier supplier) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return null;
+    }
+
+    ctx.setStoredResponseBodySupplier(supplier);
     return null;
   }
 

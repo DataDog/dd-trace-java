@@ -137,20 +137,9 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         return;
       }
 
-      // TODO: A dedicated responseBodyProcessed event should be added to the Events class
-      // For now, we're using requestBodyProcessed as a placeholder, but this is not semantically
-      // correct
-      // The proper solution would be to:
-      // 1. Add RESPONSE_BODY_PROCESSED_ID = 26 to Events.java
-      // 2. Add corresponding responseBodyProcessed() method to Events.java
-      // 3. Update GatewayBridge to handle the new event type
-      // 4. Replace the callback below with the proper responseBodyProcessed event
-
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
       BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(
-              EVENTS
-                  .requestBodyProcessed()); // TEMPORARY: Using requestBodyProcessed as placeholder
+          cbp.getCallback(EVENTS.responseBodyProcessed());
       if (callback == null) {
         return;
       }
