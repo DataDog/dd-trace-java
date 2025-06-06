@@ -80,6 +80,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
   def cleanup() {
     connection.close()
+    redisClient.shutdown()
     redisServer.stop()
   }
 }
