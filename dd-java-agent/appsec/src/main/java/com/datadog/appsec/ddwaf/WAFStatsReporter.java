@@ -19,7 +19,7 @@ public class WAFStatsReporter implements TraceSegmentPostProcessor {
 
   // XXX: if config is updated, this may not match the actual version run during this request
   // However, as of this point, we don't update rules at runtime.
-  volatile String rulesVersion;
+  private volatile String rulesVersion;
 
   @Override
   public void processTraceSegment(
@@ -42,8 +42,7 @@ public class WAFStatsReporter implements TraceSegmentPostProcessor {
       }
     }
 
-    String rulesVersion = this.rulesVersion;
-    if (rulesVersion != null) {
+    if (this.rulesVersion != null) {
       segment.setTagTop(RULE_FILE_VERSION, rulesVersion);
     }
 
@@ -54,5 +53,9 @@ public class WAFStatsReporter implements TraceSegmentPostProcessor {
     if (ctx.getRaspTimeouts() > 0) {
       segment.setTagTop(RASP_TIMEOUT_TAG, ctx.getRaspTimeouts());
     }
+  }
+
+  public void setRulesVersion(String rulesetVersion) {
+    this.rulesVersion = rulesetVersion;
   }
 }
