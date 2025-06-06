@@ -474,6 +474,7 @@ test_base:
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
+    - env
 
 test_inst:
   extends: .test_job_with_test_agent
