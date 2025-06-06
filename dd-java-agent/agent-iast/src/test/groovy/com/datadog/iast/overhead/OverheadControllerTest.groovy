@@ -2,6 +2,8 @@ package com.datadog.iast.overhead
 
 import com.datadog.iast.IastRequestContext
 import com.datadog.iast.overhead.OverheadController.OverheadControllerImpl
+import com.datadog.iast.taint.TaintedMap
+import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.api.Config
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
@@ -376,7 +378,7 @@ class OverheadControllerTest extends DDSpecification {
     given:
     // Build a fake span + requestContext + IAST context setup
     OverheadContext localCtx = new OverheadContext(10, false)
-    def iastCtx = new IastRequestContext(localCtx)
+    def iastCtx = new IastRequestContext(TaintedObjects.build(TaintedMap.build(TaintedMap.DEFAULT_CAPACITY)), localCtx)
     final controller = new OverheadControllerImpl(100f, 10, true, null)
 
     RequestContext rc = Stub(RequestContext) {
@@ -404,7 +406,7 @@ class OverheadControllerTest extends DDSpecification {
     def array = new AtomicIntegerArray(VulnerabilityTypes.STRINGS.length)
     array.set(VulnerabilityType.WEAK_CIPHER.type(), 2)
     OverheadContext.globalMap.put("PUT /skipme", array)
-    def iastCtx = new IastRequestContext(localCtx)
+    def iastCtx = new IastRequestContext(TaintedObjects.build(TaintedMap.build(TaintedMap.DEFAULT_CAPACITY)), localCtx)
     final controller = new OverheadControllerImpl(100f, 10, true, null)
 
     RequestContext rc = Stub(RequestContext) {
@@ -429,7 +431,7 @@ class OverheadControllerTest extends DDSpecification {
   void "consumeQuota: when hasQuota true and skip=false, calls consume and returns true"() {
     given:
     OverheadContext localCtx = new OverheadContext(10, false)
-    def iastCtx = new IastRequestContext(localCtx)
+    def iastCtx = new IastRequestContext(TaintedObjects.build(TaintedMap.build(TaintedMap.DEFAULT_CAPACITY)), localCtx)
     final controller = new OverheadControllerImpl(100f, 10, true, null)
 
     RequestContext rc = Stub(RequestContext) {
