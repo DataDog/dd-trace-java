@@ -50,7 +50,7 @@ jobs:
   main:
     needs:
     - build
-    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # Automated: This reference is automatically updated.
     secrets: inherit
     permissions:
       contents: read
