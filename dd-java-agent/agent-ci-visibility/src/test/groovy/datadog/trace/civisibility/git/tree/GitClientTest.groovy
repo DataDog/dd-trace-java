@@ -9,6 +9,7 @@ import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.stream.Collectors
 import spock.lang.Specification
 import spock.lang.TempDir
 
@@ -469,19 +470,19 @@ class GitClientTest extends Specification {
   }
 
   def "test get base branch sha: #testcaseName"() {
-    givenGitRepo(repo)
-    def gitClient = givenGitClient()
+    givenGitRepos(["ci/git/impacted/repo_origin", "ci/git/impacted/$repoName"])
+    def gitClient = givenGitClient(repoName)
 
     expect:
     gitClient.getBaseCommitSha(baseBranch, null) == expected
 
     where:
-    testcaseName                                 | repo                                     | baseBranch | expected
-    "base branch provided"                       | "ci/git/impacted/source_repo/git"        | "master"   | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
-    "base branch not provided"                   | "ci/git/impacted/source_repo/git"        | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
-    "fresh clone with remote cloned into master" | "ci/git/impacted/new_clone/git"          | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
-    "no remote clone"                            | "ci/git/impacted/no_remote/git"          | null       | null
-    "Github Actions style clone"                 | "ci/git/impacted/ghub_actions_clone/git" | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
+    testcaseName                                 | repoName             | baseBranch | expected
+    "base branch provided"                       | "source_repo"        | "master"   | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "base branch not provided"                   | "source_repo"        | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "fresh clone with remote cloned into master" | "new_clone"          | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "no remote clone"                            | "no_remote"          | null       | null
+    "Github Actions style clone"                 | "ghub_actions_clone" | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
   }
 
   private void givenGitRepo() {
@@ -491,12 +492,36 @@ class GitClientTest extends Specification {
   private void givenGitRepo(String resourceName) {
     def gitFolder = Paths.get(getClass().getClassLoader().getResource(resourceName).toURI())
     def tempGitFolder = tempDir.resolve(GIT_FOLDER)
-    Files.createDirectories(tempGitFolder)
-    IOUtils.copyFolder(gitFolder, tempGitFolder)
+    copyFolder(gitFolder, tempGitFolder)
+  }
+
+  private void givenGitRepos(List<String> resourceDirs) {
+    def resources = resourceDirs.stream().map(dir -> Paths.get(getClass().getClassLoader().getResource(dir).toURI())).collect(Collectors.toList())
+    for (def resource : resources) {
+      def gitFolder = resource.resolve("git")
+      def destFolder = tempDir.resolve(resource.getFileName())
+      if (Files.isDirectory(gitFolder)) {
+        // repos with git/ folder
+        def tempGitFolder = destFolder.resolve(GIT_FOLDER)
+        copyFolder(gitFolder, tempGitFolder)
+      } else {
+        // dirs with no git/ folder, i.e. a remote
+        copyFolder(resource, destFolder)
+      }
+    }
+  }
+
+  private static void copyFolder(Path src, Path dest) {
+    Files.createDirectories(dest)
+    IOUtils.copyFolder(src, dest)
+  }
+
+  private givenGitClient(String tempRelPath) {
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+    new ShellGitClient(metricCollector, tempDir.resolve(tempRelPath).toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
   }
 
   private givenGitClient() {
-    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    new ShellGitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
+    givenGitClient("")
   }
 }
