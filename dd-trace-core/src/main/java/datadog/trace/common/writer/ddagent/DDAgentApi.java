@@ -117,6 +117,8 @@ public class DDAgentApi extends RemoteApi {
                       : "")
               .put(payload.toRequest())
               .build();
+      System.out.println("HELLO REQUEST SENT IS THIS:");
+      System.out.println(request.headers());
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
