@@ -29,7 +29,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   JAVA_BUILD_IMAGE_VERSION: "v25.05"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21)$/
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|ubuntu17)$/
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
