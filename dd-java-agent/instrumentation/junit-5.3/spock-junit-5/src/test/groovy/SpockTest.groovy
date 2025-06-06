@@ -1,11 +1,14 @@
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
+
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestFailedParameterizedSpock
 import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
@@ -28,11 +31,6 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.spockframework.runtime.SpockEngine
 import org.spockframework.util.SpockReleaseInfo
-
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
-
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class SpockTest extends CiVisibilityInstrumentationTest {
@@ -115,7 +113,7 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | true    | [TestSucceedSpockSlow]      | [] // is executed only twice
     "test-efd-new-very-slow-test"       | true    | [TestSucceedSpockVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestSucceedAndFailedSpock] | []
-    "test-efd-skip-new-test"            | true    | [TestSucceedSpockSkipEfd] | []
+    "test-efd-skip-new-test"            | true    | [TestSucceedSpockSkipEfd]   | []
   }
 
   def "test impacted tests detection #testcaseName"() {
@@ -129,8 +127,6 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName            | tests              | prDiff
     "test-succeed"          | [TestSucceedSpock] | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceedSpock] | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceedSpock] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
     "test-succeed"          | [TestSucceedSpock] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
     "test-succeed-impacted" | [TestSucceedSpock] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }
