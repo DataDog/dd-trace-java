@@ -98,6 +98,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private volatile StoredBodySupplier storedResponseBodySupplier;
   private String dbType;
 
   private int responseStatus;
@@ -132,6 +133,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile Object processedResponseBody;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -456,6 +458,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  void setStoredResponseBodySupplier(StoredBodySupplier storedResponseBodySupplier) {
+    this.storedResponseBodySupplier = storedResponseBodySupplier;
+  }
+
   public String getDbType() {
     return dbType;
   }
@@ -601,6 +607,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
+  /** @return the portion of the response body read so far, if any */
+  public CharSequence getStoredResponseBody() {
+    StoredBodySupplier storedResponseBodySupplier = this.storedResponseBodySupplier;
+    if (storedResponseBodySupplier == null) {
+      return null;
+    }
+    return storedResponseBodySupplier.get();
+  }
+
   public void reportEvents(Collection<AppSecEvent> appSecEvents) {
     for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
@@ -703,6 +718,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Object getProcessedRequestBody() {
     return processedRequestBody;
+  }
+
+  public void setProcessedResponseBody(Object processedResponseBody) {
+    this.processedResponseBody = processedResponseBody;
+  }
+
+  public Object getProcessedResponseBody() {
+    return processedResponseBody;
   }
 
   public boolean isRaspMatched() {
