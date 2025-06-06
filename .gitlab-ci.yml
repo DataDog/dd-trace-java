@@ -224,12 +224,13 @@ publish-artifacts-to-s3:
   needs: [ build ]
   script:
     - source upstream.env
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-api-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-api.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-ot-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-agent-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-api-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-api.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-ot-${UPSTREAM_TRACER_VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-ot.jar
+    - export VERSION="${UPSTREAM_TRACER_VERSION%~*}" # remove ~githash from the end of version
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-api.jar
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-api.jar
+    - aws s3 cp workspace/dd-java-agent/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-ot.jar
     - |
       cat << EOF > links.json 
         {
