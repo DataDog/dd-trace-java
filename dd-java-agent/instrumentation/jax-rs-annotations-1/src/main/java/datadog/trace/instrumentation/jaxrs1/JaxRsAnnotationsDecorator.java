@@ -57,7 +57,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       // This check ensures that we only use the route from the first JAX-RS annotated method that
       // is executed
       if (parent.getLocalRootSpan().getResourceNamePriority()
-          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) { // TODO
         HTTP_RESOURCE_DECORATOR.withRoute(
             parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
         parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");
