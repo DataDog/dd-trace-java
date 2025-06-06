@@ -637,7 +637,7 @@ public class ShellGitClient implements GitClient {
                   "@{upstream}")
               .trim();
 
-      int slashIdx = remote.indexOf("/");
+      int slashIdx = remote.indexOf('/');
       return slashIdx != -1 ? remote.substring(0, slashIdx) : remote;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error getting remote from upstream, falling back to first remote", e);
