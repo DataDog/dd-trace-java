@@ -98,6 +98,8 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo responseBodySubInfo;
+  private volatile DataSubscriberInfo rawResponseBodySubInfo;
   private volatile DataSubscriberInfo grpcServerMethodSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
@@ -182,6 +184,8 @@ public class GatewayBridge {
     requestBodySubInfo = null;
     pathParamsSubInfo = null;
     respDataSubInfo = null;
+    responseBodySubInfo = null;
+    rawResponseBodySubInfo = null;
     grpcServerMethodSubInfo = null;
     grpcServerRequestMsgSubInfo = null;
     graphqlServerRequestMsgSubInfo = null;
@@ -608,12 +612,12 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
 
-    if (ctx.isConvertedResBodyPublished()) {
+    if (ctx.isConvertedRespBodyPublished()) {
       log.debug(
           "Response body already published; will ignore new value of type {}", obj.getClass());
       return NoopFlow.INSTANCE;
     }
-    ctx.setConvertedResBodyPublished(true);
+    ctx.setConvertedRespBodyPublished(true);
 
     while (true) {
       DataSubscriberInfo subInfo = responseBodySubInfo;
@@ -624,19 +628,8 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      Object converted =
-          ObjectIntrospection.convert(
-              obj,
-              ctx,
-              () -> {
-                if (Config.get().isAppSecRaspCollectRequestBody()) {
-                  ctx_.getTraceSegment()
-                      .setTagTop("_dd.appsec.rasp.response_body_size.exceeded", true);
-                }
-              });
-      if (Config.get().isAppSecRaspCollectResponseBody()) {
-        ctx.setProcessedResponseBody(converted);
-      }
+      Object converted = ObjectIntrospection.convert(obj, ctx, () -> {});
+      ctx.setProcessedResponseBody(converted);
       DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
@@ -680,10 +673,10 @@ public class GatewayBridge {
 
   private Flow<Void> onResponseBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null || ctx.isRawResBodyPublished()) {
+    if (ctx == null || ctx.isRawRespBodyPublished()) {
       return NoopFlow.INSTANCE;
     }
-    ctx.setRawResBodyPublished(true);
+    ctx.setRawRespBodyPublished(true);
 
     while (true) {
       DataSubscriberInfo subInfo = rawResponseBodySubInfo;
@@ -699,7 +692,8 @@ public class GatewayBridge {
       if (bodyContent == null || bodyContent.length() == 0) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_RAW, bodyContent);
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_RAW, bodyContent.toString());
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
