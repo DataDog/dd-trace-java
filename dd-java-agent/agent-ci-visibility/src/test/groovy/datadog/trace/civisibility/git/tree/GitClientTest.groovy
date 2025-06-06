@@ -165,9 +165,9 @@ class GitClientTest extends Specification {
 
     then:
     message == "Adding Git information to test spans (#1242)\n\n" +
-      "* Initial basic GitInfo implementation.\r\n\r\n" +
-      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-      "* Changes based on the review."
+    "* Initial basic GitInfo implementation.\r\n\r\n" +
+    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+    "* Changes based on the review."
   }
 
   def "test get author name"() {
@@ -330,6 +330,8 @@ class GitClientTest extends Specification {
 
   def "test remove remote prefix"() {
     def gitClient = givenGitClient()
+
+    expect:
     gitClient.removeRemotePrefix(branchName, remoteName) == expected
 
     where:
@@ -343,8 +345,25 @@ class GitClientTest extends Specification {
     ""                         | "origin"   | ""
   }
 
+  def "test branch equals"() {
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.branchesEquals(branchA, branchB, remoteName) == expected
+
+    where:
+    branchA        | branchB       | remoteName | expected
+    "main"         | "main"        | "origin"   | true
+    "upsteam/main" | "main"        | "upsteam"  | true
+    "origin/main"  | "origin/main" | "origin"   | true
+    "main"         | "master"      | "origin"   | false
+    "upsteam/main" | "origin/main" | "origin"   | false
+  }
+
   def "test base like branch match"() {
     def gitClient = givenGitClient()
+
+    expect:
     gitClient.isBaseLikeBranch(branchName, remoteName) == expected
 
     where:
@@ -374,6 +393,8 @@ class GitClientTest extends Specification {
 
   def "test is default branch"() {
     def gitClient = givenGitClient()
+
+    expect:
     gitClient.isDefaultBranch(branch, defaultBranch, remoteName) == expected
 
     where:
@@ -391,6 +412,8 @@ class GitClientTest extends Specification {
   def "test get remote name"() {
     givenGitRepo(repoPath)
     def gitClient = givenGitClient()
+
+    expect:
     gitClient.getRemoteName() == remoteName
 
     where:
@@ -398,18 +421,6 @@ class GitClientTest extends Specification {
     "ci/git/impacted/ghub_actions_clone/git" | "origin" // get remote from upstream
     "ci/git/impacted/source_repo/git"        | "origin" // no upstream configured for branch
     "ci/git/with_pack/git"                   | "origin" // ambiguous '@{upstream}' argument
-  }
-
-  def "test get source branch"() {
-    given:
-    givenGitRepo("ci/git/impacted/source_repo/git")
-    def gitClient = givenGitClient()
-
-    when:
-    def branch = gitClient.getSourceBranch()
-
-    then:
-    branch == "feature"
   }
 
   def "test detect default branch"() {
@@ -433,40 +444,44 @@ class GitClientTest extends Specification {
     def metrics = gitClient.computeBranchMetrics(["origin/master"], "feature")
 
     then:
-    metrics.size() == 1
-    metrics["origin/master"] == new ShellGitClient.BaseBranchMetric(0, 1, "02fcc183ad25f086aaec562224abc1b323ebaaa9")
+    metrics == [new ShellGitClient.BaseBranchMetric("origin/master", 0, 1)]
   }
 
-  def "test find best branch sha"() {
+  def "test sort base branches candidates"() {
     def gitClient = givenGitClient()
-    gitClient.findBestBranchSha(metrics, "main", "origin") == expected
+    def sortedMetrics = gitClient.sortBaseBranchCandidates(metrics, "main", "origin")
+    def sortedBranches = sortedMetrics.collect(m -> m.branch)
+
+    expect:
+    sortedBranches == expectedOrder
 
     where:
-    metrics                                                              | expected
+    metrics                                                     | expectedOrder
     [
-      "main"       : new ShellGitClient.BaseBranchMetric(10, 2, "sha1"),
-      "master"     : new ShellGitClient.BaseBranchMetric(15, 1, "sha2"),
-      "origin/main": new ShellGitClient.BaseBranchMetric(5, 2, "sha3")]  | "sha2"
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 1),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["master", "main", "origin/main"]
     [
-      "main"       : new ShellGitClient.BaseBranchMetric(10, 2, "sha1"),
-      "master"     : new ShellGitClient.BaseBranchMetric(15, 2, "sha2"),
-      "origin/main": new ShellGitClient.BaseBranchMetric(5, 2, "sha3")]  | "sha3"
-    [:]                                                                  | null
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 2),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
+    []                                                          | []
   }
 
   def "test get base branch sha: #testcaseName"() {
     givenGitRepo(repo)
     def gitClient = givenGitClient()
 
+    expect:
     gitClient.getBaseCommitSha(baseBranch, null) == expected
 
     where:
-    testcaseName                 | repo                                     | baseBranch | expected
-    "base branch provided"       | "ci/git/impacted/source_repo/git"        | "master"   | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
-    "base branch not provided"   | "ci/git/impacted/source_repo/git"        | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
-    "fresh clone"                | "ci/git/impacted/new_clone/git"          | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
-    "no remote clone"            | "ci/git/impacted/no_remote/git"          | null       | null
-    "Github Actions style clone" | "ci/git/impacted/ghub_actions_clone/git" | null       | "02fcc183ad25f086aaec562224abc1b323ebaaa9"
+    testcaseName                                 | repo                                     | baseBranch | expected
+    "base branch provided"                       | "ci/git/impacted/source_repo/git"        | "master"   | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
+    "base branch not provided"                   | "ci/git/impacted/source_repo/git"        | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
+    "fresh clone with remote cloned into master" | "ci/git/impacted/new_clone/git"          | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
+    "no remote clone"                            | "ci/git/impacted/no_remote/git"          | null       | null
+    "Github Actions style clone"                 | "ci/git/impacted/ghub_actions_clone/git" | null       | "c0a09c420836a5d2c1ce4c74d9c4e732d4ccd065"
   }
 
   private void givenGitRepo() {

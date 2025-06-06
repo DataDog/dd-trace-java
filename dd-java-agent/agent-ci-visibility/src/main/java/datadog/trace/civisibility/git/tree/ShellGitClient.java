@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -22,12 +21,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -40,8 +38,8 @@ public class ShellGitClient implements GitClient {
   private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
   private static final List<String> POSSIBLE_BASE_BRANCHES =
       Arrays.asList("main", "master", "preprod", "prod", "dev", "development", "trunk");
-  private static final Pattern BASE_BRANCH_PATTERN =
-      Pattern.compile("^(" + String.join("|", POSSIBLE_BASE_BRANCHES) + "|release/.*|hotfix/.*)$");
+  private static final List<String> POSSIBLE_BASE_BRANCH_PREFIXES =
+      Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
 
@@ -606,42 +604,27 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.BASE_COMMIT_SHA,
         () -> {
-          String sourceBranch = getSourceBranch();
-          if (sourceBranch == null) {
+          String sourceBranch = getCurrentBranch();
+          if (Strings.isBlank(sourceBranch)) {
             return null;
           }
           LOGGER.debug("Source branch: {}", sourceBranch);
 
-          if (baseBranch == null) {
-            String remoteName = getRemoteName();
-            LOGGER.debug("Remote name: {}", remoteName);
+          String remoteName = getRemoteName();
+          LOGGER.debug("Remote name: {}", remoteName);
 
-            String defaultBranch =
-                Strings.isNotBlank(settingsDefaultBranch)
-                    ? settingsDefaultBranch
-                    : detectDefaultBranch(remoteName);
-
-            for (String branch : POSSIBLE_BASE_BRANCHES) {
-              tryFetchingIfNotFoundLocally(branch, remoteName);
-            }
-
-            List<String> candidates = getBaseBranchCandidates(sourceBranch, remoteName);
-            if (candidates.isEmpty()) {
-              LOGGER.debug("No base branch candidates found");
-              return null;
-            }
-
-            // select best candidate based on "ahead" metrics
-            Map<String, BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
-            return findBestBranchSha(metrics, defaultBranch, remoteName);
+          if (baseBranch != null) {
+            tryFetchingIfNotFoundLocally(baseBranch, remoteName);
+            String fullBaseBranchName =
+                remoteName + "/" + removeRemotePrefix(baseBranch, remoteName);
+            return getMergeBase(fullBaseBranchName, sourceBranch);
+          } else {
+            return guessBestBaseBranchSha(sourceBranch, remoteName, settingsDefaultBranch);
           }
-
-          return getCommonAncestor(baseBranch, sourceBranch);
         });
   }
 
-  @SuppressForbidden // split on single-character uses fast path
-  public String getRemoteName() throws IOException, InterruptedException, TimeoutException {
+  String getRemoteName() throws IOException, InterruptedException, TimeoutException {
     try {
       String remote =
           commandExecutor
@@ -654,7 +637,8 @@ public class ShellGitClient implements GitClient {
                   "@{upstream}")
               .trim();
 
-      return remote.split("/")[0];
+      int slashIdx = remote.indexOf("/");
+      return slashIdx != -1 ? remote.substring(0, slashIdx) : remote;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error getting remote from upstream, falling back to first remote", e);
     }
@@ -670,33 +654,152 @@ public class ShellGitClient implements GitClient {
   }
 
   @Nullable
-  public String getSourceBranch() throws IOException, InterruptedException, TimeoutException {
-    try {
-      return commandExecutor
-          .executeCommand(IOUtils::readFully, "git", "rev-parse", "--abbrev-ref", "HEAD")
-          .trim();
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error getting source branch", e);
+  String guessBestBaseBranchSha(
+      String sourceBranch, String remoteName, @Nullable String settingsDefaultBranch)
+      throws IOException, InterruptedException, TimeoutException {
+    for (String branch : POSSIBLE_BASE_BRANCHES) {
+      tryFetchingIfNotFoundLocally(branch, remoteName);
+    }
+    if (settingsDefaultBranch != null) {
+      tryFetchingIfNotFoundLocally(settingsDefaultBranch, remoteName);
+    }
+
+    List<String> candidates = getBaseBranchCandidates(settingsDefaultBranch, remoteName);
+    if (candidates.isEmpty()) {
+      LOGGER.debug("No base branch candidates found");
       return null;
     }
-  }
 
-  public String removeRemotePrefix(String branch, String remoteName) {
-    if (branch.indexOf(remoteName + "/") != 0) {
-      return branch;
+    List<BaseBranchMetric> metrics = computeBranchMetrics(candidates, sourceBranch);
+    LOGGER.debug("Metrics found: {}", metrics);
+    if (metrics.isEmpty()) {
+      return null;
     }
-    return branch.substring(remoteName.length() + 1);
+
+    String defaultBranch =
+        Strings.isNotBlank(settingsDefaultBranch)
+            ? settingsDefaultBranch
+            : detectDefaultBranch(remoteName);
+
+    List<BaseBranchMetric> sortedMetrics =
+        sortBaseBranchCandidates(metrics, defaultBranch, remoteName);
+
+    for (BaseBranchMetric metric : sortedMetrics) {
+      String sha = getMergeBase(metric.branch, sourceBranch);
+      if (Strings.isNotBlank(sha)) {
+        return sha;
+      }
+    }
+
+    return null;
   }
 
-  public boolean isBaseLikeBranch(String branch, String remoteName) {
-    // remove remote prefix
+  void tryFetchingIfNotFoundLocally(String branch, String remoteName)
+      throws IOException, InterruptedException, TimeoutException {
     String shortBranchName = removeRemotePrefix(branch, remoteName);
+    try {
+      // check if branch exists locally as a remote ref
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          "git",
+          "show-ref",
+          "--verify",
+          "--quiet",
+          "refs/remotes/" + remoteName + "/" + shortBranchName);
+      LOGGER.debug("Branch {}/{} exists locally, skipping fetch", remoteName, shortBranchName);
+      return;
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug(
+          "Branch {}/{} does not exist locally, checking remote", remoteName, shortBranchName);
+    }
 
-    return BASE_BRANCH_PATTERN.matcher(shortBranchName).matches();
+    // check if branch exists in remote
+    String remoteHeads = null;
+    try {
+      remoteHeads =
+          commandExecutor
+              .executeCommand(
+                  IOUtils::readFully, "git", "ls-remote", "--heads", remoteName, shortBranchName)
+              .trim();
+    } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+    }
+
+    if (Strings.isBlank(remoteHeads)) {
+      LOGGER.debug("Branch {}/{} does not exist in remote", remoteName, shortBranchName);
+      return;
+    }
+
+    // fetch latest commit for branch from remote
+    LOGGER.debug("Branch {}/{} exists in remote, fetching", remoteName, shortBranchName);
+    try {
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          "git",
+          "fetch",
+          "--depth",
+          "1",
+          remoteName,
+          shortBranchName);
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug("Branch {}/{} couldn't be fetched from remote", remoteName, shortBranchName, e);
+    }
+  }
+
+  List<String> getBaseBranchCandidates(@Nullable String defaultBranch, String remoteName)
+      throws IOException, InterruptedException, TimeoutException {
+    List<String> candidates = new ArrayList<>();
+    try {
+      // only consider remote branches
+      List<String> branches =
+          commandExecutor.executeCommand(
+              IOUtils::readLines,
+              "git",
+              "for-each-ref",
+              "--format=%(refname:short)",
+              "refs/remotes/" + remoteName);
+      for (String branch : branches) {
+        if (isBaseLikeBranch(branch, remoteName)
+            || branchesEquals(branch, defaultBranch, remoteName)) {
+          candidates.add(branch);
+        }
+      }
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug("Error building candidate branches", e);
+    }
+
+    return candidates;
+  }
+
+  boolean branchesEquals(String branchA, String branchB, @Nonnull String remoteName) {
+    return branchA != null
+        && branchB != null
+        && removeRemotePrefix(branchA, remoteName).equals(removeRemotePrefix(branchB, remoteName));
+  }
+
+  String removeRemotePrefix(@Nonnull String branch, @Nonnull String remoteName) {
+    if (branch.startsWith(remoteName + "/")) {
+      return branch.substring(remoteName.length() + 1);
+    }
+    return branch;
+  }
+
+  boolean isBaseLikeBranch(@Nonnull String branch, @Nonnull String remoteName) {
+    String shortBranchName = removeRemotePrefix(branch, remoteName);
+    if (POSSIBLE_BASE_BRANCHES.contains(shortBranchName)) {
+      return true;
+    }
+
+    for (String prefix : POSSIBLE_BASE_BRANCH_PREFIXES) {
+      if (shortBranchName.startsWith(prefix)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   @Nullable
-  public String detectDefaultBranch(String remoteName)
+  String detectDefaultBranch(String remoteName)
       throws IOException, InterruptedException, TimeoutException {
     try {
       String defaultRef =
@@ -736,164 +839,106 @@ public class ShellGitClient implements GitClient {
     return null;
   }
 
-  public void tryFetchingIfNotFoundLocally(String branch, String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
-    try {
-      // check if branch exists locally as a remote ref
-      commandExecutor.executeCommand(
-          ShellCommandExecutor.OutputParser.IGNORE,
-          "git",
-          "show-ref",
-          "--verify",
-          "--quiet",
-          "refs/remotes/" + remoteName + "/" + branch);
-      LOGGER.debug("Branch {} exists locally, skipping fetch", branch);
-      return;
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Branch {} does not exist locally, checking remote", branch);
-    }
-
-    // check if branch exists in remote
-    String remoteHeads = null;
-    try {
-      remoteHeads =
-          commandExecutor
-              .executeCommand(IOUtils::readFully, "git", "ls-remote", "--heads", remoteName, branch)
-              .trim();
-    } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
-    }
-
-    if (Strings.isBlank(remoteHeads)) {
-      LOGGER.debug("Branch {} does not exist in remote", branch);
-      return;
-    }
-
-    // fetch latest commit for branch from remote
-    LOGGER.debug("Branch {} exists in remote, fetching", branch);
-    commandExecutor.executeCommand(
-        ShellCommandExecutor.OutputParser.IGNORE,
-        "git",
-        "fetch",
-        "--depth",
-        "1",
-        remoteName,
-        branch);
-  }
-
-  public List<String> getBaseBranchCandidates(String sourceBranch, String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
-    List<String> candidates = new ArrayList<>();
-    try {
-      // only consider remote branches
-      List<String> branches =
-          commandExecutor.executeCommand(
-              IOUtils::readLines,
-              "git",
-              "for-each-ref",
-              "--format='%(refname:short)'",
-              "refs/remotes/" + remoteName);
-      for (String branch : branches) {
-        if (!branch.equals(sourceBranch) && isBaseLikeBranch(branch, remoteName)) {
-          candidates.add(branch);
-        }
-      }
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error building candidate branches", e);
-    }
-
-    return candidates;
-  }
-
-  public String getCommonAncestor(String candidateBranch, String sourceBranch)
-      throws IOException, InterruptedException, TimeoutException {
-    try {
-      return commandExecutor
-          .executeCommand(IOUtils::readFully, "git", "merge-base", candidateBranch, sourceBranch)
-          .trim();
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug(
-          "Error calculating common ancestor for {} and {}", candidateBranch, sourceBranch, e);
-    }
-    return null;
-  }
-
-  public static class BaseBranchMetric {
+  static class BaseBranchMetric {
+    private final String branch;
     private final int behind;
     private final int ahead;
-    private final String baseSha;
 
-    public BaseBranchMetric(int behind, int ahead, String baseSha) {
+    BaseBranchMetric(String branch, int behind, int ahead) {
+      this.branch = branch;
       this.behind = behind;
       this.ahead = ahead;
-      this.baseSha = baseSha;
     }
 
     @Override
     public boolean equals(Object o) {
       if (!(o instanceof BaseBranchMetric)) return false;
       BaseBranchMetric that = (BaseBranchMetric) o;
-      return behind == that.behind && ahead == that.ahead && Objects.equals(baseSha, that.baseSha);
+      return behind == that.behind && ahead == that.ahead && Objects.equals(branch, that.branch);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(behind, ahead, baseSha);
+      return Objects.hash(branch, behind, ahead);
+    }
+
+    @Override
+    public String toString() {
+      return "BaseBranchMetric{"
+          + "branch='"
+          + branch
+          + '\''
+          + ", behind="
+          + behind
+          + ", ahead="
+          + ahead
+          + '}';
     }
   }
 
-  public Map<String, BaseBranchMetric> computeBranchMetrics(
-      List<String> candidates, String sourceBranch)
+  List<BaseBranchMetric> computeBranchMetrics(List<String> candidates, String sourceBranch)
       throws IOException, InterruptedException, TimeoutException {
-    Map<String, BaseBranchMetric> branchMetrics = new HashMap<>();
+    List<BaseBranchMetric> branchMetrics = new ArrayList<>();
 
     for (String candidate : candidates) {
-      String baseSha = getCommonAncestor(candidate, sourceBranch);
-      if (baseSha == null || baseSha.isEmpty()) {
-        continue;
+      try {
+        String countsResult =
+            commandExecutor
+                .executeCommand(
+                    IOUtils::readFully,
+                    "git",
+                    "rev-list",
+                    "--left-right",
+                    "--count",
+                    candidate + "..." + sourceBranch)
+                .trim();
+
+        String[] counts = WHITESPACE_PATTERN.split(countsResult);
+        int behind = Integer.parseInt(counts[0]);
+        int ahead = Integer.parseInt(counts[1]);
+        if (behind == 0 && ahead == 0) {
+          LOGGER.debug("Branch {} is up to date", candidate);
+        } else {
+          branchMetrics.add(new BaseBranchMetric(candidate, behind, ahead));
+        }
+      } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+        LOGGER.debug("Could not get metrics for candidate {}", candidate);
       }
-
-      String countsResult =
-          commandExecutor
-              .executeCommand(
-                  IOUtils::readFully,
-                  "git",
-                  "rev-list",
-                  "--left-right",
-                  "--count",
-                  candidate + "..." + sourceBranch)
-              .trim();
-
-      String[] counts = WHITESPACE_PATTERN.split(countsResult);
-      int behind = Integer.parseInt(counts[0]);
-      int ahead = Integer.parseInt(counts[1]);
-
-      branchMetrics.put(candidate, new BaseBranchMetric(behind, ahead, baseSha));
     }
 
     return branchMetrics;
   }
 
-  public boolean isDefaultBranch(String branch, @Nullable String defaultBranch, String remoteName) {
-    return defaultBranch != null
-        && (branch.equals(defaultBranch) || branch.equals(remoteName + "/" + defaultBranch));
+  boolean isDefaultBranch(String branch, @Nullable String defaultBranch, String remoteName) {
+    return defaultBranch != null && branchesEquals(branch, defaultBranch, remoteName);
   }
 
-  public String findBestBranchSha(
-      Map<String, BaseBranchMetric> metrics, String defaultBranch, String remoteName) {
-    if (metrics.isEmpty()) {
-      return null;
+  List<BaseBranchMetric> sortBaseBranchCandidates(
+      List<BaseBranchMetric> metrics, String defaultBranch, String remoteName) {
+    Comparator<BaseBranchMetric> comparator =
+        Comparator.comparingInt((BaseBranchMetric b) -> b.ahead)
+            .thenComparing(b -> !isDefaultBranch(b.branch, defaultBranch, remoteName));
+
+    return metrics.stream().sorted(comparator).collect(Collectors.toList());
+  }
+
+  /**
+   * Returns the merge base between to branches
+   *
+   * @param baseBranch Base branch. Must be remote, i.e. "origin/master"
+   * @param sourceBranch Source branch
+   * @return Merge base between the two branches
+   */
+  String getMergeBase(String baseBranch, String sourceBranch)
+      throws IOException, InterruptedException, TimeoutException {
+    try {
+      return commandExecutor
+          .executeCommand(IOUtils::readFully, "git", "merge-base", baseBranch, sourceBranch)
+          .trim();
+    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+      LOGGER.debug("Error calculating common ancestor for {} and {}", baseBranch, sourceBranch, e);
     }
-
-    // Find branch with smallest "ahead" value, prioritizing default branch on tie
-    Comparator<Map.Entry<String, BaseBranchMetric>> comparator =
-        Comparator.comparingInt((Map.Entry<String, BaseBranchMetric> e) -> e.getValue().ahead)
-            .thenComparing( // negated to prioritize default branch on min search
-                e -> !isDefaultBranch(e.getKey(), defaultBranch, remoteName));
-
-    Map.Entry<String, BaseBranchMetric> bestMetric =
-        metrics.entrySet().stream().min(comparator).orElse(null);
-
-    return bestMetric != null ? bestMetric.getValue().baseSha : null;
+    return null;
   }
 
   /**
