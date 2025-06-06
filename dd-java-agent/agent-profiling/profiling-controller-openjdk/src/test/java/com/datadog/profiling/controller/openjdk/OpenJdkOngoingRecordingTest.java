@@ -7,7 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.ControllerContext;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
 import jdk.jfr.Recording;
@@ -36,7 +36,7 @@ public class OpenJdkOngoingRecordingTest {
 
   @BeforeEach
   public void setup() {
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
     when(recording.getState()).thenReturn(RecordingState.RUNNING);
     when(recording.getName()).thenReturn(TEST_NAME);
 

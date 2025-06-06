@@ -20,6 +20,7 @@ dependencies {
   api libs.slf4j
   api project(':internal-api')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
+  implementation project(':components:environment')
 
   testImplementation libs.bundles.junit5
   testImplementation libs.guava

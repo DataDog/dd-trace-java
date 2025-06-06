@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +44,7 @@ public class OpenJdkRecordingDataTest {
 
   @BeforeEach
   public void setup() throws IOException {
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
     when(recording.getStream(start, end)).thenReturn(stream);
     when(recording.getStream(customStart, customEnd)).thenReturn(customStream);
     when(recording.getStartTime()).thenReturn(start);
