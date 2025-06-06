@@ -27,9 +27,9 @@ variables:
   GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
-  JAVA_BUILD_IMAGE_VERSION: "v25.05"
+  JAVA_BUILD_IMAGE_VERSION: "101_merge"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21)$/
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|ubuntu17)$/
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -366,7 +366,7 @@ muzzle-dep-report:
 
 .test_job:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:$testJvm
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${JAVA_BUILD_IMAGE_VERSION}-${testJvm}
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
   needs: [ build_tests ]
   stage: tests
@@ -542,7 +542,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|semeru8)$/
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|semeru8|ubuntu17)$/
   parallel:
     matrix: *test_matrix
 
