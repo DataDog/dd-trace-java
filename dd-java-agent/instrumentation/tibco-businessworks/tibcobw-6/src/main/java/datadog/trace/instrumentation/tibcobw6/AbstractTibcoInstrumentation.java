@@ -8,7 +8,7 @@ import java.util.Map;
 
 public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tracing {
   public AbstractTibcoInstrumentation() {
-    this(NO_ADDITIONAL_NAMES);
+    super("tibco", "tibco_bw");
   }
 
   public AbstractTibcoInstrumentation(String... additionalNames) {

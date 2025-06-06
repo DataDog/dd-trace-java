@@ -56,7 +56,6 @@ public abstract class InstrumenterModule implements Instrumenter {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
 
   protected static final String[] NO_HELPERS = {};
-  protected static final String[] NO_ADDITIONAL_NAMES = {};
 
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
