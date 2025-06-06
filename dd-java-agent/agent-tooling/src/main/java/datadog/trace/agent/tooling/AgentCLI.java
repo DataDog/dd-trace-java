@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling;
 
-import com.datadog.crashtracking.CrashUploader;
-import com.datadog.crashtracking.OOMENotifier;
+import datadog.crashtracking.CrashUploader;
+import datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.profiler.EnvironmentChecker;

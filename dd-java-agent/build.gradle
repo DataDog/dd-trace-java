@@ -297,6 +297,9 @@ dependencies {
   sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
     transitive = false
   }
+  sharedShadowInclude project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow'), {
+    transitive = false
+  }
   traceShadowInclude project(':dd-trace-core')
 }
 
@@ -327,7 +330,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert shadowJar.archiveFile.get().getAsFile().length() <= 32 * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 35 * 1024 * 1024
   }
 
   dependsOn "shadowJar"
