@@ -206,6 +206,10 @@ project.afterEvaluate {
       }
     }
 
+    if (testJvm == 'ubuntu17') {
+      jvmArgs += ['-Djavax.net.ssl.trustStoreType=jks', '-Djavax.net.ssl.keyStoreType=jks']
+    }
+
     if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
       doFirst {
         def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
