@@ -45,13 +45,15 @@ public class DataStreamsPropagator implements Propagator {
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     // TODO Pathway context needs to be stored into its own context element instead of span context
-    AgentSpan span = AgentSpan.fromContext(context);
-    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
+    AgentSpan span;
     PathwayContext pathwayContext;
-    if (span == null
-        || dsmContext == null
+    DataStreamsContext dsmContext;
+    TraceConfig traceConfig;
+    if ((span = AgentSpan.fromContext(context)) == null
         || (pathwayContext = span.context().getPathwayContext()) == null
-        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+        || (dsmContext = DataStreamsContext.fromContext(context)) == null
+        || (traceConfig = span.traceConfig()) == null
+        || !traceConfig.isDataStreamsEnabled()) {
       return;
     }
 
@@ -69,12 +71,12 @@ public class DataStreamsPropagator implements Propagator {
     try {
       String encodedContext = pathwayContext.encode();
       if (encodedContext != null) {
-        //        LOGGER.debug("Injecting pathway context {}", pathwayContext);
+        // LOGGER.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
         return true;
       }
     } catch (IOException e) {
-      //      LOGGER.debug("Unable to set encode pathway context", e);
+      // LOGGER.debug("Unable to set encode pathway context", e);
     }
     return false;
   }
