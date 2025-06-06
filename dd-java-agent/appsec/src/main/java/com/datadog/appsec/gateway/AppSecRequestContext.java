@@ -98,6 +98,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private volatile StoredBodySupplier storedResponseBodySupplier;
   private String dbType;
 
   private int responseStatus;
@@ -106,6 +107,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private boolean rawRespBodyPublished;
+  private boolean convertedRespBodyPublished;
   private boolean pathParamsPublished;
   private volatile Map<String, String> derivatives;
 
@@ -130,6 +133,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile int raspTimeouts;
 
   private volatile Object processedRequestBody;
+  private volatile Object processedResponseBody;
   private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
@@ -454,6 +458,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  void setStoredResponseBodySupplier(StoredBodySupplier storedResponseBodySupplier) {
+    this.storedResponseBodySupplier = storedResponseBodySupplier;
+  }
+
   public String getDbType() {
     return dbType;
   }
@@ -508,6 +516,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public boolean isRawRespBodyPublished() {
+    return rawRespBodyPublished;
+  }
+
+  public void setRawRespBodyPublished(boolean rawRespBodyPublished) {
+    this.rawRespBodyPublished = rawRespBodyPublished;
+  }
+
+  public boolean isConvertedRespBodyPublished() {
+    return convertedRespBodyPublished;
+  }
+
+  public void setConvertedRespBodyPublished(boolean convertedRespBodyPublished) {
+    this.convertedRespBodyPublished = convertedRespBodyPublished;
   }
 
   /**
@@ -581,6 +605,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       return null;
     }
     return storedRequestBodySupplier.get();
+  }
+
+  /** @return the portion of the response body read so far, if any */
+  public CharSequence getStoredResponseBody() {
+    StoredBodySupplier storedResponseBodySupplier = this.storedResponseBodySupplier;
+    if (storedResponseBodySupplier == null) {
+      return null;
+    }
+    return storedResponseBodySupplier.get();
   }
 
   public void reportEvents(Collection<AppSecEvent> appSecEvents) {
@@ -685,6 +718,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Object getProcessedRequestBody() {
     return processedRequestBody;
+  }
+
+  public void setProcessedResponseBody(Object processedResponseBody) {
+    this.processedResponseBody = processedResponseBody;
+  }
+
+  public Object getProcessedResponseBody() {
+    return processedResponseBody;
   }
 
   public boolean isRaspMatched() {

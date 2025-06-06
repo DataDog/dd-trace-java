@@ -312,6 +312,40 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
   }
 
+  static final int RESPONSE_BODY_START_ID = 26;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY_START =
+      new ET<>("response.body.started", RESPONSE_BODY_START_ID);
+  /** The response body has started being read */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, StoredBodySupplier, Void>> responseBodyStart() {
+    return (EventType<BiFunction<RequestContext, StoredBodySupplier, Void>>) RESPONSE_BODY_START;
+  }
+
+  static final int RESPONSE_BODY_DONE_ID = 27;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY_DONE =
+      new ET<>("response.body.done", RESPONSE_BODY_DONE_ID);
+  /** The response body is done being read */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>> responseBodyDone() {
+    return (EventType<BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>>)
+        RESPONSE_BODY_DONE;
+  }
+
+  static final int RESPONSE_BODY_CONVERTED_ID = 28;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY_CONVERTED =
+      new ET<>("response.body.converted", RESPONSE_BODY_CONVERTED_ID);
+  /** The response body has been converted by the framework */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Object, Flow<Void>>> responseBodyProcessed() {
+    return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) RESPONSE_BODY_CONVERTED;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
