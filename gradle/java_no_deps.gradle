@@ -150,6 +150,9 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+  if (testJvm == "stable") {
+    testJvm = "24"
+  }
   if (testJvm) {
     def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
     if (!matcher.matches()) {
