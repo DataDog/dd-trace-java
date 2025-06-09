@@ -191,7 +191,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
     if (endpoint.status == 404 && (changesAll404s() || endpoint.path == "/not-found")) {
-      return "404" // TODO
+      return "404"
     } else if (endpoint.hasPathParam) {
       return "$method ${testPathParam()}"
     }
