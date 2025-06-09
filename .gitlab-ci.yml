@@ -25,7 +25,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
