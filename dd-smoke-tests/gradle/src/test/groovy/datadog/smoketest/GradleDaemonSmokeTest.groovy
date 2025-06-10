@@ -244,7 +244,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
-      .withEnvironment(Collections.singletonMap("GRADLE_VERSION", gradleVersion))
+      .withEnvironment(["GRADLE_VERSION": gradleVersion])
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
