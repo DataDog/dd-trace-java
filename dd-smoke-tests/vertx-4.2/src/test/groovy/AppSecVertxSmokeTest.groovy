@@ -1,6 +1,9 @@
 import datadog.smoketest.appsec.AbstractAppSecServerSmokeTest
 import datadog.trace.agent.test.utils.OkHttpUtils
+import groovy.json.JsonOutput
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import spock.lang.IgnoreIf
 
@@ -69,5 +72,38 @@ class AppSecVertxSmokeTest extends AbstractAppSecServerSmokeTest {
     span.meta.containsKey('_dd.appsec.s.req.query')
     span.meta.containsKey('_dd.appsec.s.req.params')
     span.meta.containsKey('_dd.appsec.s.req.headers')
+  }
+
+  void 'test response schema extraction'() {
+    given:
+    def url = "http://localhost:${httpPort}/api_security/response"
+    def client = OkHttpUtils.clientBuilder().build()
+    def body = [
+      source: 'AppSecVertxSmokeTest',
+      tests : [
+        [
+          name  : 'API Security samples only one request per endpoint',
+          status: 'SUCCESS'
+        ],
+        [
+          name  : 'test response schema extraction',
+          status: 'FAILED'
+        ]
+      ]
+    ]
+    def request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
+      .build()
+
+    when:
+    final response = client.newCall(request).execute()
+    waitForTraceCount(1)
+
+    then:
+    response.code() == 200
+    def span = rootSpans.first()
+    span.meta.containsKey('_dd.appsec.s.res.headers')
+    span.meta.containsKey('_dd.appsec.s.res.body')
   }
 }
