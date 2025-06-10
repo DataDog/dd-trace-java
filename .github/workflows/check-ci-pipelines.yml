@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run Ensure CI Success
-        uses: DataDog/ensure-ci-success@727e7fe39ae2e1ce7ea336ec85a7369ab0731754
+        uses: DataDog/ensure-ci-success@4a4b720e881d965254a9de2a4f14d1ec0c3d0d7c
         with:
           initial-delay-seconds: "500"
           max-retries: "60"
