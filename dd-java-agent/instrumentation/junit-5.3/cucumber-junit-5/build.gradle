@@ -5,7 +5,7 @@ muzzle {
     group = 'io.cucumber'
     module = 'cucumber-junit-platform-engine'
     versions = '[5.4.0,)'
-    extraDependency "org.junit.platform:junit-platform-launcher:1.9.2"
+    extraDependency "org.junit.platform:junit-platform-launcher:1.13.1"
   }
 }
 
@@ -19,9 +19,9 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.9.2'
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-suite-engine', version: '1.9.2'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.1'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.13.1'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-suite-engine', version: '1.13.1'
 
   testImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
   testImplementation group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
@@ -33,8 +33,8 @@ dependencies {
 
 configurations.matching({ it.name.startsWith('test') }).each({
   it.resolutionStrategy {
-    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
-    force group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.9.2'
-    force group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.9.2'
+    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.1'
+    force group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.13.1'
+    force group: 'org.junit.platform', name: 'junit-platform-suite-engine', version: '1.13.1'
   }
 })
