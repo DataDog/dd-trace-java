@@ -24,6 +24,8 @@ cat_file() {
 }
 
 # Show cgroup memory usage
+print_metric "RAM memory" "$( (grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f 2) 2>/dev/null || echo 'not found')"
+
 if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
   # cgroup v2
   print_metric "cgroup v2 memory.peak" "$(cat_file /sys/fs/cgroup/memory.peak)"
@@ -79,4 +81,3 @@ else
   printf "cgroup memory paths not found. Neither cgroup v2 controller file nor cgroup v1 memory directory detected.\n"
 fi
 
-print_metric "ram memory" "$( (grep MemTotal /proc/meminfo | tr -s ' ' | cut -d ' ' -f 2) 2>/dev/null || echo 'not found')"
