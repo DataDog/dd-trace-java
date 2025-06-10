@@ -1,3 +1,4 @@
+import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -175,7 +176,7 @@ project.afterEvaluate {
     def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
-      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(org.gradle.api.internal.provider.PropertyFactory), file(testJvmHomePath))
+      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {
