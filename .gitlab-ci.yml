@@ -48,7 +48,6 @@ variables:
       - "21"
       - "semeru11"
       - "oracle8"
-      - "ubuntu17"
       - "zulu8"
       - "semeru8"
       - "ibm8"
