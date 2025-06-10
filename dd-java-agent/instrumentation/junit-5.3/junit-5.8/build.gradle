@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-def jupiterVersion = '5.8.0'
-def platformVersion = '1.8.0'
+def jupiterVersion = '5.13.1'
+def platformVersion = '1.13.1'
 
 muzzle {
   pass {
@@ -36,9 +36,9 @@ dependencies {
 
   // versions used below are not the minimum ones that we support,
   // but the tests need to use them in order to be compliant with Spock 2.x
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
-  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.9.2'
-  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.9.2'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.1'
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.13.1'
+  testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.13.1'
 
   latestDepTestImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '+'
   latestDepTestImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '+'
@@ -47,8 +47,8 @@ dependencies {
 
 configurations.matching({ it.name.startsWith('test') }).each({
   it.resolutionStrategy {
-    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
-    force group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.9.2'
-    force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.9.2'
+    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.1'
+    force group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.13.1'
+    force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.13.1'
   }
 })
