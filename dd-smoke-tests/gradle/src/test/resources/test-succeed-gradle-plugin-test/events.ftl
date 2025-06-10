@@ -215,7 +215,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 40,
+      "test.source.end" : 44,
       "test.source.start" : 16
     },
     "name" : "junit5.test_suite",
@@ -273,7 +273,7 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 39,
+      "test.source.end" : 43,
       "test.source.start" : 30
     },
     "name" : "junit5.test",
