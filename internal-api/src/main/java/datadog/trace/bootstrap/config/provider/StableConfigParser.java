@@ -1,17 +1,18 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml;
+import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
+import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
+import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,8 @@ public class StableConfigParser {
 
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
-  private static final String UNDEFINED_VALUE = "UNDEFINED";
+  static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
+  private static final String UNDEFINED_VALUE = "";
 
   /**
    * Parses a configuration file and returns a stable configuration object.
@@ -39,13 +41,26 @@ public class StableConfigParser {
    */
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
-      String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-      String processedContent = processTemplate(content);
-      StableConfigYaml data = YamlParser.parse(processedContent, StableConfigYaml.class);
+      Path path = Paths.get(filePath);
 
-      String configId = data.getConfig_id();
-      ConfigurationMap configMap = data.getApm_configuration_default();
-      List<Rule> rules = data.getApm_configuration_rules();
+      // If file is over size limit, drop
+      if (Files.size(path) > MAX_FILE_SIZE_BYTES) {
+        log.warn(
+            "Configuration file {} exceeds max size {} bytes; dropping.",
+            filePath,
+            MAX_FILE_SIZE_BYTES);
+        return StableConfigSource.StableConfig.EMPTY;
+      }
+
+      String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+
+      String processedContent = processTemplate(content);
+      Object parsedYaml = YamlParser.parse(processedContent);
+      StableConfig data = new StableConfig(parsedYaml);
+
+      String configId = data.getConfigId();
+      Map<String, Object> configMap = data.getApmConfigurationDefault();
+      List<Rule> rules = data.getApmConfigurationRules();
 
       if (!rules.isEmpty()) {
         for (Rule rule : rules) {
@@ -53,14 +68,15 @@ public class StableConfigParser {
           if (doesRuleMatch(rule)) {
             // Merge configs found in apm_configuration_rules with those found in
             // apm_configuration_default
-            configMap.putAll(rule.getConfiguration());
-            return createStableConfig(configId, configMap);
+            Map<String, Object> mergedConfigMap = new LinkedHashMap<>(configMap);
+            mergedConfigMap.putAll(rule.getConfiguration());
+            return new StableConfigSource.StableConfig(configId, mergedConfigMap);
           }
         }
       }
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
-        return createStableConfig(configId, configMap);
+        return new StableConfigSource.StableConfig(configId, configMap);
       }
 
       // If there's a configId but no configMap, use configId but return an empty map
@@ -69,10 +85,7 @@ public class StableConfigParser {
       }
 
     } catch (IOException e) {
-      log.debug(
-          "Stable configuration file either not found or not readable at filepath {}. Error: {}",
-          filePath,
-          e.getMessage());
+      log.debug("Failed to read the stable configuration file: {}", filePath, e);
     }
     return StableConfigSource.StableConfig.EMPTY;
   }
@@ -89,12 +102,6 @@ public class StableConfigParser {
       }
     }
     return true; // Return true if all selectors match
-  }
-
-  /** Creates a StableConfig object from the provided configId and configMap. */
-  private static StableConfigSource.StableConfig createStableConfig(
-      String configId, ConfigurationMap configMap) {
-    return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
   }
 
   private static boolean validOperatorForLanguageOrigin(String operator) {

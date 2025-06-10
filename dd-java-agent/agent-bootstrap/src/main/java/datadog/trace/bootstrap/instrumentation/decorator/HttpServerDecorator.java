@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.context.Context.root;
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -11,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -137,17 +137,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /**
-   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentation's is complete
+   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentations is complete
    */
   public Context extractContext(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
       return root();
     }
-    return defaultPropagator().extract(root(), carrier, getter);
+    return Propagators.defaultPropagator().extract(root(), carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpanFromContext(String, Object, Context)} instead. */
+  /** Deprecated. Use {@link #startSpan(Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
@@ -170,18 +170,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return span;
   }
 
-  /**
-   * Will be renamed to #startSpan(String, REQUEST_CARRIER, Context) when refactoring of
-   * instrumentation's is complete
-   */
-  public AgentSpan startSpanFromContext(
-      String instrumentationName, REQUEST_CARRIER carrier, Context context) {
-    return startSpan(instrumentationName, carrier, getSpanContext(context));
+  public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
+    return startSpan("http-server", carrier, getExtractedSpanContext(context));
   }
 
-  public AgentSpanContext.Extracted getSpanContext(Context context) {
+  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+  }
+
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final Context context) {
+    return onRequest(span, connection, request, getExtractedSpanContext(context));
   }
 
   public AgentSpan onRequest(

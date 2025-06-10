@@ -1,9 +1,12 @@
+import datadog.trace.api.ProcessTags
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static org.junit.Assume.assumeTrue
 
 import com.google.common.io.Files
@@ -85,6 +88,11 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
       server.start()
       port = ((server.connectors[0] as Connector).protocolHandler as Http11BaseProtocol).ep.serverSocket.localPort
       assert port > 0
+      if (testProcessTags()) {
+        assert ProcessTags.getTagsAsStringList().containsAll(["server.type:tomcat", "server.name:test"])
+      } else {
+        assert ProcessTags.getTagsAsStringList() == null
+      }
     }
 
     @Override
@@ -170,6 +178,22 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
   @Override
   boolean testSessionId() {
     true
+  }
+
+
+  boolean testProcessTags() {
+    false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "${testProcessTags()}")
+  }
+
+  def cleanupSpec() {
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
@@ -316,4 +340,8 @@ class TomcatServletV0Test extends TomcatServletTest implements TestingGenericHtt
 
 class TomcatServletV1ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV1 {
 
+  @Override
+  boolean testProcessTags() {
+    true
+  }
 }

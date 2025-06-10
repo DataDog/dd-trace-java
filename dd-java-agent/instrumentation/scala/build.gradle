@@ -27,7 +27,17 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
   def (major, minor) = version.split('_').collect(Integer.&valueOf)
   final javaConcatenation = major > 2 || minor > 11 // after 2.11 scala uses java.lang.StringBuilder to perform concatenation
 
-  final configuration = configurations.create("${version}Implementation")
+  final configuration = configurations.create("${version}Implementation") {
+    canBeConsumed = false
+    canBeResolved = false
+    canBeDeclared = true
+  }
+  final classPathConfiguration = configurations.create("${version}CompileClasspath") {
+    canBeConsumed = false
+    canBeResolved = true
+    canBeDeclared = false
+    extendsFrom(configuration)
+  }
 
   dependencies { handler ->
     handler.add(configuration.name, scalaLibrary)
@@ -40,7 +50,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
   final customSourceSet = sourceSets.create("${version}") {
     scala {
       srcDirs = ['src/test/scala']
-      compileClasspath += configuration
+      compileClasspath += classPathConfiguration
     }
   }
 
@@ -49,7 +59,7 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
       .filter { !it.toString().contains('scala-library') }   // exclude default scala-library
       .minus(files(sourceSets.test.scala.classesDirectory))  // exclude default /build/classes/scala/test folder
       .plus(customSourceSet.output.classesDirs)              // add /build/classes/scala/${version} folder
-      .plus(configuration)                                   // add new scala-library configuration
+      .plus(classPathConfiguration)                                   // add new scala-library configuration
     systemProperty('uses.java.concat', javaConcatenation)
     dependsOn(tasks.named("compile${version.capitalize()}Scala"))
     group = 'verification'

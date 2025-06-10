@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -902,9 +903,9 @@ public class DDSpanContext
             .append("DDSpan [ t_id=")
             .append(traceId)
             .append(", s_id=")
-            .append(spanId)
+            .append(DDSpanId.toString(spanId))
             .append(", p_id=")
-            .append(parentId)
+            .append(DDSpanId.toString(parentId))
             .append(" ] trace=")
             .append(getServiceName())
             .append('/')
