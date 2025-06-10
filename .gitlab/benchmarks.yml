@@ -15,7 +15,7 @@
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git clone --branch dd-trace-java/tracer-benchmarks-s3-artifacts https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
+    - git clone --branch landerson/tracer-benchmarks-s3-artifacts https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
   artifacts:
     name: "reports"
     paths:
@@ -87,7 +87,7 @@ benchmarks-post-results:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
   needs: [ "build", "publish-artifacts-to-s3"]
   script:
-    - git clone --branch java/kafka-dsm-overhead-s3-artifacts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
+    - git clone --branch landerson/kafka-dsm-overhead-s3-artifacts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
     - ./steps/run-benchmarks.sh
   artifacts:
     name: "artifacts"
@@ -132,7 +132,7 @@ debugger-benchmarks:
   needs: ["build", "publish-artifacts-to-s3"]
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
-    - git clone --branch java/debugger-benchmarks-s3-artifacts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git /platform && cd /platform
+    - git clone --branch landerson/debugger-benchmarks-s3-artifacts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git /platform && cd /platform
     - numactl --cpunodebind=1 --membind=1 bp-runner bp-runner.yml --debug
     - "./steps/create-report.sh || :"
     - "./steps/post-pr-comment.sh || :"
