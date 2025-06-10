@@ -50,7 +50,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.0"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
     "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
     "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
     "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
