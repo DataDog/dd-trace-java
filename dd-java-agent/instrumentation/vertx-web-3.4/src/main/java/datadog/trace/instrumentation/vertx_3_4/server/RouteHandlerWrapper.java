@@ -17,7 +17,9 @@ import io.vertx.ext.web.impl.RouteImpl;
 import io.vertx.ext.web.impl.RouterImpl;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
+  static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
+  static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
 
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
@@ -40,6 +42,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (spanStarter) {
       if (span == null) {
         AgentSpan parentSpan = activeSpan();
+        routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
         span = startSpan(INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
@@ -47,9 +50,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
-
-        setRoute(parentSpan, routingContext);
       }
+      setRoute(routingContext);
     }
     try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
@@ -61,7 +63,12 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
   }
 
-  private void setRoute(AgentSpan parentSpan, RoutingContext routingContext) {
+  private void setRoute(RoutingContext routingContext) {
+    final AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
+    if (parentSpan == null) {
+      return;
+    }
+
     final String method = routingContext.request().rawMethod();
     String mountPoint = routingContext.mountPoint();
     String path = routingContext.currentRoute().getPath();
@@ -74,13 +81,19 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       }
       path = mountPoint + path;
     }
-    if (method != null && path != null && shouldUpdateRoute(parentSpan, path)) {
+    if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
+      routingContext.put(ROUTE_CONTEXT_KEY, path);
       HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
     }
   }
 
-  static boolean shouldUpdateRoute(final AgentSpan span, final String path) {
+  static boolean shouldUpdateRoute(
+      final RoutingContext routingContext, final AgentSpan span, final String path) {
     if (span == null) {
+      return false;
+    }
+    final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
+    if (currentRoute != null && currentRoute.equals(path)) {
       return false;
     }
     // do not override route with a "/" if it's already set (it's probably more meaningful)
