@@ -10,7 +10,6 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.ProductTraceSource
-import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -1201,26 +1200,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
-
-  void 'test api security sampling with tracing disabled'() {
-    given:
-    injectSysConfig(GeneralConfig.APM_TRACING_ENABLED, "false")
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    RequestContext mockCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-    when:
-    def flow = requestEndedCB.apply(mockCtx, spanInfo)
-    then:
-    1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
-    1 * apiSecurityProcessor.processTraceSegment(_, _, _ )
-    1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
-    1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
-  }
-
 
   void 'test default writeRequestHeaders'(){
     given:

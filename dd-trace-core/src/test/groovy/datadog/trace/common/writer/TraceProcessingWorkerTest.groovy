@@ -4,10 +4,7 @@ import datadog.trace.common.sampling.SingleSpanSampler
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor
 import datadog.trace.test.util.DDSpecification
 import spock.util.concurrent.PollingConditions
 
@@ -150,56 +147,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     where:
     priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
-  }
-
-  def "trace should be post-processed"() {
-    setup:
-    AtomicInteger acceptedCount = new AtomicInteger()
-    PayloadDispatcherImpl countingDispatcher = Mock(PayloadDispatcherImpl)
-    countingDispatcher.addTrace(_) >> {
-      acceptedCount.getAndIncrement()
-    }
-    HealthMetrics healthMetrics = Mock(HealthMetrics)
-
-    def span1 = DDSpan.create("test", 0, Mock(DDSpanContext) {
-      getTraceCollector() >> Mock(PendingTrace) {
-        getCurrentTimeNano() >> 0
-      }
-    }, [])
-    def processedSpan1 = false
-
-    // Span 2 - should NOT be post-processed
-    def span2 = DDSpan.create("test", 0, Mock(DDSpanContext) {
-      getTraceCollector() >> Mock(PendingTrace) {
-        getCurrentTimeNano() >> 0
-      }
-    }, [])
-    def processedSpan2 = false
-
-    SpanPostProcessor.Holder.INSTANCE = Mock(SpanPostProcessor) {
-      process(span1, _) >> { processedSpan1 = true }
-      process(span2, _) >> { processedSpan2 = true }
-    }
-
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
-      countingDispatcher, {
-        false
-      }, FAST_LANE, 100, TimeUnit.SECONDS, null)
-    worker.start()
-
-    when: "traces are submitted"
-    worker.publish(span1, SAMPLER_KEEP, [span1, span2])
-    worker.publish(span2, SAMPLER_KEEP, [span1, span2])
-
-    then: "traces are passed through unless rejected on submission"
-    conditions.eventually {
-      assert processedSpan1
-      assert processedSpan2
-    }
-
-    cleanup:
-    SpanPostProcessor.Holder.INSTANCE = SpanPostProcessor.Holder.NOOP
-    worker.close()
   }
 
   def "traces should be processed"() {

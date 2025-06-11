@@ -4,9 +4,11 @@ import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.ExpiredSubscriberInfoException
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.gateway.AppSecRequestContext
-import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.ProductTraceSource
+import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 
 class ApiSecurityProcessorTest extends DDSpecification {
@@ -29,9 +31,7 @@ class ApiSecurityProcessorTest extends DDSpecification {
     1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _)
-    1 * ctx.commitDerivatives(traceSegment)
-    1 * ctx.closeWafContext()
-    1 * ctx.close()
+    1 * traceSegment.setTagTop('asm.keep', true)
     0 * _
   }
 
@@ -39,8 +39,6 @@ class ApiSecurityProcessorTest extends DDSpecification {
     given:
     def sampler = Mock(ApiSecuritySampler)
     def producer = Mock(EventProducerService)
-    def span = Mock(AgentSpan)
-    def reqCtx = Mock(RequestContext)
     def ctx = Mock(AppSecRequestContext)
     def traceSegment = Mock(TraceSegment)
     def processor = new ApiSecurityProcessor(sampler, producer)
@@ -50,58 +48,7 @@ class ApiSecurityProcessorTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> ctx
     1 * sampler.sample(ctx) >> false
-    1 * ctx.closeWafContext()
-    1 * ctx.close()
-    0 * _
-  }
-
-  void 'permit is released even if request context close throws'() {
-    given:
-    def sampler = Mock(ApiSecuritySampler)
-    def producer = Mock(EventProducerService)
-    def span = Mock(AgentSpan)
-    def reqCtx = Mock(RequestContext)
-    def traceSegment = Mock(TraceSegment)
-    def ctx = Mock(AppSecRequestContext)
-    def processor = new ApiSecurityProcessor(sampler, producer)
-
-    when:
-    processor.processTraceSegment(traceSegment, ctx, null)
-
-    then:
-    noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> ctx
-    1 * sampler.sample(ctx) >> true
-    1 * reqCtx.getTraceSegment() >> traceSegment
-    1 * producer.getDataSubscribers(_) >> null
-    1 * ctx.closeWafContext()
-    1 * ctx.close() >> { throw new RuntimeException() }
-    0 * _
-  }
-
-  void 'context is cleaned up on timeout'() {
-    given:
-    def sampler = Mock(ApiSecuritySampler)
-    def producer = Mock(EventProducerService)
-    def span = Mock(AgentSpan)
-    def reqCtx = Mock(RequestContext)
-    def traceSegment = Mock(TraceSegment)
-    def ctx = Mock(AppSecRequestContext)
-    def processor = new ApiSecurityProcessor(sampler, producer)
-
-    when:
-    processor.processTraceSegment(traceSegment, ctx, null)
-
-    then:
-    noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> ctx
-    1 * ctx.closeWafContext()
-    1 * ctx.close()
     0 * _
   }
 
@@ -109,9 +56,7 @@ class ApiSecurityProcessorTest extends DDSpecification {
     given:
     def sampler = Mock(ApiSecuritySampler)
     def producer = Mock(EventProducerService)
-    def span = Mock(AgentSpan)
     def traceSegment = Mock(TraceSegment)
-    def reqCtx = Mock(RequestContext)
     def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
@@ -119,8 +64,6 @@ class ApiSecurityProcessorTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> null
     0 * _
   }
 
@@ -129,8 +72,6 @@ class ApiSecurityProcessorTest extends DDSpecification {
     def sampler = Mock(ApiSecuritySampler)
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
-    def span = Mock(AgentSpan)
-    def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new ApiSecurityProcessor(sampler, producer)
@@ -140,14 +81,9 @@ class ApiSecurityProcessorTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> ctx
     1 * sampler.sample(ctx) >> true
-    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> true
-    1 * ctx.closeWafContext()
-    1 * ctx.close()
     0 * _
   }
 
@@ -156,8 +92,6 @@ class ApiSecurityProcessorTest extends DDSpecification {
     def sampler = Mock(ApiSecuritySampler)
     def producer = Mock(EventProducerService)
     def subInfo = Mock(EventProducerService.DataSubscriberInfo)
-    def span = Mock(AgentSpan)
-    def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
     def processor = new ApiSecurityProcessor(sampler, producer)
@@ -167,15 +101,34 @@ class ApiSecurityProcessorTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-    1 * span.getRequestContext() >> reqCtx
-    1 * reqCtx.getData(_) >> ctx
     1 * sampler.sample(ctx) >> true
-    1 * reqCtx.getTraceSegment() >> traceSegment
     1 * producer.getDataSubscribers(_) >> subInfo
     1 * subInfo.isEmpty() >> false
     1 * producer.publishDataEvent(_, ctx, _, _) >> { throw new ExpiredSubscriberInfoException() }
-    1 * ctx.closeWafContext()
-    1 * ctx.close()
+    0 * _
+  }
+
+  void 'test api security sampling with tracing disabled'() {
+    given:
+    injectSysConfig(GeneralConfig.APM_TRACING_ENABLED, "false")
+    injectSysConfig(AppSecConfig.API_SECURITY_ENABLED, "true")
+    def sampler = Mock(ApiSecuritySampler)
+    def subInfo = Mock(EventProducerService.DataSubscriberInfo)
+    def producer = Mock(EventProducerService)
+    def traceSegment = Mock(TraceSegment)
+    def processor = new ApiSecurityProcessor(sampler, producer)
+    def ctx = Mock(AppSecRequestContext)
+
+    when:
+    processor.processTraceSegment(traceSegment, ctx, null)
+
+    then:
+    1 * sampler.sample(ctx) >> true
+    1 * producer.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR) >> subInfo
+    1 * subInfo.isEmpty() >> false
+    1 * producer.publishDataEvent(_, ctx, _, _)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
     0 * _
   }
 }

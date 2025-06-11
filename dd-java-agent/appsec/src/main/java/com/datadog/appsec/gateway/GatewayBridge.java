@@ -686,12 +686,14 @@ public class GatewayBridge {
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
-      final Object route = tags.get(Tags.HTTP_ROUTE);
-      if (route != null) {
-        ctx.setRoute(route.toString());
+      if (apiSecurityPostProcessor != null) {
+        final Object route = tags.get(Tags.HTTP_ROUTE);
+        if (route != null) {
+          ctx.setRoute(route.toString());
+        }
+        // TODO: Move this to traceSegmentPostProcessors
+        apiSecurityPostProcessor.processTraceSegment(traceSeg, ctx, null);
       }
-      // TODO: Move this to traceSegmentPostProcessors
-      apiSecurityPostProcessor.processTraceSegment(traceSeg, ctx, null);
 
       for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
         pp.processTraceSegment(traceSeg, ctx, collectedEvents);
