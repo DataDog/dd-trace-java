@@ -10,6 +10,8 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.upload.timeout";
   public static final String DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL =
       "dynamic.instrumentation.upload.flush.interval";
+  public static final String DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS =
+      "dynamic.instrumentation.upload.interval.seconds";
   public static final String DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE =
       "dynamic.instrumentation.upload.batch.size";
   public static final String DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE =
