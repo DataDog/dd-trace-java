@@ -88,7 +88,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecuritySampler requestSampler;
+  private final TraceSegmentPostProcessor apiSecurityPostProcessor;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -114,11 +114,11 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecuritySampler requestSampler,
+      TraceSegmentPostProcessor apiSecurityPostProcessor,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.requestSampler = requestSampler;
+    this.apiSecurityPostProcessor = apiSecurityPostProcessor;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -679,21 +679,19 @@ public class GatewayBridge {
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
-    if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
-      if (!Config.get().isApmTracingEnabled()) {
-        traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-      }
-    } else {
-      ctx.closeWafContext();
-    }
-
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
       traceSeg.setTagTop("_dd.appsec.enabled", 1);
       traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
+
+      final Object route = tags.get(Tags.HTTP_ROUTE);
+      if (route != null) {
+        ctx.setRoute(route.toString());
+      }
+      // TODO: Move this to traceSegmentPostProcessors
+      apiSecurityPostProcessor.processTraceSegment(traceSeg, ctx, null);
 
       for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
         pp.processTraceSegment(traceSeg, ctx, collectedEvents);
@@ -748,6 +746,7 @@ public class GatewayBridge {
         writeRequestHeaders(
             traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
       }
+
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
@@ -765,19 +764,9 @@ public class GatewayBridge {
               );
     }
 
+    ctx.closeWafContext();
     ctx.close();
     return NoopFlow.INSTANCE;
-  }
-
-  private boolean maybeSampleForApiSecurity(
-      AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
-    log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag.
-    final Object route = tags.get(Tags.HTTP_ROUTE);
-    if (route != null) {
-      ctx.setRoute(route.toString());
-    }
-    return requestSampler.preSampleRequest(ctx);
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {

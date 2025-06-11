@@ -1,5 +1,6 @@
 package com.datadog.appsec.api.security;
 
+import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.DataBundle;
@@ -7,17 +8,18 @@ import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.gateway.GatewayContext;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
+import com.datadog.appsec.report.AppSecEvent;
+import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.Collection;
 import java.util.Collections;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ApiSecurityProcessor {
+public class ApiSecurityProcessor implements TraceSegmentPostProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(ApiSecurityProcessor.class);
   private final ApiSecuritySampler sampler;
@@ -28,39 +30,22 @@ public class ApiSecurityProcessor {
     this.producerService = producerService;
   }
 
-  public void process(@Nonnull AgentSpan span) {
-    final RequestContext ctx_ = span.getRequestContext();
-    if (ctx_ == null) {
+  @Override
+  public void processTraceSegment(
+      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents) {
+    if (segment == null || ctx == null) {
       return;
     }
-    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null) {
+    if (!sampler.sample(ctx)) {
+      log.debug("Request not sampled, skipping API security post-processing");
       return;
     }
-
-    try {
-      if (!sampler.sample(ctx)) {
-        log.debug("Request not sampled, skipping API security post-processing");
-        return;
-      }
-      log.debug("Request sampled, processing API security post-processing");
-      extractSchemas(ctx, ctx_.getTraceSegment());
-    } finally {
-      ctx.setKeepOpenForApiSecurityPostProcessing(false);
-      try {
-        // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting it
-        // detected as a
-        // missed request-ended event.
-        ctx.closeWafContext();
-        ctx.close();
-      } catch (Exception e) {
-        log.debug("Error closing AppSecRequestContext", e);
-      }
-      sampler.releaseOne();
-    }
+    log.debug("Request sampled, processing API security post-processing");
+    extractSchemas(ctx, segment);
   }
 
-  private void extractSchemas(final AppSecRequestContext ctx, final TraceSegment traceSegment) {
+  private void extractSchemas(
+      final @Nonnull AppSecRequestContext ctx, final @Nonnull TraceSegment traceSegment) {
     final EventProducerService.DataSubscriberInfo sub =
         producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     if (sub == null || sub.isEmpty()) {
@@ -74,7 +59,12 @@ public class ApiSecurityProcessor {
     try {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);
-      ctx.commitDerivatives(traceSegment);
+      // TODO: Perhaps do this if schemas have actually been extracted (check when committing
+      // derivatives)
+      traceSegment.setTagTop(Tags.ASM_KEEP, true);
+      if (!Config.get().isApmTracingEnabled()) {
+        traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
     } catch (ExpiredSubscriberInfoException e) {
       log.debug("Subscriber info expired", e);
     }

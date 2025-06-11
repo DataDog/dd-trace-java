@@ -2,7 +2,6 @@ package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.util.AgentTaskScheduler;
-
 import java.util.Random;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,10 +10,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Internal map for API Security sampling.
- * See "[RFC-1021] API Security Sampling Algorithm for thread-based concurrency".
+ * Internal map for API Security sampling. See "[RFC-1021] API Security Sampling Algorithm for
+ * thread-based concurrency".
  */
-final public class ApiSecuritySampler {
+public class ApiSecuritySampler {
 
   private static final int DEFAULT_MAX_ITEM_COUNT = 4096;
   private static final int DEFAULT_INTERVAL_SECONDS = 30;
@@ -28,10 +27,20 @@ final public class ApiSecuritySampler {
   private final long maxItemCount;
 
   public ApiSecuritySampler() {
-    this(DEFAULT_MAX_ITEM_COUNT, DEFAULT_INTERVAL_SECONDS, new Random().nextLong(), new DefaultMonotonicClock(), AgentTaskScheduler.INSTANCE);
+    this(
+        DEFAULT_MAX_ITEM_COUNT,
+        DEFAULT_INTERVAL_SECONDS,
+        new Random().nextLong(),
+        new DefaultMonotonicClock(),
+        AgentTaskScheduler.INSTANCE);
   }
 
-  public ApiSecuritySampler(final int maxItemCount, final int intervalSeconds, final long zero, final MonotonicClock clock, Executor executor) {
+  public ApiSecuritySampler(
+      final int maxItemCount,
+      final int intervalSeconds,
+      final long zero,
+      final MonotonicClock clock,
+      Executor executor) {
     table = new AtomicReference<>(new Table(maxItemCount));
     this.maxItemCount = maxItemCount;
     this.intervalSeconds = intervalSeconds;
@@ -154,7 +163,7 @@ final public class ApiSecuritySampler {
           index = 0;
         }
       } while (index != startIndex);
-      return new FindSlotResult(table[(int)(maxItemCount * 2)], false);
+      return new FindSlotResult(table[(int) (maxItemCount * 2)], false);
     }
 
     static class FindSlotResult {

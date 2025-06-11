@@ -1,7 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
-
+import com.datadog.appsec.api.security.ApiSecurityProcessor
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -84,8 +84,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
   TraceSegmentPostProcessor pp = Mock()
-  ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
+  ApiSecurityProcessor apiSecurityProcessor = Mock(ApiSecurityProcessor)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, apiSecurityProcessor, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -1179,7 +1179,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
     1 * spanInfo.getTags() >>  ['http.route': 'route']
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * apiSecurityProcessor.processTraceSegment(_, _, _ )
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1197,7 +1197,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
     1 * spanInfo.getTags() >>  ['http.route': 'route']
-    1 * requestSampler.preSampleRequest(_) >> false
+    1 * apiSecurityProcessor.processTraceSegment(_, _, _ )
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
@@ -1216,7 +1216,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
     1 * spanInfo.getTags() >>  ['http.route': 'route']
-    1 * requestSampler.preSampleRequest(_) >> true
+    1 * apiSecurityProcessor.processTraceSegment(_, _, _ )
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
