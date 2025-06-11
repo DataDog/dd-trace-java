@@ -1,8 +1,8 @@
 {
   "name": "load_petclinic",
   "setup": "bash -c \"mkdir -p ${OUTPUT_DIR}/${VARIANT}\"",
-  "service": "bash -c \"${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080 ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
-  "run": "bash -c \"java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log\"",
+  "service": "bash -c \"taskset -c 24-30 ${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080 ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
+  "run": "bash -c \"taskset -c 31-47 java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log\"",
   "timeout": 150,
   "iterations": 1,
   "variants": {
