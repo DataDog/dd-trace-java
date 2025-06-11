@@ -1,10 +1,12 @@
 package datadog.trace.llmobs.domain;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collections;
@@ -29,6 +31,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
+  private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
 
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
 
@@ -36,6 +39,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private final AgentSpan span;
   private final String spanKind;
+  private final ContextScope scope;
 
   private boolean finished = false;
 
@@ -63,6 +67,20 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (sessionId != null && !sessionId.isEmpty()) {
       this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
+    
+    AgentSpanContext parent = LLMObsState.getLLMObsParentContext();
+    String parentSpanID = LLMObsState.ROOT_SPAN_ID;
+    if (null != parent) {
+      if (parent.getTraceId() != this.span.getTraceId()) {
+        LOGGER.error("trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}", parent.getTraceId(), parent.getSpanId(), this.span.getTraceId(), this.span.getSpanId());
+      } else {
+        parentSpanID = String.valueOf(parent.getSpanId());
+      }
+    }
+    this.span.setTag(
+        LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
+    this.scope = LLMObsState.attach();
+    LLMObsState.setLLMObsParentContext(this.span.context());
   }
 
   @Override
@@ -271,6 +289,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       return;
     }
     this.span.finish();
+    this.scope.close();
     this.finished = true;
   }
 }
