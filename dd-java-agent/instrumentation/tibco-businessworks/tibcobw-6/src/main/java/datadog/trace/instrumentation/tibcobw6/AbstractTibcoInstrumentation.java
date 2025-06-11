@@ -2,12 +2,17 @@ package datadog.trace.instrumentation.tibcobw6;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.util.Strings;
 import java.util.HashMap;
 import java.util.Map;
 
 public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tracing {
   public AbstractTibcoInstrumentation() {
     super("tibco", "tibco_bw");
+  }
+
+  public AbstractTibcoInstrumentation(String... additionalNames) {
+    super("tibco", Strings.concat(additionalNames, "tibco_bw"));
   }
 
   @Override

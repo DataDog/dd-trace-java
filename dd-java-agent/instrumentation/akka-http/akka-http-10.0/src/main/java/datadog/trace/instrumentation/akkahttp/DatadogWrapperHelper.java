@@ -1,22 +1,21 @@
 package datadog.trace.instrumentation.akkahttp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 
 public class DatadogWrapperHelper {
-  public static AgentScope createSpan(final HttpRequest request) {
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
+  public static ContextScope createSpan(final HttpRequest request) {
+    final Context extractedContext = DECORATE.extractContext(request);
     final AgentSpan span = DECORATE.startSpan(request, extractedContext);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request, request, extractedContext);
 
-    return activateSpan(span);
+    return extractedContext.with(span).attach();
   }
 
   public static void finishSpan(final AgentSpan span, final HttpResponse response) {

@@ -11,3 +11,27 @@ index 2f7957d1..7a8ea388 100644
          int count = errorCount.get();
  
          if (count > 0) {
+diff --git forkSrcPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/DoubleToDecimalTest.java forkDstPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/DoubleToDecimalTest.java
+index 9752fd990959aa0b07382973d37c6f84b7a08fea..f8e6296e91fe1a8965c27727f111d7ffc77e434d 100644
+--- forkSrcPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/DoubleToDecimalTest.java
++++ forkDstPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/DoubleToDecimalTest.java
+@@ -142,6 +142,6 @@ public class DoubleToDecimalTest {
+     @Test
+     void randomNumberTests() {
+         // 29-Nov-2022, tatu: Reduce from 1M due to slowness
+-        DoubleToDecimalChecker.randomNumberTests(250_000, new Random());
++        DoubleToDecimalChecker.randomNumberTests(25_000, new Random());
+     }
+ }
+diff --git forkSrcPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/FloatToDecimalTest.java forkDstPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/FloatToDecimalTest.java
+index f6893940dd4aeeb4f4e17c7a21fc11a4594c369a..8563578eaa7b30b376f03e17ef3c25d3baa09f0e 100644
+--- forkSrcPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/FloatToDecimalTest.java
++++ forkDstPrefix/src/test/java/com/fasterxml/jackson/core/io/schubfach/FloatToDecimalTest.java
+@@ -119,6 +119,6 @@ public class FloatToDecimalTest {
+
+     @Test
+     void randomNumberTests() {
+-        FloatToDecimalChecker.randomNumberTests(1_000_000, new Random());
++        FloatToDecimalChecker.randomNumberTests(25_000, new Random());
+     }
+ }

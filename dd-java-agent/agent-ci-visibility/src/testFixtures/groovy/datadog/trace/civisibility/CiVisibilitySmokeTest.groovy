@@ -4,15 +4,16 @@ import datadog.trace.api.civisibility.config.TestFQN
 import spock.lang.Specification
 
 abstract class CiVisibilitySmokeTest extends Specification {
+  static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
 
-  protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages) {
+  protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
 
     if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
       def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
-      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+      CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet() + additionalDynamicTags, SMOKE_IGNORED_TAGS)
     } else {
-      CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements,["content.meta.['_dd.integration']"])
+      CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements, SMOKE_IGNORED_TAGS, additionalDynamicTags)
     }
   }
 

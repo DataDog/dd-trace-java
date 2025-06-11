@@ -18,6 +18,7 @@ public enum Provider implements TagValue {
   TEAMCITY,
   TRAVISCI,
   BUDDYCI,
+  DRONE,
   UNSUPPORTED;
 
   private final String s;

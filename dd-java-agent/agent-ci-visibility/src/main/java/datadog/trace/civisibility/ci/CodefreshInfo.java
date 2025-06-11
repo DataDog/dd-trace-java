@@ -12,6 +12,8 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 public class CodefreshInfo implements CIProviderInfo {
+
+  // https://codefresh.io/docs/docs/pipelines/variables/#system-variables
   public static final String CODEFRESH = "CF_BUILD_ID";
   public static final String CODEFRESH_PROVIDER_NAME = "codefresh";
   public static final String CF_STEP_NAME = "CF_STEP_NAME";
