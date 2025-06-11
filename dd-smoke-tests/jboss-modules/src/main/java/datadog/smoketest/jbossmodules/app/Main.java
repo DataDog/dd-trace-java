@@ -7,6 +7,13 @@ import org.jboss.modules.Module;
 
 public class Main {
   public static void main(final String[] args) throws Exception {
+    System.err.println("STARING APPLICATION");
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  System.err.println("EXITING NOW!");
+                }));
     ClientSupport client =
         Module.getCallerModule().loadService(ClientSupport.class).iterator().next();
     PublisherSupport publisher =
