@@ -1,7 +1,7 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.AppSecSystem
-import com.datadog.appsec.api.security.ApiSecuritySamplerImpl
+
 import com.datadog.appsec.config.TraceSegmentPostProcessor
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
@@ -11,7 +11,6 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.config.GeneralConfig
-import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction

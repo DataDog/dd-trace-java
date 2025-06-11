@@ -11,26 +11,24 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
+
 import java.util.Collections;
-import java.util.function.BooleanSupplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AppSecSpanPostProcessor implements SpanPostProcessor {
+public class ApiSecurityProcessor {
 
-  private static final Logger log = LoggerFactory.getLogger(AppSecSpanPostProcessor.class);
+  private static final Logger log = LoggerFactory.getLogger(ApiSecurityProcessor.class);
   private final ApiSecuritySampler sampler;
   private final EventProducerService producerService;
 
-  public AppSecSpanPostProcessor(ApiSecuritySampler sampler, EventProducerService producerService) {
+  public ApiSecurityProcessor(ApiSecuritySampler sampler, EventProducerService producerService) {
     this.sampler = sampler;
     this.producerService = producerService;
   }
 
-  @Override
-  public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {
+  public void process(@Nonnull AgentSpan span) {
     final RequestContext ctx_ = span.getRequestContext();
     if (ctx_ == null) {
       return;
@@ -40,16 +38,8 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       return;
     }
 
-    if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
-      return;
-    }
-
     try {
-      if (timeoutCheck.getAsBoolean()) {
-        log.debug("Timeout detected, skipping API security post-processing");
-        return;
-      }
-      if (!sampler.sampleRequest(ctx)) {
+      if (!sampler.sample(ctx)) {
         log.debug("Request not sampled, skipping API security post-processing");
         return;
       }

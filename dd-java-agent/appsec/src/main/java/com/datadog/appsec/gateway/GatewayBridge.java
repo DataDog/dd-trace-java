@@ -7,7 +7,6 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_AL
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecuritySampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;

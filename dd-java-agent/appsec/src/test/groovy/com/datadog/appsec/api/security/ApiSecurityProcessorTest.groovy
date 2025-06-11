@@ -9,7 +9,7 @@ import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
-class AppSecSpanPostProcessorTest extends DDSpecification {
+class ApiSecurityProcessorTest extends DDSpecification {
 
   void 'schema extracted on happy path'() {
     given:
@@ -20,7 +20,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -50,7 +50,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -76,7 +76,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -103,7 +103,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { true })
@@ -125,7 +125,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -142,7 +142,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def producer = Mock(EventProducerService)
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -161,7 +161,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def span = Mock(AgentSpan)
     def reqCtx = Mock(RequestContext)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -178,7 +178,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     given:
     def sampler = Mock(ApiSecuritySamplerImpl)
     def producer = Mock(EventProducerService)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(null, { false })
@@ -197,7 +197,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
@@ -227,7 +227,7 @@ class AppSecSpanPostProcessorTest extends DDSpecification {
     def reqCtx = Mock(RequestContext)
     def traceSegment = Mock(TraceSegment)
     def ctx = Mock(AppSecRequestContext)
-    def processor = new AppSecSpanPostProcessor(sampler, producer)
+    def processor = new ApiSecurityProcessor(sampler, producer)
 
     when:
     processor.process(span, { false })
