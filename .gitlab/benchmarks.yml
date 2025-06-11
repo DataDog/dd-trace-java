@@ -68,6 +68,32 @@ benchmarks-post-results:
     - job: benchmarks-dacapo
       artifacts: true
 
+check-big-regressions:
+  extends: .benchmarks
+  needs: [ benchmarks-startup, benchmarks-load, benchmarks-dacapo ]
+  when: on_success
+  tags: ["arch:amd64"]
+  # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
+  # need to convert them
+  script:
+    - !reference [ .benchmarks, script ]
+    - echo $(pwd)
+    - | 
+      for benchmarkType in startup load; do
+          find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
+            relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
+            prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
+            prefix="${prefix#./}" # Remove any leading ./
+            prefix="${prefix//\//-}" # Replace / with -
+            case "$file" in
+              *benchmark-baseline.json) type="baseline" ;;
+              *benchmark-candidate.json) type="candidate" ;;
+            esac
+            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.json"
+          done
+      done
+    - bp-runner $ARTIFACTS_DIR/../.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
+
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
