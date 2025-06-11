@@ -140,6 +140,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   @Override
   public void close() {
     clear();
+    traceCount.set(0);
   }
 
   @Override
