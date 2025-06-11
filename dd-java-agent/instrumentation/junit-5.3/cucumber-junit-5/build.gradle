@@ -35,6 +35,5 @@ configurations.matching({ it.name.startsWith('test') }).each({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.13.1'
     force group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.13.1'
-    force group: 'org.junit.platform', name: 'junit-platform-suite-engine', version: '1.13.1'
   }
 })
