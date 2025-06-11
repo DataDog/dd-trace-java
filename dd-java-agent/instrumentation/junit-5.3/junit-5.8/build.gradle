@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-def jupiterVersion = '5.13.1'
-def platformVersion = '1.13.1'
+def jupiterVersion = '5.8.0'
+def platformVersion = '1.8.0'
 
 muzzle {
   pass {
