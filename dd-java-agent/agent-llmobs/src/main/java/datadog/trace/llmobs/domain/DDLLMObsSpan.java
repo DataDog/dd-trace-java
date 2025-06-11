@@ -2,6 +2,7 @@ package datadog.trace.llmobs.domain;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -67,18 +68,22 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (sessionId != null && !sessionId.isEmpty()) {
       this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
-    
+
     AgentSpanContext parent = LLMObsState.getLLMObsParentContext();
     String parentSpanID = LLMObsState.ROOT_SPAN_ID;
     if (null != parent) {
       if (parent.getTraceId() != this.span.getTraceId()) {
-        LOGGER.error("trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}", parent.getTraceId(), parent.getSpanId(), this.span.getTraceId(), this.span.getSpanId());
+        LOGGER.error(
+            "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
+            parent.getTraceId(),
+            parent.getSpanId(),
+            this.span.getTraceId(),
+            this.span.getSpanId());
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
       }
     }
-    this.span.setTag(
-        LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
+    this.span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     this.scope = LLMObsState.attach();
     LLMObsState.setLLMObsParentContext(this.span.context());
   }
@@ -291,5 +296,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
     this.span.finish();
     this.scope.close();
     this.finished = true;
+  }
+
+  @Override
+  public DDTraceId getTraceId() {
+    return this.span.getTraceId();
+  }
+
+  @Override
+  public long getSpanId() {
+    return this.span.getSpanId();
   }
 }

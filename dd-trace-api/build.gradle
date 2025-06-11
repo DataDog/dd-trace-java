@@ -38,6 +38,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.llmobs.LLMObsSpan',
   'datadog.trace.api.llmobs.noop.NoOpLLMObsSpan',
   'datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory',
+  'datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor',
   'datadog.trace.api.experimental.DataStreamsCheckpointer',
   'datadog.trace.api.experimental.DataStreamsCheckpointer.NoOp',
   'datadog.trace.api.experimental.DataStreamsContextCarrier',
@@ -55,6 +56,7 @@ excludedClassesCoverage += [
 
 description = 'dd-trace-api'
 dependencies {
+  api libs.slf4j
   testImplementation libs.guava
   testImplementation project(':utils:test-utils')
 }
