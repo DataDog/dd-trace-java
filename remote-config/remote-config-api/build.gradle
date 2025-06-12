@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-ext {
-  excludedClassesInstructionCoverage = ['datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop',]
-}
