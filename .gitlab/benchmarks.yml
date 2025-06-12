@@ -77,7 +77,6 @@ check-big-regressions:
   # need to convert them
   script:
     - !reference [ .benchmarks, script ]
-    - echo $(pwd)
     - | 
       for benchmarkType in startup load; do
           find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
@@ -89,10 +88,11 @@ check-big-regressions:
               *benchmark-baseline.json) type="baseline" ;;
               *benchmark-candidate.json) type="candidate" ;;
             esac
-            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.json"
+            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
           done
       done
-    - bp-runner $ARTIFACTS_DIR/../.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
+    - bp-runner .gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
 
 .dsm-kafka-benchmarks:
   stage: benchmarks
