@@ -30,7 +30,11 @@ class HelloPluginFunctionalTest {
     BuildResult result = GradleRunner.create()
         .withProjectDir(testProjectDir.toFile())
         .withPluginClasspath()
-        .withGradleVersion("8.5")
+        // Use the same Gradle version as of the actual smoke test that builds this project.
+        // This is to ensure Gradle is already downloaded and available in the environment.
+        // Gradle Test Kit can download a Gradle distribution by itself,
+        // but sometimes these downloads fail, making the test flaky.
+        .withGradleVersion(System.getenv("GRADLE_VERSION"))
         .withArguments("hello", "--stacktrace")
         .forwardOutput()
         .build();

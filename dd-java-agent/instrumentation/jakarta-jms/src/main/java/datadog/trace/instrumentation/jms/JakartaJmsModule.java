@@ -9,7 +9,7 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class JakartaJmsModule extends JavaxJmsModule {
   public JakartaJmsModule() {
-    super("jakarta", "jakarta-jms");
+    super("jakarta", "jakarta-jms", "jms");
   }
 
   @Override
