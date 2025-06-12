@@ -28,6 +28,8 @@ run_benchmark() {
 
     message "${type} benchmark: ${app} finished"
 
+    cp -r "${REPORTS_DIR}" "${REPORTS_DIR}/../backup-reports/"
+
     cd ..
   fi
 }

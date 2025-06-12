@@ -1,8 +1,8 @@
 {
   "name": "load_petclinic",
   "setup": "bash -c \"mkdir -p ${OUTPUT_DIR}/${VARIANT}\"",
-  "service": "bash -c \"${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080 ${REPORTS_DIR}/${VARIANT} 'pkill java'\"",
-  "run": "bash -c \"${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${REPORTS_DIR}/${VARIANT}/petclinic.log\"",
+  "service": "bash -c \"${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080 ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
+  "run": "bash -c \"${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log\"",
   "timeout": 150,
   "iterations": 1,
   "variants": {
