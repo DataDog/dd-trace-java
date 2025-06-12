@@ -12,6 +12,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class CircuitBreakerTest extends AgentTestRunner {
 
+  // TODO use CircuitBreaker mocks to test more scenarios
+  // TODO test all io.github.resilience4j.decorators.Decorators.of* decorators
+  // TODO test throwing serviceCall
+  // TODO test stacked decorators
+
   def "decorateCheckedSupplier"() {
     when:
     CheckedSupplier<String> supplier = Decorators
@@ -38,6 +43,20 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "decorateSupplier stacked"() {
+    when:
+    Supplier<String> supplier = Decorators
+    .ofSupplier(() -> serviceCall("foobar"))
+    .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
+    .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
+    .decorate() // TODO !!! should probably instrument the resulting decorator once that will be responsible for the span creation
+
+    then:
+    runUnderTrace("parent", supplier::get) == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
   private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
@@ -47,7 +66,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.circuit-breaker"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }

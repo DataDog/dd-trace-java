@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.resilience4j;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -35,14 +36,21 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
     cb.acquirePermission(); // TODO do we want to record non-permitted attempt, then need to catch
     // exception, or better use emitted event
     // capture context after acquiring permission
-    this.span = AgentTracer.startSpan("resilience4j", "resilience4j.circuit-breaker");
-    this.scope = AgentTracer.activateSpan(span);
+
+    AgentSpan parent = AgentTracer.activeSpan();
+    AgentSpanContext parentContext =
+        parent != null ? parent.context() : AgentTracer.noopSpanContext();
+
+    if (parent == null || !parent.getSpanName().equals("resilience4j")) {
+      span = AgentTracer.startSpan("resilience4j", "resilience4j", parentContext);
+      scope = AgentTracer.activateSpan(span);
+    }
   }
 
   @Override
   public void onError(long duration, TimeUnit durationUnit, Throwable throwable) {
-    this.scope.close();
-    this.span.finish();
+    if (scope != null) scope.close();
+    if (span != null) span.finish();
     cb.onError(duration, durationUnit, throwable);
   }
 
@@ -53,8 +61,8 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
 
   @Override
   public void onResult(long duration, TimeUnit durationUnit, Object result) {
-    this.scope.close();
-    this.span.finish();
+    if (scope != null) scope.close();
+    if (span != null) span.finish();
     cb.onResult(duration, durationUnit, result);
   }
 
