@@ -4,9 +4,18 @@ import {checkResponse, isOk, isRedirect} from "../../utils/k6.js";
 const baseUrl = 'http://localhost:8080';
 
 export const options = {
-  discardResponseBodies: true,
-  vus: 5,
-  iterations: 40000
+  warmup: {
+    discardResponseBodies: true,
+    executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
+    vus: 5,
+    duration: '15s',
+  },
+  high_load: {
+    discardResponseBodies: true,
+    executor: 'constant-vus',
+    vus: 5,
+    duration: '20s',
+  },
 };
 
 export default function () {
