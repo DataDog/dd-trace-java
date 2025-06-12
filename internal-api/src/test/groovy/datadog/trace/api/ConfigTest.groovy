@@ -58,6 +58,9 @@ import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
+import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -2595,6 +2598,35 @@ class ConfigTest extends DDSpecification {
     "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
     "10"          | 10
     "450"         | 450
+  }
+
+  def "ssi injection enabled"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(SSI_INJECTION_ENABLED, "tracer")
+    Config config = Config.get(prop)
+
+    then:
+    config.ssiInjectionEnabled == "tracer"
+  }
+
+  def "ssi inject force"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(SSI_INJECTION_FORCE, true)
+    Config config = Config.get(prop)
+
+    then:
+    config.ssiInjectionForce == true
+  }
+
+  def "instrumentation source"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(INSTRUMENTATION_SOURCE, "ssi")
+
+    then:
+    config.instrumentationSource == "ssi"
   }
 
   def "long running trace invalid flush_interval set to default: #configuredFlushInterval"() {
