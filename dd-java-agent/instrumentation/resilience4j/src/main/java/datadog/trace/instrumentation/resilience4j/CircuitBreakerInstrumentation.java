@@ -10,6 +10,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -40,6 +42,13 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
                     "decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$WrapCircuitBreakerAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateCompletionStage"))
+            .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(takesArgument(1, named("java.util.function.Supplier"))),
+        CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 
   @Override
@@ -60,6 +69,46 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker) {
       circuitBreaker = new CircuitBreakerWithContext(circuitBreaker);
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
+        @Advice.Thrown Throwable throwable) {
+      System.err.println("afterExecute: " + circuitBreaker);
+    }
+  }
+
+  public static class CompletionStageAdvice {
+
+    // Can't use anonymous lambda in the Advice
+    public static class SupplierWithScope implements Supplier<CompletionStage<?>> {
+      private final Supplier<CompletionStage<?>> originalSupplier;
+      private final CircuitBreakerWithContext circuitBreaker;
+
+      public SupplierWithScope(
+          CircuitBreakerWithContext circuitBreaker, Supplier<CompletionStage<?>> originalSupplier) {
+        this.circuitBreaker = circuitBreaker;
+        this.originalSupplier = originalSupplier;
+      }
+
+      @Override
+      public CompletionStage<?> get() {
+        try { // TODO would be better to handle scope creation here
+          return originalSupplier.get();
+        } finally {
+          circuitBreaker.ddCloseScope();
+        }
+      }
+    }
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beforeExecute(
+        @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
+        @Advice.Argument(value = 1, readOnly = false) Supplier<CompletionStage<?>> supplier) {
+      final CircuitBreakerWithContext cb = new CircuitBreakerWithContext(circuitBreaker);
+      supplier = new SupplierWithScope(cb, supplier);
+      circuitBreaker = cb;
     }
   }
 }

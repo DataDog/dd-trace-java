@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.resilience4j;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -21,48 +20,78 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
     this.cb = cb;
   }
 
-  @Override
-  public boolean tryAcquirePermission() {
-    return cb.tryAcquirePermission();
+  private void ddStartScope() {
+    span = AgentTracer.startSpan("resilience4j", "resilience4j");
+    scope = AgentTracer.activateSpan(span);
+
+    //    AgentSpan parent = AgentTracer.activeSpan();
+    //    AgentSpanContext parentContext =
+    //        parent != null ? parent.context() : AgentTracer.noopSpanContext();
+
+    //    if (parent == null || !parent.getSpanName().equals("resilience4j")) {
+    //      span = AgentTracer.startSpan("resilience4j", "resilience4j", parentContext);
+  }
+
+  public void ddCloseScope() {
+    System.err.println(">> ddCloseScope " + Thread.currentThread().getName());
+    if (scope != null) {
+      scope.close();
+      scope = null;
+    }
+  }
+
+  private void finishSpan(Throwable error) {
+    if (span != null) {
+      // TODO set error tag
+      span.finish();
+      span = null;
+    }
   }
 
   @Override
-  public void releasePermission() {
-    cb.releasePermission();
+  public boolean tryAcquirePermission() {
+    if (!cb.tryAcquirePermission()) {
+      // TODO do we want to record non-permitted attempt?
+      return false;
+    }
+
+    ddStartScope();
+    return true;
   }
 
   @Override
   public void acquirePermission() {
     cb.acquirePermission(); // TODO do we want to record non-permitted attempt, then need to catch
-    // exception, or better use emitted event
-    // capture context after acquiring permission
 
-    AgentSpan parent = AgentTracer.activeSpan();
-    AgentSpanContext parentContext =
-        parent != null ? parent.context() : AgentTracer.noopSpanContext();
+    ddStartScope();
+  }
 
-    if (parent == null || !parent.getSpanName().equals("resilience4j")) {
-      span = AgentTracer.startSpan("resilience4j", "resilience4j", parentContext);
-      scope = AgentTracer.activateSpan(span);
-    }
+  @Override
+  public void releasePermission() {
+    System.err.println("releasePermission");
+    // TODO should close the scope and finish the span?
+
+    cb.releasePermission();
   }
 
   @Override
   public void onError(long duration, TimeUnit durationUnit, Throwable throwable) {
-    if (scope != null) scope.close();
-    if (span != null) span.finish();
+    ddCloseScope();
+    finishSpan(throwable);
     cb.onError(duration, durationUnit, throwable);
   }
 
   @Override
   public void onSuccess(long duration, TimeUnit durationUnit) {
+    ddCloseScope();
+    finishSpan(null);
     cb.onSuccess(duration, durationUnit);
   }
 
   @Override
   public void onResult(long duration, TimeUnit durationUnit, Object result) {
-    if (scope != null) scope.close();
-    if (span != null) span.finish();
+    ddCloseScope();
+    finishSpan(null);
     cb.onResult(duration, durationUnit, result);
   }
 
@@ -143,6 +172,7 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
 
   @Override
   public long getCurrentTimestamp() {
+    System.err.println("getCurrentTimestamp");
     return cb.getCurrentTimestamp();
   }
 

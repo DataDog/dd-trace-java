@@ -1,11 +1,17 @@
 
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
+import spock.lang.Ignore
 
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -20,12 +26,12 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateCheckedSupplier"() {
     when:
     CheckedSupplier<String> supplier = Decorators
-    .ofCheckedSupplier(() -> serviceCall("foobar"))
-    .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-    .decorate()
+      .ofCheckedSupplier { serviceCall("foobar") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .decorate()
 
     then:
-    runUnderTrace("parent", supplier::get) == "foobar"
+    runUnderTrace("parent") { supplier.get() } == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -33,26 +39,45 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateSupplier"() {
     when:
     Supplier<String> supplier = Decorators
-    .ofSupplier(() -> serviceCall("foobar"))
-    .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-    .decorate()
+      .ofSupplier { serviceCall("foobar") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .decorate()
 
     then:
-    runUnderTrace("parent", supplier::get) == "foobar"
+    runUnderTrace("parent") { supplier.get() } == "foobar"
     and:
     assertExpectedTrace()
   }
 
-  def "decorateSupplier stacked"() {
+  ExecutorService executor = Executors.newFixedThreadPool(1)
+  ExecutorService executor2 = Executors.newFixedThreadPool(1)
+
+  def "decorateCompletionStage"() {
     when:
-    Supplier<String> supplier = Decorators
-    .ofSupplier(() -> serviceCall("foobar"))
-    .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
-    .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
-    .decorate() // TODO !!! should probably instrument the resulting decorator once that will be responsible for the span creation
+    Supplier<CompletionStage<String>> supplier = Decorators
+    .ofCompletionStage { CompletableFuture.supplyAsync({ serviceCall("foobar") }, executor).thenApplyAsync(v -> v, executor2) }
+    .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+    .decorate()
 
     then:
-    runUnderTrace("parent", supplier::get) == "foobar"
+    //TODO force the future run in a separate thread, now serviceCall calls Thread.sleep to ensure that
+    def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
+    future.get() == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  @Ignore("first need to implement async decorator and then see how to implement stacking properly")
+  def "decorateSupplier stacked cbs"() {
+    when:
+    Supplier<String> supplier = Decorators
+      .ofSupplier { serviceCall("foobar") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent") { supplier.get() } == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -60,6 +85,7 @@ class CircuitBreakerTest extends AgentTestRunner {
   private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
+        sortSpansByStart()
         span(0) {
           operationName "parent"
           parent()
@@ -79,8 +105,9 @@ class CircuitBreakerTest extends AgentTestRunner {
     }
   }
 
-  <T> T serviceCall(T t) {
+  def <T> T serviceCall(T t) {
     AgentTracer.startSpan("test", "serviceCall").finish()
-    t
+    Thread.sleep(100) // TODO wait here to make whenComplete run in a separate thread; How to guarantee that? use semaphore?
+    return t
   }
 }

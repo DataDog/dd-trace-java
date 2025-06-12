@@ -196,7 +196,9 @@ public class AgentTracer {
    * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
    */
   public static boolean isAsyncPropagationEnabled() {
-    return get().isAsyncPropagationEnabled();
+    boolean asyncPropagationEnabled = get().isAsyncPropagationEnabled();
+    System.err.println(">>> isAsyncPropagationEnabled = " + asyncPropagationEnabled);
+    return asyncPropagationEnabled;
   }
 
   /**
