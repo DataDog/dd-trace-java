@@ -68,8 +68,8 @@ groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 
-mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
-mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 # needed for Java 21 support
 byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
 byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "bytebuddy" }
@@ -101,7 +101,7 @@ cafe-crypto = ["cafe-crypto-curve25519", "cafe-crypto-ed25519"]
 # Testing
 spock = ["spock-core", "spock-junit4", "objenesis"]
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
-mockito = ["mokito-core", "mokito-junit-jupiter", "byte-buddy", "byte-buddy-agent"]
+mockito = ["mockito-core", "mockito-junit-jupiter", "byte-buddy", "byte-buddy-agent"]
 test-logging = ["logback-classic", "log4j-over-slf4j", "jcl-over-slf4j", "jul-to-slf4j"]
 
 jmc = ["jmc-common", "jmc-flightrecorder"]

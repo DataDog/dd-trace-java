@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import org.mockito.Mock
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreIf
 import spock.lang.Requires
@@ -19,6 +20,7 @@ import spock.lang.Shared
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
+import datadog.trace.api.Config
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -28,6 +30,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TA
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_ERRORS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
@@ -39,6 +42,15 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BASIC_AUTH_VAL = "plain text auth token"
   protected static final DSM_EDGE_TAGS = CLIENT_PATHWAY_EDGE_TAGS.collect { key, value ->
     return key + ":" + value
+  }
+
+  @Shared
+  private Config config
+
+  def setup() {
+    def prop = new Properties()
+    prop.setProperty(HTTP_URL_CONNECTION_ERRORS_ENABLED, "false")
+    config = Config.get(prop)
   }
 
   @AutoCleanup
@@ -314,8 +326,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     body = (1..10000).join(" ")
   }
 
+  //@IgnoreIf({config.isHttpUrlConnectionErrorsEnabled()})
   @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
-  @IgnoreIf({true})
   def "server error request with parent"() {
     setup:
     def uri = server.address.resolve("/error")
@@ -353,10 +365,12 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     "POST" | _
   }
 
+  //   @IgnoreIf({config.isHttpUrlConnectionErrorsEnabled()})
   @Flaky(suites = ["ApacheHttpAsyncClient5Test"])
-  @IgnoreIf({true})
   def "client error request with parent"() {
     setup:
+    print("HELLO")
+    print(config.isHttpUrlConnectionErrorsEnabled())
     def uri = server.address.resolve("/secured")
 
     when:
@@ -880,7 +894,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+
+        print("right before check\n")
+        //        if (  { Config.get().isHttpUrlConnectionErrorsEnabled() && exception != null}) {
+        //          print("hello \n")
+        //          print("$DDTags")
+        //          "error.message" String
+        //          "error.type" String
+        //          "error.stack" String
+        //          // errorTags(IOException.class, "error.message")
+        //        }
+
         if (exception) {
+
           errorTags(exception.class, exception.message)
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
