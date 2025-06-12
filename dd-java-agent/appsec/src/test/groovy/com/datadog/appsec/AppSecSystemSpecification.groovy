@@ -13,12 +13,14 @@ import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
+import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.api.telemetry.AppSecMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 import okhttp3.OkHttpClient
@@ -172,6 +174,28 @@ class AppSecSystemSpecification extends DDSpecification {
 
     then:
     AppSecSystem.REPLACEABLE_EVENT_PRODUCER.cur != initialEPS
+  }
+
+  void 'appsec enablement depends on the activation' () {
+    when:
+    AppSecSystem.start(subService, sharedCommunicationObjects())
+
+    then:
+    AppSecMetricCollector.latestAppsecOrigin == ConfigOrigin.ENV
+  }
+
+  void 'appsec enablement depends on the activation with JVM prop' () {
+    setup:
+    System.setProperty("DD_APPSEC_ENABLED", "true")
+
+    when:
+    AppSecSystem.start(subService, sharedCommunicationObjects())
+
+    then:
+    AppSecMetricCollector.latestAppsecOrigin == ConfigOrigin.JVM_PROP
+
+    cleanup:
+    System.clearProperty("DD_APPSEC_ENABLED")
   }
 
   private SharedCommunicationObjects sharedCommunicationObjects() {

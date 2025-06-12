@@ -11,8 +11,10 @@ import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
+import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.UserIdCollectionMode
+import datadog.trace.api.telemetry.AppSecMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -600,6 +602,27 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     cleanup:
     AppSecSystem.active = true
+  }
+
+  void 'test appsec enablement depending on config'() {
+    when:
+    appSecConfigService.setAppSecEnabledMetric(true)
+
+    then:
+    AppSecMetricCollector.latestAppsecOrigin == ConfigOrigin.REMOTE
+
+    when:
+    appSecConfigService.setAppSecEnabledMetric(false)
+
+    then:
+    AppSecMetricCollector.latestAppsecOrigin == null
+
+    when:
+    AppSecMetricCollector.setLatestAppsecOrigin(ConfigOrigin.ENV)
+    appSecConfigService.setAppSecEnabledMetric(true)
+
+    then:
+    AppSecMetricCollector.latestAppsecOrigin == ConfigOrigin.ENV
   }
 
   private static AppSecFeatures autoUserInstrum(String mode) {
