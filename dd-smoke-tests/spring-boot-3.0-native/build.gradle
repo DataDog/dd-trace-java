@@ -30,8 +30,12 @@ if (version >= 17) {
   // Define the task that builds the project
   tasks.register('springNativeBuild', Exec) {
     workingDir "$appDir"
+    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+      environment += ["GRADLE_ARGS": " -PmavenRepositoryProxy=${project.rootProject.property("mavenRepositoryProxy")}"]
+    }
+
     environment += [
-      'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx1024M'",
+      "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx1024M'",
       'JAVA_HOME': javaHome,
       'GRAALVM_HOME': testJvmHome,
       'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',

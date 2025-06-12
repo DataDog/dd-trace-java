@@ -47,7 +47,13 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the quarkus project
 tasks.register('earBuild', Exec) {
   workingDir "$appDir"
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+    environment += ["GRADLE_ARGS": " -PmavenRepositoryProxy=${project.rootProject.property("mavenRepositoryProxy")}"]
+  }
+
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"
+  ]
   commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }

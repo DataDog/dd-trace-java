@@ -26,8 +26,13 @@ if (version >= 17) {
   // Define the task that builds the project
   tasks.register('quarkusNativeBuild', Exec) {
     workingDir "$appDir"
+
+    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
+      environment += ["GRADLE_ARGS": " -PmavenRepositoryProxy=${project.rootProject.property("mavenRepositoryProxy")}"]
+    }
+
     environment += [
-      'GRADLE_OPTS' : "-Dorg.gradle.jvmargs='-Xmx512M'",
+      "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
       'JAVA_HOME'   : javaHome,
       'GRAALVM_HOME': testJvmHome
     ]
