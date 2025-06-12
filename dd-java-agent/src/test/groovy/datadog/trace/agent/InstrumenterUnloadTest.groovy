@@ -26,16 +26,26 @@ class InstrumenterUnloadTest extends Specification {
       , ["DD_API_KEY": API_KEY]
       , new PrintStream(testOutput))
 
-    int unloadCount = 0
+    boolean canaryUnloaded = false
+    int unloadedInstrumentationCount = 0
     new ByteArrayInputStream((testOutput.toByteArray())).eachLine {
       System.out.println(it)
-      if (it =~ /(?i)unload.* datadog.trace.instrumentation./) {
-        unloadCount++
+      if (it =~ /(?i)unload.*Canary/) {
+        canaryUnloaded = true
       }
+      if (it =~ /(?i)unload.* datadog.trace.instrumentation./) {
+        unloadedInstrumentationCount++
+      }
+    }
+
+    if (!canaryUnloaded) {
+      System.out.println("WARNING: Canary class was not unloaded!")
     }
 
     then:
     returnCode == 0
-    unloadCount > 0
+    // skip check if we couldn't even unload our Canary class, as that
+    // indicates full GC didn't happen enough to trigger any unloading
+    !canaryUnloaded || unloadedInstrumentationCount > 0
   }
 }
