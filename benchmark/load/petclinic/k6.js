@@ -6,12 +6,12 @@ const baseUrl = 'http://localhost:8080';
 export const options = {
   discardResponseBodies: true,
   scenarios: {
-    warmup: {
+    [`warmup--load:petclinic:${__ENV.VARIANT}`]: {
       executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
       vus: 5,
       duration: '15s',
     },
-    high_load: {
+    [`high_load--load:petclinic:${__ENV.VARIANT}`]: {
       executor: 'constant-vus',
       vus: 5,
       duration: '20s',
