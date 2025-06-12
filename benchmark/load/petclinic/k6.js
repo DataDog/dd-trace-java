@@ -7,7 +7,7 @@ export const options = {
   executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
   discardResponseBodies: true,
   vus: 5,
-  duration: '2m',
+  duration: '20s',
 };
 
 export default function () {
