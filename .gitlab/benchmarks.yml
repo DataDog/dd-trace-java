@@ -70,7 +70,11 @@ benchmarks-post-results:
 
 check-big-regressions:
   extends: .benchmarks
-  needs: [ benchmarks-startup, benchmarks-load, benchmarks-dacapo ]
+  needs:
+    - job: benchmarks-startup
+      artifacts: true
+    - job: benchmarks-load
+      artifacts: true
   when: on_success
   tags: ["arch:amd64"]
   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
