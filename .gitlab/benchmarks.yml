@@ -96,7 +96,7 @@ check-big-regressions:
             cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
           done
       done
-    - bp-runner $ARTIFACTS_DIR/../.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
+    - bp-runner $CI_PROJECT_DIR/.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
 
 .dsm-kafka-benchmarks:
   stage: benchmarks
