@@ -1,7 +1,7 @@
 package com.datadog.appsec.event.data;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -26,7 +26,7 @@ public final class ObjectIntrospection {
   static {
     // Method AccessibleObject.trySetAccessible introduced in Java 9
     Method method = null;
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         method = Field.class.getMethod("trySetAccessible");
       } catch (NoSuchMethodException e) {

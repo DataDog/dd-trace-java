@@ -1,6 +1,6 @@
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.TestProfilingContextIntegration
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 
 import java.util.concurrent.Executors
@@ -40,7 +40,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
 
     then:
     // flaky before JDK21
-    if (Platform.isJavaVersionAtLeast(21)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
       verify("java.util.concurrent.ForkJoinPool\$WorkQueue")
     }
 
