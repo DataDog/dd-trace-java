@@ -28,8 +28,8 @@ run_benchmark() {
 
     message "${type} benchmark: ${app} finished"
 
-    mkdir -p "${ARTIFACTS_DIR}/backup-reports/"
-    cp -r "${REPORTS_DIR}" "${ARTIFACTS_DIR}/backup-reports/"
+    mkdir -p "${ARTIFACTS_DIR}/../backup-reports/"
+    cp -r "${REPORTS_DIR}" "${ARTIFACTS_DIR}/../backup-reports/"
 
     cd ..
   fi
