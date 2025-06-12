@@ -3,6 +3,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 
 import java.util.function.Supplier
@@ -10,6 +11,19 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class CircuitBreakerTest extends AgentTestRunner {
+
+  def "decorateCheckedSupplier"() {
+    when:
+    CheckedSupplier<String> supplier = Decorators
+    .ofCheckedSupplier(() -> serviceCall("foobar"))
+    .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+    .decorate()
+
+    then:
+    runUnderTrace("parent", supplier::get) == "foobar"
+    and:
+    assertExpectedTrace()
+  }
 
   def "decorateSupplier"() {
     when:
@@ -21,6 +35,10 @@ class CircuitBreakerTest extends AgentTestRunner {
     then:
     runUnderTrace("parent", supplier::get) == "foobar"
     and:
+    assertExpectedTrace()
+  }
+
+  private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
         span(0) {

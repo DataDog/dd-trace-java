@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -32,7 +33,11 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
-            .and(named("decorateSupplier")) // TODO add all the other decorator methods here
+            .and(
+                namedOneOf(
+                    "decorateCheckedSupplier",
+                    // TODO add all the other decorator methods here
+                    "decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$WrapCircuitBreakerAdvice");
   }
