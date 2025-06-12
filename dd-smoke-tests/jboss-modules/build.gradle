@@ -1,4 +1,8 @@
 
+ext {
+  excludeJdk = ['IBM8']
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'JBoss Modules Smoke Tests.'
 
