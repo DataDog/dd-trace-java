@@ -46,6 +46,13 @@ jobs:
           PATTERN: '(\s*system-tests.yml@)(\S+)(\s+# Automated:.*)'
           REF: ${{ steps.system-test-ref.outputs.commit }}
 
+      - run: .github/scripts/update_reference.sh
+        env:
+          TARGET: ".github/workflows/run-system-tests.yaml"
+          PATTERN: '(\s*ref: )(\S+)(\s+# Automated:.*)'
+          REF: ${{ steps.system-test-ref.outputs.commit }}
+
+
       - run: git diff --color=always
 
       - name: Create Pull Request
