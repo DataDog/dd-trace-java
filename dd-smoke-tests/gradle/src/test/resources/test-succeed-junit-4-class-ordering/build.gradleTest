@@ -8,7 +8,6 @@ repositories {
     println "Using proxy repository: $proxyUrl"
     maven {
       url = proxyUrl
-      allowInsecureProtocol = true
     }
   }
 
