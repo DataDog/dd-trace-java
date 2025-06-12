@@ -2613,7 +2613,7 @@ class ConfigTest extends DDSpecification {
   def "ssi inject force"() {
     when:
     def prop = new Properties()
-    prop.setProperty(SSI_INJECTION_FORCE, true)
+    prop.setProperty(SSI_INJECTION_FORCE, "true")
     Config config = Config.get(prop)
 
     then:
@@ -2624,6 +2624,7 @@ class ConfigTest extends DDSpecification {
     when:
     def prop = new Properties()
     prop.setProperty(INSTRUMENTATION_SOURCE, "ssi")
+    Config config = Config.get(prop)
 
     then:
     config.instrumentationSource == "ssi"
