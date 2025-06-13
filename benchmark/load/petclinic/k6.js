@@ -9,12 +9,13 @@ export const options = {
     [`load--petclinic--${__ENV.VARIANT}--warmup`]: {
       executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
       vus: 5,
-      duration: '25s',
+      duration: '15s',
       gracefulStop: '5s',
     },
     [`load--petclinic--${__ENV.VARIANT}--high_load`]: {
       executor: 'constant-vus',
       vus: 5,
+      startTime: '15s',
       duration: '20s',
       gracefulStop: '5s',
     },
