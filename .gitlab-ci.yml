@@ -1,7 +1,4 @@
 include:
-  - project: DataDog/apm-reliability/libdatadog-build
-    ref: 0f677257308e1c379af490b754febfb40fa2c06d
-    file: templates/ci_authenticated_job.yml
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
@@ -799,37 +796,3 @@ create_key:
     expire_in: 13 mos
     paths:
       - pubkeys
-
-tracer-base-image-release:
-  extends: .ci_authenticated_job
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
-      when: on_success
-  dependencies:
-    - build
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest
-
-tracer-base-image-snapshot:
-  extends: .ci_authenticated_job
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-  dependencies:
-    - build
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot
