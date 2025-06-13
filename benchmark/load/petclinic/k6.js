@@ -1,32 +1,61 @@
 import http from 'k6/http';
 import {checkResponse, isOk} from "../../utils/k6.js";
 
-const baseUrl = 'http://localhost:8080';
-
-export const options = {
-  discardResponseBodies: true,
-  scenarios: {
-    [`load--petclinic--${__ENV.VARIANT}--warmup`]: {
-      executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
-      vus: 5,
-      duration: '20s',
-      gracefulStop: '2s',
-    },
-    [`load--petclinic--${__ENV.VARIANT}--high_load`]: {
-      executor: 'constant-arrival-rate',
-      preAllocatedVUs: 5,
-      startTime: '22s',
-      duration: '20s',
-      gracefulStop: '2s',
-      timeUnit: '1s',
-      rate: 150,
-    },
+const variants = {
+  "no_agent": {
+    "APP_URL": 'http://localhost:8080',
+  },
+  "tracing": {
+    "APP_URL": 'http://localhost:8081',
+  },
+  "profiling": {
+    "APP_URL": 'http://localhost:8082',
+  },
+  "appsec": {
+    "APP_URL": 'http://localhost:8083',
+  },
+  "iast": {
+    "APP_URL": 'http://localhost:8084',
+  },
+  "code_origins": {
+    "APP_URL": 'http://localhost:8085',
   }
-};
+}
+
+export const options = function (variants) {
+  let scenarios = {};
+  for (const variant of Object.keys(variants)) {
+    scenarios = {
+      ...{
+        [`load--petclinic--${variant}--warmup`]: {
+          executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
+          vus: 5,
+          duration: '10s',
+          gracefulStop: '2s',
+          env: { ...variants[variant] }
+        },
+        [`load--petclinic--${variant}--high_load`]: {
+          executor: 'constant-vus',
+          vus: 5,
+          startTime: '12s',
+          duration: '20s',
+          gracefulStop: '2s',
+          env: { ...variants[variant] }
+        },
+      },
+      ...scenarios
+    };
+  }
+
+  return {
+    discardResponseBodies: true,
+    scenarios,
+  }
+}(variants);
 
 export default function () {
 
   // find owner
-  const ownersList = http.get(`${baseUrl}/owners?lastName=`);
+  const ownersList = http.get(`${__ENV.APP_URL}/owners?lastName=`);
   checkResponse(ownersList, isOk);
 }
