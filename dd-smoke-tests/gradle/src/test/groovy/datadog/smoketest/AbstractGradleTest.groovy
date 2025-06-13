@@ -90,7 +90,9 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   private static boolean isSupported(String gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (Jvm.current.java21Compatible) {
+    if (Jvm.current.isJavaVersionCompatible(24)) {
+      return gradleVersion >= "8.14"
+    } else if (Jvm.current.java21Compatible) {
       return gradleVersion >= "8.4"
     } else if (Jvm.current.java20) {
       return gradleVersion >= "8.1"
