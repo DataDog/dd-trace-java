@@ -155,11 +155,17 @@ project.afterEvaluate {
     if (javaHomeVersions.isEmpty()) {
       throw new GradleException("No JAVA_X_HOME environment variables found.")
     }
-    def latestVersion = javaHomeVersions.keySet().collect { key ->
+    def javaVersions = javaHomeVersions.keySet().collect { key ->
       def matcher = key =~ /JAVA_([0-9]+)_HOME/
+      if (!matcher.matches()) {
+        return null
+      }
       matcher.group(1) as Integer
-    }.max()
-    testJvm = latestVersion.toString()
+    }.findAll { it != null }
+    if (javaVersions.isEmpty()) {
+      throw new GradleException("No Java versions found from JAVA_X_HOME environment variables.")
+    }
+    testJvm = javaVersions.max().toString()
   }
   if (testJvm) {
     def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
