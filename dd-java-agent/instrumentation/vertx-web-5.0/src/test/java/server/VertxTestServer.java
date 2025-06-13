@@ -118,7 +118,8 @@ public class VertxTestServer extends AbstractVerticle {
                     BODY_JSON,
                     () -> {
                       JsonObject json = ctx.body().asJsonObject();
-                      ctx.response().setStatusCode(BODY_JSON.getStatus()).end(json.toString());
+                      ctx.response().setStatusCode(BODY_JSON.getStatus());
+                      ctx.json(json);
                     }));
     router
         .route(QUERY_ENCODED_BOTH.getRawPath())
