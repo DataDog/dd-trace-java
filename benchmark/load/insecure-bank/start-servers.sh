@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -eu
+
+start_server() {
+  local VARIANT=$1
+  local JAVA_OPTS=$2
+
+  if [ -n "$CI_JOB_TOKEN" ]; then
+    # Inside BP, so we can assume 24 CPU cores available and set CPU affinity
+    CPU_AFFINITY_APP=$3
+  else
+    CPU_AFFINITY_APP=""
+  fi
+
+  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log
+}
+
+start_server "${NO_AGENT_VARIANT}" "-Dserver.port=8080" "taskset -c 47 " &
+start_server "tracing" "-javaagent:${TRACER} -Dserver.port=8081" "taskset -c 46 " &
+start_server "profiling" "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Dserver.port=8082" "taskset -c 45 " &
+start_server "iast" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Dserver.port=8083" "taskset -c 44 " &
+start_server "iast_GLOBAL" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.context.mode=GLOBAL -Dserver.port=8084" "taskset -c 43 " &
+start_server "iast_FULL" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.detection.mode=FULL -Dserver.port=8085" "taskset -c 42 " &
+start_server "iast_INACTIVE" "-javaagent:${TRACER} -Ddd.iast.enabled=inactive -Dserver.port=8086" "taskset -c 41 " &
+start_server "iast_TELEMETRY_OFF" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF -Dserver.port=8087" "taskset -c 40 " &
+start_server "iast_HARDCODED_SECRET_DISABLED" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false -Dserver.port=8088" "taskset -c 39 " &
+
+wait
