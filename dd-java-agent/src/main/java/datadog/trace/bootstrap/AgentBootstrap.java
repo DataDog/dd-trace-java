@@ -46,6 +46,7 @@ import java.util.jar.JarFile;
 public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
   static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
+  static final String LIB_INSTRUMENTATION_SOURCE_SYS_PROP = "dd.instrumentation.source";
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -134,6 +135,12 @@ public final class AgentBootstrap {
       return;
     }
 
+    if (getConfig(LIB_INJECTION_ENABLED_ENV_VAR)) {
+      recordInstrumentationSource("ssi");
+    } else {
+      recordInstrumentationSource("cmd_line");
+    }
+
     final URL agentJarURL = installAgentJar(inst);
     final Class<?> agentClass;
     try {
@@ -162,6 +169,10 @@ public final class AgentBootstrap {
       default:
         return false;
     }
+  }
+
+  private static void recordInstrumentationSource(String source) {
+    SystemUtils.trySetProperty(LIB_INSTRUMENTATION_SOURCE_SYS_PROP, source);
   }
 
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
