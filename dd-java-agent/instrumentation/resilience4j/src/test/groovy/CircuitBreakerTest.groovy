@@ -1,16 +1,11 @@
-
-
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import spock.lang.Ignore
-
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.function.Supplier
 
@@ -26,12 +21,12 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateCheckedSupplier"() {
     when:
     CheckedSupplier<String> supplier = Decorators
-      .ofCheckedSupplier { serviceCall("foobar") }
+      .ofCheckedSupplier{serviceCall("foobar")}
       .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
       .decorate()
 
     then:
-    runUnderTrace("parent") { supplier.get() } == "foobar"
+    runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -39,29 +34,39 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateSupplier"() {
     when:
     Supplier<String> supplier = Decorators
-      .ofSupplier { serviceCall("foobar") }
+      .ofSupplier{serviceCall("foobar")}
       .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
       .decorate()
 
     then:
-    runUnderTrace("parent") { supplier.get() } == "foobar"
+    runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
 
-  ExecutorService executor = Executors.newFixedThreadPool(1)
-  ExecutorService executor2 = Executors.newFixedThreadPool(1)
-
   def "decorateCompletionStage"() {
+    setup:
+    def executor = Executors.newSingleThreadExecutor()
+    Thread testThread = Thread.currentThread()
     when:
     Supplier<CompletionStage<String>> supplier = Decorators
-    .ofCompletionStage { CompletableFuture.supplyAsync({ serviceCall("foobar") }, executor).thenApplyAsync(v -> v, executor2) }
-    .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-    .decorate()
+      .ofCompletionStage{
+        CompletableFuture.supplyAsync({
+          // prevent completion on the same thread
+          Thread.sleep(100)
+          serviceCall("foobar")
+        }, executor).whenComplete { r, e ->
+          assert Thread.currentThread() != testThread,
+          "Make sure that the thread running whenComplete is different from the one running the test. " +
+          "This verifies that the scope we create does not cross the thread boundaries. " +
+          "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
+        }
+      }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .decorate()
 
     then:
-    //TODO force the future run in a separate thread, now serviceCall calls Thread.sleep to ensure that
-    def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
+    def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
     and:
     assertExpectedTrace()
@@ -71,7 +76,7 @@ class CircuitBreakerTest extends AgentTestRunner {
   def "decorateSupplier stacked cbs"() {
     when:
     Supplier<String> supplier = Decorators
-      .ofSupplier { serviceCall("foobar") }
+      .ofSupplier{serviceCall("foobar")}
       .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
       .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
       .decorate()
@@ -105,9 +110,8 @@ class CircuitBreakerTest extends AgentTestRunner {
     }
   }
 
-  def <T> T serviceCall(T t) {
+  def <T> T serviceCall(T value) {
     AgentTracer.startSpan("test", "serviceCall").finish()
-    Thread.sleep(100) // TODO wait here to make whenComplete run in a separate thread; How to guarantee that? use semaphore?
-    return t
+    value
   }
 }
