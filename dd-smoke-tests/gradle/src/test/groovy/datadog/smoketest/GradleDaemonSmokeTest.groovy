@@ -239,12 +239,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
+    def buildEnv = ["GRADLE_VERSION": gradleVersion]
+
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      buildEnv += ["MAVEN_REPOSITORY_PROXY": System.getenv("MAVEN_REPOSITORY_PROXY")]
+    }
+
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
-      .withEnvironment(["GRADLE_VERSION": gradleVersion])
+      .withEnvironment(buildEnv)
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
