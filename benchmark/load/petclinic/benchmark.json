@@ -9,49 +9,37 @@
     "${NO_AGENT_VARIANT}": {
       "env": {
         "VARIANT": "${NO_AGENT_VARIANT}",
-        "JAVA_OPTS": "",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 31-32 "
+        "JAVA_OPTS": ""
       }
     },
     "tracing": {
       "env": {
         "VARIANT": "tracing",
-        "JAVA_OPTS": "-javaagent:${TRACER}",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 33-34 "
+        "JAVA_OPTS": "-javaagent:${TRACER}"
       }
     },
     "profiling": {
       "env": {
         "VARIANT": "profiling",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.profiling.enabled=true",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 35-36 "
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.profiling.enabled=true"
       }
     },
     "appsec": {
       "env": {
         "VARIANT": "appsec",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 37-38 "
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true"
       }
     },
     "iast": {
       "env": {
         "VARIANT": "iast",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 39-40 "
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true"
       }
     },
     "code_origins": {
       "env": {
         "VARIANT": "code_origins",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.code.origin.for.spans.enabled=true",
-        "CPU_AFFINITY_K6": "taskset -c 24-30 ",
-        "CPU_AFFINITY_APP": "taskset -c 41-42 "
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.code.origin.for.spans.enabled=true"
       }
     }
   }
