@@ -10,11 +10,13 @@ export const options = {
       executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
       vus: 5,
       duration: '25s',
+      gracefulStop: '5s',
     },
     [`load--insecure-bank--${__ENV.VARIANT}--high_load`]: {
       executor: 'constant-vus',
       vus: 5,
       duration: '20s',
+      gracefulStop: '5s',
     },
   }
 };
