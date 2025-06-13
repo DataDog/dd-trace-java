@@ -2,6 +2,7 @@ package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.ThreadUtils
+import groovy.json.JsonSlurper
 import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.Request
@@ -10,6 +11,7 @@ import okhttp3.Response
 import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -690,6 +692,34 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     span.meta.containsKey('_dd.appsec.s.req.query')
     span.meta.containsKey('_dd.appsec.s.req.params')
     span.meta.containsKey('_dd.appsec.s.req.headers')
+  }
+
+  void 'API Security request body with json node extraction'() {
+    given:
+    def url = "http://localhost:${httpPort}/api_security/jackson"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.get("application/json"), '{"letters": ["a", "b", "c"]}'))
+      .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    waitForTraceCount(1)
+    def span = rootSpans.first()
+    def body = span.meta['_dd.appsec.s.req.body']
+    body != null
+    final schema = new JsonSlurper().parse(unzip(body))[0]
+    assert schema instanceof Map
+    assert schema['letters'][1]["len"] == 3
+  }
+
+  private static byte[] unzip(final String text) {
+    final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
+    return inflaterStream.getBytes()
   }
 
 }
