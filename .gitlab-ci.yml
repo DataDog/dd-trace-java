@@ -20,6 +20,10 @@ stages:
   - generate-signing-key
 
 variables:
+  # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
+  # Fold and time all script sections
+  FF_SCRIPT_SECTIONS: 1
+
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
