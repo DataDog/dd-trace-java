@@ -23,6 +23,14 @@ public final class SystemUtils {
     }
   }
 
+  public static String trySetProperty(String property, String value) {
+    try {
+      return System.setProperty(property, value);
+    } catch (SecurityException e) {
+      return null;
+    }
+  }
+
   public static String getPropertyOrDefault(String property, String defaultValue) {
     try {
       return System.getProperty(property, defaultValue);
