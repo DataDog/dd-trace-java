@@ -4,7 +4,7 @@
   "service": "bash -c \"${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080 ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
   "run": "bash -c \"${UTILS_DIR}/../load/petclinic/start-servers.sh\"",
   "timeout": 150,
-  "iterations": 1,
+  "iterations": 2,
   "variants": {
     "default": {}
   }
