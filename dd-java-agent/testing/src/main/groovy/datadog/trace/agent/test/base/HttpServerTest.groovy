@@ -1593,6 +1593,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def request = request(
     BODY_JSON, 'POST',
     RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+    .header(IG_RESPONSE_BODY_TAG, 'true')
     .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
@@ -2319,6 +2320,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
   static final String IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER = "x-include-response-headers-in-tags"
+  static final String IG_RESPONSE_BODY_TAG = "x-include-response-body-in-tags"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -2342,6 +2344,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean bodyEndBlock
       boolean bodyConvertedBlock
       boolean responseHeadersInTags
+      boolean responseBodyTag
     }
 
     static final String stringOrEmpty(String string) {
@@ -2394,6 +2397,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER.equalsIgnoreCase(key)) {
         context.responseHeadersInTags = true
+      }
+      if (IG_RESPONSE_BODY_TAG.equalsIgnoreCase(key)) {
+        context.responseBodyTag = true
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -2503,8 +2509,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         .findAll { it.key != 'class' }
         .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
       }
-      rqCtxt.traceSegment.setTagTop('response.body', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseBodyTag) {
+        rqCtxt.traceSegment.setTagTop('response.body', obj as String)
+      }
       if (context.responseBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
