@@ -103,5 +103,9 @@ public final class GeneralConfig {
 
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
 
+  public static final String SSI_INJECTION_ENABLED = "injection.enabled";
+  public static final String SSI_INJECTION_FORCE = "inject.force";
+  public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
+
   private GeneralConfig() {}
 }

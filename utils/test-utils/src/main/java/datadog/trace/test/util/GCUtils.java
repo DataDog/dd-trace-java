@@ -22,6 +22,8 @@ public abstract class GCUtils {
 
   public static void awaitGC(final WeakReference<?> ref, final long duration, final TimeUnit unit)
       throws InterruptedException {
+    System.gc();
+    System.runFinalization();
     final long waitNanos = unit.toNanos(duration);
     final long start = System.nanoTime();
     while (System.nanoTime() - start < waitNanos) {
