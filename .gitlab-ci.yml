@@ -20,6 +20,10 @@ stages:
   - generate-signing-key
 
 variables:
+  # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
+  # Fold and time all script sections
+  FF_SCRIPT_SECTIONS: 1
+
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
@@ -133,8 +137,14 @@ default:
   before_script:
     - source .gitlab/gitlab-utils.sh
     - export GRADLE_USER_HOME=`pwd`/.gradle
+    - |
+      # Don't put jvm args here as it will be picked up by child gradle processes used in tests
+      cat << EOF > $GRADLE_USER_HOME/gradle.properties
+      mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+      gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+      EOF
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx$GRADLE_MEM -Xms$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS -PmavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY -PgradlePluginProxy=$GRADLE_PLUGIN_PROXY"
+    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
