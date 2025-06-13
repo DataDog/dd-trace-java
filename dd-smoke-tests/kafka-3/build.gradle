@@ -23,15 +23,7 @@ tasks.register('bootJar', Exec) {
   workingDir appDir
 
   final toolchain17 = getJavaLauncherFor(17).get()
-
-  if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-    environment += ["GRADLE_ARGS": " -PmavenRepositoryProxy=${project.rootProject.property("mavenRepositoryProxy")}"]
-  }
-
-  environment += [
-    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": "$toolchain17.metadata.installationPath"
-  ]
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
   commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
 
   outputs.cacheIf { true }
