@@ -237,6 +237,10 @@ public class Config {
 
   private final boolean traceGitMetadataEnabled;
 
+  private final boolean ssiInjectionForce;
+  private final String ssiInjectionEnabled;
+  private final String instrumentationSource;
+
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
   private final String traceSamplingRules;
@@ -2040,6 +2044,13 @@ public class Config {
           SEND_TELEMETRY,
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
+
+    // Used to report telemetry on SSI injection
+    this.ssiInjectionEnabled = configProvider.getString(SSI_INJECTION_ENABLED);
+    this.ssiInjectionForce =
+        configProvider.getBoolean(SSI_INJECTION_FORCE, DEFAULT_SSI_INJECTION_FORCE);
+    this.instrumentationSource =
+        configProvider.getString(INSTRUMENTATION_SOURCE, DEFAULT_INSTRUMENTATION_SOURCE);
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
