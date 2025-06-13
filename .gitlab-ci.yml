@@ -136,7 +136,7 @@ default:
       policy: $BUILD_CACHE_POLICY
   before_script:
     - source .gitlab/gitlab-utils.sh
-    - export GRADLE_USER_HOME=`pwd`/.gradle
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
     - |
       # Don't put jvm args here as it will be picked up by child gradle processes used in tests
       cat << EOF > $GRADLE_USER_HOME/gradle.properties
@@ -371,7 +371,7 @@ muzzle:
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
     - sort workspace/build/muzzleTasks > sortedMuzzleTasks
     - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
+    - ./gradlew $(cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs) $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
