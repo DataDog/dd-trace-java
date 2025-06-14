@@ -43,11 +43,19 @@ public class MainVerticle extends AbstractVerticle {
                     .putHeader("content-type", "text/plain")
                     .end(randomFactorial().toString()));
 
+    router
+        .route("/api_security/sampling/:status_code")
+        .handler(
+            ctx ->
+                ctx.response()
+                    .setStatusCode(Integer.parseInt(ctx.request().getParam("status_code")))
+                    .end("EXECUTED"));
+
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(
             req -> {
-              if (req.path().startsWith("/routes")) {
+              if (req.path().startsWith("/routes") || req.path().startsWith("/api_security")) {
                 router.handle(req);
               } else {
                 req.response()
