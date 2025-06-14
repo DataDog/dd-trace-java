@@ -16,7 +16,11 @@ public final class DatadogCapturedContextProvider implements CapturedContextProv
 
   @Override
   public CapturedContext captureContextCopy(CapturedContext underlying) {
-    return new WithDatadogCapturedContext(AgentTracer.activeSpan(), underlying);
+    AgentSpan activeSpan = AgentTracer.activeSpan();
+    if (activeSpan == null) {
+      return underlying;
+    }
+    return new WithDatadogCapturedContext(activeSpan, underlying);
   }
 
   private static final class WithDatadogCapturedContext implements CapturedContext {
