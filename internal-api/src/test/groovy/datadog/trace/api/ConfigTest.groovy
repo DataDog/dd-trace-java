@@ -40,6 +40,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PR
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
@@ -256,7 +257,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_ENABLED, "true")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
-    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS, "0.234")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
@@ -352,7 +353,7 @@ class ConfigTest extends DDSpecification {
     config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
     config.dynamicInstrumentationProbeFile == "file location"
     config.dynamicInstrumentationUploadTimeout == 10
-    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadFlushInterval == 234
     config.dynamicInstrumentationUploadBatchSize == 200
     config.dynamicInstrumentationMetricsEnabled == false
     config.dynamicInstrumentationClassFileDumpEnabled == true
