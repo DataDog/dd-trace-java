@@ -25,6 +25,5 @@ dependencies {
   testImplementation libs.guava
   testImplementation libs.bundles.mockito
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
-  testImplementation project(':utils:test-utils') // @Flaky annotation
 }
 
