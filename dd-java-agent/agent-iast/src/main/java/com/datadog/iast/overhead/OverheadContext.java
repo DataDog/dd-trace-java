@@ -3,16 +3,62 @@ package com.datadog.iast.overhead;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.util.NonBlockingSemaphore;
+import datadog.trace.api.iast.VulnerabilityTypes;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 public class OverheadContext {
 
+  /** Maximum number of distinct endpoints to remember in the global cache. */
+  private static final int GLOBAL_MAP_MAX_SIZE = 4096;
+
+  /**
+   * Global concurrent cache mapping each “method + path” key to its historical vulnerabilityCounts
+   * map. As soon as size() > GLOBAL_MAP_MAX_SIZE, we clear() the whole map.
+   */
+  static final ConcurrentMap<String, AtomicIntegerArray> globalMap =
+      new ConcurrentHashMap<String, AtomicIntegerArray>() {
+
+        @Override
+        public AtomicIntegerArray computeIfAbsent(
+            String key,
+            @NotNull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
+          AtomicIntegerArray prev = super.computeIfAbsent(key, mappingFunction);
+          if (this.size() > GLOBAL_MAP_MAX_SIZE) {
+            super.clear();
+          }
+          return prev;
+        }
+      };
+
+  // Snapshot of the globalMap for the current request
+  @Nullable final Map<String, int[]> copyMap;
+  // Map of vulnerabilities per endpoint for the current request, needs to use AtomicIntegerArray
+  // because it's possible to have concurrent updates in the same request
+  @Nullable final Map<String, AtomicIntegerArray> requestMap;
+
   private final NonBlockingSemaphore availableVulnerabilities;
+  private final boolean isGlobal;
 
   public OverheadContext(final int vulnerabilitiesPerRequest) {
+    this(vulnerabilitiesPerRequest, false);
+  }
+
+  public OverheadContext(final int vulnerabilitiesPerRequest, final boolean isGlobal) {
     availableVulnerabilities =
         vulnerabilitiesPerRequest == UNLIMITED
             ? NonBlockingSemaphore.unlimited()
             : NonBlockingSemaphore.withPermitCount(vulnerabilitiesPerRequest);
+    this.isGlobal = isGlobal;
+    this.requestMap = isGlobal ? null : new HashMap<>();
+    this.copyMap = isGlobal ? null : new HashMap<>();
   }
 
   public int getAvailableQuota() {
@@ -25,5 +71,54 @@ public class OverheadContext {
 
   public void reset() {
     availableVulnerabilities.reset();
+  }
+
+  public void resetMaps() {
+    // If this is a global context, we do not reset the maps
+    if (isGlobal || requestMap == null || copyMap == null) {
+      return;
+    }
+    Set<String> endpoints = requestMap.keySet();
+    // If the budget is not consumed, we can reset the maps
+    if (getAvailableQuota() > 0) {
+      // clean endpoints from globalMap
+      endpoints.forEach(globalMap::remove);
+      // Clear the requestMap and copyMap related to this context
+      requestMap.clear();
+      copyMap.clear();
+      return;
+    }
+    // If the budget is consumed, we need to merge the requestMap into the globalMap
+    endpoints.forEach(
+        endpoint -> {
+          AtomicIntegerArray countMap = requestMap.get(endpoint);
+          // should not happen, but just in case
+          if (countMap == null) {
+            globalMap.remove(endpoint);
+            return;
+          }
+          // Iterate over the vulnerabilities and update the globalMap
+          int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
+          for (int i = 0; i < numberOfVulnerabilities; i++) {
+            int counter = countMap.get(i);
+            if (counter > 0) {
+              AtomicIntegerArray globalCountMap =
+                  globalMap.computeIfAbsent(
+                      endpoint, value -> new AtomicIntegerArray(numberOfVulnerabilities));
+              int globalCounter = globalCountMap.get(i);
+              if (counter > globalCounter) {
+                globalCountMap.set(i, counter);
+              }
+            }
+          }
+        });
+
+    // Clear the requestMap and copyMap related to this context
+    requestMap.clear();
+    copyMap.clear();
+  }
+
+  public boolean isGlobal() {
+    return isGlobal;
   }
 }
