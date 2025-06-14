@@ -30,6 +30,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true"
       }
     },
+    "apisec": {
+      "env": {
+        "VARIANT": "apisec",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true -Ddd.api-security.enabled=true"
+      }
+    },
     "iast": {
       "env": {
         "VARIANT": "iast",

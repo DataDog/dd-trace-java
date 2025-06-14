@@ -6,8 +6,6 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
-import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -18,7 +16,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -184,7 +181,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       try {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
-          maybeTracePostProcessing(trace);
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
@@ -244,34 +240,6 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     protected boolean queuesAreEmpty() {
       return primaryQueue.isEmpty() && secondaryQueue.isEmpty();
-    }
-
-    private void maybeTracePostProcessing(List<DDSpan> trace) {
-      if (trace == null || trace.isEmpty()) {
-        return;
-      }
-
-      final SpanPostProcessor postProcessor = SpanPostProcessor.Holder.INSTANCE;
-      try {
-        final long timeout = Config.get().getTracePostProcessingTimeout();
-        final long deadline = System.currentTimeMillis() + timeout;
-        final boolean[] timedOut = {false};
-        final BooleanSupplier timeoutCheck =
-            () -> {
-              if (timedOut[0]) {
-                return true;
-              }
-              if (System.currentTimeMillis() > deadline) {
-                timedOut[0] = true;
-              }
-              return timedOut[0];
-            };
-        for (DDSpan span : trace) {
-          postProcessor.process(span, timeoutCheck);
-        }
-      } catch (Throwable e) {
-        log.debug("Error while trace post-processing", e);
-      }
     }
   }
 }
