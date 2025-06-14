@@ -601,7 +601,8 @@ public class Config {
     this.configProvider = configProvider;
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
-    runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
+    runtimeIdEnabled =
+        configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
     runtimeVersion = System.getProperty("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
