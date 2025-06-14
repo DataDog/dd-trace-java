@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -19,6 +20,7 @@ import scala.collection.JavaConverters;
 public class DatadogSpark212Listener extends AbstractDatadogSparkListener {
   public DatadogSpark212Listener(SparkConf sparkConf, String appId, String sparkVersion) {
     super(sparkConf, appId, sparkVersion);
+    AgentTracer.get().getDataStreamsMonitoring().addGlobalTag("service_type:spark_app");
   }
 
   @Override
