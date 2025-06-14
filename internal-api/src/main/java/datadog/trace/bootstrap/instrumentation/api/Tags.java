@@ -152,4 +152,10 @@ public class Tags {
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
+
+  public static final String LLMOBS_LLM_SPAN_KIND = "llm";
+  public static final String LLMOBS_WORKFLOW_SPAN_KIND = "workflow";
+  public static final String LLMOBS_TASK_SPAN_KIND = "task";
+  public static final String LLMOBS_AGENT_SPAN_KIND = "agent";
+  public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
 }
