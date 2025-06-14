@@ -194,6 +194,10 @@ public final class Strings {
     return false;
   }
 
+  public static boolean isBlank(String s) {
+    return !isNotBlank(s);
+  }
+
   /**
    * Generates a random string of the given length from lowercase characters a-z
    *
