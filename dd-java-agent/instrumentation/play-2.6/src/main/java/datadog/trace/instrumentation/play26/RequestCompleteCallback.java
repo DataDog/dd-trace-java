@@ -25,8 +25,11 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
       if (result.isFailure()) {
         DECORATE.onError(span, result.failed().get());
       } else {
+        Result response = result.get();
         if (REPORT_HTTP_STATUS) {
-          DECORATE.onResponse(span, result.get());
+          DECORATE.onResponse(span, response);
+        } else {
+          DECORATE.updateOn404Only(span, response);
         }
       }
       DECORATE.beforeFinish(span);

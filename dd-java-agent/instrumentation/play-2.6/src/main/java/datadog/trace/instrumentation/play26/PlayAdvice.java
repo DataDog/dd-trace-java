@@ -84,7 +84,7 @@ public class PlayAdvice {
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null && playControllerSpan.getResourceName() != null) {
       rootSpan.setResourceName(
-          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
   }
 }
