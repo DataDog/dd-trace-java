@@ -1,5 +1,7 @@
 package datadog.trace.common.writer;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.core.DDSpan;
@@ -50,21 +52,24 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   private boolean awaitUntilDeadline(long timeout, TimeUnit unit, BooleanSupplier predicate)
       throws InterruptedException {
-    long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
+    final long deadline = System.nanoTime() + unit.toNanos(timeout);
 
     while (true) {
       if (predicate.getAsBoolean()) {
         return true;
       }
 
-      long now = System.currentTimeMillis();
-      long waitTime = deadline - now;
-      if (waitTime <= 0) {
+      long now = System.nanoTime();
+      long remaining = deadline - now;
+      if (remaining <= 0) {
         break;
       }
 
+      long millis = NANOSECONDS.toMillis(remaining);
+      long nanos = remaining - MILLISECONDS.toNanos(millis);
+
       synchronized (monitor) {
-        monitor.wait(waitTime);
+        monitor.wait(millis, (int) nanos);
       }
     }
 
