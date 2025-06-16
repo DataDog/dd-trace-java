@@ -7,22 +7,22 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class CircuitBreakerInstrumentation extends Resilience4jInstrumentation {
 
   private static final String CIRCUIT_BREAKER_FQCN =
       "io.github.resilience4j.circuitbreaker.CircuitBreaker";
 
   public CircuitBreakerInstrumentation() {
-    super("resilience4j", "resilience4j-circuitbreaker");
+    super("resilience4j-circuitbreaker");
   }
 
   @Override
@@ -41,7 +41,7 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
                     // TODO add all the other decorator methods here
                     "decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN))),
-        CircuitBreakerInstrumentation.class.getName() + "$WrapCircuitBreakerAdvice");
+        CircuitBreakerInstrumentation.class.getName() + "$SyncDecoratorsAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -52,26 +52,19 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DDContext",
-      //        packageName + ".CircuitBreakerWithContext", //TODO how to satisfy muzzle check but
-      // prevent CircuitBreaker loading at runtime
-      // FIXME without this muzzle check fails "Missing class
-      // datadog.trace.instrumentation.resilience4j.CircuitBreakerWithContext"
-      // but with it, instrumentation fails "java.lang.LinkageError: loader 'app' attempted
-      // duplicate interface definition for io.github.resilience4j.circuitbreaker.CircuitBreaker.
-      // (io.github.resilience4j.circuitbreaker.CircuitBreaker is in unnamed module of loader
-      // 'app')"
-      //        "datadog.trace.instrumentation.resilience4j.CircuitBreakerWithContext",
-    };
+  public String[] muzzleIgnoredClassNames() {
+    ArrayList<String> ignored = new ArrayList<>(Arrays.asList(helperClassNames()));
+    // Prevent a LinkageError caused by a reference to the instrumented interface by excluding these
+    // from being loaded by the muzzle check.
+    ignored.add(packageName + ".CircuitBreakerWrapper");
+    return ignored.toArray(new String[0]);
   }
 
-  public static class WrapCircuitBreakerAdvice {
+  public static class SyncDecoratorsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker) {
-      circuitBreaker = new CircuitBreakerWithContext(circuitBreaker, new DDContext());
+      circuitBreaker = new CircuitBreakerWrapper(circuitBreaker, new DDContext());
     }
   }
 
@@ -82,7 +75,7 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(value = 1, readOnly = false) Supplier<CompletionStage<?>> supplier) {
       DDContext ddContext = new DDContext();
       final Supplier<CompletionStage<?>> delegate = supplier;
-      circuitBreaker = new CircuitBreakerWithContext(circuitBreaker, ddContext);
+      circuitBreaker = new CircuitBreakerWrapper(circuitBreaker, ddContext);
       supplier = DDContext.wrap(delegate, ddContext);
     }
   }

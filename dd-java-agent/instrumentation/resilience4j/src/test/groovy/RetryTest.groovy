@@ -3,7 +3,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
+import io.github.resilience4j.retry.Retry
 import spock.lang.Ignore
+
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
@@ -11,38 +13,38 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class CircuitBreakerTest extends AgentTestRunner {
+class RetryTest extends AgentTestRunner {
 
-  // TODO use CircuitBreaker mocks to test more scenarios
+  // TODO use Retry mocks to test more scenarios
   // TODO test all io.github.resilience4j.decorators.Decorators.of* decorators
   // TODO test throwing serviceCall
   // TODO test stacked decorators
 
-  def "decorateCheckedSupplier"() {
-    when:
-    CheckedSupplier<String> supplier = Decorators
-      .ofCheckedSupplier { serviceCall("foobar") }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
-    and:
-    assertExpectedTrace()
-  }
-
-  def "decorateSupplier"() {
-    when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
-    and:
-    assertExpectedTrace()
-  }
+  //  def "decorateCheckedSupplier"() {
+  //    when:
+  //    CheckedSupplier<String> supplier = Decorators
+  //      .ofCheckedSupplier{serviceCall("foobar")}
+  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+  //      .decorate()
+  //
+  //    then:
+  //    runUnderTrace("parent"){supplier.get()} == "foobar"
+  //    and:
+  //    assertExpectedTrace()
+  //  }
+  //
+  //  def "decorateSupplier"() {
+  //    when:
+  //    Supplier<String> supplier = Decorators
+  //      .ofSupplier{serviceCall("foobar")}
+  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+  //      .decorate()
+  //
+  //    then:
+  //    runUnderTrace("parent"){supplier.get()} == "foobar"
+  //    and:
+  //    assertExpectedTrace()
+  //  }
 
   def "decorateCompletionStage"() {
     setup:
@@ -62,7 +64,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           "If it fails, ensure that the provided future isn't completed immediately. Otherwise, the callback will be called on the caller thread."
         }
       }
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
+      .withRetry(Retry.ofDefaults("id"), Executors.newSingleThreadScheduledExecutor())
       .decorate()
 
     then:
@@ -72,20 +74,20 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  @Ignore("first need to implement async decorator and then see how to implement stacking properly")
-  def "decorateSupplier stacked cbs"() {
-    when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent") { supplier.get() } == "foobar"
-    and:
-    assertExpectedTrace()
-  }
+  //  @Ignore("first need to implement async decorator and then see how to implement stacking properly")
+  //  def "decorateSupplier stacked cbs"() {
+  //    when:
+  //    Supplier<String> supplier = Decorators
+  //      .ofSupplier{serviceCall("foobar")}
+  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
+  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
+  //      .decorate()
+  //
+  //    then:
+  //    runUnderTrace("parent") { supplier.get() } == "foobar"
+  //    and:
+  //    assertExpectedTrace()
+  //  }
 
   private void assertExpectedTrace() {
     assertTraces(1) {

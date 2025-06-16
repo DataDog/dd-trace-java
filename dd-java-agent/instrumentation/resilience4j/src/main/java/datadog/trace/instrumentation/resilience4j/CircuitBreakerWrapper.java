@@ -7,11 +7,11 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public final class CircuitBreakerWithContext implements CircuitBreaker {
+public class CircuitBreakerWrapper implements CircuitBreaker {
   private final CircuitBreaker delegate;
   private final DDContext ddContext;
 
-  public CircuitBreakerWithContext(CircuitBreaker delegate, DDContext ddContext) {
+  public CircuitBreakerWrapper(CircuitBreaker delegate, DDContext ddContext) {
     this.delegate = delegate;
     this.ddContext = ddContext;
   }
@@ -23,7 +23,7 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
       return false;
     }
 
-    ddContext.openScope();
+    //    ddContext.openScope(); // this is done in the wrapper
     return true;
   }
 
@@ -37,7 +37,6 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
 
   @Override
   public void releasePermission() {
-    System.err.println("releasePermission");
     // TODO should close the scope and finish the span?
 
     delegate.releasePermission();
@@ -141,7 +140,6 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
 
   @Override
   public long getCurrentTimestamp() {
-    System.err.println("getCurrentTimestamp");
     return delegate.getCurrentTimestamp();
   }
 

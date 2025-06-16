@@ -11,8 +11,21 @@ public final class DDContext {
   public static Supplier<CompletionStage<?>> wrap(
       Supplier<CompletionStage<?>> delegate, DDContext ddContext) {
     return () -> {
-      try { // TODO would be better to handle scope creation here?
-        return delegate.get();
+      ddContext.openScope();
+      try { // TODO would be better to handle scope creation here? Yes, this also needed for retry
+        CompletionStage<?> completionStage = delegate.get();
+        completionStage.whenComplete(
+            (result, error) -> {
+              if (!(error instanceof Exception)) {
+                // make sure we finish the span even if the completionStage has failed with
+                // unhandled exception.
+                // TODO write a test for this. See
+                // io.github.resilience4j.retry.Retry.AsyncRetryBlock.run :: (throwable instanceof
+                // Exception)
+                ddContext.finishSpan(error);
+              }
+            });
+        return completionStage;
       } finally {
         ddContext.closeScope();
       }
@@ -23,8 +36,12 @@ public final class DDContext {
   private AgentScope scope;
 
   public void openScope() {
-    span = AgentTracer.startSpan("resilience4j", "resilience4j");
-    scope = AgentTracer.activateSpan(span);
+    if (span == null) {
+      span = AgentTracer.startSpan("resilience4j", "resilience4j");
+    }
+    if (scope == null) {
+      scope = AgentTracer.activateSpan(span);
+    }
 
     //    AgentSpan parent = AgentTracer.activeSpan();
     //    AgentSpanContext parentContext =
@@ -35,18 +52,20 @@ public final class DDContext {
   }
 
   public void closeScope() {
-    System.err.println(">> ddCloseScope " + Thread.currentThread().getName());
-    if (scope != null) {
-      scope.close();
-      scope = null;
+    if (scope == null) {
+      return; // no scope to close
     }
+    System.err.println(">> ddCloseScope " + Thread.currentThread().getName());
+    scope.close();
+    scope = null;
   }
 
   public void finishSpan(Throwable error) {
-    if (span != null) {
-      // TODO set error tag
-      span.finish();
-      span = null;
+    if (span == null) {
+      return;
     }
+    // TODO set error tag
+    span.finish();
+    span = null;
   }
 }

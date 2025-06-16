@@ -4,11 +4,13 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import java.util.Map;
 
-public class RetryWithContext implements Retry {
+public final class RetryWrapper implements Retry {
   private final Retry original;
+  private final DDContext ddContext;
 
-  public RetryWithContext(Retry original, DDContext ddContext) {
+  public RetryWrapper(Retry original, DDContext ddContext) {
     this.original = original;
+    this.ddContext = ddContext;
   }
 
   @Override
@@ -24,8 +26,7 @@ public class RetryWithContext implements Retry {
 
   @Override
   public <T> AsyncContext<T> asyncContext() {
-    // TODO wrap to hold DD context
-    return original.asyncContext();
+    return new RetryAsyncContextWrapper<>(original.asyncContext(), ddContext);
   }
 
   @Override

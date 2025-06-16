@@ -6,21 +6,21 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.github.resilience4j.retry.Retry;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class RetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class RetryInstrumentation extends Resilience4jInstrumentation {
 
   private static final String RETRY_FQCN = "io.github.resilience4j.retry.Retry";
 
   public RetryInstrumentation() {
-    super("resilience4j", "resilience4j-retry");
+    super("resilience4j-retry");
   }
 
   @Override
@@ -30,6 +30,7 @@ public class RetryInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    // TODO add synchronous decorator instrumentations
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -39,11 +40,13 @@ public class RetryInstrumentation extends InstrumenterModule.Tracing
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DDContext", packageName + ".RetryWithContext",
-    };
+  public String[] muzzleIgnoredClassNames() {
+    ArrayList<String> ignored = new ArrayList<>(Arrays.asList(helperClassNames()));
+    // Prevent a LinkageError caused by a reference to the instrumented interface by excluding these
+    // from being loaded by the muzzle check.
+    ignored.add(packageName + ".RetryWrapper");
+    ignored.add(packageName + ".RetryAsyncContextWrapper");
+    return ignored.toArray(new String[0]);
   }
 
   public static class CompletionStageAdvice {
@@ -53,7 +56,7 @@ public class RetryInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> supplier) {
       DDContext ddContext = new DDContext();
       final Supplier<CompletionStage<?>> delegate = supplier;
-      retry = new RetryWithContext(retry, ddContext);
+      retry = new RetryWrapper(retry, ddContext);
       supplier = DDContext.wrap(delegate, ddContext);
     }
   }
