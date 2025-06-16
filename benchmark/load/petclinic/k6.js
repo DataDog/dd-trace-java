@@ -15,7 +15,7 @@ export const options = {
     [`load--petclinic--${__ENV.VARIANT}--high_load`]: {
       executor: 'constant-arrival-rate',
       preAllocatedVUs: 5,
-      startTime: '12s',
+      startTime: '22s',
       duration: '20s',
       gracefulStop: '2s',
       timeUnit: '1s',
