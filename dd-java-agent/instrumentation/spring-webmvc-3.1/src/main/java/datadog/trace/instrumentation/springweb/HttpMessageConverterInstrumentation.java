@@ -71,6 +71,27 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
             .and(takesArgument(1, Class.class))
             .and(takesArgument(2, named("org.springframework.http.HttpInputMessage"))),
         HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("write"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, Object.class))
+            .and(takesArgument(1, named("org.springframework.http.MediaType")))
+            .and(takesArgument(2, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("write"))
+            .and(takesArguments(4))
+            .and(takesArgument(0, Object.class))
+            .and(takesArgument(1, Type.class))
+            .and(takesArgument(2, named("org.springframework.http.MediaType")))
+            .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -103,6 +124,39 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
               rba.getExtraHeaders());
         }
         t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
+      }
+    }
+  }
+
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class HttpMessageConverterWriteAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(
+        @Advice.Argument(0) final Object obj, @ActiveRequestContext RequestContext reqCtx) {
+      if (obj == null) {
+        return;
+      }
+
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, Object, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.responseBody());
+      if (callback == null) {
+        return;
+      }
+
+      Flow<Void> flow = callback.apply(reqCtx, obj);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(
+              reqCtx.getTraceSegment(),
+              rba.getStatusCode(),
+              rba.getBlockingContentType(),
+              rba.getExtraHeaders());
+        }
+        throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
       }
     }
   }
