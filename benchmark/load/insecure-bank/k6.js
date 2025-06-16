@@ -6,18 +6,9 @@ const baseUrl = 'http://localhost:8080';
 export const options = {
   discardResponseBodies: true,
   scenarios: {
-    [`load--insecure-bank--${__ENV.VARIANT}--warmup`]: {
-      executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
-      vus: 5,
-      duration: '10s',
-      gracefulStop: '2s',
-    },
     [`load--insecure-bank--${__ENV.VARIANT}--high_load`]: {
-      executor: 'constant-vus',
       vus: 5,
-      startTime: '12s',
-      duration: '20s',
-      gracefulStop: '2s',
+      iterations: 40000
     },
   }
 };
