@@ -1,6 +1,7 @@
 package datadog.environment;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,5 +24,15 @@ class SystemPropertiesTest {
     assertNull(SystemProperties.getOrDefault(MISSING_SYSTEM_PROPERTY, null));
 
     assertThrows(NullPointerException.class, () -> SystemProperties.getOrDefault(null, ""));
+  }
+
+  @Test
+  void testSet() {
+    String testProperty = "test.property";
+    String testValue = "test-value";
+    assumeTrue(SystemProperties.get(testProperty) == null);
+
+    assertTrue(SystemProperties.set(testProperty, testValue));
+    assertEquals(testValue, SystemProperties.get(testProperty));
   }
 }
