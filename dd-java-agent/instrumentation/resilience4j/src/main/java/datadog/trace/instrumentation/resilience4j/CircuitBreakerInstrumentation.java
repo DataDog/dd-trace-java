@@ -54,6 +54,9 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".DDContext",
+      //        packageName + ".CircuitBreakerWithContext", //TODO how to satisfy muzzle check but
+      // prevent CircuitBreaker loading at runtime
       // FIXME without this muzzle check fails "Missing class
       // datadog.trace.instrumentation.resilience4j.CircuitBreakerWithContext"
       // but with it, instrumentation fails "java.lang.LinkageError: loader 'app' attempted
@@ -68,47 +71,19 @@ public class CircuitBreakerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker) {
-      circuitBreaker = new CircuitBreakerWithContext(circuitBreaker);
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void afterExecute(
-        @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
-        @Advice.Thrown Throwable throwable) {
-      System.err.println("afterExecute: " + circuitBreaker);
+      circuitBreaker = new CircuitBreakerWithContext(circuitBreaker, new DDContext());
     }
   }
 
   public static class CompletionStageAdvice {
-
-    // Can't use anonymous lambda in the Advice
-    public static class SupplierWithScope implements Supplier<CompletionStage<?>> {
-      private final Supplier<CompletionStage<?>> originalSupplier;
-      private final CircuitBreakerWithContext circuitBreaker;
-
-      public SupplierWithScope(
-          CircuitBreakerWithContext circuitBreaker, Supplier<CompletionStage<?>> originalSupplier) {
-        this.circuitBreaker = circuitBreaker;
-        this.originalSupplier = originalSupplier;
-      }
-
-      @Override
-      public CompletionStage<?> get() {
-        try { // TODO would be better to handle scope creation here
-          return originalSupplier.get();
-        } finally {
-          circuitBreaker.ddCloseScope();
-        }
-      }
-    }
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      final CircuitBreakerWithContext cb = new CircuitBreakerWithContext(circuitBreaker);
-      supplier = new SupplierWithScope(cb, supplier);
-      circuitBreaker = cb;
+      DDContext ddContext = new DDContext();
+      final Supplier<CompletionStage<?>> delegate = supplier;
+      circuitBreaker = new CircuitBreakerWithContext(circuitBreaker, ddContext);
+      supplier = DDContext.wrap(delegate, ddContext);
     }
   }
 }

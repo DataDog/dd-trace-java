@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.resilience4j;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import java.time.Duration;
@@ -11,59 +8,31 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public final class CircuitBreakerWithContext implements CircuitBreaker {
-  private final CircuitBreaker cb;
+  private final CircuitBreaker delegate;
+  private final DDContext ddContext;
 
-  private AgentSpan span;
-  private AgentScope scope;
-
-  public CircuitBreakerWithContext(CircuitBreaker cb) {
-    this.cb = cb;
-  }
-
-  private void ddStartScope() {
-    span = AgentTracer.startSpan("resilience4j", "resilience4j");
-    scope = AgentTracer.activateSpan(span);
-
-    //    AgentSpan parent = AgentTracer.activeSpan();
-    //    AgentSpanContext parentContext =
-    //        parent != null ? parent.context() : AgentTracer.noopSpanContext();
-
-    //    if (parent == null || !parent.getSpanName().equals("resilience4j")) {
-    //      span = AgentTracer.startSpan("resilience4j", "resilience4j", parentContext);
-  }
-
-  public void ddCloseScope() {
-    System.err.println(">> ddCloseScope " + Thread.currentThread().getName());
-    if (scope != null) {
-      scope.close();
-      scope = null;
-    }
-  }
-
-  private void finishSpan(Throwable error) {
-    if (span != null) {
-      // TODO set error tag
-      span.finish();
-      span = null;
-    }
+  public CircuitBreakerWithContext(CircuitBreaker delegate, DDContext ddContext) {
+    this.delegate = delegate;
+    this.ddContext = ddContext;
   }
 
   @Override
   public boolean tryAcquirePermission() {
-    if (!cb.tryAcquirePermission()) {
+    if (!delegate.tryAcquirePermission()) {
       // TODO do we want to record non-permitted attempt?
       return false;
     }
 
-    ddStartScope();
+    ddContext.openScope();
     return true;
   }
 
   @Override
   public void acquirePermission() {
-    cb.acquirePermission(); // TODO do we want to record non-permitted attempt, then need to catch
+    delegate
+        .acquirePermission(); // TODO do we want to record non-permitted attempt, then need to catch
 
-    ddStartScope();
+    ddContext.openScope();
   }
 
   @Override
@@ -71,113 +40,113 @@ public final class CircuitBreakerWithContext implements CircuitBreaker {
     System.err.println("releasePermission");
     // TODO should close the scope and finish the span?
 
-    cb.releasePermission();
+    delegate.releasePermission();
   }
 
   @Override
   public void onError(long duration, TimeUnit durationUnit, Throwable throwable) {
-    ddCloseScope();
-    finishSpan(throwable);
-    cb.onError(duration, durationUnit, throwable);
+    ddContext.closeScope();
+    ddContext.finishSpan(throwable);
+    delegate.onError(duration, durationUnit, throwable);
   }
 
   @Override
   public void onSuccess(long duration, TimeUnit durationUnit) {
-    ddCloseScope();
-    finishSpan(null);
-    cb.onSuccess(duration, durationUnit);
+    ddContext.closeScope();
+    ddContext.finishSpan(null);
+    delegate.onSuccess(duration, durationUnit);
   }
 
   @Override
   public void onResult(long duration, TimeUnit durationUnit, Object result) {
-    ddCloseScope();
-    finishSpan(null);
-    cb.onResult(duration, durationUnit, result);
+    ddContext.closeScope();
+    ddContext.finishSpan(null);
+    delegate.onResult(duration, durationUnit, result);
   }
 
   @Override
   public void reset() {
-    cb.reset();
+    delegate.reset();
   }
 
   @Override
   public void transitionToClosedState() {
-    cb.transitionToClosedState();
+    delegate.transitionToClosedState();
   }
 
   @Override
   public void transitionToOpenState() {
-    cb.transitionToOpenState();
+    delegate.transitionToOpenState();
   }
 
   @Override
   public void transitionToOpenStateFor(Duration waitDuration) {
-    cb.transitionToOpenStateFor(waitDuration);
+    delegate.transitionToOpenStateFor(waitDuration);
   }
 
   @Override
   public void transitionToOpenStateUntil(Instant waitUntil) {
-    cb.transitionToOpenStateUntil(waitUntil);
+    delegate.transitionToOpenStateUntil(waitUntil);
   }
 
   @Override
   public void transitionToHalfOpenState() {
-    cb.transitionToHalfOpenState();
+    delegate.transitionToHalfOpenState();
   }
 
   @Override
   public void transitionToDisabledState() {
-    cb.transitionToDisabledState();
+    delegate.transitionToDisabledState();
   }
 
   @Override
   public void transitionToMetricsOnlyState() {
-    cb.transitionToMetricsOnlyState();
+    delegate.transitionToMetricsOnlyState();
   }
 
   @Override
   public void transitionToForcedOpenState() {
-    cb.transitionToForcedOpenState();
+    delegate.transitionToForcedOpenState();
   }
 
   @Override
   public String getName() {
-    return cb.getName();
+    return delegate.getName();
   }
 
   @Override
   public State getState() {
-    return cb.getState();
+    return delegate.getState();
   }
 
   @Override
   public CircuitBreakerConfig getCircuitBreakerConfig() {
-    return cb.getCircuitBreakerConfig();
+    return delegate.getCircuitBreakerConfig();
   }
 
   @Override
   public Metrics getMetrics() {
-    return cb.getMetrics();
+    return delegate.getMetrics();
   }
 
   @Override
   public Map<String, String> getTags() {
-    return cb.getTags();
+    return delegate.getTags();
   }
 
   @Override
   public EventPublisher getEventPublisher() {
-    return cb.getEventPublisher();
+    return delegate.getEventPublisher();
   }
 
   @Override
   public long getCurrentTimestamp() {
     System.err.println("getCurrentTimestamp");
-    return cb.getCurrentTimestamp();
+    return delegate.getCurrentTimestamp();
   }
 
   @Override
   public TimeUnit getTimestampUnit() {
-    return cb.getTimestampUnit();
+    return delegate.getTimestampUnit();
   }
 }
