@@ -31,7 +31,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
-    verify(LinkedBlockingQueue.name)
+    verify(LinkedBlockingQueue.name, 'TestRunnable')
 
     when:
     runUnderTrace("parent", {
@@ -39,9 +39,12 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
+    // Starting from Java 24, ForkJoinPool will wrap runnable with the {@code java.util.concurrent.ForkJoinTask$AdaptedInterruptibleRunnable} class
+    String expectedTaskClassName = Platform.isJavaVersionAtLeast(24) ? 'AdaptedInterruptibleRunnable' : 'TestRunnable'
+
     // flaky before JDK21
     if (Platform.isJavaVersionAtLeast(21)) {
-      verify("java.util.concurrent.ForkJoinPool\$WorkQueue")
+      verify("java.util.concurrent.ForkJoinPool\$WorkQueue", expectedTaskClassName)
     }
 
     cleanup:
@@ -50,7 +53,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
     TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
-  void verify(expectedQueueType) {
+  void verify(expectedQueueType, expectedTaskClassName) {
     assert TEST_PROFILING_CONTEXT_INTEGRATION.isBalanced()
     assert !TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()
     int numAsserts = 0
@@ -58,8 +61,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
       def timing = TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.takeFirst() as TestProfilingContextIntegration.TestQueueTiming
       if (!(timing.task as Class).simpleName.isEmpty()) {
         assert timing != null
-        // TODO:for JDK 24 specifically, one span for timing.task is class TestRunnable and the other is class ForkJoinTask$AdaptedInterruptibleRunnable
-        // assert timing.task == TestRunnable
+        assert timing.task.simpleName == expectedTaskClassName
         assert timing.scheduler != null
         assert timing.origin == Thread.currentThread()
         assert timing.queueLength >= 0
