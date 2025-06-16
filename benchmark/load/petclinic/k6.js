@@ -19,7 +19,7 @@ export const options = {
       duration: '20s',
       gracefulStop: '2s',
       timeUnit: '1s',
-      rate: 200,
+      rate: 150,
     },
   }
 };
