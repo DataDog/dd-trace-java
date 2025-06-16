@@ -142,9 +142,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // Used to detect missing request-end event at close.
   private volatile boolean requestEndCalled;
 
-  private volatile boolean keepOpenForApiSecurityPostProcessing;
-  private volatile Long apiSecurityEndpointHash;
-
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> WAF_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
@@ -343,22 +340,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.route = route;
   }
 
-  public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
-    this.keepOpenForApiSecurityPostProcessing = flag;
-  }
-
-  public boolean isKeepOpenForApiSecurityPostProcessing() {
-    return this.keepOpenForApiSecurityPostProcessing;
-  }
-
-  public void setApiSecurityEndpointHash(long hash) {
-    this.apiSecurityEndpointHash = hash;
-  }
-
-  public Long getApiSecurityEndpointHash() {
-    return this.apiSecurityEndpointHash;
-  }
-
   void addRequestHeader(String name, String value) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");
@@ -554,23 +535,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (!requestEndCalled) {
       log.debug(SEND_TELEMETRY, "Request end event was not called before close");
     }
-    // For API Security, we sometimes keep contexts open for late processing. In that case, this
-    // flag needs to be
-    // later reset by the API Security post-processor and close must be called again.
-    if (!keepOpenForApiSecurityPostProcessing) {
-      if (wafContext != null) {
-        log.debug(
-            SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-        closeWafContext();
-      }
-      collectedCookies = null;
-      requestHeaders.clear();
-      responseHeaders.clear();
-      persistentData.clear();
-      if (derivatives != null) {
-        derivatives.clear();
-        derivatives = null;
-      }
+    if (wafContext != null) {
+      log.debug(
+          SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
+      closeWafContext();
+    }
+    collectedCookies = null;
+    requestHeaders.clear();
+    responseHeaders.clear();
+    persistentData.clear();
+    if (derivatives != null) {
+      derivatives.clear();
+      derivatives = null;
     }
   }
 
