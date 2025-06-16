@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.StringTokenizer;
 
 /** Fetches and captures the JVM options. */
@@ -55,18 +56,27 @@ class JvmOptions {
           break;
         }
       }
-      String[] vmOptions = new String[index - 1];
-      System.arraycopy(PROCFS_CMDLINE, 1, vmOptions, 0, vmOptions.length);
-
-      // TODO ARGFILES Need to be substituted
-
-      // TODO JAVA_TOOLS_OPTIONS Need to be inserted before.
-      //      String javaToolOptions = EnvironmentVariables.getOrDefault("JAVA_TOOL_OPTIONS", null);
-      //      if (javaToolOptions != null) {
-      //        parts.addAll(0, Arrays.asList(javaToolOptions.split(" ")));
-      //      }
-
-      return Arrays.asList(vmOptions);
+      // Create list of VM options
+      String[] vmOptionsArray = new String[index - 1];
+      System.arraycopy(PROCFS_CMDLINE, 1, vmOptionsArray, 0, vmOptionsArray.length);
+      List<String> vmOptions = Arrays.asList(vmOptionsArray);
+      // Substitute @argfile by their content
+      ListIterator<String> iterator = vmOptions.listIterator();
+      while (iterator.hasNext()) {
+        String vmOption = iterator.next();
+        if (vmOption.startsWith("@")) {
+          iterator.remove();
+          for (String argument : getArgumentsFromFile(vmOption)) {
+            iterator.add(argument);
+          }
+        }
+      }
+      // Insert JAVA_TOOL_OPTIONS at the start if present
+      List<String> toolOptions = getToolOptions();
+      if (!toolOptions.isEmpty()) {
+        vmOptions.addAll(0, toolOptions);
+      }
+      return vmOptions;
     }
 
     // Try Oracle-based
@@ -142,6 +152,52 @@ class JvmOptions {
     } catch (IOException e) {
       return singletonList(argFile);
     }
+  }
+
+  private static List<String> getToolOptions() {
+    String javaToolOptions = EnvironmentVariables.getOrDefault("JAVA_TOOL_OPTIONS", "");
+    return javaToolOptions.isEmpty() ? emptyList() : parseToolOptions(javaToolOptions);
+  }
+
+  /**
+   * Parse the JAVA_TOOL_OPTIONS environment variable according the JVMTI specifications
+   *
+   * @param javaToolOptions The JAVA_TOOL_OPTIONS environment variable.
+   * @return The parsed JVM options.
+   * @see <a
+   *     href="https://docs.oracle.com/en/java/javase/21/docs/specs/jvmti.html#tooloptions">JVMTI
+   *     specifications</a>
+   */
+  static List<String> parseToolOptions(String javaToolOptions) {
+    List<String> options = new ArrayList<>();
+    StringBuilder option = new StringBuilder();
+    boolean inQuotes = false;
+    char quoteChar = 0;
+
+    for (int i = 0; i < javaToolOptions.length(); i++) {
+      char c = javaToolOptions.charAt(i);
+      if (inQuotes) {
+        if (quoteChar == c) {
+          inQuotes = false;
+        } else {
+          option.append(c);
+        }
+      } else if (c == '"' || c == '\'') {
+        inQuotes = true;
+        quoteChar = c;
+      } else if (Character.isWhitespace(c)) {
+        if (option.length() > 0) {
+          options.add(option.toString());
+          option.setLength(0);
+        }
+      } else {
+        option.append(c);
+      }
+    }
+    if (option.length() > 0) {
+      options.add(option.toString());
+    }
+    return options;
   }
 
   private static List<String> split(String str, String delimiter) {
