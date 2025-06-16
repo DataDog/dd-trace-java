@@ -98,7 +98,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
+    "7.6.4"               | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
