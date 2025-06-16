@@ -549,8 +549,9 @@
       "TRAVIS_BUILD_WEB_URL": "https://travisci.com/pipeline",
       "TRAVIS_COMMIT": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
       "TRAVIS_COMMIT_MESSAGE": "travis-commit-message",
+      "TRAVIS_EVENT_TYPE": "pull_request",
       "TRAVIS_JOB_WEB_URL": "https://travisci.com/job",
-      "TRAVIS_PULL_REQUEST": "42",
+      "TRAVIS_PULL_REQUEST": 42,
       "TRAVIS_PULL_REQUEST_BRANCH": "pr",
       "TRAVIS_PULL_REQUEST_SHA": "724faca55efebf66fc15bfccc34577c64c5480bd",
       "TRAVIS_REPO_SLUG": "user/repo"
@@ -567,7 +568,8 @@
       "git.commit.message": "travis-commit-message",
       "git.commit.sha": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
       "git.pull_request.base_branch": "master",
-      "git.repository_url": "https://github.com/user/repo.git"
+      "git.repository_url": "https://github.com/user/repo.git",
+      "pr.number": 42
     }
   ]
 ]
