@@ -136,6 +136,7 @@ default:
       policy: $BUILD_CACHE_POLICY
   before_script:
     - source .gitlab/gitlab-utils.sh
+    - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - |
       # Don't put jvm args here as it will be picked up by child gradle processes used in tests
@@ -153,7 +154,6 @@ default:
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
     - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
-    - mkdir -p .gradle
     - cp -r .gradle .gradle-copy
     - rm -rf .gradle
     - mv .gradle-copy .gradle
