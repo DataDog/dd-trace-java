@@ -820,11 +820,11 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag.
+    // API Security sampling requires http.route tag. If it is not present, we set empty string to
+    // avoid filtering all requests when http route is not implemented for some frameworks.
     final Object route = tags.get(Tags.HTTP_ROUTE);
-    if (route != null) {
-      ctx.setRoute(route.toString());
-    }
+    String routeStr = route != null ? route.toString() : "";
+    ctx.setRoute(routeStr);
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);
   }
