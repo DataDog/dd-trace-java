@@ -1,3 +1,4 @@
+
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
@@ -6,18 +7,14 @@ muzzle {
     module = 'vertx-pg-client'
     // 4.1.1 is the first version where PgConnectionFactory is public
     // see https://github.com/eclipse-vertx/vertx-sql-client/pull/986
-    // 4.5.1 addresses a change in parsing PostgreSQL timestamp that was introduced in JDK 22
-    // see https://github.com/eclipse-vertx/vertx-sql-client/pull/1394
-    versions = '[4.5.1,5)'
+    versions = '[4.1.1,5)'
   }
   fail {
     group = 'io.vertx'
     module = 'vertx-pg-client'
     // 4.1.1 is the first version where PgConnectionFactory is public
     // see https://github.com/eclipse-vertx/vertx-sql-client/pull/986
-    // 4.5.1 addresses a change in parsing PostgreSQL timestamp that was introduced in JDK 22
-    // see https://github.com/eclipse-vertx/vertx-sql-client/pull/1394
-    versions = '(,4.5.1)'
+    versions = '(,4.1.1)'
   }
 }
 
@@ -31,9 +28,9 @@ latestDepTest {
 }
 
 dependencies {
-  compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.5.1'
+  compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
 
-  testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.5.1'
+  testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
   testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-sql-client-3.9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:vertx-pg-client-4.4.2')
   // to test possible interferences
