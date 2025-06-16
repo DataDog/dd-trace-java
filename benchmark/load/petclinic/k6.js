@@ -7,17 +7,21 @@ export const options = {
   discardResponseBodies: true,
   scenarios: {
     [`load--petclinic--${__ENV.VARIANT}--warmup`]: {
-      executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
-      vus: 5,
+      executor: 'constant-arrival-rate',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
+      preAllocatedVUs: 5,
       duration: '10s',
       gracefulStop: '2s',
+      timeUnit: '1s',
+      rate: 200,
     },
     [`load--petclinic--${__ENV.VARIANT}--high_load`]: {
-      executor: 'constant-vus',
-      vus: 5,
+      executor: 'constant-arrival-rate',
+      preAllocatedVUs: 5,
       startTime: '12s',
       duration: '20s',
       gracefulStop: '2s',
+      timeUnit: '1s',
+      rate: 200,
     },
   }
 };
