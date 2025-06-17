@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -exu
+set -eu
 
 start_server() {
   local VARIANT=$1
@@ -14,7 +14,8 @@ start_server() {
   fi
 
   mkdir -p "${OUTPUT_DIR}/${VARIANT}"
-  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log
+  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log && PID=$!
+  echo "${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log && PID=$PID"
 }
 
 start_server "no_agent" "-Dserver.port=8080" "taskset -c 47 " &
