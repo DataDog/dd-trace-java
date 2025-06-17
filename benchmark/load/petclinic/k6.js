@@ -36,11 +36,13 @@ export const options = function (variants) {
     };
 
     scenarios[`load--petclinic--${variant}--high_load`] = {
-      executor: 'constant-vus',
-      vus: 5,
+      executor: 'constant-arrival-rate',
+      preAllocatedVUs: 5,
       startTime: '7s',
-      duration: '15s',
+      duration: '20s',
       gracefulStop: '2s',
+      timeUnit: '1s',
+      rate: 150,
       env: {
         "APP_URL": variants[variant]["APP_URL"]
       }
