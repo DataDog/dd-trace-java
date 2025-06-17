@@ -14,7 +14,7 @@ start_server() {
   fi
 
   mkdir -p "${OUTPUT_DIR}/${VARIANT}"
-  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log & && PID=$!
+  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log &PID=$!
   echo "${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log && PID=$!"
 }
 
