@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -eu
+
+set -exu
 
 start_server() {
   local VARIANT=$1
@@ -16,7 +17,7 @@ start_server() {
   ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log
 }
 
-start_server "${NO_AGENT_VARIANT}" "-Dserver.port=8080" "taskset -c 31-32 " &
+start_server "no_agent" "-Dserver.port=8080" "taskset -c 31-32 " &
 start_server "tracing" "-javaagent:${TRACER} -Dserver.port=8081" "taskset -c 33-34 " &
 start_server "profiling" "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Dserver.port=8082" "taskset -c 35-36 " &
 start_server "appsec" "-javaagent:${TRACER} -Ddd.appsec.enabled=true -Dserver.port=8083" "taskset -c 37-38 " &
