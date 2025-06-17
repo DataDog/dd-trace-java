@@ -16,7 +16,7 @@ run_benchmark() {
   export BENCHMARK="${type}"
 
   # create output folder for the test
-  export OUTPUT_DIR="${ARTIFACTS_DIR}/dacapo/${type}"
+  export OUTPUT_DIR="${REPORTS_DIR}/dacapo/${type}"
   mkdir -p "${OUTPUT_DIR}"
 
   # substitute environment variables in the json file
