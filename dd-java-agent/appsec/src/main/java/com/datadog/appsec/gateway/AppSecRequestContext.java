@@ -105,6 +105,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean reqDataPublished;
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
+  private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
   private volatile Map<String, String> derivatives;
@@ -500,6 +501,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setConvertedReqBodyPublished(boolean convertedReqBodyPublished) {
     this.convertedReqBodyPublished = convertedReqBodyPublished;
+  }
+
+  public boolean isResponseBodyPublished() {
+    return responseBodyPublished;
+  }
+
+  public void setResponseBodyPublished(final boolean responseBodyPublished) {
+    this.responseBodyPublished = responseBodyPublished;
   }
 
   public boolean isRespDataPublished() {
