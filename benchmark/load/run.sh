@@ -40,7 +40,7 @@ for app in *; do
     exit 1
   fi
 
-  for i in $(seq 1 5); do
+  for i in $(seq 1 2); do
     bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
     (
       cd ${app} &&
