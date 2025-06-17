@@ -94,7 +94,7 @@ public final class JavaVirtualMachine {
   }
 
   public static boolean isJ9() {
-    return System.getProperty("java.vm.name").contains("J9");
+    return SystemProperties.getOrDefault("java.vm.name", "").contains("J9");
   }
 
   public static boolean isIbm8() {
@@ -190,11 +190,11 @@ public final class JavaVirtualMachine {
 
     public Runtime() {
       this(
-          System.getProperty("java.version"),
-          System.getProperty("java.runtime.version"),
-          System.getProperty("java.runtime.name"),
-          System.getProperty("java.vm.vendor"),
-          System.getProperty("java.vendor.version"));
+          SystemProperties.get("java.version"),
+          SystemProperties.get("java.runtime.version"),
+          SystemProperties.get("java.runtime.name"),
+          SystemProperties.get("java.vm.vendor"),
+          SystemProperties.get("java.vendor.version"));
     }
 
     // Only visible for testing
