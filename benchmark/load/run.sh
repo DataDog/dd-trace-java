@@ -24,7 +24,7 @@ for app in *; do
 
   message "${type} benchmark: ${app} started"
 
-  export OUTPUT_DIR="${REPORTS_DIR}/${type}/${app}"
+  export OUTPUT_DIR="${ARTIFACTS_DIR}/${type}/${app}"
   mkdir -p ${OUTPUT_DIR}
 
   if [ "${app}" == "petclinic" ]; then
