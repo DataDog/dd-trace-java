@@ -3,7 +3,6 @@ set -eu
 
 readonly SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 export TRACER_DIR="${SCRIPT_DIR}/.."
-export REPORTS_DIR="${ARTIFACTS_DIR}"
 export UTILS_DIR="${SCRIPT_DIR}/utils"
 export SHELL_UTILS_DIR="${UTILS_DIR}/shell"
 export K6_UTILS_DIR="${UTILS_DIR}/k6"
@@ -33,9 +32,9 @@ if [[ ! -f "${TRACER}" ]]; then
   cd "${SCRIPT_DIR}"
 fi
 
-# Cleanup previous reports
-rm -rf "${REPORTS_DIR}"
-mkdir -p "${REPORTS_DIR}"
+# Cleanup previous artifacts
+rm -rf "${ARTIFACTS_DIR}"
+mkdir -p "${ARTIFACTS_DIR}"
 
 if [[ "$#" == '0' ]]; then
   for type in 'startup' 'load' 'dacapo'; do

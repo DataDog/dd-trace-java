@@ -14,7 +14,7 @@ run_benchmark() {
     cd "${app}"
 
     # create output folder for the test
-    export OUTPUT_DIR="${REPORTS_DIR}/${type}/${app}"
+    export OUTPUT_DIR="${ARTIFACTS_DIR}/${type}/${app}"
     mkdir -p "${OUTPUT_DIR}"
 
     # substitute environment variables in the json file
