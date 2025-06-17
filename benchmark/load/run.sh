@@ -33,14 +33,16 @@ for app in *; do
   # Using profiler variants for healthcheck as they are the slowest
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8082
+    REPETITIONS_COUNT=5
   elif [ "${app}" == "insecure-bank" ]; then
     HEALTHCHECK_URL=http://localhost:8082/login
+    REPETITIONS_COUNT=2
   else
     echo "Unknown app ${app}"
     exit 1
   fi
 
-  for i in $(seq 1 2); do
+  for i in $(seq 1 $REPETITIONS_COUNT); do
     bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
     (
       cd ${app} &&
