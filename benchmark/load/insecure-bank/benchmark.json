@@ -35,24 +35,6 @@
         "VARIANT": "iast_FULL",
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.detection.mode=FULL"
       }
-    },
-    "iast_INACTIVE": {
-      "env": {
-        "VARIANT": "iast_INACTIVE",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=inactive"
-      }
-    },
-    "iast_TELEMETRY_OFF": {
-      "env": {
-        "VARIANT": "iast_TELEMETRY_OFF",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF"
-      }
-    },
-    "iast_HARDCODED_SECRET_DISABLED": {
-      "env": {
-        "VARIANT": "iast_HARDCODED_SECRET_DISABLED",
-        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false"
-      }
     }
   }
 }
