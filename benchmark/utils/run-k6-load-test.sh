@@ -20,10 +20,10 @@ while true; do
     break
   fi
 done
-echo "Server is up! Starting k6 load test..."
+echo "Server is up! Starting k6 load test, log is in ${output}/k6.log..."
 
 # run the k6 benchmark and store the result as JSON
-k6 run k6.js --out "json=${output}/k6_$(date +%s).json" &>>"${output}/k6.log"
+k6 run k6.js --out "json=${output}/k6_$(date +%s).json" > "${output}/k6.log" 2>&1
 exit_code=$?
 
 echo "k6 load test done!"
