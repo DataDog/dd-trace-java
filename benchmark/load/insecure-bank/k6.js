@@ -34,23 +34,25 @@ const variants = {
 export const options = function (variants) {
   let scenarios = {};
   for (const variant of Object.keys(variants)) {
-    scenarios = {
-      [`load--insecure-bank--${variant}--warmup`]: {
-        executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
-        vus: 5,
-        duration: '10s',
-        gracefulStop: '2s',
-        env: { ...variants[variant] }
-      },
-      [`load--insecure-bank--${variant}--high_load`]: {
-        executor: 'constant-vus',
-        vus: 5,
-        startTime: '12s',
-        duration: '20s',
-        gracefulStop: '2s',
-        env: { ...variants[variant] }
-      },
-      ...scenarios
+    scenarios[`load--insecure-bank--${variant}--warmup`] = {
+      executor: 'constant-vus',  // https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/#all-executors
+      vus: 5,
+      duration: '10s',
+      gracefulStop: '2s',
+      env: {
+        "APP_URL": variants[variant]["APP_URL"]
+      }
+    };
+
+    scenarios[`load--insecure-bank--${variant}--high_load`] = {
+      executor: 'constant-vus',
+      vus: 5,
+      startTime: '12s',
+      duration: '20s',
+      gracefulStop: '2s',
+      env: {
+        "APP_URL": variants[variant]["APP_URL"]
+      }
     };
   }
 
