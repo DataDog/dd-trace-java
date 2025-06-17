@@ -99,6 +99,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
+  BiFunction<RequestContext, Object, Flow<Void>> responseBodyCB
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
@@ -450,6 +451,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBody(), _) >> { responseBodyCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
@@ -1325,6 +1327,19 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     arCtx.getRoute() == route
+  }
+
+  void 'test on response body callback'() {
+    when:
+    responseBodyCB.apply(ctx, [test: 'this is a test'])
+
+    then:
+    1 * eventDispatcher.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT) >> nonEmptyDsInfo
+    1 * eventDispatcher.publishDataEvent(_, _, _, _) >> {
+      final bundle = it[2] as DataBundle
+      final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
+      assert body['test'] == 'this is a test'
+    }
   }
 
 }
