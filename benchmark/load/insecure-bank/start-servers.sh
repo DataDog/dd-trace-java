@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -eu
+
+set -exu
 
 start_server() {
   local VARIANT=$1
@@ -16,7 +17,7 @@ start_server() {
   ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms3G -Xmx3G -jar ${INSECURE_BANK} &> ${OUTPUT_DIR}/${VARIANT}/insecure-bank.log
 }
 
-start_server "${NO_AGENT_VARIANT}" "-Dserver.port=8080" "taskset -c 47 " &
+start_server "no_agent" "-Dserver.port=8080" "taskset -c 47 " &
 start_server "tracing" "-javaagent:${TRACER} -Dserver.port=8081" "taskset -c 46 " &
 start_server "profiling" "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Dserver.port=8082" "taskset -c 45 " &
 start_server "iast" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Dserver.port=8083" "taskset -c 44 " &
