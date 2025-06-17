@@ -13,9 +13,9 @@ start_server() {
     CPU_AFFINITY_APP=""
   fi
 
-  mkdir -p "${OUTPUT_DIR}/${VARIANT}"
-  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log &PID=$!
-  echo "${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${OUTPUT_DIR}/${VARIANT}/petclinic.log && PID=$!"
+  mkdir -p "${LOGS_DIR}/${VARIANT}"
+  ${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${LOGS_DIR}/${VARIANT}/petclinic.log &PID=$!
+  echo "${CPU_AFFINITY_APP}java ${JAVA_OPTS} -Xms2G -Xmx2G -jar ${PETCLINIC} &> ${LOGS_DIR}/${VARIANT}/petclinic.log [PID=$!]"
 }
 
 start_server "no_agent" "-Dserver.port=8080" "taskset -c 31-32 " &
