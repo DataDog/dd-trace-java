@@ -194,6 +194,13 @@ public final class Strings {
     return false;
   }
 
+  /**
+   * Checks that a string is blank, i.e. doest not contain characters or is null
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is blank (string is {@code null}, empty, or contains only
+   *     whitespace characters), {@code false} otherwise
+   */
   public static boolean isBlank(String s) {
     return !isNotBlank(s);
   }
