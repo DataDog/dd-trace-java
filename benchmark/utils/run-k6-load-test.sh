@@ -14,14 +14,16 @@ cleanup() {
 
 trap cleanup EXIT ERR INT TERM
 
-# wait for the HTTP server to be up
+echo "Waiting for the HTTP server on ${url} to be up"
 while true; do
   if [[ $(curl -fso /dev/null -w "%{http_code}" "${url}") = 200 ]]; then
     break
   fi
 done
+echo "Server is up! Starting k6 load test..."
 
 # run the k6 benchmark and store the result as JSON
 k6 run k6.js --out "json=${output}/k6_$(date +%s).json" &>>"${output}/k6.log"
-
 exit_code=$?
+
+echo "k6 load test done!"
