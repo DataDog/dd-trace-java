@@ -39,7 +39,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
     })
 
     then:
-    // Starting from Java 24, ForkJoinPool will wrap runnable with the {@code java.util.concurrent.ForkJoinTask$AdaptedInterruptibleRunnable} class
+    // Starting from Java 24, ForkJoinPool will wrap a Runnable with the {@code java.util.concurrent.ForkJoinTask$AdaptedInterruptibleRunnable} class
     String expectedTaskClassName = Platform.isJavaVersionAtLeast(24) ? 'AdaptedInterruptibleRunnable' : 'TestRunnable'
 
     // flaky before JDK21
