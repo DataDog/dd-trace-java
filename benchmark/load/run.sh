@@ -6,6 +6,16 @@ function message() {
   echo "$(date +"%T"): $1"
 }
 
+function healthcheck() {
+  local url=$1
+
+  while true; do
+    if [[ $(curl -fso /dev/null -w "%{http_code}" "${url}") = 200 ]]; then
+      break
+    fi
+  done
+}
+
 type=$1
 
 if [ -n "$CI_JOB_TOKEN" ]; then
@@ -44,6 +54,17 @@ for app in *; do
 
   for i in $(seq 1 $REPETITIONS_COUNT); do
     bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
+
+    if [ "${app}" == "petclinic" ]; then
+      for port in $(seq 8080 8085); do
+        healthcheck http://localhost:$port
+      done
+    elif [ "${app}" == "insecure-bank" ]; then
+      for port in $(seq 8080 8088); do
+        healthcheck http://localhost:$port/login
+      done
+    fi
+
     (
       cd ${app} &&
       bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} 'pkill java'"
