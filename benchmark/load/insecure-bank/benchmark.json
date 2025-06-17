@@ -1,7 +1,6 @@
 {
   "name": "load_insecure-bank",
-  "setup": "bash -c \"mkdir -p ${OUTPUT_DIR}/${VARIANT}\"",
-  "service": "bash -c \"${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080/login ${OUTPUT_DIR}/${VARIANT} 'pkill java'\"",
+  "service": "bash -c \"${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh http://localhost:8080/login ${OUTPUT_DIR} 'pkill java'\"",
   "run": "bash -c \"${UTILS_DIR}/../load/insecure-bank/start-servers.sh\"",
   "timeout": 150,
   "iterations": 2,
