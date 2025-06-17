@@ -2,6 +2,10 @@
 
 set -ex
 
+function message() {
+  echo "$(date +"%T"): $1"
+}
+
 type=$1
 
 if [ -n "$CI_JOB_TOKEN" ]; then
