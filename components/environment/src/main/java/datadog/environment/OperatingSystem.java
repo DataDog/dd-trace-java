@@ -1,5 +1,7 @@
 package datadog.environment;
 
+import static java.util.Locale.ROOT;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -8,10 +10,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Locale;
 
 /** Detects operating systems and libc library. */
 public final class OperatingSystem {
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String OS_ARCH_PROPERTY = "os.arch";
+
   private OperatingSystem() {}
 
   /**
@@ -20,7 +24,7 @@ public final class OperatingSystem {
    * @return @{@code true} if operating system is Linux based, {@code false} otherwise.
    */
   public static boolean isLinux() {
-    return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
+    return propertyContains(OS_NAME_PROPERTY, "linux");
   }
 
   /**
@@ -30,8 +34,7 @@ public final class OperatingSystem {
    */
   public static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-    return os.contains("win");
+    return propertyContains(OS_NAME_PROPERTY, "win");
   }
 
   /**
@@ -40,8 +43,7 @@ public final class OperatingSystem {
    * @return @{@code true} if operating system is macOS, {@code false} otherwise.
    */
   public static boolean isMacOs() {
-    final String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-    return os.contains("mac");
+    return propertyContains(OS_NAME_PROPERTY, "mac");
   }
 
   /**
@@ -50,7 +52,11 @@ public final class OperatingSystem {
    * @return {@code true} if the architecture is AArch64, {@code false} otherwise.
    */
   public static boolean isAarch64() {
-    return System.getProperty("os.arch").toLowerCase().contains("aarch64");
+    return propertyContains(OS_ARCH_PROPERTY, "aarch64");
+  }
+
+  private static boolean propertyContains(String property, String content) {
+    return SystemProperties.getOrDefault(property, "").toLowerCase(ROOT).contains(content);
   }
 
   /**
@@ -102,7 +108,7 @@ public final class OperatingSystem {
     byte[] prefix = new byte[] {(byte) '/', (byte) 'l', (byte) 'd', (byte) '-'}; // '/ld-*'
     byte[] musl = new byte[] {(byte) 'm', (byte) 'u', (byte) 's', (byte) 'l'}; // 'musl'
 
-    Path binary = Paths.get(System.getProperty("java.home"), "bin", "java");
+    Path binary = Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java");
     byte[] buffer = new byte[4096];
 
     try (InputStream is = Files.newInputStream(binary)) {
