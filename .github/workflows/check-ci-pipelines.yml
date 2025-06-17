@@ -29,5 +29,6 @@ jobs:
           max-retries: "60"
           ignored-name-patterns: |
             dd-gitlab/.*
+            Check pull requests
 
 # gitlab pipelines are reported via dd-gitlab/default-pipeline status, which can be used as a GH status check
