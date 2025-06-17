@@ -25,6 +25,6 @@ for app in *; do
     exit 1
   fi
 
-  bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh"
+  bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
   bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} ${OUTPUT_DIR} 'pkill java'"
 done
