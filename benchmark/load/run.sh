@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -exu
+set -ex
 
 type=$1
 app=$2
