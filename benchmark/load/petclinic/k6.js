@@ -35,7 +35,7 @@ export const options = function (variants) {
       }
     };
 
-    scenario[`load--petclinic--${variant}--high_load`] = {
+    scenarios[`load--petclinic--${variant}--high_load`] = {
       executor: 'constant-vus',
       vus: 5,
       startTime: '12s',

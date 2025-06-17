@@ -32,10 +32,6 @@ if [[ ! -f "${TRACER}" ]]; then
   cd "${SCRIPT_DIR}"
 fi
 
-# Cleanup previous artifacts
-rm -rf "${ARTIFACTS_DIR}"
-mkdir -p "${ARTIFACTS_DIR}"
-
 if [[ "$#" == '0' ]]; then
   for type in 'startup' 'load' 'dacapo'; do
     run_benchmarks "$type"
