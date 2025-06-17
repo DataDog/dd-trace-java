@@ -14,7 +14,14 @@ fi
 source "${UTILS_DIR}/update-java-version.sh" 17
 
 for app in *; do
+  if [[ ! -d "${app}" ]]; then
+    continue
+  fi
+
+  message "${type} benchmark: ${app} started"
+
   export OUTPUT_DIR="${REPORTS_DIR}/${type}/${app}"
+  mkdir -p ${OUTPUT_DIR}
 
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8080
@@ -26,5 +33,10 @@ for app in *; do
   fi
 
   bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
-  bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} ${OUTPUT_DIR} 'pkill java'"
+  (
+    cd ${app} &&
+    bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} ${OUTPUT_DIR} 'pkill java'"
+  )
+
+  message "${type} benchmark: ${app} finished"
 done
