@@ -2,8 +2,8 @@
 
 set -exu
 
-local type=$1
-local app=$2
+type=$1
+app=$2
 
 export OUTPUT_DIR="${REPORTS_DIR}/${type}/${app}"
 
