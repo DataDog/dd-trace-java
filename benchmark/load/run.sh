@@ -30,20 +30,23 @@ for app in *; do
   export LOGS_DIR="${ARTIFACTS_DIR}/${type}/${app}"
   mkdir -p ${LOGS_DIR}
 
+  # Using profiler variants for healthcheck as they are the slowest
   if [ "${app}" == "petclinic" ]; then
-    HEALTHCHECK_URL=http://localhost:8080
+    HEALTHCHECK_URL=http://localhost:8082
   elif [ "${app}" == "insecure-bank" ]; then
-    HEALTHCHECK_URL=http://localhost:8080/login
+    HEALTHCHECK_URL=http://localhost:8082/login
   else
     echo "Unknown app ${app}"
     exit 1
   fi
 
-  bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
-  (
-    cd ${app} &&
-    bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} 'pkill java'"
-  )
+  for i in $(seq 1 5); do
+    bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
+    (
+      cd ${app} &&
+      bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} 'pkill java'"
+    )
+  done
 
   message "${type} benchmark: ${app} finished"
 done
