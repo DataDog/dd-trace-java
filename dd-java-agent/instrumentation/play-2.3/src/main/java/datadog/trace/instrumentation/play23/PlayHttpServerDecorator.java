@@ -1,17 +1,22 @@
 package datadog.trace.instrumentation.play23;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
+import java.util.function.BiConsumer;
 import play.api.Routes;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
@@ -87,10 +92,26 @@ public class PlayHttpServerDecorator
       final Option pathOption = request.tags().get(Routes.ROUTE_PATTERN());
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
-        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        handleRoute(span, request.method(), path);
       }
     }
     return span;
+  }
+
+  private void handleRoute(final AgentSpan span, final String method, final String route) {
+    HTTP_RESOURCE_DECORATOR.withRoute(span, method, route);
+    // play does not set the http.route in the local root span so we need to store it in the context
+    // for API security
+    final RequestContext ctx = span.getRequestContext();
+    if (ctx != null) {
+      final BiConsumer<RequestContext, String> cb =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.httpRoute());
+      if (cb != null) {
+        cb.accept(ctx, route);
+      }
+    }
   }
 
   @Override

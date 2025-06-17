@@ -7,6 +7,7 @@ import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
+import static datadog.trace.api.gateway.Events.HTTP_ROUTE_ID;
 import static datadog.trace.api.gateway.Events.LOGIN_EVENT_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.NETWORK_CONNECTION_ID;
@@ -374,6 +375,7 @@ public class InstrumentationGateway {
               }
             };
       case DATABASE_CONNECTION_ID:
+      case HTTP_ROUTE_ID:
         return (C)
             new BiConsumer<RequestContext, String>() {
               @Override

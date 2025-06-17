@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.play26;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.invoke.MethodHandle;
@@ -18,6 +23,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
+import java.util.function.BiConsumer;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -142,10 +148,26 @@ public class PlayHttpServerDecorator
         CharSequence path =
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
-        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
+        handleRoute(span, request.method(), path);
       }
     }
     return span;
+  }
+
+  private void handleRoute(final AgentSpan span, final String method, final CharSequence route) {
+    HTTP_RESOURCE_DECORATOR.withRoute(span, method, route, true);
+    // play does not set the http.route in the local root span so we need to store it in the context
+    // for API security
+    final RequestContext ctx = span.getRequestContext();
+    if (ctx != null) {
+      final BiConsumer<RequestContext, String> cb =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.httpRoute());
+      if (cb != null) {
+        cb.accept(ctx, URIUtils.decode(route.toString()));
+      }
+    }
   }
 
   /*
