@@ -1,11 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
-import spock.lang.Ignore
-
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
@@ -20,31 +17,31 @@ class RetryTest extends AgentTestRunner {
   // TODO test throwing serviceCall
   // TODO test stacked decorators
 
-  //  def "decorateCheckedSupplier"() {
-  //    when:
-  //    CheckedSupplier<String> supplier = Decorators
-  //      .ofCheckedSupplier{serviceCall("foobar")}
-  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-  //      .decorate()
-  //
-  //    then:
-  //    runUnderTrace("parent"){supplier.get()} == "foobar"
-  //    and:
-  //    assertExpectedTrace()
-  //  }
-  //
-  //  def "decorateSupplier"() {
-  //    when:
-  //    Supplier<String> supplier = Decorators
-  //      .ofSupplier{serviceCall("foobar")}
-  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("id"))
-  //      .decorate()
-  //
-  //    then:
-  //    runUnderTrace("parent"){supplier.get()} == "foobar"
-  //    and:
-  //    assertExpectedTrace()
-  //  }
+  def "decorateCheckedSupplier"() {
+    when:
+    CheckedSupplier<String> supplier = Decorators
+      .ofCheckedSupplier{serviceCall("foobar")}
+      .withRetry(Retry.ofDefaults("id"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){supplier.get()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
+
+  def "decorateSupplier"() {
+    when:
+    Supplier<String> supplier = Decorators
+      .ofSupplier{serviceCall("foobar")}
+      .withRetry(Retry.ofDefaults("id"))
+      .decorate()
+
+    then:
+    runUnderTrace("parent"){supplier.get()} == "foobar"
+    and:
+    assertExpectedTrace()
+  }
 
   def "decorateCompletionStage"() {
     setup:

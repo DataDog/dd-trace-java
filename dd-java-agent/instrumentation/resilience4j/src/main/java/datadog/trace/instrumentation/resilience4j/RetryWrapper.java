@@ -20,8 +20,8 @@ public final class RetryWrapper implements Retry {
 
   @Override
   public <T> Context<T> context() {
-    // TODO wrap to hold DD context
-    return original.context();
+    ddContext.openScope();
+    return new RetryContextWrapper<>(original.context(), ddContext);
   }
 
   @Override

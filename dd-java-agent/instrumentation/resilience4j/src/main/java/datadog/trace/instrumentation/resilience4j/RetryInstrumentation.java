@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -30,7 +31,16 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // TODO add synchronous decorator instrumentations
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(
+                namedOneOf(
+                    "decorateCheckedSupplier",
+                    // TODO add all the other decorator methods here
+                    "decorateSupplier"))
+            .and(takesArgument(0, named(RETRY_FQCN))),
+        RetryInstrumentation.class.getName() + "$SyncDecoratorsAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -46,7 +56,15 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     // from being loaded by the muzzle check.
     ignored.add(packageName + ".RetryWrapper");
     ignored.add(packageName + ".RetryAsyncContextWrapper");
+    ignored.add(packageName + ".RetryContextWrapper");
     return ignored.toArray(new String[0]);
+  }
+
+  public static class SyncDecoratorsAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beforeExecute(@Advice.Argument(value = 0, readOnly = false) Retry retry) {
+      retry = new RetryWrapper(retry, new DDContext());
+    }
   }
 
   public static class CompletionStageAdvice {
