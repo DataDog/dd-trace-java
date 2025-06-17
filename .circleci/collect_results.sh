@@ -21,7 +21,7 @@ fi
 
 function get_source_file () {
   file_path="${RESULT_XML_FILE%%"/build"*}"
-  file_path="${file_path/#"$WORKSPACE_DIR"\//}/src"
+  file_path="/${file_path/#"$WORKSPACE_DIR"\//}/src"
   if ! [[ $RESULT_XML_FILE == *"#"* ]]; then
     class="${RESULT_XML_FILE%.xml}"
     class="${class##*"TEST-"}"
@@ -35,7 +35,7 @@ function get_source_file () {
         fi
       done
     done < <(grep -rl "class $class" "$file_path")
-    file_path="/$common_root"
+    file_path="$common_root"
   fi
 }
 
