@@ -16,6 +16,10 @@ import net.bytebuddy.asm.Advice;
 public class JmsMessageGetterInstrumentation extends AbstractTibcoInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
+  public JmsMessageGetterInstrumentation() {
+    super("jms");
+  }
+
   @Override
   public String instrumentedType() {
     return "com.tibco.bw.jms.shared.primitives.SingleJMSMessageGetter";

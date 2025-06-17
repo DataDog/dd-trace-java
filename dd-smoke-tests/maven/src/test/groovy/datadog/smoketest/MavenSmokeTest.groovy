@@ -41,7 +41,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
   private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
-  private static final int PROCESS_TIMEOUT_SECS = 60
+  private static final int PROCESS_TIMEOUT_SECS = 120
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
@@ -327,6 +327,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     command.addAll(jvmArguments(runWithAgent, setServiceName, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
+    command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.xml".toString()])
     command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -335,6 +336,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
     for (envVar in additionalEnvVars) {
       processBuilder.environment().put(envVar.key, envVar.value)
+    }
+
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy)
     }
 
     return processBuilder
@@ -349,6 +355,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def arguments = [
       "-D${MavenWrapperMain.MVNW_VERBOSE}=true".toString(),
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
+      "-Dmaven.mainClass=org.apache.maven.cli.MavenCli".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
     ]
     if (runWithAgent) {

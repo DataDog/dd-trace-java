@@ -231,4 +231,13 @@ public final class Strings {
     }
     return new String(bytes, US_ASCII);
   }
+
+  public static String[] concat(String[] arr, String... extra) {
+    if (arr.length == 0) return extra;
+    if (extra.length == 0) return arr;
+    String[] result = new String[arr.length + extra.length];
+    System.arraycopy(arr, 0, result, 0, arr.length);
+    System.arraycopy(extra, 0, result, arr.length, extra.length);
+    return result;
+  }
 }
