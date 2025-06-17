@@ -2,8 +2,7 @@
 set -eu
 
 url=$1
-output=$2
-command=$3
+command=$2
 exit_code=0
 
 cleanup() {
@@ -20,10 +19,10 @@ while true; do
     break
   fi
 done
-echo "Server is up! Starting k6 load test, log is in ${output}/k6.log..."
+echo "Server is up! Starting k6 load test, log is in ${LOGS_DIR}/k6.log..."
 
 # run the k6 benchmark and store the result as JSON
-k6 run k6.js --out "json=${output}/k6_$(date +%s).json" > "${output}/k6.log" 2>&1
+k6 run k6.js --out "json=${OUTPUT_DIR}/k6_$(date +%s).json" > "${LOGS_DIR}/k6.log" 2>&1
 exit_code=$?
 
 echo "k6 load test done!"
