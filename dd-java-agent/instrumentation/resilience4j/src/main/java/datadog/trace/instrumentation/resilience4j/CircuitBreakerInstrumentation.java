@@ -72,12 +72,20 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
   }
 
   public static class CompletionStageAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void afterExecute(
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static DDContext beforeExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier,
-        @Advice.Thrown Throwable throwable) {
-      supplier = DDContext.of(circuitBreaker).tracedCompletionStage(supplier);
+        @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
+      DDContext ddContext = DDContext.of(circuitBreaker);
+      supplier = ddContext.tracedSupplier(supplier);
+      return ddContext;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.Enter DDContext ddContext,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
+      supplier = ddContext.tracedOuterCompletionStage(supplier);
     }
   }
 }

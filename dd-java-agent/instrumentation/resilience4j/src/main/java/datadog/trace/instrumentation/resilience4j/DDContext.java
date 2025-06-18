@@ -63,19 +63,29 @@ public final class DDContext {
 
   public Supplier<CompletionStage<?>> tracedCompletionStage(Supplier<CompletionStage<?>> delegate) {
     return () -> {
-      // open a scope to be captured by the completionStage
       openScope();
       try {
-        CompletionStage<?> completionStage = delegate.get();
-        completionStage.whenComplete(
-            (result, error) -> {
-              System.err.println(">> whenComplete: " + error);
-              finishSpan(error);
-            });
-        return completionStage;
+        return delegate.get();
       } finally {
         closeScope();
       }
+    };
+  }
+
+  public Supplier<CompletionStage<?>> tracedOuterCompletionStage(
+      Supplier<CompletionStage<?>> delegate) {
+    return () -> {
+      CompletionStage<?> completionStage = delegate.get();
+      completionStage.whenComplete(
+          (result, error) -> {
+            if (error != null) {
+              AgentSpan as = AgentTracer.activeSpan();
+              as.setTag("error", error.getMessage());
+            }
+            System.err.println(">> whenComplete: " + error);
+            finishSpan(error);
+          });
+      return completionStage;
     };
   }
 

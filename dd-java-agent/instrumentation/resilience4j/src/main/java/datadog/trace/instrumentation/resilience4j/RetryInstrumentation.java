@@ -71,11 +71,20 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
   }
 
   public static class CompletionStageAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static DDContext beforeExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> inbound) {
+      DDContext ddContext = DDContext.of(retry);
+      inbound = ddContext.tracedCompletionStage(inbound);
+      return ddContext;
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      supplier = DDContext.of(retry).tracedCompletionStage(supplier);
+        @Advice.Enter DDContext ddContext,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
+      outbound = ddContext.tracedOuterCompletionStage(outbound);
     }
   }
 }

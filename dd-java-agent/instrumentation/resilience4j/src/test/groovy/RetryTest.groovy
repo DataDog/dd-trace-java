@@ -1,10 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
+import io.github.resilience4j.retry.RetryConfig
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.function.Supplier
 
@@ -71,6 +74,53 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "decorateCompletionStage retry twice on error"() {
+    setup:
+    def executor = Executors.newSingleThreadExecutor()
+    when:
+    Supplier<CompletionStage<String>> supplier = Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCallErr(new IllegalStateException("error"))
+        }, executor)
+      }
+      .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()), Executors.newSingleThreadScheduledExecutor())
+      .decorate()
+    def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
+    future.get()
+
+    then:
+    def ee = thrown(ExecutionException)
+    ee.cause instanceof IllegalStateException
+    and:
+    assertTraces(1) {
+      trace(4) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j.retry"
+          childOf span(0)
+          errored false
+        }
+        span(2) {
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+        // second attempt span under the retry span
+        span(3) {
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+      }
+    }
+  }
+
   private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
@@ -97,5 +147,16 @@ class RetryTest extends AgentTestRunner {
   def <T> T serviceCall(T value) {
     AgentTracer.startSpan("test", "serviceCall").finish()
     value
+  }
+
+  void serviceCallErr(IllegalStateException e) {
+    def span = AgentTracer.startSpan("test", "serviceCall")
+    try (
+    AgentScope ignored = AgentTracer.activateSpan(span)
+    ) {
+      throw e
+    } finally {
+      span.finish()
+    }
   }
 }
