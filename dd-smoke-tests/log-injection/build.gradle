@@ -7,6 +7,12 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Log injection Smoke Tests.'
 
+configurations.all {
+  resolutionStrategy {
+    force 'org.codehaus.groovy:groovy-all:3.0.24'
+  }
+}
+
 configurations {
   jcl
   log4j1
