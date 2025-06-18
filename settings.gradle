@@ -86,6 +86,7 @@ include ':dd-java-agent:agent-otel:otel-shim'
 include ':dd-java-agent:agent-otel:otel-tooling'
 
 include ':communication'
+include ':components:cli'
 include ':components:context'
 include ':components:environment'
 include ':components:json'

@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.bootstrap.SystemUtils.getPropertyOrEnvVar;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.environment.EnvironmentVariables;
-import datadog.environment.JavaVirtualMachine;
+import datadog.cli.CLIHelper;
 import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -64,6 +64,10 @@ public final class AgentBootstrap {
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     BootstrapInitializationTelemetry initTelemetry;
 
+    // TODO Example calls that break Gradle smoke tests
+    String javaVersion = SystemProperties.get("java.version");
+    // String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
+
     try {
       initTelemetry = createInitializationTelemetry();
     } catch (Throwable t) {
@@ -91,7 +95,7 @@ public final class AgentBootstrap {
   }
 
   private static BootstrapInitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
+    String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
       return BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -101,7 +105,7 @@ public final class AgentBootstrap {
     initTelemetry.initMetaInfo("runtime_name", "jvm");
     initTelemetry.initMetaInfo("language_name", "jvm");
 
-    String javaVersion = SystemProperties.get("java.version");
+    String javaVersion = SystemUtils.tryGetProperty("java.version");
     if (javaVersion != null) {
       initTelemetry.initMetaInfo("runtime_version", javaVersion);
       initTelemetry.initMetaInfo("language_version", javaVersion);
@@ -164,12 +168,7 @@ public final class AgentBootstrap {
         return System.getenv(LIB_INJECTION_ENABLED_ENV_VAR) != null;
       case LIB_INJECTION_FORCE_SYS_PROP:
         {
-          String envVarName =
-              LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
-          String injectionForceFlag = EnvironmentVariables.get(envVarName);
-          if (injectionForceFlag == null) {
-            injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
-          }
+          String injectionForceFlag = getPropertyOrEnvVar(LIB_INJECTION_FORCE_SYS_PROP);
           return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
         }
       default:
@@ -178,7 +177,7 @@ public final class AgentBootstrap {
   }
 
   private static void recordInstrumentationSource(String source) {
-    SystemProperties.set(LIB_INSTRUMENTATION_SOURCE_SYS_PROP, source);
+    SystemUtils.trySetProperty(LIB_INSTRUMENTATION_SOURCE_SYS_PROP, source);
   }
 
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
@@ -206,7 +205,7 @@ public final class AgentBootstrap {
   }
 
   private static boolean isJdkTool() {
-    String moduleMain = SystemProperties.get("jdk.module.main");
+    String moduleMain = SystemUtils.tryGetProperty("jdk.module.main");
     if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
       switch (moduleMain) {
         case "java.base": // keytool
@@ -358,7 +357,7 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : JavaVirtualMachine.getVmOptions()) {
+      for (final String argument : CLIHelper.getVmArgs()) {
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =
