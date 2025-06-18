@@ -64,18 +64,8 @@ public final class DDContext {
   public Supplier<CompletionStage<?>> tracedCompletionStage(Supplier<CompletionStage<?>> delegate) {
     return () -> {
       openScope();
-      try {
-        return delegate.get();
-      } finally {
-        closeScope();
-      }
-    };
-  }
-
-  public Supplier<CompletionStage<?>> tracedOuterCompletionStage(
-      Supplier<CompletionStage<?>> delegate) {
-    return () -> {
       CompletionStage<?> completionStage = delegate.get();
+      closeScope();
       completionStage.whenComplete(
           (result, error) -> {
             if (error != null) {

@@ -74,6 +74,44 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "decorateSupplier retry twice on error"() {
+    when:
+    Supplier<String> supplier = Decorators
+      .ofSupplier{serviceCallErr(new IllegalStateException("error"))}
+      .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()))
+      .decorate()
+    runUnderTrace("parent") { supplier.get() }
+    then:
+    thrown(IllegalStateException)
+    and:
+    assertTraces(1) {
+      trace(4) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored true // b/o unhandled exception
+        }
+        span(1) {
+          operationName "resilience4j.retry"
+          childOf span(0)
+          errored false
+        }
+        span(2) {
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+        // second attempt span under the retry span
+        span(3) {
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+      }
+    }
+  }
+
   def "decorateCompletionStage retry twice on error"() {
     setup:
     def executor = Executors.newSingleThreadExecutor()

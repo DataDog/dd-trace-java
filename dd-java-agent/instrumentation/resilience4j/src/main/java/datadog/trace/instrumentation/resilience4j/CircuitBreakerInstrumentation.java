@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.resilience4j;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -35,57 +36,48 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named("io.github.resilience4j.core.functions.CheckedSupplier"))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedSupplier"))),
         CircuitBreakerInstrumentation.class.getName() + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named("java.util.function.Supplier"))),
+            .and(returns(named("java.util.function.Supplier"))),
         CircuitBreakerInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named("java.util.function.Supplier"))),
+            .and(returns(named("java.util.function.Supplier"))),
         CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 
   public static class CheckedSupplierAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1, readOnly = false) CheckedSupplier<?> supplier) {
+        @Advice.Return(readOnly = false) CheckedSupplier<?> supplier) {
       supplier = DDContext.of(circuitBreaker).tracedCheckedSupplier(supplier);
     }
   }
 
   public static class SupplierAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
+        @Advice.Return(readOnly = false) Supplier<?> supplier) {
       supplier = DDContext.of(circuitBreaker).tracedSupplier(supplier);
     }
   }
 
   public static class CompletionStageAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static DDContext beforeExecute(
-        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
-      DDContext ddContext = DDContext.of(circuitBreaker);
-      supplier = ddContext.tracedSupplier(supplier);
-      return ddContext;
-    }
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Enter DDContext ddContext,
+        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      supplier = ddContext.tracedOuterCompletionStage(supplier);
+      supplier = DDContext.of(circuitBreaker).tracedCompletionStage(supplier);
     }
   }
 }

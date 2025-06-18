@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.resilience4j;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -34,57 +35,48 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
-            .and(takesArgument(1, named("io.github.resilience4j.core.functions.CheckedSupplier"))),
+            .and(returns(named("io.github.resilience4j.core.functions.CheckedSupplier"))),
         RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
-            .and(takesArgument(1, named("java.util.function.Supplier"))),
+            .and(returns(named("java.util.function.Supplier"))),
         RetryInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(RETRY_FQCN)))
-            .and(takesArgument(2, named("java.util.function.Supplier"))),
+            .and(returns(named("java.util.function.Supplier"))),
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 
   public static class CheckedSupplierAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Argument(value = 1, readOnly = false) CheckedSupplier<?> supplier) {
+        @Advice.Return(readOnly = false) CheckedSupplier<?> supplier) {
       supplier = DDContext.of(retry).tracedCheckedSupplier(supplier);
     }
   }
 
   public static class SupplierAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
+        @Advice.Return(readOnly = false) Supplier<?> supplier) {
       supplier = DDContext.of(retry).tracedSupplier(supplier);
     }
   }
 
   public static class CompletionStageAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static DDContext beforeExecute(
-        @Advice.Argument(value = 0) Retry retry,
-        @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> inbound) {
-      DDContext ddContext = DDContext.of(retry);
-      inbound = ddContext.tracedCompletionStage(inbound);
-      return ddContext;
-    }
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Enter DDContext ddContext,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = ddContext.tracedOuterCompletionStage(outbound);
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
+      supplier = DDContext.of(retry).tracedCompletionStage(supplier);
     }
   }
 }
