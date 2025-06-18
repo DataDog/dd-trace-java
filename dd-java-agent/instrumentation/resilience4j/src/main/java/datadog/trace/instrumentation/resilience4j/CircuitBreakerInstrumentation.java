@@ -58,8 +58,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     public static void beforeExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1, readOnly = false) CheckedSupplier<?> supplier) {
-      DDContext ddContext = DDContext.of(circuitBreaker);
-      supplier = ddContext.tracedCheckedSupplier(supplier);
+      supplier = DDContext.of(circuitBreaker).tracedCheckedSupplier(supplier);
     }
   }
 
@@ -68,18 +67,17 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     public static void beforeExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
-      DDContext ddContext = DDContext.of(circuitBreaker);
-      supplier = ddContext.tracedSupplier(supplier);
+      supplier = DDContext.of(circuitBreaker).tracedSupplier(supplier);
     }
   }
 
   public static class CompletionStageAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
-        @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      DDContext ddContext = DDContext.of(circuitBreaker);
-      supplier = ddContext.tracedCompletionStage(supplier);
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterExecute(
+        @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier,
+        @Advice.Thrown Throwable throwable) {
+      supplier = DDContext.of(circuitBreaker).tracedCompletionStage(supplier);
     }
   }
 }

@@ -57,8 +57,7 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void beforeExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Argument(value = 1, readOnly = false) CheckedSupplier<?> supplier) {
-      DDContext ddContext = DDContext.of(retry);
-      supplier = ddContext.tracedCheckedSupplier(supplier);
+      supplier = DDContext.of(retry).tracedCheckedSupplier(supplier);
     }
   }
 
@@ -67,18 +66,16 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void beforeExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
-      DDContext ddContext = DDContext.of(retry);
-      supplier = ddContext.tracedSupplier(supplier);
+      supplier = DDContext.of(retry).tracedSupplier(supplier);
     }
   }
 
   public static class CompletionStageAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      DDContext ddContext = DDContext.of(retry);
-      supplier = ddContext.tracedCompletionStage(supplier);
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
+      supplier = DDContext.of(retry).tracedCompletionStage(supplier);
     }
   }
 }

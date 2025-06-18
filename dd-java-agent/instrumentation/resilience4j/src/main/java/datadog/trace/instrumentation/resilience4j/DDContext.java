@@ -65,16 +65,12 @@ public final class DDContext {
     return () -> {
       // open a scope to be captured by the completionStage
       openScope();
-      try { //
+      try {
         CompletionStage<?> completionStage = delegate.get();
         completionStage.whenComplete(
             (result, error) -> {
-              if (!(error instanceof Exception)) {
-                // make sure to finish the span in case of unhandled exception
-                // see io.github.resilience4j.retry.Retry.AsyncRetryBlock.run
-                // TODO write a test for this. See (throwable instanceof Exception)
-                finishSpan(error);
-              }
+              System.err.println(">> whenComplete: " + error);
+              finishSpan(error);
             });
         return completionStage;
       } finally {
@@ -89,6 +85,7 @@ public final class DDContext {
     }
     if (scope == null) {
       scope = AgentTracer.activateSpan(span);
+      System.err.println(">> ddOpenScope " + Thread.currentThread().getName());
     }
 
     //    AgentSpan parent = AgentTracer.activeSpan();
