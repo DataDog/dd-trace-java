@@ -224,6 +224,7 @@ public abstract class BootstrapInitializationTelemetry {
       }
     }
 
+    @SuppressForbidden
     private Closeable muteTracing() {
       try {
         Class<?> agentTracerClass =
