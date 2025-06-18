@@ -64,7 +64,7 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker) {
-      circuitBreaker = new CircuitBreakerWrapper(circuitBreaker, new DDContext());
+      circuitBreaker = new CircuitBreakerWrapper(circuitBreaker, DDContext.circuitBreaker());
     }
   }
 
@@ -73,10 +73,9 @@ public final class CircuitBreakerInstrumentation extends Resilience4jInstrumenta
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      DDContext ddContext = new DDContext();
-      final Supplier<CompletionStage<?>> delegate = supplier;
+      DDContext ddContext = DDContext.circuitBreaker();
       circuitBreaker = new CircuitBreakerWrapper(circuitBreaker, ddContext);
-      supplier = DDContext.wrap(delegate, ddContext);
+      supplier = ddContext.wrap(supplier);
     }
   }
 }

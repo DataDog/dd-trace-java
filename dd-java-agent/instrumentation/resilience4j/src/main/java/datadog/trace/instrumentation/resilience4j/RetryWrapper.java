@@ -5,47 +5,47 @@ import io.github.resilience4j.retry.RetryConfig;
 import java.util.Map;
 
 public final class RetryWrapper implements Retry {
-  private final Retry original;
+  private final Retry delegate;
   private final DDContext ddContext;
 
-  public RetryWrapper(Retry original, DDContext ddContext) {
-    this.original = original;
+  public RetryWrapper(Retry delegate, DDContext ddContext) {
+    this.delegate = delegate;
     this.ddContext = ddContext;
   }
 
   @Override
   public String getName() {
-    return original.getName();
+    return delegate.getName();
   }
 
   @Override
   public <T> Context<T> context() {
     ddContext.openScope();
-    return new RetryContextWrapper<>(original.context(), ddContext);
+    return new RetryContextWrapper<>(delegate.context(), ddContext);
   }
 
   @Override
   public <T> AsyncContext<T> asyncContext() {
-    return new RetryAsyncContextWrapper<>(original.asyncContext(), ddContext);
+    return new RetryAsyncContextWrapper<>(delegate.asyncContext(), ddContext);
   }
 
   @Override
   public RetryConfig getRetryConfig() {
-    return original.getRetryConfig();
+    return delegate.getRetryConfig();
   }
 
   @Override
   public Map<String, String> getTags() {
-    return original.getTags();
+    return delegate.getTags();
   }
 
   @Override
   public EventPublisher getEventPublisher() {
-    return original.getEventPublisher();
+    return delegate.getEventPublisher();
   }
 
   @Override
   public Metrics getMetrics() {
-    return original.getMetrics();
+    return delegate.getMetrics();
   }
 }

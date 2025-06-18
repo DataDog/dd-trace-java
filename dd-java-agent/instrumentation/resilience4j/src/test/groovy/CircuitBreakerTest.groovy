@@ -3,7 +3,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
-import spock.lang.Ignore
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
@@ -72,21 +71,6 @@ class CircuitBreakerTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  @Ignore("first need to implement async decorator and then see how to implement stacking properly")
-  def "decorateSupplier stacked cbs"() {
-    when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier{serviceCall("foobar")}
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
-      .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
-      .decorate()
-
-    then:
-    runUnderTrace("parent") { supplier.get() } == "foobar"
-    and:
-    assertExpectedTrace()
-  }
-
   private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
@@ -97,7 +81,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "resilience4j.circuit-breaker"
           childOf span(0)
           errored false
         }

@@ -63,7 +63,7 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
   public static class SyncDecoratorsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(@Advice.Argument(value = 0, readOnly = false) Retry retry) {
-      retry = new RetryWrapper(retry, new DDContext());
+      retry = new RetryWrapper(retry, DDContext.retry());
     }
   }
 
@@ -72,10 +72,9 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     public static void beforeExecute(
         @Advice.Argument(value = 0, readOnly = false) Retry retry,
         @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      DDContext ddContext = new DDContext();
-      final Supplier<CompletionStage<?>> delegate = supplier;
+      DDContext ddContext = DDContext.retry();
       retry = new RetryWrapper(retry, ddContext);
-      supplier = DDContext.wrap(delegate, ddContext);
+      supplier = ddContext.wrap(supplier);
     }
   }
 }

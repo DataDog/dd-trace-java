@@ -71,21 +71,6 @@ class RetryTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  //  @Ignore("first need to implement async decorator and then see how to implement stacking properly")
-  //  def "decorateSupplier stacked cbs"() {
-  //    when:
-  //    Supplier<String> supplier = Decorators
-  //      .ofSupplier{serviceCall("foobar")}
-  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("a"))
-  //      .withCircuitBreaker(CircuitBreaker.ofDefaults("b"))
-  //      .decorate()
-  //
-  //    then:
-  //    runUnderTrace("parent") { supplier.get() } == "foobar"
-  //    and:
-  //    assertExpectedTrace()
-  //  }
-
   private void assertExpectedTrace() {
     assertTraces(1) {
       trace(3) {
@@ -96,7 +81,7 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j"
+          operationName "resilience4j.retry"
           childOf span(0)
           errored false
         }
