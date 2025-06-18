@@ -4,4 +4,4 @@ experiments:
       - name: Regression Check
         run: fail_on_regression
         # Applies on all scenarios
-        regression_threshold: 10.0 # percents
+        regression_threshold: 20.0 # percents

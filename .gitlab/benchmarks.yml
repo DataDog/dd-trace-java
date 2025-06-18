@@ -77,7 +77,6 @@ check-big-regressions:
       artifacts: true
   when: on_success
   tags: ["arch:amd64"]
-  allow_failure: true # Exercise the job before making it mandatory
   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
   # need to convert them
   script:
