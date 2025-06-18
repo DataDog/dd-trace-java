@@ -1,8 +1,8 @@
 package com.datadog.profiling.controller;
 
-import static datadog.trace.api.Platform.isJavaVersion;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isOracleJDK8;
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 
 public class ProfilingSupport {
 

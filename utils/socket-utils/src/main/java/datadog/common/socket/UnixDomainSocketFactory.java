@@ -2,8 +2,8 @@ package datadog.common.socket;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 public final class UnixDomainSocketFactory extends SocketFactory {
   private static final Logger log = LoggerFactory.getLogger(UnixDomainSocketFactory.class);
 
-  private static final boolean JDK_SUPPORTS_UDS = Platform.isJavaVersionAtLeast(16);
+  private static final boolean JDK_SUPPORTS_UDS = JavaVirtualMachine.isJavaVersionAtLeast(16);
 
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, MINUTES);
 

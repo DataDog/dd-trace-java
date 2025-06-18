@@ -3,113 +3,149 @@ package datadog.trace.api.env
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
 
+import static java.io.File.separator
+
 class CapturedEnvironmentTest extends DDSpecification {
   def "non autodetected service.name with null command"() {
-    setup:
-    System.clearProperty("sun.java.command")
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('null')
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == null
+    serviceName == null
   }
 
   def "non autodetected service.name with empty command"() {
-    setup:
-    System.setProperty("sun.java.command", "")
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('')
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == null
+    serviceName == null
   }
 
   def "non autodetected service.name with all blanks command"() {
-    setup:
-    System.setProperty("sun.java.command", " ")
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties(' ')
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == null
+    serviceName == null
   }
 
   def "set service.name by sysprop 'sun.java.command' with class"() {
-    setup:
-    System.setProperty("sun.java.command", "org.example.App -Dfoo=bar arg2 arg3")
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('org.example.App -Dfoo=bar arg2 arg3')
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "org.example.App"
+    serviceName == 'org.example.App'
   }
 
   def "set service.name by sysprop 'sun.java.command' with jar"() {
-    setup:
-    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('foo/bar/example.jar -Dfoo=bar arg2 arg3')
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "example"
+    serviceName == 'example'
   }
 
   def "set service.name with real 'sun.java.command' property"() {
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties(null)
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) != null
+    serviceName == ServiceNamePrinter.class.name
   }
 
   def "use Azure site name in Azure"() {
-    setup:
-    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
-    injectEnvConfig("DD_AZURE_APP_SERVICES", "1", false)
-    injectEnvConfig("WEBSITE_SITE_NAME", "siteService", false)
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('foo/bar/example.jar -Dfoo=bar arg2 arg3', [
+      'DD_AZURE_APP_SERVICES': '1',
+      'WEBSITE_SITE_NAME': 'siteService'
+    ])
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "siteService"
+    serviceName == 'siteService'
   }
 
   def "dont use site name when not in azure"() {
-    setup:
-    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
-    injectEnvConfig("WEBSITE_SITE_NAME", "siteService", false)
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('foo/bar/example.jar -Dfoo=bar arg2 arg3', [
+      'WEBSITE_SITE_NAME': 'siteService'
+    ])
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "example"
+    serviceName == 'example'
   }
 
   def "dont use Azure site name when null"() {
-    setup:
-    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
-    injectEnvConfig("DD_AZURE_APP_SERVICES", "true", false)
-
     when:
-    def capturedEnv = new CapturedEnvironment()
+    def serviceName = forkAndRunProperties('foo/bar/example.jar -Dfoo=bar arg2 arg3', [
+      'DD_AZURE_APP_SERVICES': 'true',
+    ])
 
     then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "example"
+    serviceName == 'example'
+  }
+
+  private static String forkAndRunProperties(String arg, Map<String, String> envVars = [:])
+  throws IOException, InterruptedException {
+    // Build the command to run a new Java process
+    List<String> command = []
+    command += System.getProperty("java.home") + separator + "bin" + separator + "java"
+    command += '-cp'
+    command += System.getProperty("java.class.path")
+    command += ServiceNamePrinter.class.getName()
+    if (arg != null) {
+      command += arg
+    }
+    // Start the process
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.environment().putAll(envVars)
+    Process process = processBuilder.start()
+    // Read and parse output and error streams
+    String serviceName = ''
+    try (BufferedReader reader =
+    new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+      String line
+      while ((line = reader.readLine()) != null) {
+        if (serviceName != '') {
+          serviceName += '\n'
+        }
+        serviceName += line
+      }
+    }
+    if (serviceName == 'null') {
+      serviceName = null
+    }
+    String error = ''
+    try (BufferedReader reader =
+    new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+      String line
+      while ((line = reader.readLine()) != null) {
+        error += line + '\n'
+      }
+    }
+    // Wait for the process to complete
+    int exitCode = process.waitFor()
+    // Dumping state on error
+    if (exitCode != 0) {
+      println("Error printing service name. Exit code $exitCode with service name: '$serviceName' and error:\n$error")
+      throw new IllegalStateException('Process should exit without error')
+    }
+    return serviceName
+  }
+
+  static class ServiceNamePrinter {
+    static void main(String[] args) {
+      if (args.length > 0) {
+        def sunJavaCommand = args[0]
+        if (sunJavaCommand == 'null') {
+          System.clearProperty('sun.java.command')
+        } else {
+          System.setProperty('sun.java.command', sunJavaCommand)
+        }
+      }
+      def capturedEnv = new CapturedEnvironment()
+      def props = capturedEnv.properties
+      println props.get(GeneralConfig.SERVICE_NAME)
+    }
   }
 }

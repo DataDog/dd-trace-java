@@ -2,7 +2,7 @@ package datadog.trace.util;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.Map;
@@ -32,9 +32,9 @@ public class JPMSJPSAccess {
       log.debug(
           SEND_TELEMETRY,
           "Failed to find the jdk.internal.jvmstat module, skipping patching of module access on "
-              + Platform.getRuntimeVersion()
+              + JavaVirtualMachine.getRuntimeVersion()
               + " "
-              + Platform.getRuntimeVendor());
+              + JavaVirtualMachine.getRuntimeVendor());
     }
   }
 }

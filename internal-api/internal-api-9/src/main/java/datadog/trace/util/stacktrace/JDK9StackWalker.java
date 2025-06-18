@@ -1,6 +1,6 @@
 package datadog.trace.util.stacktrace;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -46,7 +46,7 @@ public class JDK9StackWalker extends AbstractStackWalker {
 
   private static StackMapper findMapper() {
     try {
-      return Platform.isJ9()
+      return JavaVirtualMachine.isJ9()
           ? JDK9StackWalker::mapFrameForJ9
           : java.lang.StackWalker.StackFrame::toStackTraceElement;
     } catch (final Throwable e) {

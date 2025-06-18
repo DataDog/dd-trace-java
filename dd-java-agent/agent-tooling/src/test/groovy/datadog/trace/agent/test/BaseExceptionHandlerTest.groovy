@@ -4,8 +4,8 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.core.read.ListAppender
 import datadog.appsec.api.blocking.BlockingException
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.ExceptionLogger
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.blocking.BlockingExceptionHandler
@@ -26,7 +26,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 @IgnoreIf(reason = "SecurityManager used in the test is marked for removal and throws exceptions", value = {
-  Platform.isJavaVersionAtLeast(21)
+  JavaVirtualMachine.isJavaVersionAtLeast(21)
 })
 abstract class BaseExceptionHandlerTest extends DDSpecification {
   @Shared

@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
