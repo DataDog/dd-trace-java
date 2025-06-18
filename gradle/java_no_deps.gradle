@@ -151,20 +151,14 @@ project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
   if (testJvm == "stable") {
-    def javaHomeVersions = System.getenv().findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
-    if (javaHomeVersions.isEmpty()) {
-      throw new GradleException("No JAVA_X_HOME environment variables found.")
-    }
-    def javaVersions = javaHomeVersions.keySet().collect { key ->
-      def matcher = key =~ /JAVA_([0-9]+)_HOME/
-      if (!matcher.matches()) {
-        return null
-      }
-      matcher.group(1) as Integer
-    }.findAll { it != null }
+    def javaVersions = System.getenv()
+      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+
     if (javaVersions.isEmpty()) {
-      throw new GradleException("No Java versions found from JAVA_X_HOME environment variables.")
+      throw new GradleException("No valid JAVA_X_HOME environment variables found.")
     }
+
     testJvm = javaVersions.max().toString()
   }
   if (testJvm) {
