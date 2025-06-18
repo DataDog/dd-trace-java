@@ -35,7 +35,7 @@ function get_source_file () {
         fi
       done
     done < <(grep -rl "class $class" "$file_path")
-    file_path="/$common_root"
+    file_path="$common_root"
   fi
 }
 
