@@ -1,7 +1,4 @@
 include:
-  - project: DataDog/apm-reliability/libdatadog-build
-    ref: 0f677257308e1c379af490b754febfb40fa2c06d
-    file: templates/ci_authenticated_job.yml
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
@@ -20,6 +17,10 @@ stages:
   - generate-signing-key
 
 variables:
+  # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
+  # Fold and time all script sections
+  FF_SCRIPT_SECTIONS: 1
+
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
@@ -132,15 +133,24 @@ default:
       policy: $BUILD_CACHE_POLICY
   before_script:
     - source .gitlab/gitlab-utils.sh
-    - export GRADLE_USER_HOME=`pwd`/.gradle
+    - mkdir -p .gradle
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
+    - |
+      # Don't put jvm args here as it will be picked up by child gradle processes used in tests
+      cat << EOF > $GRADLE_USER_HOME/gradle.properties
+      mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+      gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+      EOF
+    - |
+      # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
+      sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx$GRADLE_MEM -Xms$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS -PmavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY -PgradlePluginProxy=$GRADLE_PLUGIN_PROXY"
+    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
     # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
     - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
-    - mkdir -p .gradle
     - cp -r .gradle .gradle-copy
     - rm -rf .gradle
     - mv .gradle-copy .gradle
@@ -361,7 +371,7 @@ muzzle:
     - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
     - sort workspace/build/muzzleTasks > sortedMuzzleTasks
     - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew `cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs` $GRADLE_ARGS
+    - ./gradlew $(cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs) $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
@@ -786,37 +796,3 @@ create_key:
     expire_in: 13 mos
     paths:
       - pubkeys
-
-tracer-base-image-release:
-  extends: .ci_authenticated_job
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
-      when: on_success
-  dependencies:
-    - build
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest
-
-tracer-base-image-snapshot:
-  extends: .ci_authenticated_job
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-  dependencies:
-    - build
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot

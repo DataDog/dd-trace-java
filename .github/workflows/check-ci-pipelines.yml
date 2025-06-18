@@ -28,6 +28,7 @@ jobs:
           initial-delay-seconds: "500"
           max-retries: "60"
           ignored-name-patterns: |
-            dd-gitlab/default-pipeline
-            dd-gitlab/test_smoke: \[11, 2/2\]
-            dd-gitlab/test_smoke: \[8, 2/2\]
+            dd-gitlab/.*
+            Check pull requests
+
+# gitlab pipelines are reported via dd-gitlab/default-pipeline status, which can be used as a GH status check
