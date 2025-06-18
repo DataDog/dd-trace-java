@@ -55,19 +55,21 @@ for app in *; do
   for i in $(seq 1 $REPETITIONS_COUNT); do
     bash -c "${UTILS_DIR}/../${type}/${app}/start-servers.sh" &
 
+    echo "Waiting for serves to start..."
     if [ "${app}" == "petclinic" ]; then
       for port in $(seq 8080 8085); do
         healthcheck http://localhost:$port
       done
     elif [ "${app}" == "insecure-bank" ]; then
-      for port in $(seq 8080 8088); do
+      for port in $(seq 8080 8085); do
         healthcheck http://localhost:$port/login
       done
     fi
+    echo "Servers are up!"
 
     (
       cd ${app} &&
-      bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh ${HEALTHCHECK_URL} 'pkill java'"
+      bash -c "${CPU_AFFINITY_K6}${UTILS_DIR}/run-k6-load-test.sh 'pkill java'"
     )
   done
 

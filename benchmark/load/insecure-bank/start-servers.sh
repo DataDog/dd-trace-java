@@ -24,8 +24,5 @@ start_server "profiling" "-javaagent:${TRACER} -Ddd.profiling.enabled=true -Dser
 start_server "iast" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Dserver.port=8083" "taskset -c 44 " &
 start_server "iast_GLOBAL" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.context.mode=GLOBAL -Dserver.port=8084" "taskset -c 43 " &
 start_server "iast_FULL" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.detection.mode=FULL -Dserver.port=8085" "taskset -c 42 " &
-start_server "iast_INACTIVE" "-javaagent:${TRACER} -Ddd.iast.enabled=inactive -Dserver.port=8086" "taskset -c 41 " &
-start_server "iast_TELEMETRY_OFF" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.telemetry.verbosity=OFF -Dserver.port=8087" "taskset -c 40 " &
-start_server "iast_HARDCODED_SECRET_DISABLED" "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.hardcoded-secret.enabled=false -Dserver.port=8088" "taskset -c 39 " &
 
 wait

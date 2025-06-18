@@ -20,15 +20,6 @@ const variants = {
   "iast_FULL": {
     "APP_URL": 'http://localhost:8085',
   },
-  "iast_INACTIVE": {
-    "APP_URL": 'http://localhost:8086',
-  },
-  "iast_TELEMETRY_OFF": {
-    "APP_URL": 'http://localhost:8087',
-  },
-  "iast_HARDCODED_SECRET_DISABLED": {
-    "APP_URL": 'http://localhost:8088',
-  },
 }
 
 export const options = function (variants) {
