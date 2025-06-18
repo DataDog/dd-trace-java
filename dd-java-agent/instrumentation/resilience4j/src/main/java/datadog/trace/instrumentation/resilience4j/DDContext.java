@@ -4,6 +4,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.core.functions.CheckedSupplier;
+import io.github.resilience4j.retry.Retry;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
@@ -17,11 +20,11 @@ public final class DDContext {
   private AgentSpan span;
   private AgentScope scope;
 
-  public static DDContext circuitBreaker() {
+  public static DDContext of(CircuitBreaker circuitBreaker) {
     return create(CIRCUIT_BREAKER_SPAN);
   }
 
-  public static DDContext retry() {
+  public static DDContext of(Retry retry) {
     return create(RETRY_SPAN);
   }
 
@@ -34,11 +37,35 @@ public final class DDContext {
     this.spanName = spanName;
   }
 
-  public Supplier<CompletionStage<?>> wrap(Supplier<CompletionStage<?>> delegate) {
+  public CheckedSupplier<?> tracedCheckedSupplier(CheckedSupplier<?> delegate) {
+    return () -> {
+      openScope();
+      try {
+        return delegate.get();
+      } finally {
+        closeScope();
+        finishSpan(null);
+      }
+    };
+  }
+
+  public Supplier<?> tracedSupplier(Supplier<?> delegate) {
+    return () -> {
+      openScope();
+      try {
+        return delegate.get();
+      } finally {
+        closeScope();
+        finishSpan(null);
+      }
+    };
+  }
+
+  public Supplier<CompletionStage<?>> tracedCompletionStage(Supplier<CompletionStage<?>> delegate) {
     return () -> {
       // open a scope to be captured by the completionStage
       openScope();
-      try { // TODO would be better to handle scope creation here? Yes, this also needed for retry
+      try { //
         CompletionStage<?> completionStage = delegate.get();
         completionStage.whenComplete(
             (result, error) -> {

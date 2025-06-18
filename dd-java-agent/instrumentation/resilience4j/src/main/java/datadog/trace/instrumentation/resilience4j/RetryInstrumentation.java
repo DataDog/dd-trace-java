@@ -1,16 +1,14 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import io.github.resilience4j.core.functions.CheckedSupplier;
 import io.github.resilience4j.retry.Retry;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -34,13 +32,17 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
-            .and(
-                namedOneOf(
-                    "decorateCheckedSupplier",
-                    // TODO add all the other decorator methods here
-                    "decorateSupplier"))
-            .and(takesArgument(0, named(RETRY_FQCN))),
-        RetryInstrumentation.class.getName() + "$SyncDecoratorsAdvice");
+            .and(named("decorateCheckedSupplier"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(takesArgument(1, named("io.github.resilience4j.core.functions.CheckedSupplier"))),
+        RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(isStatic())
+            .and(named("decorateSupplier"))
+            .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(takesArgument(1, named("java.util.function.Supplier"))),
+        RetryInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -50,31 +52,33 @@ public final class RetryInstrumentation extends Resilience4jInstrumentation {
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 
-  public String[] muzzleIgnoredClassNames() {
-    ArrayList<String> ignored = new ArrayList<>(Arrays.asList(helperClassNames()));
-    // Prevent a LinkageError caused by a reference to the instrumented interface by excluding these
-    // from being loaded by the muzzle check.
-    ignored.add(packageName + ".RetryWrapper");
-    ignored.add(packageName + ".RetryAsyncContextWrapper");
-    ignored.add(packageName + ".RetryContextWrapper");
-    return ignored.toArray(new String[0]);
+  public static class CheckedSupplierAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beforeExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Argument(value = 1, readOnly = false) CheckedSupplier<?> supplier) {
+      DDContext ddContext = DDContext.of(retry);
+      supplier = ddContext.tracedCheckedSupplier(supplier);
+    }
   }
 
-  public static class SyncDecoratorsAdvice {
+  public static class SupplierAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beforeExecute(@Advice.Argument(value = 0, readOnly = false) Retry retry) {
-      retry = new RetryWrapper(retry, DDContext.retry());
+    public static void beforeExecute(
+        @Advice.Argument(value = 0) Retry retry,
+        @Advice.Argument(value = 1, readOnly = false) Supplier<?> supplier) {
+      DDContext ddContext = DDContext.of(retry);
+      supplier = ddContext.tracedSupplier(supplier);
     }
   }
 
   public static class CompletionStageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeExecute(
-        @Advice.Argument(value = 0, readOnly = false) Retry retry,
+        @Advice.Argument(value = 0) Retry retry,
         @Advice.Argument(value = 2, readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      DDContext ddContext = DDContext.retry();
-      retry = new RetryWrapper(retry, ddContext);
-      supplier = ddContext.wrap(supplier);
+      DDContext ddContext = DDContext.of(retry);
+      supplier = ddContext.tracedCompletionStage(supplier);
     }
   }
 }
