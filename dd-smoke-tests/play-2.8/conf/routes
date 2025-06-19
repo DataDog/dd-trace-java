@@ -6,3 +6,6 @@
 # An example controller showing a sample home page
 GET     /welcomej                           controllers.JController.doGet(id: Int ?= 0)
 GET     /welcomes                           controllers.SController.doGet(id: Option[Int])
+
+# AppSec endpoints for testing
+GET     /api_security/sampling/:statusCode  controllers.AppSecController.apiSecuritySampling(statusCode: Int, test: String)

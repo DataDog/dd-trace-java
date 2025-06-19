@@ -312,6 +312,16 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
   }
 
+  static final int HTTP_ROUTE_ID = 26;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_ROUTE = new ET<>("http.route", HTTP_ROUTE_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, String>> httpRoute() {
+    return (EventType<BiConsumer<RequestContext, String>>) HTTP_ROUTE;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
