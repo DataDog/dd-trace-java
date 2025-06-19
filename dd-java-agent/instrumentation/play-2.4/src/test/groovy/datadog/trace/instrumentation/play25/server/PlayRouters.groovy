@@ -130,7 +130,7 @@ class PlayRouters {
         ->
         JsonNode json = body().asJson()
         controller(BODY_JSON) {
-          Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+          Results.status(BODY_JSON.status, json)
         }
       } as Supplier)
       .build()
