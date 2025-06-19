@@ -30,7 +30,7 @@ junit_upload() {
         --tags "os.architecture:$(java_prop os.arch)" \
         --tags "os.platform:$(java_prop os.name)" \
         --tags "os.version:$(java_prop os.version)" \
-        --tags "git.repository.url:https://github.com/DataDog/dd-trace-java" \
+        --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
         ./results
 }
 
