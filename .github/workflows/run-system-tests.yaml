@@ -65,8 +65,9 @@ jobs:
 
   # Ensure the main job is run to completion
   check:
+    name: Check system tests success
     runs-on: ubuntu-latest
     needs:
     - main
     steps:
-    - run: exit 
+    - run: exit 0
