@@ -2503,7 +2503,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
     ({ RequestContext rqCtxt, Object obj ->
-      String body = obj.toString()
+      String body
+      if (obj instanceof Map) {
+        body = JsonOutput.toJson(obj as Map)
+      } else {
+        body = obj.toString()
+      }
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.responseBodyTag) {
         rqCtxt.traceSegment.setTagTop('response.body', body)
