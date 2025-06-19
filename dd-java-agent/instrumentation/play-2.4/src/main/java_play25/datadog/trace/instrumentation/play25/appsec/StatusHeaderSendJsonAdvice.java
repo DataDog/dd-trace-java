@@ -38,6 +38,9 @@ public class StatusHeaderSendJsonAdvice {
     }
 
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    if (cbp == null) {
+      return;
+    }
     BiFunction<RequestContext, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.responseBody());
     if (callback == null) {

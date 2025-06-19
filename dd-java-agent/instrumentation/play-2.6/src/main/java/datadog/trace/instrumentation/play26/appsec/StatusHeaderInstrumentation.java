@@ -75,6 +75,9 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      if (cbp == null) {
+        return;
+      }
       BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.responseBody());
       if (callback == null) {
