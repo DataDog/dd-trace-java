@@ -11,7 +11,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import io.vertx.core.json.JsonObject;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
@@ -20,15 +19,10 @@ class RoutingContextJsonResponseAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(
-      @Advice.Argument(0) Object source, @ActiveRequestContext RequestContext reqCtx) {
+      @Advice.Argument(0) final Object object, @ActiveRequestContext final RequestContext reqCtx) {
 
-    if (source == null) {
+    if (object == null) {
       return;
-    }
-
-    Object object = source;
-    if (object instanceof JsonObject) {
-      object = ((JsonObject) object).getMap();
     }
 
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
