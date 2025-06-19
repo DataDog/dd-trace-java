@@ -1,20 +1,14 @@
 package datadog.trace.util;
 
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,6 +33,7 @@ public final class PidHelper {
     return PID_AS_LONG;
   }
 
+  @SuppressWarnings("unchecked")
   private static String findPid() {
     String pid = "";
     if (Platform.isJavaVersionAtLeast(9)) {
@@ -123,14 +118,6 @@ public final class PidHelper {
   }
 
   public static Set<String> getJavaPids() {
-    // Attempt to use jvmstat directly, fall through to jps process fork strategy
-    Set<String> directlyObtainedPids = JPSUtils.getVMPids();
-    if (directlyObtainedPids != null) {
-      return directlyObtainedPids;
-    }
-
-    // Some JDKs don't have jvmstat available as a module, attempt to read from the hsperfdata
-    // directory instead
     try (Stream<Path> stream = Files.list(getJavaProcessesDir())) {
       return stream
           .map(Path::getFileName)
@@ -145,56 +132,22 @@ public final class PidHelper {
                 if (name.isEmpty()) {
                   return false;
                 }
-                for (int i = 0; i < name.length(); i++) {
-                  if (!Character.isDigit(name.charAt(i))) {
-                    return false;
-                  }
+                char c = name.charAt(0);
+                if (c < '0' || c > '9') {
+                  // Short-circuit - let's not parse as long something that is definitely not a long
+                  // number
+                  return false;
                 }
-                return true;
+                long pid = -1;
+                try {
+                  pid = Long.parseLong(name);
+                } catch (NumberFormatException ignored) {
+                }
+                return pid != -1;
               })
           .collect(Collectors.toSet());
     } catch (IOException e) {
-      log.debug("Unable to obtain Java PIDs via hsperfdata", e);
-    }
-
-    // there is no supported Java API to achieve this
-    // one could use sun.jvmstat.monitor.MonitoredHost but it is an internal API and can go away at
-    // any time -
-    //  also, no guarantee it will work with all JVMs
-    ProcessBuilder pb = new ProcessBuilder("jps");
-    try (TraceScope ignored = AgentTracer.get().muteTracing()) {
-      Process p = pb.start();
-      // start draining the subcommand's pipes asynchronously to avoid flooding them
-      CompletableFuture<Set<String>> collecting =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try (BufferedReader br =
-                    new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                  return br.lines()
-                      .filter(l -> !l.contains("jps"))
-                      .map(
-                          l -> {
-                            int idx = l.indexOf(' ');
-                            return l.substring(0, idx);
-                          })
-                      .collect(java.util.stream.Collectors.toSet());
-                } catch (IOException e) {
-                  log.debug("Unable to list java processes via 'jps'", e);
-                  return Collections.emptySet();
-                }
-              });
-      if (p.waitFor(1200, TimeUnit.MILLISECONDS)) {
-        if (p.exitValue() == 0) {
-          return collecting.get();
-        } else {
-          log.debug("Execution of 'jps' failed with exit code {}", p.exitValue());
-        }
-      } else {
-        p.destroyForcibly();
-        log.debug("Execution of 'jps' timed out");
-      }
-    } catch (Exception e) {
-      log.debug("Unable to list java processes via 'jps'", e);
+      log.debug("Unable to obtain Java PIDs", e);
     }
     return Collections.emptySet();
   }
