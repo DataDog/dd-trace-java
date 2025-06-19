@@ -189,9 +189,7 @@ class RetryTest extends AgentTestRunner {
 
   void serviceCallErr(IllegalStateException e) {
     def span = AgentTracer.startSpan("test", "serviceCall")
-    try (
-    AgentScope ignored = AgentTracer.activateSpan(span)
-    ) {
+    try (def ignored = AgentTracer.activateSpan(span)) {
       throw e
     } finally {
       span.finish()
