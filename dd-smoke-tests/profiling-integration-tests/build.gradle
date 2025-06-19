@@ -20,7 +20,8 @@ dependencies {
   implementation project(':dd-trace-api')
   api project(':dd-trace-ot')
   implementation 'org.apache.commons:commons-math3:3.6.1'
-  implementation 'org.lz4:lz4-java:1.8.0'
+  implementation libs.lz4
+  implementation libs.aircompressor
   implementation 'org.xerial.snappy:snappy-java:1.1.8.4'
 
   testImplementation project(':dd-smoke-tests')
@@ -28,6 +29,7 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.bundles.jmc
+  testImplementation libs.aircompressor
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }
 
