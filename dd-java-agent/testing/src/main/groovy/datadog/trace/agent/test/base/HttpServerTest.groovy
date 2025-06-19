@@ -39,6 +39,8 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import net.bytebuddy.utility.RandomString
@@ -1590,9 +1592,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   void 'test instrumentation gateway json response body'() {
     setup:
     assumeTrue(testResponseBodyJson())
+    final body = [a: 'x']
     def request = request(
     BODY_JSON, 'POST',
-    RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+    RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
     .header(IG_RESPONSE_BODY_TAG, 'true')
     .build()
     def response = client.newCall(request).execute()
@@ -1605,11 +1608,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
 
     then:
-    TEST_WRITER.get(0).any {
-      it.getTag('response.body') == '[a:[x]]'
-    }
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    final responseBody = rootSpan.getTag('response.body') as String
+    new JsonSlurper().parseText(responseBody) == body
 
     and:
     if (isDataStreamsEnabled()) {
@@ -2497,21 +2503,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
     ({ RequestContext rqCtxt, Object obj ->
-      if (obj instanceof Map) {
-        obj = obj.collectEntries {
-          [
-            it.key,
-            (it.value instanceof Iterable || it.value instanceof String[]) ? it.value : [it.value]
-          ]
-        }
-      } else if (!(obj instanceof String) && !(obj instanceof List)) {
-        obj = obj.properties
-        .findAll { it.key != 'class' }
-        .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
-      }
+      String body = obj.toString()
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.responseBodyTag) {
-        rqCtxt.traceSegment.setTagTop('response.body', obj as String)
+        rqCtxt.traceSegment.setTagTop('response.body', body)
       }
       if (context.responseBlock) {
         new RbaFlow(
