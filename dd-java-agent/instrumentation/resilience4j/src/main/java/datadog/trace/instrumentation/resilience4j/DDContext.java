@@ -10,10 +10,12 @@ import io.github.resilience4j.retry.Retry;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
+// TODO rename to a context holder
 public final class DDContext {
   public static final CharSequence CIRCUIT_BREAKER_SPAN =
       UTF8BytesString.create("resilience4j.circuit-breaker");
   public static final CharSequence RETRY_SPAN = UTF8BytesString.create("resilience4j.retry");
+  public static final CharSequence FALLBACK_SPAN = UTF8BytesString.create("resilience4j.fallback");
   private static final String INSTRUMENTATION_NAME = "resilience4j";
 
   private final CharSequence spanName;
@@ -26,6 +28,10 @@ public final class DDContext {
 
   public static DDContext of(Retry retry) {
     return create(RETRY_SPAN);
+  }
+
+  public static DDContext ofFallback() {
+    return create(FALLBACK_SPAN);
   }
 
   private static DDContext create(CharSequence spanName) {

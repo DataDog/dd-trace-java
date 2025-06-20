@@ -60,31 +60,35 @@ class FallbackTest extends AgentTestRunner {
         serviceCallErr(new IllegalStateException("test"))
       }
       .withFallback({ Throwable t ->
-        serviceCall("fallback", "fallback")
+        serviceCall("fallbackResult", "fallbackCall")
       } as Function<Throwable, String>)
       .decorate()
 
     def result = runUnderTrace("parent") { supplier.get() }
 
     then:
-    result == "fallback"
+    result == "fallbackResult"
     assertTraces(1) {
-      trace(3) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
           parent()
           errored false
         }
-        // TODO do we need a fallback span?
         span(1) {
-          operationName "serviceCall"
+          operationName "resilience4j.fallback"
           childOf span(0)
           errored false
         }
         span(2) {
-          operationName "fallback"
-          childOf span(0)
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+        span(3) {
+          operationName "fallbackCall"
+          childOf span(1)
           errored false
         }
       }
