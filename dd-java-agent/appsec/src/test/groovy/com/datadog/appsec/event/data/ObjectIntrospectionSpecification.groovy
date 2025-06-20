@@ -388,10 +388,12 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     final jsonInput = '{"long": "' + longString + '"}'
 
     when:
-    convert(MAPPER.readTree(jsonInput), ctx)
+    final result = convert(MAPPER.readTree(jsonInput), ctx)
 
     then:
     1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(true, false, false)
+    result["long"].length() <= ObjectIntrospection.MAX_STRING_LENGTH
   }
 
   void 'jackson with deep nesting triggers depth limit'() {
@@ -402,11 +404,13 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     )
 
     when:
-    convert(MAPPER.readTree(json), ctx)
+    final result = convert(MAPPER.readTree(json), ctx)
 
     then:
     // Should truncate at max depth and set truncation flag
     1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, false, true)
+    countNesting(result as Map, 0) <= ObjectIntrospection.MAX_DEPTH
   }
 
   void 'jackson with large arrays triggers element limit'() {
@@ -416,11 +420,13 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     final json = new JsonBuilder(largeArray).toString()
 
     when:
-    convert(MAPPER.readTree(json), ctx)
+    final result = convert(MAPPER.readTree(json), ctx) as List
 
     then:
     // Should truncate and set truncation flag
     1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, true, false)
+    result.size() <= ObjectIntrospection.MAX_ELEMENTS
   }
 
   void 'jackson number type variations'() {
@@ -457,5 +463,16 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('"\\\\"')                      || '\\'
     MAPPER.readTree('"\\"quotes\\""')              || '"quotes"'
     MAPPER.readTree('"unicode: \\u0041"')          || 'unicode: A'
+  }
+
+  private static int countNesting(final Map<String, Object>object, final int levels) {
+    if (object.isEmpty()) {
+      return levels
+    }
+    final child = object.values().first()
+    if (child == null) {
+      return levels
+    }
+    return countNesting(object.values().first() as Map, levels + 1)
   }
 }
