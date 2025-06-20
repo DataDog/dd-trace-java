@@ -177,7 +177,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  span.finish();
+                  AgentSpan.fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);
