@@ -4,13 +4,18 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.api.Platform
 import okhttp3.HttpUrl
 import okhttp3.Request
 import org.jboss.shrinkwrap.api.ShrinkWrap
 import org.jboss.shrinkwrap.api.spec.WebArchive
+import spock.lang.IgnoreIf
 import test.JakartaTestServlet
 import test.TestServlet
 
+@IgnoreIf(reason = "WildFly does not guarantee support for Java SE 24. The latest version 36 of WildFly recommends using the latest Java LTS: https://docs.wildfly.org/36/Getting_Started_Guide.html#requirements", value = {
+  Platform.isJavaVersionAtLeast(22)
+})
 class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements TestingGenericHttpNamingConventions.ServerV0 {
   @Override
   EmbeddedWildfly startServer(int port) {

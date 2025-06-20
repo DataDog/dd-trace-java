@@ -7,6 +7,15 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Log injection Smoke Tests.'
 
+// 3.0.24 added support for JDK 24 via ASM 9.7.1
+// https://groovy-lang.org/changelogs/changelog-3.0.24.html
+// https://asm.ow2.io/versions.html#9.7.1
+configurations.all {
+  resolutionStrategy {
+    force 'org.codehaus.groovy:groovy-all:3.0.24'
+  }
+}
+
 configurations {
   jcl
   log4j1
