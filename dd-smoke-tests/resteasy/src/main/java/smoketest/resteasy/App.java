@@ -12,7 +12,7 @@ public class App extends Application {
 
   public App() {
     singletons.add(new Resource());
-    singletons.add(org.jboss.resteasy.plugins.providers.StringTextStar.class); // Writer for String
+    singletons.add(new org.jboss.resteasy.plugins.providers.StringTextStar()); // Writer for String
     singletons.add(new JacksonJsonProvider()); // Writer for json
   }
 
