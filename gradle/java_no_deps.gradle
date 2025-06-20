@@ -307,16 +307,20 @@ def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix =
   def definedMin = project.hasProperty(minProp)
   def definedMax = project.hasProperty(maxProp)
   if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minProp=${minProp} is defined and greater than version=${version}")
     return false
   }
   //default to the general min if defined and specific one is was not defined
   if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.getProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
     return false
   }
   if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.getProperty(maxProp)} is defined and lower than version=${version}")
     return false
   }
   if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.getProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
     return false
   }
   return true
