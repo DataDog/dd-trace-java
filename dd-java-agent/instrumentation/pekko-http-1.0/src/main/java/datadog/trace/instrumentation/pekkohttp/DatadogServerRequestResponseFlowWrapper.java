@@ -141,16 +141,16 @@ public class DatadogServerRequestResponseFlowWrapper
               @Override
               public void onUpstreamFailure(final Throwable ex) throws Exception {
                 ContextScope scope = scopes.poll();
-                AgentSpan span = AgentSpan.fromContext(scope.context());
                 if (scope != null) {
                   // Mark the span as failed
+                  AgentSpan span = AgentSpan.fromContext(scope.context());
                   DatadogWrapperHelper.finishSpan(span, ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
                 scope = scopes.poll();
                 while (scope != null) {
-                  span.finish();
+                  AgentSpan.fromContext(scope.context()).finish();
                   scope = scopes.poll();
                 }
                 fail(responseOutlet, ex);
