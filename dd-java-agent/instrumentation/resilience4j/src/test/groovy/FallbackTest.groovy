@@ -26,34 +26,18 @@ class FallbackTest extends AgentTestRunner {
         }, executor)
       }
       .withFallback({ Throwable t ->
-        serviceCall("fallback", "fallback")
+        serviceCall("fallbackResult", "fallbackCall")
       } as Function<Throwable, String>)
       .decorate()
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
-    future.get()
 
     then:
-    assertTraces(1) {
-      trace(3) {
-        sortSpansByStart()
-        span(0) {
-          operationName "parent"
-          parent()
-          errored false
-        }
-        // TODO add fallback span
-        span(1) {
-          operationName "serviceCall"
-          childOf span(0)
-          errored false
-        }
-        span(2) {
-          operationName "fallback"
-          childOf span(0)
-          errored false
-        }
-      }
-    }
+    future.get() == "fallbackResult"
+
+    then:
+    assertExpectedTrace()
+
+    //TODO test all variants
   }
 
   def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
@@ -71,19 +55,23 @@ class FallbackTest extends AgentTestRunner {
     where:
     decorateSupplier << [
       Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test")) }
+        serviceCallErr(new IllegalStateException("test"))
+      }
       .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
       ,
       Decorators.ofSupplier{
-        serviceCall("badResult", "serviceCall") }
+        serviceCall("badResult", "serviceCall")
+      }
       .withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
       ,
       Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test")) }
+        serviceCallErr(new IllegalStateException("test"))
+      }
       .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
       ,
       Decorators.ofSupplier{
-        serviceCallErr(new IllegalStateException("test")) }
+        serviceCallErr(new IllegalStateException("test"))
+      }
       .withFallback(List.of(IllegalStateException.class), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
     ]
   }

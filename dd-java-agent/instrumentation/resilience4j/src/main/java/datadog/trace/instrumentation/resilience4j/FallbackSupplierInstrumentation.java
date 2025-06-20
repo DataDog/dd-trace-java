@@ -12,17 +12,10 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class FallbackInstrumentation extends AbstractResilience4jInstrumentation {
-
-  private static final String SUPPLIER_UTILS_FQCN = "io.github.resilience4j.core.SupplierUtils";
-
-  public FallbackInstrumentation() {
-    super("resilience4j-fallback");
-  }
-
+public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumentation {
   @Override
   public String instrumentedType() {
-    return SUPPLIER_UTILS_FQCN; // TODO extract to a separate class
+    return "io.github.resilience4j.core.SupplierUtils";
   }
 
   @Override
@@ -32,7 +25,7 @@ public class FallbackInstrumentation extends AbstractResilience4jInstrumentation
             .and(namedOneOf("recover", "andThen"))
             .and(takesArgument(0, named(Supplier.class.getName())))
             .and(returns(named(Supplier.class.getName()))),
-        FallbackInstrumentation.class.getName() + "$SupplierAdvice");
+        FallbackSupplierInstrumentation.class.getName() + "$SupplierAdvice");
   }
 
   public static class SupplierAdvice {
