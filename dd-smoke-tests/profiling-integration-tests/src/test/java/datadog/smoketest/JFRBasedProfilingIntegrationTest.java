@@ -17,9 +17,11 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
+import io.airlift.compress.zstd.ZstdInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -150,7 +152,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - no jmx delay, no jmethodid cache")
+  @DisplayName("Test continuous recording - no jmx delay, default compression")
   public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
@@ -161,7 +163,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - no jmx delay, jmethodid cache")
+  @DisplayName("Test continuous recording - no jmx delay, zstd compression")
   public void testContinuousRecording_no_jmx_delay_jmethodid_cache(final TestInfo testInfo)
       throws Exception {
     testWithRetry(
@@ -173,7 +175,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay, no jmethodid cache")
+  @DisplayName("Test continuous recording - 1 sec jmx delay, default compression")
   public void testContinuousRecording(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
@@ -184,7 +186,7 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("Test continuous recording - 1 sec jmx delay, jmethodid cache")
+  @DisplayName("Test continuous recording - 1 sec jmx delay, zstd compression")
   public void testContinuousRecording_jmethodid_cache(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
@@ -198,7 +200,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled)
+      final boolean withZstd)
       throws Exception {
     final ObjectMapper mapper = new ObjectMapper();
     try {
@@ -207,7 +209,7 @@ class JFRBasedProfilingIntegrationTest {
                   jmxFetchDelay,
                   endpointCollectionEnabled,
                   asyncProfilerEnabled,
-                  jmethodIdCacheEnabled,
+                  withZstd,
                   logFilePath)
               .start();
 
@@ -261,7 +263,11 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
 
       assertFalse(logHasErrors(logFilePath));
-      IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
+      InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+      if (withZstd) {
+        eventStream = new ZstdInputStream(eventStream);
+      }
+      IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
       // This nano-second compensates for the added nano second in
@@ -308,7 +314,11 @@ class JFRBasedProfilingIntegrationTest {
           period > 0 && period <= upperLimit,
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
 
-      events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(rawJfr.get()));
+      eventStream = new ByteArrayInputStream(rawJfr.get());
+      if (withZstd) {
+        eventStream = new ZstdInputStream(eventStream);
+      }
+      events = JfrLoaderToolkit.loadEvents(eventStream);
       assertTrue(events.hasItems());
       verifyDatadogEventsNotCorrupt(events);
       rangeStartAndEnd = getRangeStartAndEnd(events);
@@ -689,7 +699,7 @@ class JFRBasedProfilingIntegrationTest {
       final int jmxFetchDelay,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
@@ -698,7 +708,7 @@ class JFRBasedProfilingIntegrationTest {
         PROFILING_UPLOAD_PERIOD_SECONDS,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        jmethodIdCacheEnabled,
+        withZstd,
         0,
         logFilePath);
   }
@@ -710,7 +720,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final int exitDelay,
       final Path logFilePath) {
     return createProcessBuilder(
@@ -722,7 +732,7 @@ class JFRBasedProfilingIntegrationTest {
         profilingUploadPeriodSecs,
         endpointCollectionEnabled,
         asyncProfilerEnabled,
-        jmethodIdCacheEnabled,
+        withZstd,
         exitDelay,
         logFilePath);
   }
@@ -736,7 +746,7 @@ class JFRBasedProfilingIntegrationTest {
       final int profilingUploadPeriodSecs,
       final boolean endpointCollectionEnabled,
       final boolean asyncProfilerEnabled,
-      final boolean jmethodIdCacheEnabled,
+      final boolean withZstd,
       final int exitDelay,
       final Path logFilePath) {
     final String templateOverride =
@@ -770,7 +780,7 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
             "-Ddd.profiling.queueing.time.enabled=true",
             "-Ddd.profiling.queueing.time.threshold.millis=0",
-            "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
+            "-Ddd.profiling.debug.upload.compression=" + (withZstd ? "zstd" : "on"),
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.context.attributes=foo,bar",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
