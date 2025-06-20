@@ -40,6 +40,8 @@ dependencies {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 
+  testFixturesImplementation project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
+
   nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support
   nettyTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-netty', version :'3.0.0.Final'
   nettyTestImplementation project(':dd-java-agent:instrumentation:netty-3.8')
