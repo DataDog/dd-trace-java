@@ -83,6 +83,16 @@ ext.generalShadowJarConfig = {
   exclude '**/com/kenai/jffi/Init.class'
   relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
 
+  // Minimize and relocate the airlift compressor dependency for ZSTD
+  exclude '**/io/airlift/compress/bzip2/**'
+  exclude '**/io/airlift/compress/deflate/**'
+  exclude '**/io/airlift/compress/gzip/**'
+  exclude '**/io/airlift/compress/hadoop/**'
+  exclude '**/io/airlift/compress/lz4/**'
+  exclude '**/io/airlift/compress/lzo/**'
+  exclude '**/io/airlift/compress/snappy/**'
+  relocate 'io.airlift', 'datadog.io.airlift'
+
   final String projectName = "${project.name}"
 
   // Prevents conflict with other instances, but doesn't relocate instrumentation

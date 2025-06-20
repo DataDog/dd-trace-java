@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-url=$1
-output=$2
-command=$3
+command=$1
 exit_code=0
 
 cleanup() {
@@ -14,14 +12,10 @@ cleanup() {
 
 trap cleanup EXIT ERR INT TERM
 
-# wait for the HTTP server to be up
-while true; do
-  if [[ $(curl -fso /dev/null -w "%{http_code}" "${url}") = 200 ]]; then
-    break
-  fi
-done
+echo "Starting k6 load test, logs are recorded into ${LOGS_DIR}/k6.log..."
 
 # run the k6 benchmark and store the result as JSON
-k6 run k6.js --out "json=${output}/k6_$(date +%s).json" &>>"${output}/k6.log"
-
+k6 run k6.js --out "json=${OUTPUT_DIR}/k6_$(date +%s).json" > "${LOGS_DIR}/k6.log" 2>&1
 exit_code=$?
+
+echo "k6 load test done !!!"

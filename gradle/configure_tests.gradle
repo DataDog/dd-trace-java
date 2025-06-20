@@ -124,3 +124,13 @@ if (!project.property("activePartition")) {
     }
   }
 }
+
+tasks.withType(Test) {
+  // https://docs.gradle.com/develocity/flaky-test-detection/
+  // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
+  develocity.testRetry {
+    if (System.getenv().containsKey("CI")) {
+      maxRetries = 3
+    }
+  }
+}
