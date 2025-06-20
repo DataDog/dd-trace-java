@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public final class CircuitBreakerInstrumentation extends Resilience4jInstrumentation {
+public final class CircuitBreakerInstrumentation extends AbstractResilience4jInstrumentation {
 
   private static final String CIRCUIT_BREAKER_FQCN =
       "io.github.resilience4j.circuitbreaker.CircuitBreaker";
