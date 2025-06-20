@@ -20,6 +20,7 @@ dependencies {
   implementation group: 'javax.xml', name: 'jaxb-api', version:'2.1'
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+  testImplementation project(':dd-smoke-tests:appsec')
 }
 
 tasks.withType(Test).configureEach {

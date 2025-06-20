@@ -190,6 +190,8 @@
 0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
 0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
+# Included for API Security response schema collection
+0 com.fasterxml.jackson.jaxrs.*
 2 com.github.mustachejava.*
 2 com.google.api.*
 0 com.google.api.client.http.HttpRequest
