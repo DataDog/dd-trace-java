@@ -92,10 +92,10 @@ class ServiceResource {
   Response bodyJson(ClassToConvertBodyTo obj) {
     return controller(BODY_JSON, () -> {
       Response response = Response.status(BODY_JSON.status)
-        .entity(obj)
-        .build();
-      return response;
-    });
+      .entity(obj)
+      .build()
+      return response
+    })
   }
 
   @GET

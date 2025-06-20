@@ -91,10 +91,10 @@ class ServiceResource {
   @Produces(MediaType.APPLICATION_JSON)
   Response bodyJson(ClassToConvertBodyTo obj) {
     controller(BODY_JSON, () ->
-      Response.status(BODY_JSON.status)
-        .entity(obj)
-        .build()
-    );
+    Response.status(BODY_JSON.status)
+    .entity(obj)
+    .build()
+    )
   }
 
   @GET

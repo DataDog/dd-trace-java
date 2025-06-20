@@ -11,7 +11,7 @@ class Jersey2JettyTest extends HttpServerTest<JettyServer> {
 
   @Override
   boolean testResponseBodyJson() {
-    return true;
+    return true
   }
 
   @Override
