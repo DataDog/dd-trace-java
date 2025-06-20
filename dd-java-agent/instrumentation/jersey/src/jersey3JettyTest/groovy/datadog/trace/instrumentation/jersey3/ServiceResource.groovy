@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jersey3
 
 import datadog.appsec.api.blocking.Blocking
+import jakarta.ws.rs.Produces
 import org.glassfish.jersey.media.multipart.FormDataParam
 
 import jakarta.ws.rs.Consumes
@@ -87,10 +88,13 @@ class ServiceResource {
 
   @POST
   @Path("body-json")
+  @Produces(MediaType.APPLICATION_JSON)
   Response bodyJson(ClassToConvertBodyTo obj) {
-    controller(BODY_JSON) {
-      Response.status(BODY_JSON.status).entity("""{"a":"${obj.a}"}""" as String).build()
-    }
+    controller(BODY_JSON, () ->
+    Response.status(BODY_JSON.status)
+    .entity(obj)
+    .build()
+    )
   }
 
   @GET
