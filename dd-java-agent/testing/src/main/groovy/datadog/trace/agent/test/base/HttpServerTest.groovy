@@ -14,6 +14,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.datastreams.DataStreamsContext
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -96,14 +97,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
-  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect {
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpServer().sortedTags().collect {
     key, value ->
     return key + ":" + value
   }
