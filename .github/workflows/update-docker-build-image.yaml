@@ -52,7 +52,7 @@ jobs:
           echo "::notice::Using Docker build image tag: ${TAG}"
       - name: Update the Docker build image in GitLab CI config
         run: |
-          sed -i 's|BUILDER_IMAGE_VERSION_PREFIX:.*|BUILDER_IMAGE_VERSION_PREFIX:"${{ steps.define-tag.outputs.tag }}-"|' .gitlab-ci.yml
+          sed -i '' -E 's|(BUILDER_IMAGE_VERSION_PREFIX:)[^#]*([#].*)|\1 "${{ steps.define-tag.outputs.tag }}-" \2|' .gitlab-ci.yml
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
