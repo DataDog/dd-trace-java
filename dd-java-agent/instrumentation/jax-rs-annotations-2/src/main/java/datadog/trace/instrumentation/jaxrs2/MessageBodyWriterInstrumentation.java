@@ -32,6 +32,11 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String muzzleDirective() {
+    return "javax-message-body-writer";
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return "javax.ws.rs.ext.MessageBodyWriter";
   }
