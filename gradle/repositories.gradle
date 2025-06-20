@@ -18,7 +18,7 @@ repositories {
     mavenContent {
       snapshotsOnly()
     }
-    url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    url 'https://ossrh-staging-api.central.sonatype.com/content/repositories/snapshots/'
   }
   ivy {
     artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
