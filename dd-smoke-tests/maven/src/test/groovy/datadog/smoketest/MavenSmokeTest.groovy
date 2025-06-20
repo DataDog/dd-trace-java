@@ -312,7 +312,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     if (!p.waitFor(PROCESS_TIMEOUT_SECS, TimeUnit.SECONDS)) {
       p.destroyForcibly()
-      throw new TimeoutException("Instrumented process failed to exit")
+      throw new TimeoutException("Instrumented process failed to exit within $PROCESS_TIMEOUT_SECS")
     }
 
     return p.exitValue()

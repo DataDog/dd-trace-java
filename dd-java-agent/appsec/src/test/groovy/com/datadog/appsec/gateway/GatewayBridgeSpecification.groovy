@@ -86,7 +86,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   TraceSegmentPostProcessor pp = Mock()
   ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -258,8 +258,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     ctx.data.rawURI = '/'
     ctx.data.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -277,8 +278,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -298,8 +300,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -319,8 +322,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -339,9 +343,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_URI_RAW in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -373,9 +380,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create(uri)
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_URI_RAW in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -406,9 +416,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     GatewayContext gatewayContext
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_PATH_PARAMS in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_PATH_PARAMS in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     pathParamsCB.apply(ctx, [a: 'b'])
@@ -663,9 +676,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     Flow<?> flow = requestBodyProcessedCB.apply(ctx, new Object() {
-        @SuppressWarnings('UnusedPrivateField')
-        private String foo = 'bar'
-      })
+      @SuppressWarnings('UnusedPrivateField')
+      private String foo = 'bar'
+    })
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
@@ -762,9 +775,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
-        @SuppressWarnings('UnusedPrivateField')
-        private String foo = 'bar'
-      })
+      @SuppressWarnings('UnusedPrivateField')
+      private String foo = 'bar'
+    })
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
@@ -919,27 +932,27 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'no appsec events if was not created request context in request_start event'() {
     RequestContext emptyCtx = new RequestContext() {
-        final Object data = null
-        BlockResponseFunction blockResponseFunction
+      final Object data = null
+      BlockResponseFunction blockResponseFunction
 
-        @Override
-        Object getData(RequestContextSlot slot) {
-          data
-        }
-
-        @Override
-        final TraceSegment getTraceSegment() {
-          GatewayBridgeSpecification.this.traceSegment
-        }
-
-        @Override
-        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
-          return null
-        }
-
-        @Override
-        void close() throws IOException {}
+      @Override
+      Object getData(RequestContextSlot slot) {
+        data
       }
+
+      @Override
+      final TraceSegment getTraceSegment() {
+        GatewayBridgeSpecification.this.traceSegment
+      }
+
+      @Override
+      def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null
+      }
+
+      @Override
+      void close() throws IOException {}
+    }
 
     StoredBodySupplier supplier = Stub()
     IGSpanInfo spanInfo = Stub(AgentSpan)

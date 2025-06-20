@@ -36,6 +36,7 @@ final class CachedData {
       exclude(dependency('com.datadoghq.okio:okio'))
       exclude(dependency('com.squareup.okio:okio'))
       exclude(dependency('org.lz4:lz4-java'))
+      exclude(dependency('io.airlift:aircompressor'))
 
       // dogstatsd and its transitives
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
@@ -67,7 +68,8 @@ CachedData.deps.shared = [
   libs.jnr.unixsocket,
   libs.moshi,
   libs.jctools,
-  libs.lz4
+  libs.lz4,
+  libs.aircompressor
 ]
 
 ext {
