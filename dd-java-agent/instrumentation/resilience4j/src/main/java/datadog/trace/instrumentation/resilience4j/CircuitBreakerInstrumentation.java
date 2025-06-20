@@ -43,14 +43,14 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named("java.util.function.Supplier"))),
+            .and(returns(named(Supplier.class.getName()))),
         CircuitBreakerInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(returns(named("java.util.function.Supplier"))),
+            .and(returns(named(Supplier.class.getName()))),
         CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 

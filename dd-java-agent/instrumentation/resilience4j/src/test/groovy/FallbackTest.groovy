@@ -1,12 +1,15 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.decorators.Decorators
+import io.github.resilience4j.decorators.Decorators.DecorateSupplier
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
+import java.util.function.BiFunction
 import java.util.function.Function
+import java.util.function.Predicate
 import java.util.function.Supplier
+import java.util.function.UnaryOperator
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -38,7 +41,7 @@ class FallbackTest extends AgentTestRunner {
           parent()
           errored false
         }
-        // TODO do we need a fallback span?
+        // TODO add fallback span
         span(1) {
           operationName "serviceCall"
           childOf span(0)
@@ -53,21 +56,39 @@ class FallbackTest extends AgentTestRunner {
     }
   }
 
-  def "ofSupplier"() {
-    when:
-    Supplier<String> supplier = Decorators
-      .ofSupplier {
-        serviceCallErr(new IllegalStateException("test"))
-      }
-      .withFallback({ Throwable t ->
-        serviceCall("fallbackResult", "fallbackCall")
-      } as Function<Throwable, String>)
-      .decorate()
+  def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
+    setup:
+    def supplier = decorateSupplier.decorate()
 
+    when:
     def result = runUnderTrace("parent") { supplier.get() }
 
     then:
     result == "fallbackResult"
+    and:
+    assertExpectedTrace()
+
+    where:
+    decorateSupplier << [
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test")) }
+      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCall("badResult", "serviceCall") }
+      .withFallback({ it == "badResult" } as Predicate<String>, { serviceCall("fallbackResult", "fallbackCall") } as UnaryOperator<String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test")) }
+      .withFallback({ v, t -> serviceCall("fallbackResult", "fallbackCall") } as BiFunction<String, Throwable, String>)
+      ,
+      Decorators.ofSupplier{
+        serviceCallErr(new IllegalStateException("test")) }
+      .withFallback(List.of(IllegalStateException.class), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
+    ]
+  }
+
+  private void assertExpectedTrace() {
     assertTraces(1) {
       trace(4) {
         sortSpansByStart()

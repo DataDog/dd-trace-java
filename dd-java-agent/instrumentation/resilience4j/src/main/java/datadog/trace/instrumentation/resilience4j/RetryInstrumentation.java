@@ -42,14 +42,14 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
-            .and(returns(named("java.util.function.Supplier"))),
+            .and(returns(named(Supplier.class.getName()))),
         RetryInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(RETRY_FQCN)))
-            .and(returns(named("java.util.function.Supplier"))),
+            .and(returns(named(Supplier.class.getName()))),
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 

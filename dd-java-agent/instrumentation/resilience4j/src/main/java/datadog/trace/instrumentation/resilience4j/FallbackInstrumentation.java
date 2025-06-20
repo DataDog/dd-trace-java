@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -21,16 +22,16 @@ public class FallbackInstrumentation extends AbstractResilience4jInstrumentation
 
   @Override
   public String instrumentedType() {
-    return SUPPLIER_UTILS_FQCN;
+    return SUPPLIER_UTILS_FQCN; // TODO extract to a separate class
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("recover"))
-            .and(takesArgument(0, named("java.util.function.Supplier")))
-            .and(returns(named("java.util.function.Supplier"))),
+            .and(namedOneOf("recover", "andThen"))
+            .and(takesArgument(0, named(Supplier.class.getName())))
+            .and(returns(named(Supplier.class.getName()))),
         FallbackInstrumentation.class.getName() + "$SupplierAdvice");
   }
 
