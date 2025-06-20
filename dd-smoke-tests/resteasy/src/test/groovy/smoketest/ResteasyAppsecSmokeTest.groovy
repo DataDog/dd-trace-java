@@ -17,8 +17,9 @@ class ResteasyAppsecSmokeTest extends AbstractAppSecServerSmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
-
+    command.addAll(defaultAppSecProperties)
     if (Platform.isJavaVersionAtLeast(17)) {
       command.addAll(["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
     }
