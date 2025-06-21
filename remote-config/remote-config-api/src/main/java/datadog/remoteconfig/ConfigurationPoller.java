@@ -18,6 +18,8 @@ public interface ConfigurationPoller {
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener);
 
+  void addListener(Product product, ConfigurationChangesListener configurationChangesListener);
+
   void removeListeners(Product product);
 
   void addConfigurationEndListener(ConfigurationEndListener listener);
