@@ -128,6 +128,12 @@ public class NoOpGitClient implements GitClient {
 
   @Nullable
   @Override
+  public String getBaseCommitSha(@Nullable String baseBranch, @Nullable String defaultBranch) {
+    return null;
+  }
+
+  @Nullable
+  @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit) {
     return null;
   }
