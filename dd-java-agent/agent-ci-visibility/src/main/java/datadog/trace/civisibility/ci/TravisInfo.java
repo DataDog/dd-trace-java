@@ -28,8 +28,9 @@ class TravisInfo implements CIProviderInfo {
   public static final String TRAVIS_GIT_BRANCH = "TRAVIS_BRANCH";
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
   public static final String TRAVIS_GIT_COMMIT_MESSAGE = "TRAVIS_COMMIT_MESSAGE";
-  public static final String TRAVIS_PULL_REQUEST = "TRAVIS_PULL_REQUEST";
-  public static final String TRAVIS_PULL_REQUEST_HEAD_SHA = "TRAVIS_PULL_REQUEST_SHA";
+  public static final String TRAVIS_PR_NUMBER = "TRAVIS_PULL_REQUEST";
+  public static final String TRAVIS_PR_HEAD_SHA = "TRAVIS_PULL_REQUEST_SHA";
+  public static final String TRAVIS_EVENT_TYPE = "TRAVIS_EVENT_TYPE";
 
   private final CiEnvironment environment;
 
@@ -70,14 +71,14 @@ class TravisInfo implements CIProviderInfo {
       return new PullRequestInfo(
           normalizeBranch(environment.get(TRAVIS_GIT_BRANCH)),
           null,
-          environment.get(TRAVIS_PULL_REQUEST_HEAD_SHA));
+          environment.get(TRAVIS_PR_HEAD_SHA),
+          environment.get(TRAVIS_PR_NUMBER));
     }
     return PullRequestInfo.EMPTY;
   }
 
   private boolean isPullRequest() {
-    String pullRequest = environment.get(TRAVIS_PULL_REQUEST);
-    return pullRequest != null && !"false".equals(pullRequest);
+    return "pull_request".equals(environment.get(TRAVIS_EVENT_TYPE));
   }
 
   private String buildGitBranch() {

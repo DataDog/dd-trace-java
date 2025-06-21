@@ -23,6 +23,8 @@ public class CodefreshInfo implements CIProviderInfo {
   private static final String CF_REVISION = "CF_REVISION";
   private static final String CF_COMMIT_MESSAGE = "CF_COMMIT_MESSAGE";
   private static final String CF_COMMIT_AUTHOR = "CF_COMMIT_AUTHOR";
+  private static final String CF_PULL_REQUEST_NUMBER = "CF_PULL_REQUEST_NUMBER";
+  private static final String CF_PULL_REQUEST_TARGET_BRANCH = "CF_PULL_REQUEST_TARGET";
 
   private final CiEnvironment environment;
 
@@ -46,7 +48,11 @@ public class CodefreshInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(CF_PULL_REQUEST_TARGET_BRANCH)),
+        null,
+        null,
+        environment.get(CF_PULL_REQUEST_NUMBER));
   }
 
   private String buildGitBranch() {

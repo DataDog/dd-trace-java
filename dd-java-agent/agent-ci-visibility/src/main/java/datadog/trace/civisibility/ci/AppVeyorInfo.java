@@ -24,10 +24,6 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_PROVIDER = "APPVEYOR_REPO_PROVIDER";
   public static final String APPVEYOR_REPO_COMMIT = "APPVEYOR_REPO_COMMIT";
   public static final String APPVEYOR_REPO_BRANCH = "APPVEYOR_REPO_BRANCH";
-  public static final String APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH =
-      "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
-  public static final String APPVEYOR_PULL_REQUEST_HEAD_COMMIT =
-      "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT = "APPVEYOR_REPO_COMMIT_MESSAGE";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_BODY =
@@ -35,6 +31,10 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_NAME = "APPVEYOR_REPO_COMMIT_AUTHOR";
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL =
       "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
+  public static final String APPVEYOR_PR_HEAD_REPO_BRANCH =
+      "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
+  public static final String APPVEYOR_PR_HEAD_COMMIT = "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
+  public static final String APPVEYOR_PR_NUMBER = "APPVEYOR_PULL_REQUEST_NUMBER";
 
   private final CiEnvironment environment;
 
@@ -87,11 +87,12 @@ class AppVeyorInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     // check if PR is detected
-    if (Strings.isNotBlank(environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH))) {
+    if (Strings.isNotBlank(environment.get(APPVEYOR_PR_HEAD_REPO_BRANCH))) {
       return new PullRequestInfo(
           normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)),
           null,
-          environment.get(APPVEYOR_PULL_REQUEST_HEAD_COMMIT));
+          environment.get(APPVEYOR_PR_HEAD_COMMIT),
+          environment.get(APPVEYOR_PR_NUMBER));
     } else {
       return PullRequestInfo.EMPTY;
     }
@@ -99,7 +100,7 @@ class AppVeyorInfo implements CIProviderInfo {
 
   private String buildGitBranch(final String repoProvider) {
     if ("github".equals(repoProvider)) {
-      String branch = environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH);
+      String branch = environment.get(APPVEYOR_PR_HEAD_REPO_BRANCH);
       if (branch == null || branch.isEmpty()) {
         branch = environment.get(APPVEYOR_REPO_BRANCH);
       }

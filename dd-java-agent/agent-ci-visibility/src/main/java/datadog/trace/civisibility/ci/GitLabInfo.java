@@ -43,6 +43,7 @@ class GitLabInfo implements CIProviderInfo {
       "CI_MERGE_REQUEST_TARGET_BRANCH_NAME";
   public static final String GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA =
       "CI_MERGE_REQUEST_SOURCE_BRANCH_SHA";
+  public static final String GITLAB_PULL_REQUEST_NUMBER = "CI_MERGE_REQUEST_IID";
 
   private final CiEnvironment environment;
 
@@ -87,7 +88,8 @@ class GitLabInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH)),
         null,
-        environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA));
+        environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA),
+        environment.get(GITLAB_PULL_REQUEST_NUMBER));
   }
 
   private PersonInfo buildGitCommitAuthor() {
