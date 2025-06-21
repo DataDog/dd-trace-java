@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
@@ -18,6 +19,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -209,6 +211,11 @@ public class WebController {
   @GetMapping("/api_security/sampling/{status_code}")
   public ResponseEntity<String> apiSecuritySampling(@PathVariable("status_code") int statusCode) {
     return ResponseEntity.status(statusCode).body("EXECUTED");
+  }
+
+  @PostMapping(value = "/api_security/jackson", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<JsonNode> apiSecurityJackson(@RequestBody final JsonNode body) {
+    return ResponseEntity.status(200).body(body);
   }
 
   @GetMapping("/custom-headers")
