@@ -114,6 +114,7 @@ class IastModuleImplTestBase extends DDSpecification {
     return Stub(OverheadController) {
       acquireRequest() >> true
       consumeQuota(_ as Operation, _) >> true
+      consumeQuota(_ as Operation, _, _) >> true
     }
   }
 }

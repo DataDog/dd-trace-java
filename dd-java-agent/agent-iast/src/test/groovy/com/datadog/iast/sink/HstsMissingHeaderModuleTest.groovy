@@ -36,7 +36,7 @@ class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
   protected OverheadController buildOverheadController() {
     return Mock(OverheadController) {
       acquireRequest() >> true
-      consumeQuota(_ as Operation, _ as AgentSpan) >> true
+      consumeQuota(_ as Operation, _ as AgentSpan, _ as VulnerabilityType) >> true
     }
   }
 

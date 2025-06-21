@@ -2,6 +2,7 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
+import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.overhead.Operations
 import datadog.trace.api.iast.sink.WeakRandomnessModule
 
@@ -54,7 +55,7 @@ class WeakRandomnessModuleTest extends IastModuleImplTestBase {
     module.onWeakRandom(Random)
 
     then:
-    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> false
+    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, _ as VulnerabilityType) >> false
     0 * _
   }
 }
