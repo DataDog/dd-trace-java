@@ -40,6 +40,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     redisServer.start()
     println "Using redis: $redisServer.redisURI"
     config.useSingleServer().setAddress(redisServer.getRedisURI()) // need something like redis://
+    config.setUseScriptCache(false)
     redissonClient = Redisson.create(config)
   }
 
