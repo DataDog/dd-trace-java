@@ -35,6 +35,7 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(takesArgument(1, named("io.github.resilience4j.core.functions.CheckedSupplier")))
             .and(returns(named("io.github.resilience4j.core.functions.CheckedSupplier"))),
         RetryInstrumentation.class.getName() + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
@@ -57,8 +58,11 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) CheckedSupplier<?> supplier) {
-      supplier = DDContext.of(retry).tracedCheckedSupplier(supplier);
+        @Advice.Argument(value = 1) CheckedSupplier<?> inbound,
+        @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
+      outbound =
+          new CheckedSupplierWithContext(
+              outbound, inbound); // TODO pass decorator and a retry object
     }
   }
 

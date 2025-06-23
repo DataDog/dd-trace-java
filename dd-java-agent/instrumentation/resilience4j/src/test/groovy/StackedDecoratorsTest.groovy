@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.core.functions.CheckedFunction
+import io.github.resilience4j.core.functions.CheckedSupplier
 import io.github.resilience4j.decorators.Decorators
 import io.github.resilience4j.retry.Retry
 
@@ -48,9 +50,28 @@ class StackedDecoratorsTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
-  private void assertExpectedTrace() {
+  def "generate separate resilience4j span for each decorator"() {
+    when:
+    CheckedSupplier<String> inner = Decorators
+      .ofCheckedSupplier { serviceCall("foobar", "serviceCall") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R")) // TODO
+      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as CheckedFunction<Throwable, String>) // TODO
+      .decorate()
+
+    CheckedSupplier<String> outer = Decorators
+      .ofCheckedSupplier { inner.get() }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R"))
+      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as CheckedFunction<Throwable, String>)
+      .decorate()
+
+    then:
+    runUnderTrace("parent") { outer.get() } == "foobar"
+
+    and:
     assertTraces(1) {
-      trace(5) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -58,23 +79,41 @@ class StackedDecoratorsTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.fallback"
+          operationName "resilience4j" // outer
           childOf span(0)
           errored false
         }
         span(2) {
-          operationName "resilience4j.retry"
+          operationName "resilience4j" // inner
           childOf span(1)
           errored false
         }
         span(3) {
-          operationName "resilience4j.circuit-breaker"
+          operationName "serviceCall"
           childOf span(2)
           errored false
         }
-        span(4) {
+      }
+    }
+  }
+
+  private void assertExpectedTrace() {
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf span(0)
+          errored false
+        }
+        span(2) {
           operationName "serviceCall"
-          childOf span(3)
+          childOf span(1)
           errored false
         }
       }

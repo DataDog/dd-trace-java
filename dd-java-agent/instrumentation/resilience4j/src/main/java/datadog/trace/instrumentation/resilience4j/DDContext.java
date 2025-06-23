@@ -5,22 +5,24 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.core.functions.CheckedSupplier;
 import io.github.resilience4j.retry.Retry;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-// TODO rename to a context holder
+// TODO rename it to a utility method
 public final class DDContext {
   public static final CharSequence CIRCUIT_BREAKER_SPAN =
       UTF8BytesString.create("resilience4j.circuit-breaker");
   public static final CharSequence RETRY_SPAN = UTF8BytesString.create("resilience4j.retry");
   public static final CharSequence FALLBACK_SPAN = UTF8BytesString.create("resilience4j.fallback");
-  private static final String INSTRUMENTATION_NAME = "resilience4j";
 
-  private final CharSequence spanName;
+  public static final CharSequence SPAN_NAME = UTF8BytesString.create("resilience4j");
+
+  public static final String INSTRUMENTATION_NAME = "resilience4j";
+
   private AgentSpan span;
   private AgentScope scope;
+  private boolean inherited;
 
   public static DDContext of(CircuitBreaker circuitBreaker) {
     return create(CIRCUIT_BREAKER_SPAN);
@@ -36,23 +38,7 @@ public final class DDContext {
 
   private static DDContext create(CharSequence spanName) {
     // TODO right now create a separate span for each decorator layer
-    return new DDContext(spanName);
-  }
-
-  private DDContext(CharSequence spanName) {
-    this.spanName = spanName;
-  }
-
-  public CheckedSupplier<?> tracedCheckedSupplier(CheckedSupplier<?> delegate) {
-    return () -> {
-      openScope();
-      try {
-        return delegate.get();
-      } finally {
-        closeScope();
-        finishSpan(null);
-      }
-    };
+    return new DDContext();
   }
 
   public Supplier<?> tracedSupplier(Supplier<?> delegate) {
@@ -87,19 +73,22 @@ public final class DDContext {
 
   public void openScope() {
     if (span == null) {
-      span = AgentTracer.startSpan(INSTRUMENTATION_NAME, spanName);
+      // TODO Do not rely on an active span. Instead, pass the decorator context at construction
+      // time so that they have separate spans per decorator, even if they are nested.
+      AgentSpan activeSpan = AgentTracer.activeSpan();
+      if (activeSpan != null && SPAN_NAME == activeSpan.getSpanName()) {
+        span = activeSpan;
+        inherited = false;
+        return; // do not open scope
+      } else {
+        span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+        inherited = true;
+      }
     }
     if (scope == null) {
       scope = AgentTracer.activateSpan(span);
       System.err.println(">> ddOpenScope " + Thread.currentThread().getName());
     }
-
-    //    AgentSpan parent = AgentTracer.activeSpan();
-    //    AgentSpanContext parentContext =
-    //        parent != null ? parent.context() : AgentTracer.noopSpanContext();
-
-    //    if (parent == null || !parent.getSpanName().equals("resilience4j")) {
-    //      span = AgentTracer.startSpan("resilience4j", "resilience4j", parentContext);
   }
 
   public void closeScope() {
@@ -112,7 +101,7 @@ public final class DDContext {
   }
 
   public void finishSpan(Throwable error) {
-    if (span == null) {
+    if (!inherited || span == null) {
       return;
     }
     // TODO set error tag

@@ -86,7 +86,7 @@ class FallbackTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.fallback"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }

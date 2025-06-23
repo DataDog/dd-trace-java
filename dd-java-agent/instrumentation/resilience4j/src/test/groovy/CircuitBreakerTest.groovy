@@ -81,7 +81,7 @@ class CircuitBreakerTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.circuit-breaker"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }

@@ -36,6 +36,7 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(takesArgument(1, named("io.github.resilience4j.core.functions.CheckedSupplier")))
             .and(returns(named("io.github.resilience4j.core.functions.CheckedSupplier"))),
         CircuitBreakerInstrumentation.class.getName() + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
@@ -50,6 +51,7 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
+            .and(takesArgument(1, named(Supplier.class.getName())))
             .and(returns(named(Supplier.class.getName()))),
         CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
@@ -58,8 +60,9 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) CheckedSupplier<?> supplier) {
-      supplier = DDContext.of(circuitBreaker).tracedCheckedSupplier(supplier);
+        @Advice.Argument(value = 1) CheckedSupplier<?> inbound,
+        @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
+      outbound = new CheckedSupplierWithContext(outbound, inbound);
     }
   }
 

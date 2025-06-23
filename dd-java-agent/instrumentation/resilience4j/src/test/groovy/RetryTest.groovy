@@ -92,7 +92,7 @@ class RetryTest extends AgentTestRunner {
           errored true // b/o unhandled exception
         }
         span(1) {
-          operationName "resilience4j.retry"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
@@ -139,7 +139,7 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.retry"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
@@ -168,7 +168,7 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(1) {
-          operationName "resilience4j.retry"
+          operationName "resilience4j"
           childOf span(0)
           errored false
         }
