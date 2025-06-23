@@ -237,6 +237,10 @@ public class Config {
 
   private final boolean traceGitMetadataEnabled;
 
+  private final boolean ssiInjectionForce;
+  private final String ssiInjectionEnabled;
+  private final String instrumentationSource;
+
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
   private final String traceSamplingRules;
@@ -389,6 +393,9 @@ public class Config {
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
   private final boolean ciVisibilityScalatestForkMonitorEnabled;
+  private final String gitPullRequestBaseBranch;
+  private final String gitPullRequestBaseBranchSha;
+  private final String gitCommitHeadSha;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -594,7 +601,8 @@ public class Config {
     this.configProvider = configProvider;
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
-    runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
+    runtimeIdEnabled =
+        configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
     runtimeVersion = System.getProperty("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
@@ -1633,6 +1641,9 @@ public class Config {
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
     ciVisibilityScalatestForkMonitorEnabled =
         configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
+    gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
+    gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
+    gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2034,6 +2045,13 @@ public class Config {
           SEND_TELEMETRY,
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
+
+    // Used to report telemetry on SSI injection
+    this.ssiInjectionEnabled = configProvider.getString(SSI_INJECTION_ENABLED);
+    this.ssiInjectionForce =
+        configProvider.getBoolean(SSI_INJECTION_FORCE, DEFAULT_SSI_INJECTION_FORCE);
+    this.instrumentationSource =
+        configProvider.getString(INSTRUMENTATION_SOURCE, DEFAULT_INSTRUMENTATION_SOURCE);
 
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
@@ -3203,6 +3221,18 @@ public class Config {
 
   public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
     return ciVisibilityTestManagementAttemptToFixRetries;
+  }
+
+  public String getGitPullRequestBaseBranch() {
+    return gitPullRequestBaseBranch;
+  }
+
+  public String getGitPullRequestBaseBranchSha() {
+    return gitPullRequestBaseBranchSha;
+  }
+
+  public String getGitCommitHeadSha() {
+    return gitCommitHeadSha;
   }
 
   public String getAppSecRulesFile() {

@@ -428,6 +428,16 @@ public class DDSpanContext
   }
 
   public void setResourceName(final CharSequence resourceName, byte priority) {
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "setResourceName `{}`->`{}` with priority {}->{} for traceId={} spanId={}",
+          this.resourceName,
+          resourceName,
+          resourceNamePriority,
+          priority,
+          traceId,
+          spanId);
+    }
     if (null == resourceName) {
       return;
     }
