@@ -21,6 +21,21 @@ class LogPeriodicActionTest extends DDSpecification {
     LogCollector.get().drain()
   }
 
+  void 'log with tags'() {
+    LogMessage logMessage
+
+    when:
+    LogCollector.get().addLogMessage('ERROR', "test", null, 'tag1:value1,tag2:value2')
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getLevel() == LogMessageLevel.ERROR
+    logMessage.getMessage() == 'test'
+    logMessage.getTags() == 'tag1:value1,tag2:value2'
+  }
+
   void 'log with datadog throwable'() {
     LogMessage logMessage
 

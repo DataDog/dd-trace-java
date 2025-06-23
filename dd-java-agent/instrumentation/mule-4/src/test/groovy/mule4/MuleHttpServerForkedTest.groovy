@@ -95,8 +95,10 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   @Override
   void stopServer(MuleTestContainer container) {
-    container.undeploy(String.valueOf(buildProperties.get(MuleTestApplicationConstants.TEST_APPLICATION_NAME)))
-    container.stop()
+    if (container != null) {
+      container.undeploy(String.valueOf(buildProperties.get(MuleTestApplicationConstants.TEST_APPLICATION_NAME)))
+      container.stop()
+    }
   }
 }
 
