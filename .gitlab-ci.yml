@@ -41,6 +41,22 @@ variables:
     description: "Enable flaky tests"
     value: "false"
 
+default:
+  interruptible: true
+
+# trigger new commit cancel
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      auto_cancel:
+        on_new_commit: none
+    - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      auto_cancel:
+        on_new_commit: none
+    - when: always
+
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
       - "8"
