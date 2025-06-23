@@ -105,10 +105,8 @@ public class OverheadContext {
               AtomicIntegerArray globalCountMap =
                   globalMap.computeIfAbsent(
                       endpoint, value -> new AtomicIntegerArray(numberOfVulnerabilities));
-              int globalCounter = globalCountMap.get(i);
-              if (counter > globalCounter) {
-                globalCountMap.set(i, counter);
-              }
+
+              globalCountMap.accumulateAndGet(i, counter, Math::max);
             }
           }
         });
