@@ -106,7 +106,7 @@ _Recovery:_ Manually trigger the action again.
 
 ### analyze-changes [🔗](analyze-changes.yaml)
 
-_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
+_Trigger:_ When pushing commits to `master`.
 
 _Action:_
 
@@ -114,16 +114,6 @@ _Action:_
 * Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab and Datadog Code Analysis.
 
 _Notes:_ Results are sent on both production and staging environments.
-
-### check-ci-pipelines [🔗](check-ci-pipelines.yaml)
-
-_Trigger:_ When opening or updating a PR.
-
-_Action:_ This action will check all other continuous integration jobs (Github action, Gitlab, CircleCi), and will fail if any of them fails.
-The purpose of this job is to be required for PR merges, achieving Green CI Policy.
-It got an `ignored` parameters to exclude some jobs if they are temprorary failing.
-
-_Recovery:_ Manually trigger the action on the desired branch.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 

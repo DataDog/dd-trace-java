@@ -52,8 +52,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +79,7 @@ public class GatewayBridge {
   private static final String USER_COLLECTION_MODE_TAG = "_dd.appsec.user.collection_mode";
 
   private static final Map<LoginEvent, Address<?>> EVENT_MAPPINGS = new EnumMap<>(LoginEvent.class);
+  private static final String METASTRUCT_REQUEST_BODY = "http.request.body";
 
   static {
     EVENT_MAPPINGS.put(LoginEvent.LOGIN_SUCCESS, KnownAddresses.LOGIN_SUCCESS);
@@ -88,7 +91,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecuritySampler requestSampler;
+  private final Supplier<ApiSecuritySampler> requestSamplerSupplier;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -114,11 +117,11 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecuritySampler requestSampler,
+      @Nonnull Supplier<ApiSecuritySampler> requestSamplerSupplier,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.requestSampler = requestSampler;
+    this.requestSamplerSupplier = requestSamplerSupplier;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -572,9 +575,20 @@ public class GatewayBridge {
       if (subInfo == null || subInfo.isEmpty()) {
         return NoopFlow.INSTANCE;
       }
-      DataBundle bundle =
-          new SingletonDataBundle<>(
-              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj, ctx));
+      Object converted =
+          ObjectIntrospection.convert(
+              obj,
+              ctx,
+              () -> {
+                if (Config.get().isAppSecRaspCollectRequestBody()) {
+                  ctx_.getTraceSegment()
+                      .setTagTop("_dd.appsec.rasp.request_body_size.exceeded", true);
+                }
+              });
+      if (Config.get().isAppSecRaspCollectRequestBody()) {
+        ctx.setProcessedRequestBody(converted);
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_OBJECT, converted);
       try {
         GatewayContext gwCtx = new GatewayContext(false);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
@@ -723,6 +737,12 @@ public class GatewayBridge {
           StackUtils.addStacktraceEventsToMetaStruct(ctx_, METASTRUCT_EXPLOIT, stackTraces);
         }
 
+        // Report collected parsed request body if there is a RASP event
+        if (ctx.isRaspMatched() && ctx.getProcessedRequestBody() != null) {
+          ctx_.getOrCreateMetaStructTop(
+              METASTRUCT_REQUEST_BODY, k -> ctx.getProcessedRequestBody());
+        }
+
       } else if (hasUserInfo(traceSeg)) {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
@@ -760,6 +780,7 @@ public class GatewayBridge {
     if (route != null) {
       ctx.setRoute(route.toString());
     }
+    ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);
   }
 

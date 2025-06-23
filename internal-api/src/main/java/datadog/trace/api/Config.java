@@ -237,6 +237,10 @@ public class Config {
 
   private final boolean traceGitMetadataEnabled;
 
+  private final boolean ssiInjectionForce;
+  private final String ssiInjectionEnabled;
+  private final String instrumentationSource;
+
   private final Map<String, String> traceSamplingServiceRules;
   private final Map<String, String> traceSamplingOperationRules;
   private final String traceSamplingRules;
@@ -295,6 +299,7 @@ public class Config {
   private final boolean appSecCollectAllHeaders;
   private final boolean appSecHeaderCollectionRedactionEnabled;
   private final int appSecMaxCollectedHeaders;
+  private final boolean appSecRaspCollectRequestBody;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
@@ -388,6 +393,9 @@ public class Config {
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
   private final boolean ciVisibilityScalatestForkMonitorEnabled;
+  private final String gitPullRequestBaseBranch;
+  private final String gitPullRequestBaseBranchSha;
+  private final String gitCommitHeadSha;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -578,6 +586,8 @@ public class Config {
 
   private final boolean jdkSocketEnabled;
 
+  private final int stackTraceLengthLimit;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -591,7 +601,8 @@ public class Config {
     this.configProvider = configProvider;
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
-    runtimeIdEnabled = configProvider.getBoolean(RUNTIME_ID_ENABLED, true);
+    runtimeIdEnabled =
+        configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
     runtimeVersion = System.getProperty("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
@@ -634,7 +645,8 @@ public class Config {
       serviceNameSetByUser = false;
       serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
     } else {
-      serviceNameSetByUser = true;
+      // might be an auto-detected name propagated from instrumented parent process
+      serviceNameSetByUser = configProvider.getBoolean(SERVICE_NAME_SET_BY_USER, true);
       serviceName = userProvidedServiceName;
     }
 
@@ -1259,7 +1271,9 @@ public class Config {
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     profilingUploadCompression =
         configProvider.getString(
-            PROFILING_UPLOAD_COMPRESSION, PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT);
+            PROFILING_DEBUG_UPLOAD_COMPRESSION,
+            PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+            PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
@@ -1395,6 +1409,8 @@ public class Config {
     appSecMaxCollectedHeaders =
         configProvider.getInteger(
             APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
+    appSecRaspCollectRequestBody =
+        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1625,6 +1641,9 @@ public class Config {
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
     ciVisibilityScalatestForkMonitorEnabled =
         configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
+    gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
+    gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
+    gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2027,9 +2046,23 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    // Used to report telemetry on SSI injection
+    this.ssiInjectionEnabled = configProvider.getString(SSI_INJECTION_ENABLED);
+    this.ssiInjectionForce =
+        configProvider.getBoolean(SSI_INJECTION_FORCE, DEFAULT_SSI_INJECTION_FORCE);
+    this.instrumentationSource =
+        configProvider.getString(INSTRUMENTATION_SOURCE, DEFAULT_INSTRUMENTATION_SOURCE);
+
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    int defaultStackTraceLengthLimit =
+        instrumenterConfig.isCiVisibilityEnabled()
+            ? 5000 // EVP limit
+            : Integer.MAX_VALUE; // no effective limit (old behavior)
+    this.stackTraceLengthLimit =
+        configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
     log.debug("New instance: {}", this);
   }
@@ -3190,6 +3223,18 @@ public class Config {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
+  public String getGitPullRequestBaseBranch() {
+    return gitPullRequestBaseBranch;
+  }
+
+  public String getGitPullRequestBaseBranchSha() {
+    return gitPullRequestBaseBranchSha;
+  }
+
+  public String getGitCommitHeadSha() {
+    return gitCommitHeadSha;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -3651,6 +3696,10 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
+  }
+
+  public int getStackTraceLengthLimit() {
+    return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4212,6 +4261,10 @@ public class Config {
 
   public int getAppsecMaxCollectedHeaders() {
     return appSecMaxCollectedHeaders;
+  }
+
+  public boolean isAppSecRaspCollectRequestBody() {
+    return appSecRaspCollectRequestBody;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {

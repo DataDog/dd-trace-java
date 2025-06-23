@@ -9,7 +9,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -47,6 +46,7 @@ import java.util.jar.JarFile;
 public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
   static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
+  static final String LIB_INSTRUMENTATION_SOURCE_SYS_PROP = "dd.instrumentation.source";
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -126,10 +126,6 @@ public final class AgentBootstrap {
       // since tracer is presumably initialized elsewhere, still considering this complete
       return;
     }
-    if (lessThanJava8()) {
-      initTelemetry.onAbort("incompatible_runtime");
-      return;
-    }
     if (isJdkTool()) {
       initTelemetry.onAbort("jdk_tool");
       return;
@@ -137,6 +133,12 @@ public final class AgentBootstrap {
     if (shouldAbortDueToOtherJavaAgents()) {
       initTelemetry.onAbort("other-java-agents");
       return;
+    }
+
+    if (getConfig(LIB_INJECTION_ENABLED_ENV_VAR)) {
+      recordInstrumentationSource("ssi");
+    } else {
+      recordInstrumentationSource("cmd_line");
     }
 
     final URL agentJarURL = installAgentJar(inst);
@@ -169,8 +171,12 @@ public final class AgentBootstrap {
     }
   }
 
+  private static void recordInstrumentationSource(String source) {
+    SystemUtils.trySetProperty(LIB_INSTRUMENTATION_SOURCE_SYS_PROP, source);
+  }
+
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
-    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<>());
     Throwable t = ex;
     while (t != null && stack.add(t) && stack.size() <= MAX_EXCEPTION_CHAIN_LENGTH) {
       // cannot do an instanceof check since most of the agent's code is loaded by an isolated CL
@@ -190,36 +196,6 @@ public final class AgentBootstrap {
       return true;
     }
     initialized = true;
-    return false;
-  }
-
-  @SuppressForbidden
-  private static boolean lessThanJava8() {
-    try {
-      return lessThanJava8(System.getProperty("java.version"), System.err);
-    } catch (SecurityException e) {
-      // Hypothetically, we could version sniff the supported version level
-      // For now, just skip the check and let the JVM handle things instead
-      return false;
-    }
-  }
-
-  // Reachable for testing
-  static boolean lessThanJava8(String version, PrintStream output) {
-    if (parseJavaMajorVersion(version) < 8) {
-      String agentRawVersion = AgentJar.tryGetAgentVersion();
-      String agentVersion = agentRawVersion == null ? "This version" : "Version " + agentRawVersion;
-
-      output.println(
-          "Warning: "
-              + agentVersion
-              + " of dd-java-agent is not compatible with Java "
-              + version
-              + " and will not be installed.");
-      output.println(
-          "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
-      return true;
-    }
     return false;
   }
 
@@ -261,32 +237,6 @@ public final class AgentBootstrap {
       }
     }
     return false;
-  }
-
-  // Reachable for testing
-  static int parseJavaMajorVersion(String version) {
-    int major = 0;
-    if (null == version || version.isEmpty()) {
-      return major;
-    }
-    int start = 0;
-    if (version.charAt(0) == '1'
-        && version.length() >= 3
-        && version.charAt(1) == '.'
-        && Character.isDigit(version.charAt(2))) {
-      start = 2;
-    }
-    // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
-    for (int i = start; i < version.length(); i++) {
-      char c = version.charAt(i);
-      if (Character.isDigit(c)) {
-        major *= 10;
-        major += Character.digit(c, 10);
-      } else {
-        break;
-      }
-    }
-    return major;
   }
 
   @SuppressForbidden
@@ -333,9 +283,6 @@ public final class AgentBootstrap {
   }
 
   public static void main(final String[] args) {
-    if (lessThanJava8()) {
-      return;
-    }
     AgentJar.main(args);
   }
 

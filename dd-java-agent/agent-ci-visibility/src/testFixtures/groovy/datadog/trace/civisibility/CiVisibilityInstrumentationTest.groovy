@@ -368,7 +368,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  def generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags) {
+  def generateTestFixtures(String testcaseName, List<Map> events, List<Map> coverages, Map<String, String> additionalReplacements, List<String> additionalIgnoredTags) {
     def clazz = this.getClass()
     def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
     def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
@@ -380,7 +380,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       submoduleName = "test"
     }
     def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements, additionalIgnoredTags)
+    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet(), additionalIgnoredTags)
     return [:]
   }
 

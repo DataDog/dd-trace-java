@@ -20,7 +20,13 @@ import java.util.Set;
  * <p>Checks edge cases where InitializationTelemetry is blocked by SecurityManagers
  */
 public class InitializationTelemetryCheck {
-  public static void main(String[] args) {}
+  public static void main(String[] args) throws InterruptedException {
+    // Emulates the real application performing work in main().
+    // That should give enough time to send initial telemetry from daemon thread.
+    if (args.length > 0 && "sleep".equals(args[0])) {
+      Thread.sleep(1000);
+    }
+  }
 
   /** Blocks the loading of the agent bootstrap */
   public static class BlockAgentLoading extends TestSecurityManager {
@@ -71,11 +77,19 @@ public class InitializationTelemetryCheck {
 
   public static final Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
       throws Exception {
-    return runTestJvm(securityManagerClass, false);
+    return runTestJvm(securityManagerClass, false, null);
   }
 
   public static final Result runTestJvm(
       Class<? extends TestSecurityManager> securityManagerClass, boolean printStreams)
+      throws Exception {
+    return runTestJvm(securityManagerClass, printStreams, null);
+  }
+
+  public static final Result runTestJvm(
+      Class<? extends TestSecurityManager> securityManagerClass,
+      boolean printStreams,
+      String mainArgs)
       throws Exception {
 
     File jarFile =
@@ -95,7 +109,7 @@ public class InitializationTelemetryCheck {
           IntegrationTestUtils.runOnSeparateJvm(
               InitializationTelemetryCheck.class.getName(),
               InitializationTelemetryCheck.jvmArgs(securityManagerClass),
-              InitializationTelemetryCheck.mainArgs(),
+              InitializationTelemetryCheck.mainArgs(mainArgs),
               InitializationTelemetryCheck.envVars(forwarderFile),
               jarFile,
               printStreams);
@@ -122,7 +136,7 @@ public class InitializationTelemetryCheck {
     Files.write(file.toPath(), Arrays.asList(lines));
   }
 
-  static final String read(File file) throws IOException {
+  static final String read(File file) {
     try {
       return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     } catch (IOException e) {
@@ -162,8 +176,12 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final String[] mainArgs() {
-    return new String[] {};
+  public static final String[] mainArgs(String args) {
+    if (args == null) {
+      return new String[] {};
+    } else {
+      return args.split(",");
+    }
   }
 
   public static final Map<String, String> envVars(File forwarderFile) {

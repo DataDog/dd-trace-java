@@ -65,3 +65,11 @@ jmh {
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    }
+  }
+}

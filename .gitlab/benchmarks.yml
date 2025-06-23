@@ -4,7 +4,7 @@
   timeout: 1h
   tags: ["runner:apm-k8s-tweaked-metal"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
-  needs: [ "build" ]
+  needs: [ "build", "publish-artifacts-to-s3" ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -14,9 +14,8 @@
     - when: on_success
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
-    - export CIRCLE_CI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git clone --branch dd-trace-java/tracer-benchmarks https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
+    - git clone --branch dd-trace-java/tracer-benchmarks-parallel https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
   artifacts:
     name: "reports"
     paths:
@@ -86,7 +85,7 @@ benchmarks-post-results:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
-  needs: [ "build" ]
+  needs: [ "build", "publish-artifacts-to-s3"]
   script:
     - git clone --branch java/kafka-dsm-overhead https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
     - ./steps/run-benchmarks.sh
@@ -130,7 +129,7 @@ debugger-benchmarks:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-debugger
-  needs: ["build"]
+  needs: ["build", "publish-artifacts-to-s3"]
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git clone --branch java/debugger-benchmarks https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git /platform && cd /platform

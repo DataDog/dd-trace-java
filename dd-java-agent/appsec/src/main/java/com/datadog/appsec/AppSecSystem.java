@@ -43,6 +43,8 @@ public class AppSecSystem {
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
+  private static final AtomicBoolean API_SECURITY_INITIALIZED = new AtomicBoolean(false);
+  private static volatile ApiSecuritySampler API_SECURITY_SAMPLER = new ApiSecuritySampler.NoOp();
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -69,18 +71,6 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
-    ApiSecuritySampler requestSampler;
-    if (Config.get().isApiSecurityEnabled()) {
-      requestSampler = new ApiSecuritySamplerImpl();
-      // When DD_API_SECURITY_ENABLED=true, ths post-processor is set even when AppSec is inactive.
-      // This should be low overhead since the post-processor exits early if there's no AppSec
-      // context.
-      SpanPostProcessor.Holder.INSTANCE =
-          new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
-    } else {
-      requestSampler = new ApiSecuritySampler.NoOp();
-    }
-
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
@@ -94,7 +84,7 @@ public class AppSecSystem {
         new GatewayBridge(
             gw,
             REPLACEABLE_EVENT_PRODUCER,
-            requestSampler,
+            () -> API_SECURITY_SAMPLER,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
     loadModules(eventDispatcher, sco.monitoring);
@@ -129,6 +119,9 @@ public class AppSecSystem {
     log.debug("AppSec is now {}", status ? "active" : "inactive");
     ProductChangeCollector.get()
         .update(new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
+    if (status) {
+      maybeInitializeApiSecurity();
+    }
   }
 
   public static void stop() {
@@ -193,6 +186,25 @@ public class AppSecSystem {
     final Runnable reset = RESET_SUBSCRIPTION_SERVICE;
     if (reset != null) {
       reset.run();
+    }
+  }
+
+  private static void maybeInitializeApiSecurity() {
+    if (!Config.get().isApiSecurityEnabled()) {
+      return;
+    }
+    if (!ActiveSubsystems.APPSEC_ACTIVE) {
+      return;
+    }
+    // We initialize API Security the first time AppSec becomes active.
+    // We never de-initialize it, as that could lead to a leak of open WAF contexts in-flight.
+    if (API_SECURITY_INITIALIZED.compareAndSet(false, true)) {
+      if (SpanPostProcessor.Holder.INSTANCE == SpanPostProcessor.Holder.NOOP) {
+        ApiSecuritySampler requestSampler = new ApiSecuritySamplerImpl();
+        SpanPostProcessor.Holder.INSTANCE =
+            new AppSecSpanPostProcessor(requestSampler, REPLACEABLE_EVENT_PRODUCER);
+        API_SECURITY_SAMPLER = requestSampler;
+      }
     }
   }
 
