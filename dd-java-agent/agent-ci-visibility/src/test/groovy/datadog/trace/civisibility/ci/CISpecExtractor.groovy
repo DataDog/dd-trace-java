@@ -10,7 +10,7 @@ class CISpecExtractor {
 
   private static final JsonSlurper JSON_SLURPER = new JsonSlurper()
 
-  private static final Map<String, BiPredicate<Object, Object>> CUSTOM_COMPARATORS = new HashMap<>()
+  private static final Map<String, BiPredicate<String, String>> CUSTOM_COMPARATORS = new HashMap<>()
 
   static {
     CUSTOM_COMPARATORS.put(DDTags.CI_ENV_VARS, new BiPredicate<String, String>() {
@@ -23,12 +23,6 @@ class CISpecExtractor {
         @Override
         boolean test(String e, String a) {
           return JSON_SLURPER.parseText(e).sort() == JSON_SLURPER.parseText(a).sort()
-        }
-      })
-    CUSTOM_COMPARATORS.put(Tags.PULL_REQUEST_NUMBER, new BiPredicate<Integer, String>() {
-        @Override
-        boolean test(Integer e, String a) {
-          return e != null && a != null && e.toString() == a
         }
       })
   }
