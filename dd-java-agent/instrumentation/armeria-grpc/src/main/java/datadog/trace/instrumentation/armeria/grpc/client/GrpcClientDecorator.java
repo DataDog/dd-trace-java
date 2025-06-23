@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.armeria.grpc.client;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
@@ -44,7 +45,6 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getGrpcClientErrorStatuses();
-  private static final boolean DATA_STREAMS_ENABLED = Config.get().isDataStreamsEnabled();
 
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
@@ -111,7 +111,7 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
-    if (DATA_STREAMS_ENABLED) {
+    if (traceConfig().isDataStreamsEnabled()) {
       context = context.with(createDsmContext());
     }
     defaultPropagator().inject(context, request, setter);

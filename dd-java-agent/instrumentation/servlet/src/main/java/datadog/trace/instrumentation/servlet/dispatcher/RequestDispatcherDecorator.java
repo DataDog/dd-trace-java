@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
-import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -17,7 +17,6 @@ public class RequestDispatcherDecorator extends BaseDecorator {
       UTF8BytesString.create("java-web-servlet-dispatcher");
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
-  private static final boolean DATA_STREAMS_ENABLED = Config.get().isDataStreamsEnabled();
 
   @Override
   protected String[] instrumentationNames() {
@@ -46,7 +45,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
 
   public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
     // Add additional default DSM context for HTTP clients if missing but DSM is enabled
-    if (DATA_STREAMS_ENABLED) {
+    if (traceConfig().isDataStreamsEnabled()) {
       context = context.with(DataStreamsContext.forHttpClient());
     }
     // Inject context into carrier
