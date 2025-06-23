@@ -73,7 +73,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-  private static final boolean SHOULD_SET_404_RESOURCE_NAME =
+  protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
       Config.get().isRuleEnabled("URLAsResourceNameRule")
           && Config.get().isRuleEnabled("Status404Rule")
           && Config.get().isRuleEnabled("Status404Decorator");

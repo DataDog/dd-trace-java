@@ -20,4 +20,9 @@ jar {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
+
+  if (project.hasProperty("mavenRepositoryProxy")) {
+    // propagate proxy URL to tests, to then propagate it to nested Gradle builds
+    environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
+  }
 }

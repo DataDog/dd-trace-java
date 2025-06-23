@@ -127,7 +127,7 @@ class GithubActionsInfo implements CIProviderInfo {
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
-      return PullRequestInfo.EMPTY;
+      return new PullRequestInfo(baseRef, null, null);
     }
   }
 
