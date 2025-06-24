@@ -76,8 +76,9 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
             config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
-    APP_SEC_CONFIG_SERVICE.init();
-
+    if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
+      APP_SEC_CONFIG_SERVICE.init();
+    }
     sco.createRemaining(config);
 
     GatewayBridge gatewayBridge =
@@ -87,7 +88,8 @@ public class AppSecSystem {
             () -> API_SECURITY_SAMPLER,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
-    loadModules(eventDispatcher, sco.monitoring);
+    loadModules(
+        eventDispatcher, sco.monitoring, appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
     gatewayBridge.init();
     STOP_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
@@ -136,20 +138,25 @@ public class AppSecSystem {
       RESET_SUBSCRIPTION_SERVICE = null;
     }
     Blocking.setBlockingService(BlockingService.NOOP);
-
     APP_SEC_CONFIG_SERVICE.close();
   }
 
-  private static void loadModules(EventDispatcher eventDispatcher, Monitoring monitoring) {
+  private static void loadModules(
+      EventDispatcher eventDispatcher, Monitoring monitoring, boolean appSecEnabledConfig) {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
     final List<AppSecModule> modules = Collections.singletonList(new WAFModule(monitoring));
+    APP_SEC_CONFIG_SERVICE.modulesToUpdateVersionIn(modules);
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {
-        AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject;
-        cfgObject = APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
+        AppSecConfigService.TransactionalAppSecModuleConfigurer cfgObject =
+            APP_SEC_CONFIG_SERVICE.createAppSecModuleConfigurer();
+        module.setRuleVersion(APP_SEC_CONFIG_SERVICE.getCurrentRuleVersion());
+        if (appSecEnabledConfig) {
+          module.setWafBuilder(APP_SEC_CONFIG_SERVICE.getWafBuilder());
+        }
         module.config(cfgObject);
         cfgObject.commit();
       } catch (RuntimeException | AppSecModule.AppSecModuleActivationException t) {
@@ -174,6 +181,7 @@ public class AppSecSystem {
 
     EventDispatcher newEd = new EventDispatcher();
     for (AppSecModule module : STARTED_MODULES_INFO.keySet()) {
+      module.setRuleVersion(APP_SEC_CONFIG_SERVICE.getCurrentRuleVersion());
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
         dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
