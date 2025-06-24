@@ -3,8 +3,8 @@ package datadog.trace.bootstrap;
 import static datadog.trace.bootstrap.SystemUtils.getPropertyOrEnvVar;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import bootstrap.environment.SystemProperties;
 import datadog.cli.CLIHelper;
-import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
