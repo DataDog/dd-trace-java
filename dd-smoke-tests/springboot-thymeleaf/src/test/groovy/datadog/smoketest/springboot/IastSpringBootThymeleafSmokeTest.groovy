@@ -2,7 +2,6 @@ package datadog.smoketest.springboot
 
 import datadog.smoketest.AbstractIastServerSmokeTest
 import okhttp3.Request
-import java.net.URLEncoder
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
