@@ -34,7 +34,7 @@ public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumenta
     public static void afterExecute(
         @Advice.Argument(value = 0) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new SupplierWithContext(outbound, inbound);
+      outbound = new DecoratorWithContext.SupplierWithContext(outbound, inbound);
     }
   }
 }
