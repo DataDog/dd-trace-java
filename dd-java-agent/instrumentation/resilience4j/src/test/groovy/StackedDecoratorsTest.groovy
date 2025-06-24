@@ -70,6 +70,56 @@ class StackedDecoratorsTest extends AgentTestRunner {
     runUnderTrace("parent") { outer.get() } == "foobar"
 
     and:
+    assertSeparateDecoratorSpans()
+  }
+
+  def "generate separate resilience4j span for each decorator"() {
+    when:
+    Supplier<String> inner = Decorators
+      .ofSupplier { serviceCall("foobar", "serviceCall") }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R")) // TODO
+      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>) // TODO
+      .decorate()
+
+    Supplier<String> outer = Decorators
+      .ofSupplier { inner.get() }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R"))
+      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      .decorate()
+
+    then:
+    runUnderTrace("parent") { outer.get() } == "foobar"
+
+    and:
+    assertSeparateDecoratorSpans()
+  }
+
+  private void assertExpectedTrace() {
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored false
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf span(0)
+          errored false
+        }
+        span(2) {
+          operationName "serviceCall"
+          childOf span(1)
+          errored false
+        }
+      }
+    }
+  }
+
+  private void assertSeparateDecoratorSpans() {
     assertTraces(1) {
       trace(4) {
         sortSpansByStart()
@@ -91,29 +141,6 @@ class StackedDecoratorsTest extends AgentTestRunner {
         span(3) {
           operationName "serviceCall"
           childOf span(2)
-          errored false
-        }
-      }
-    }
-  }
-
-  private void assertExpectedTrace() {
-    assertTraces(1) {
-      trace(3) {
-        sortSpansByStart()
-        span(0) {
-          operationName "parent"
-          parent()
-          errored false
-        }
-        span(1) {
-          operationName "resilience4j"
-          childOf span(0)
-          errored false
-        }
-        span(2) {
-          operationName "serviceCall"
-          childOf span(1)
           errored false
         }
       }

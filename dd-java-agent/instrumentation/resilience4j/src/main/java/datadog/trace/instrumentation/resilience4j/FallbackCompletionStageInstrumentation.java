@@ -24,8 +24,8 @@ public class FallbackCompletionStageInstrumentation extends FallbackAbstractInst
     transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("recover", "andThen"))
-            .and(takesArgument(0, named(Supplier.class.getName())))
-            .and(returns(named(Supplier.class.getName()))),
+            .and(takesArgument(0, named(SUPPLIER_FQCN)))
+            .and(returns(named(SUPPLIER_FQCN))),
         FallbackCompletionStageInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
 

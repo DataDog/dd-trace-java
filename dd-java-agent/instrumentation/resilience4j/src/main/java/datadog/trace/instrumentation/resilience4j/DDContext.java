@@ -41,18 +41,6 @@ public final class DDContext {
     return new DDContext();
   }
 
-  public Supplier<?> tracedSupplier(Supplier<?> delegate) {
-    return () -> {
-      openScope();
-      try {
-        return delegate.get();
-      } finally {
-        closeScope();
-        finishSpan(null);
-      }
-    };
-  }
-
   public Supplier<CompletionStage<?>> tracedCompletionStage(Supplier<CompletionStage<?>> delegate) {
     return () -> {
       openScope();

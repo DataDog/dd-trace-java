@@ -13,6 +13,7 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumentation {
+
   @Override
   public String instrumentedType() {
     return "io.github.resilience4j.core.SupplierUtils";
@@ -23,15 +24,17 @@ public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumenta
     transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("recover", "andThen"))
-            .and(takesArgument(0, named(Supplier.class.getName())))
-            .and(returns(named(Supplier.class.getName()))),
+            .and(takesArgument(0, named(SUPPLIER_FQCN)))
+            .and(returns(named(SUPPLIER_FQCN))),
         FallbackSupplierInstrumentation.class.getName() + "$SupplierAdvice");
   }
 
   public static class SupplierAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterExecute(@Advice.Return(readOnly = false) Supplier<?> supplier) {
-      supplier = DDContext.ofFallback().tracedSupplier(supplier);
+    public static void afterExecute(
+        @Advice.Argument(value = 0) Supplier<?> inbound,
+        @Advice.Return(readOnly = false) Supplier<?> outbound) {
+      outbound = new SupplierWithContext(outbound, inbound);
     }
   }
 }
