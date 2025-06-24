@@ -1,9 +1,20 @@
 plugins {
   `java-library`
+  id("com.gradleup.shadow")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
 
+/*
+ * Add an addition gradle configuration to be consumed by bootstrap only.
+ */
+tasks.shadowJar {
+  relocate("datadog.environment", "bootstrap.environment")
+}
+
+/*
+ * Configure test coverage.
+ */
 extra.set("minimumInstructionCoverage", 0.7)
 val excludedClassesCoverage by extra {
   listOf(

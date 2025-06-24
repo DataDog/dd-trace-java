@@ -2,9 +2,9 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.environment.EnvironmentVariables;
-import datadog.environment.JavaVirtualMachine;
-import datadog.environment.SystemProperties;
+import bootstrap.environment.EnvironmentVariables;
+import bootstrap.environment.JavaVirtualMachine;
+import bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
