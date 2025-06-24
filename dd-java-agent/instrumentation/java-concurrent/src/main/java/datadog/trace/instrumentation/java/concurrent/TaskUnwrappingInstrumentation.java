@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
@@ -17,8 +18,8 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
         && ConfigProvider.getInstance()
             .getBoolean(
                 ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,

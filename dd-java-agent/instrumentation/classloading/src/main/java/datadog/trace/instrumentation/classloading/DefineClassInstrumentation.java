@@ -11,6 +11,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.instrumentation.classloading.ClassDefining;
 import java.security.ProtectionDomain;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /** Updates j.l.ClassLoader to notify the tracer when classes are about to be defined. */
@@ -22,9 +23,9 @@ public final class DefineClassInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     // only enable this when memoizing type hierarchies, where it provides the most ROI
-    return super.isEnabled() && InstrumenterConfig.get().isResolverMemoizingEnabled();
+    return super.isEnabled(enabledSystems) && InstrumenterConfig.get().isResolverMemoizingEnabled();
   }
 
   @Override

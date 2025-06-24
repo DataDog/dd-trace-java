@@ -12,6 +12,11 @@ public class TestIndexMultiModule extends InstrumenterModule {
   }
 
   @Override
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON;
+  }
+
+  @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
         new InstrumenterA(),

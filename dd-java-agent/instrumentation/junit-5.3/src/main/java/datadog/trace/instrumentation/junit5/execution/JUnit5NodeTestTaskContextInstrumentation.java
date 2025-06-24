@@ -25,9 +25,8 @@ public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

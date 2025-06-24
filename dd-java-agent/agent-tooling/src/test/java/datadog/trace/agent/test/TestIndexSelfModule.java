@@ -6,4 +6,9 @@ public class TestIndexSelfModule extends InstrumenterModule {
   public TestIndexSelfModule() {
     super("test-index-self");
   }
+
+  @Override
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON;
+  }
 }

@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
@@ -43,8 +44,8 @@ public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Pro
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
         && ConfigProvider.getInstance()
             .getBoolean(
                 ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,

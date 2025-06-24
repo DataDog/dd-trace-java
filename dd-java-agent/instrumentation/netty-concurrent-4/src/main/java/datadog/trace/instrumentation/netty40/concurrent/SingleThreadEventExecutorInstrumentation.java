@@ -22,6 +22,7 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
@@ -33,8 +34,8 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
         && ConfigProvider.getInstance()
             .getBoolean(
                 ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,

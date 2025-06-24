@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -34,8 +35,8 @@ public class StructuredTaskScopeInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(21) && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return Platform.isJavaVersionAtLeast(21) && super.isEnabled(enabledSystems);
   }
 
   @Override

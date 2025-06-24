@@ -32,20 +32,13 @@ public abstract class InstrumenterModule implements Instrumenter {
   /**
    * Since several systems share the same instrumentation infrastructure in order to enable only the
    * applicable {@link Instrumenter instrumenters} on startup each {@linkplain InstrumenterModule}
-   * must declare its target system. The systems currently supported include:
-   *
-   * <ul>
-   *   <li>{@link TargetSystem#TRACING tracing}
-   *   <li>{@link TargetSystem#PROFILING profiling}
-   *   <li>{@link TargetSystem#APPSEC appsec}
-   *   <li>{@link TargetSystem#IAST iast}
-   *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
-   *   <li>{@link TargetSystem#USM usm}
-   * </ul>
+   * must declare its target system.
    */
   public enum TargetSystem {
+    COMMON, // instrumentation common to every system
     TRACING,
     PROFILING,
+    SECURITY, // instrumentation shared between APPSEC and IAST
     APPSEC,
     IAST,
     CIVISIBILITY,
@@ -177,23 +170,14 @@ public abstract class InstrumenterModule implements Instrumenter {
     return emptyMap();
   }
 
+  public abstract TargetSystem targetSystem();
+
   protected boolean defaultEnabled() {
     return InstrumenterConfig.get().isIntegrationsEnabled();
   }
 
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     return enabled;
-  }
-
-  /**
-   * Indicates the applicability of an {@linkplain InstrumenterModule} to the given system.<br>
-   *
-   * @param enabledSystems a set of all the enabled target systems
-   * @return {@literal true} if the set of enabled systems contains all the ones required by this
-   *     particular {@linkplain InstrumenterModule}
-   */
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return false;
   }
 
   protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
@@ -208,8 +192,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.TRACING);
+    public TargetSystem targetSystem() {
+      return TargetSystem.TRACING;
     }
   }
 
@@ -220,13 +204,13 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.PROFILING);
+    public TargetSystem targetSystem() {
+      return TargetSystem.PROFILING;
     }
 
     @Override
-    public boolean isEnabled() {
-      return super.isEnabled()
+    public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+      return super.isEnabled(enabledSystems)
           && !ConfigProvider.getInstance()
               .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
     }
@@ -239,8 +223,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.APPSEC);
+    public TargetSystem targetSystem() {
+      return TargetSystem.APPSEC;
     }
   }
 
@@ -252,13 +236,21 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
+    public TargetSystem targetSystem() {
+      return TargetSystem.SECURITY;
+    }
+
+    @Override
     public List<Instrumenter> typeInstrumentations() {
       preloadClassNames();
       return super.typeInstrumentations();
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+      if (!super.isEnabled(enabledSystems)) {
+        return false;
+      }
       if (enabledSystems.contains(TargetSystem.IAST)) {
         return true;
       }
@@ -307,8 +299,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.USM);
+    public TargetSystem targetSystem() {
+      return TargetSystem.USM;
     }
   }
 
@@ -319,8 +311,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    public TargetSystem targetSystem() {
+      return TargetSystem.CIVISIBILITY;
     }
   }
 }

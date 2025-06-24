@@ -2,7 +2,6 @@ package datadog.trace.agent.test.base;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Set;
 
 /** Skeleton single-class test instrumentation. */
 public abstract class TestInstrumentation extends InstrumenterModule
@@ -13,7 +12,7 @@ public abstract class TestInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return true; // always on for testing purposes
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON;
   }
 }

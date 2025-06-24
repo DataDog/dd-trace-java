@@ -22,6 +22,11 @@ public abstract class CallSiteInstrumentation extends InstrumenterModule
   }
 
   @Override
+  public TargetSystem targetSystem() {
+    return TargetSystem.SECURITY;
+  }
+
+  @Override
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
   }

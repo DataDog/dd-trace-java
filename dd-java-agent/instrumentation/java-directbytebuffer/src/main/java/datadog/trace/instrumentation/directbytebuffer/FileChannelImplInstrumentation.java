@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public final class FileChannelImplInstrumentation extends InstrumenterModule.Profiling
@@ -22,9 +23,9 @@ public final class FileChannelImplInstrumentation extends InstrumenterModule.Pro
   }
 
   @Override
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     return Platform.isJavaVersionAtLeast(11)
-        && super.isEnabled()
+        && super.isEnabled(enabledSystems)
         && ConfigProvider.getInstance()
             .getBoolean(
                 PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)

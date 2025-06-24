@@ -200,9 +200,15 @@ public class AgentInstaller {
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
-      if (!module.isApplicable(enabledSystems)) {
+      if (!enabledSystems.contains(module.targetSystem())) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
+        }
+        continue;
+      }
+      if (!module.isEnabled(enabledSystems)) {
+        if (DEBUG) {
+          log.debug("Not enabled - instrumentation.class={}", module.getClass().getName());
         }
         continue;
       }
@@ -291,7 +297,7 @@ public class AgentInstaller {
 
   public static Set<InstrumenterModule.TargetSystem> getEnabledSystems() {
     EnumSet<InstrumenterModule.TargetSystem> enabledSystems =
-        EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
+        EnumSet.of(InstrumenterModule.TargetSystem.COMMON);
     InstrumenterConfig cfg = InstrumenterConfig.get();
     if (cfg.isTraceEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.TRACING);
@@ -300,9 +306,11 @@ public class AgentInstaller {
       enabledSystems.add(InstrumenterModule.TargetSystem.PROFILING);
     }
     if (cfg.getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.SECURITY);
       enabledSystems.add(InstrumenterModule.TargetSystem.APPSEC);
     }
     if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.SECURITY);
       enabledSystems.add(InstrumenterModule.TargetSystem.IAST);
     }
     if (cfg.isCiVisibilityEnabled()) {

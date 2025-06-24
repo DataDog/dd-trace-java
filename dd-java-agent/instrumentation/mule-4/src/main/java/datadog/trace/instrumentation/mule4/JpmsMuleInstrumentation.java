@@ -7,6 +7,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Platform;
+import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
@@ -16,8 +17,8 @@ public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Platform.isJavaVersionAtLeast(9);
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && Platform.isJavaVersionAtLeast(9);
   }
 
   @Override

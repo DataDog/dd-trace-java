@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jmx.MBeanServerRegistry;
+import java.util.Set;
 import javax.management.MBeanServer;
 import net.bytebuddy.asm.Advice;
 
@@ -24,8 +25,8 @@ public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && customBuilder != null && !customBuilder.isEmpty();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && customBuilder != null && !customBuilder.isEmpty();
   }
 
   @Override

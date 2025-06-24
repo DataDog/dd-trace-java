@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -77,9 +76,6 @@ public class CompletableFutureUniCompletionInstrumentation extends InstrumenterM
 
   @Override
   public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
-    if (!isEnabled()) {
-      return Collections.emptyMap();
-    }
     String[] classes = {
       // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
       "java.util.concurrent.CompletableFuture$Completion",

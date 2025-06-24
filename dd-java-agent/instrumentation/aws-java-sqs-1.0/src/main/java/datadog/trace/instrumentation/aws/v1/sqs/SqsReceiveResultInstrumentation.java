@@ -13,6 +13,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -25,8 +26,8 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
         // we don't need to instrument messages when we're doing legacy AWS-SDK tracing
         && !InstrumenterConfig.get().isLegacyInstrumentationEnabled(false, "aws-sdk");
   }

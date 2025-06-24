@@ -49,7 +49,7 @@ class IastInstrumentationForkedTest extends AgentTestRunner {
     final instrumentation = new IastInstrumentation()
 
     when:
-    final shouldApply = instrumentation.isApplicable(enabledSystems)
+    final shouldApply = instrumentation.isEnabled(enabledSystems)
 
     then:
     shouldApply == applicable

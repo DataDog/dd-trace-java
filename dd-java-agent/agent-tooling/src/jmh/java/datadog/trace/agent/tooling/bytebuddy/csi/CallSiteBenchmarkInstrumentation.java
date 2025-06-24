@@ -18,18 +18,18 @@ public class CallSiteBenchmarkInstrumentation extends CallSiteInstrumentation {
   }
 
   @Override
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON; // always active during this benchmark
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> callerType() {
     return CallSiteMatcher.INSTANCE;
   }
 
   @Override
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     return "callSite".equals(System.getProperty("dd.benchmark.instrumentation", ""));
-  }
-
-  @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return true;
   }
 
   @Override

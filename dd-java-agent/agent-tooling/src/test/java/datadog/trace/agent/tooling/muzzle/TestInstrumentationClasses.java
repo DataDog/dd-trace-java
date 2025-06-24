@@ -22,6 +22,11 @@ public abstract class TestInstrumentationClasses {
     }
 
     @Override
+    public TargetSystem targetSystem() {
+      return TargetSystem.COMMON;
+    }
+
+    @Override
     public void methodAdvice(MethodTransformer transformer) {}
   }
 

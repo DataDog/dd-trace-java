@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,8 +37,8 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && !Platform.isGraalVM();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && !Platform.isGraalVM();
   }
 
   @Override

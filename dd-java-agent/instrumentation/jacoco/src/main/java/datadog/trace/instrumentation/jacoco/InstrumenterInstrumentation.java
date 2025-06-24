@@ -22,8 +22,8 @@ public class InstrumenterInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems);
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems);
   }
 
   @Override

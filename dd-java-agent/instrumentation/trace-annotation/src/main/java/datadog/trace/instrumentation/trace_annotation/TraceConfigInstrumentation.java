@@ -46,8 +46,8 @@ public class TraceConfigInstrumentation extends InstrumenterModule {
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.TRACING);
+  public TargetSystem targetSystem() {
+    return TargetSystem.TRACING;
   }
 
   @Override

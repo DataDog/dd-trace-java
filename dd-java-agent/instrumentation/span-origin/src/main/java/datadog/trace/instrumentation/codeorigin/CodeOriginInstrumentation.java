@@ -24,8 +24,8 @@ public abstract class CodeOriginInstrumentation extends Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled(enabledSystems);
   }
 
   protected abstract Set<String> getAnnotations();

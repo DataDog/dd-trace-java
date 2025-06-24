@@ -82,9 +82,9 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     this.appSecNotFullyDisabled = enabledSystems.contains(TargetSystem.APPSEC);
-    return super.isApplicable(enabledSystems);
+    return super.isEnabled(enabledSystems);
   }
 
   @Override
