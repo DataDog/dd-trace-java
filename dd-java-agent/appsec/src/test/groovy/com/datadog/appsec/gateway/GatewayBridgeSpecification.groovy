@@ -114,6 +114,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  BiConsumer<RequestContext, String> httpRouteCB
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
 
@@ -477,6 +478,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpRoute(), _) >> { httpRouteCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -1325,6 +1327,17 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
     1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
     0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test on httpRoute'() {
+    given:
+    final route = 'dummy-route'
+
+    when:
+    httpRouteCB.accept(ctx, route)
+
+    then:
+    arCtx.getRoute() == route
   }
 
 }

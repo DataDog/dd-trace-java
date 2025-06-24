@@ -65,6 +65,7 @@ dependencies {
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:appsec')
 }
 
 configurations.testImplementation {
