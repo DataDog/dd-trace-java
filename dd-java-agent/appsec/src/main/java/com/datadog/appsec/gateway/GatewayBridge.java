@@ -158,6 +158,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.httpRoute(), this::onHttpRoute);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -222,6 +223,14 @@ public class GatewayBridge {
         userIdSubInfo = null;
       }
     }
+  }
+
+  private void onHttpRoute(final RequestContext ctx_, final String route) {
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+    ctx.setRoute(route);
   }
 
   private Flow<Void> onLoginEvent(
