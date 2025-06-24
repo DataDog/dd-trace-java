@@ -178,7 +178,8 @@ public class AgentInstaller {
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
     // combine known modules indexed at build-time with extensions contributed at run-time
-    Iterable<InstrumenterModule> instrumenterModules = withExtensions(instrumenterIndex.modules());
+    Iterable<InstrumenterModule> instrumenterModules =
+        withExtensions(instrumenterIndex.modules(enabledSystems));
 
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -200,12 +201,6 @@ public class AgentInstaller {
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
-      if (!enabledSystems.contains(module.targetSystem())) {
-        if (DEBUG) {
-          log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
-        }
-        continue;
-      }
       if (!module.isEnabled(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not enabled - instrumentation.class={}", module.getClass().getName());
