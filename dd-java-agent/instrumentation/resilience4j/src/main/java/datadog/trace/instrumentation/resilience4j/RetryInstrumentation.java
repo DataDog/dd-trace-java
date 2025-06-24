@@ -51,6 +51,7 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(RETRY_FQCN)))
+            .and(takesArgument(2, named(SUPPLIER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
         RetryInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
@@ -81,8 +82,9 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      supplier = DDContext.of(retry).tracedCompletionStage(supplier);
+        @Advice.Argument(value = 2) Supplier<?> inbound,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
+      outbound = new SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }

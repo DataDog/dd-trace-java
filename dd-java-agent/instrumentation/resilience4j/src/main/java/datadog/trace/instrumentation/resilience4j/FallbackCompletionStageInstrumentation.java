@@ -32,8 +32,9 @@ public class FallbackCompletionStageInstrumentation extends FallbackAbstractInst
   public static class CompletionStageAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      supplier = DDContext.ofFallback().tracedCompletionStage(supplier);
+        @Advice.Argument(value = 0) Supplier<?> inbound,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
+      outbound = new SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }

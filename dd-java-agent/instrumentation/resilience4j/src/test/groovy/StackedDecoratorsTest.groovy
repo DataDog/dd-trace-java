@@ -50,6 +50,36 @@ class StackedDecoratorsTest extends AgentTestRunner {
     assertExpectedTrace()
   }
 
+  def "generate separate resilience4j span for each decorator [CompletionStage]"() {
+    //TODO
+    when:
+    Supplier<CompletionStage<String>> inner = Decorators
+      .ofCompletionStage {
+        CompletableFuture.supplyAsync({
+          serviceCall("foobar", "serviceCall")
+        }, Executors.newSingleThreadExecutor())
+      }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R"), Executors.newSingleThreadScheduledExecutor())
+      //      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as CheckedFunction<Throwable, String>) // TODO
+      .decorate()
+
+    Supplier<CompletionStage<String>> outer = Decorators
+      .ofCompletionStage {
+        inner.get()
+      }
+      .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      .withRetry(Retry.ofDefaults("R"), Executors.newSingleThreadScheduledExecutor())
+      //      .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as CheckedFunction<Throwable, String>) // TODO
+      .decorate()
+
+    then:
+    runUnderTrace("parent") { outer.get().toCompletableFuture().get() } == "foobar"
+
+    and:
+    assertSeparateDecoratorSpans()
+  }
+
   def "generate separate resilience4j span for each decorator"() {
     when:
     CheckedSupplier<String> inner = Decorators

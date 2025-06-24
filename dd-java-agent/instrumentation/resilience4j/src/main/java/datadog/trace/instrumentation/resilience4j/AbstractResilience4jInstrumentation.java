@@ -21,6 +21,7 @@ public abstract class AbstractResilience4jInstrumentation extends InstrumenterMo
       packageName + ".DDContext",
       packageName + ".CheckedSupplierWithContext",
       packageName + ".SupplierWithContext",
+      packageName + ".SupplierCompletionStageWithContext",
     };
   }
 }

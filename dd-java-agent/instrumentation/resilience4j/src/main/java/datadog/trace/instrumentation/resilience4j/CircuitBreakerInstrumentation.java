@@ -81,8 +81,9 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> supplier) {
-      supplier = DDContext.of(circuitBreaker).tracedCompletionStage(supplier);
+        @Advice.Argument(value = 1) Supplier<?> inbound,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
+      outbound = new SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }
