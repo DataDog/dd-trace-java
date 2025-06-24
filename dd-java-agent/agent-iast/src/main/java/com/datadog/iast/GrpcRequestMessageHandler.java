@@ -46,7 +46,8 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
   }
 
   static boolean visitProtobufArtifact(@Nonnull final Class<?> kls) {
-    if (kls.getSuperclass().getName().startsWith(GENERATED_MESSAGE)) {
+    final Class<?> superClass = kls.getSuperclass();
+    if (superClass != null && superClass.getName().startsWith(GENERATED_MESSAGE)) {
       return true; // GRPC custom messages
     }
     if (MAP_FIELD.equals(kls.getName())) {

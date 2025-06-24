@@ -28,6 +28,8 @@ public class DroneInfo implements CIProviderInfo {
   public static final String DRONE_COMMIT_AUTHOR_NAME = "DRONE_COMMIT_AUTHOR_NAME";
   public static final String DRONE_COMMIT_AUTHOR_EMAIL = "DRONE_COMMIT_AUTHOR_EMAIL";
   public static final String DRONE_COMMIT_MESSAGE = "DRONE_COMMIT_MESSAGE";
+  public static final String DRONE_PULL_REQUEST_NUMBER = "DRONE_PULL_REQUEST";
+  public static final String DRONE_PULL_REQUEST_TARGET_BRANCH = "DRONE_TARGET_BRANCH";
 
   private final CiEnvironment environment;
 
@@ -63,7 +65,11 @@ public class DroneInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(DRONE_PULL_REQUEST_TARGET_BRANCH)),
+        null,
+        null,
+        environment.get(DRONE_PULL_REQUEST_NUMBER));
   }
 
   private PersonInfo buildGitAuthor() {

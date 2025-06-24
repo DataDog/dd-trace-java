@@ -1,15 +1,12 @@
 package datadog.trace.instrumentation.apachehttpclient;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 
-import datadog.context.Context;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -47,8 +44,7 @@ public class HelperMethods {
 
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-      defaultPropagator().inject(Context.current().with(span).with(dsmContext), request, SETTER);
+      DECORATE.injectContext(current().with(span), request, SETTER);
     }
 
     return scope;
