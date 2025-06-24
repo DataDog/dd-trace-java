@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
+import datadog.trace.util.Strings;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.gradle.api.Action;
@@ -33,12 +34,14 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
 
   @Override
   public String[] helperClassNames() {
+    String junit4InstrumentationPackageName =
+        Strings.getPackageName(JUnit4Instrumentation.class.getName());
     return new String[] {
-      JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
-      JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
+      junit4InstrumentationPackageName + ".JUnit4Utils",
+      junit4InstrumentationPackageName + ".TestEventsHandlerHolder",
+      junit4InstrumentationPackageName + ".SkippedByDatadog",
+      junit4InstrumentationPackageName + ".TracingListener",
+      junit4InstrumentationPackageName + ".order.JUnit4FailFastClassOrderer",
       packageName + ".DDCollectAllTestClassesExecutor",
     };
   }

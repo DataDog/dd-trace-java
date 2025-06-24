@@ -12,6 +12,7 @@ import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.junit4.order.JUnit4FailFastClassOrderer;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -42,12 +43,14 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
 
   @Override
   public String[] helperClassNames() {
+    String junit4InstrumentationPackageName =
+        Strings.getPackageName(JUnit4Instrumentation.class.getName());
     return new String[] {
-      JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
-      JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
+      junit4InstrumentationPackageName + ".JUnit4Utils",
+      junit4InstrumentationPackageName + ".TestEventsHandlerHolder",
+      junit4InstrumentationPackageName + ".SkippedByDatadog",
+      junit4InstrumentationPackageName + ".TracingListener",
+      junit4InstrumentationPackageName + ".order.JUnit4FailFastClassOrderer",
     };
   }
 

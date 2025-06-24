@@ -20,6 +20,7 @@ import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -44,7 +45,7 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
     INSTANCE = verbosity == Verbosity.OFF ? null : new IastPostProcessorFactory(verbosity);
   }
 
-  private static final String IAST_ANNOTATIONS_PKG = Sink.class.getPackage().getName();
+  private static final String IAST_ANNOTATIONS_PKG = Strings.getPackageName(Sink.class.getName());
   private static final String SINK_NAME = Sink.class.getSimpleName();
   private static final String PROPAGATION_NAME = Propagation.class.getSimpleName();
   private static final String SOURCE_NAME = Source.class.getSimpleName();
