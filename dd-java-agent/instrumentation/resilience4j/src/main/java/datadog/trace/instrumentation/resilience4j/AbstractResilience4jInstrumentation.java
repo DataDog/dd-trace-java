@@ -19,6 +19,8 @@ public abstract class AbstractResilience4jInstrumentation extends InstrumenterMo
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DDContext",
+      packageName + ".DecoratorWithContext",
+      packageName + ".DecoratorWithContext$1",
       packageName + ".CheckedSupplierWithContext",
       packageName + ".SupplierWithContext",
       packageName + ".SupplierCompletionStageWithContext",
