@@ -52,8 +52,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +91,7 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final ApiSecuritySampler requestSampler;
+  private final Supplier<ApiSecuritySampler> requestSamplerSupplier;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -115,11 +117,11 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      ApiSecuritySampler requestSampler,
+      @Nonnull Supplier<ApiSecuritySampler> requestSamplerSupplier,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.requestSampler = requestSampler;
+    this.requestSamplerSupplier = requestSamplerSupplier;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -156,6 +158,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.httpRoute(), this::onHttpRoute);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -220,6 +223,14 @@ public class GatewayBridge {
         userIdSubInfo = null;
       }
     }
+  }
+
+  private void onHttpRoute(final RequestContext ctx_, final String route) {
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+    ctx.setRoute(route);
   }
 
   private Flow<Void> onLoginEvent(
@@ -778,6 +789,7 @@ public class GatewayBridge {
     if (route != null) {
       ctx.setRoute(route.toString());
     }
+    ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);
   }
 

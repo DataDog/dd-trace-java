@@ -28,7 +28,7 @@ variables:
   GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
-  BUILDER_IMAGE_VERSION_PREFIX: "" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21)$/
   PROFILE_TESTS:
@@ -40,6 +40,22 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+
+default:
+  interruptible: true
+
+# trigger new commit cancel
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      auto_cancel:
+        on_new_commit: none
+    - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      auto_cancel:
+        on_new_commit: none
+    - when: always
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
