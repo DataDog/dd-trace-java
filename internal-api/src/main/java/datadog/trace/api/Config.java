@@ -1678,10 +1678,19 @@ public class Config {
     dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
-    dynamicInstrumentationUploadFlushInterval =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    if (configProvider.isSet(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS)) {
+      dynamicInstrumentationUploadFlushInterval =
+          (int)
+              (configProvider.getFloat(
+                      DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS,
+                      DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL)
+                  * 1000);
+    } else {
+      dynamicInstrumentationUploadFlushInterval =
+          configProvider.getInteger(
+              DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+              DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    }
     dynamicInstrumentationClassFileDumpEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
