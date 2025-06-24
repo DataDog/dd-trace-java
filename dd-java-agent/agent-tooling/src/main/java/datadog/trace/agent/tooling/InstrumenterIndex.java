@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.BufferedInputStream;
@@ -51,8 +52,9 @@ final class InstrumenterIndex {
 
   private final InstrumenterModule[] modules;
 
-  // packed sequence of module type names and their expected member names:
-  // module1, memberCount, memberA, memberB, module2, memberCount, memberC, ...
+  // packed sequence of module type names, their target systems, and their expected member names:
+  // module1, targetSystemId, memberCount, memberA, memberB,
+  // module2, targetSystemId, memberCount, memberC, ...
   // (each string is encoded as its length plus that number of ASCII bytes)
   private final byte[] packedNames;
   private int nameIndex;
@@ -60,6 +62,8 @@ final class InstrumenterIndex {
   // current module details
   private int instrumentationId = -1;
   private String moduleName;
+  private int targetSystemId;
+
   private int memberCount;
 
   // current member details
@@ -74,20 +78,34 @@ final class InstrumenterIndex {
   }
 
   public Iterable<InstrumenterModule> modules() {
-    return ModuleIterator::new;
+    return () -> new ModuleIterator(-1);
+  }
+
+  public Iterable<InstrumenterModule> modules(Set<TargetSystem> enabledSystems) {
+    return () -> new ModuleIterator(systemMask(enabledSystems));
+  }
+
+  private int systemMask(Set<TargetSystem> enabledSystems) {
+    int systemMask = 0;
+    for (TargetSystem system : enabledSystems) {
+      systemMask |= (1 << system.ordinal());
+    }
+    return systemMask;
   }
 
   final class ModuleIterator implements Iterator<InstrumenterModule> {
+    private int systemMask;
     private InstrumenterModule module;
 
-    ModuleIterator() {
+    ModuleIterator(int systemMask) {
+      this.systemMask = systemMask;
       restart();
     }
 
     @Override
     public boolean hasNext() {
       while (null == module && hasNextModule()) {
-        module = nextModule();
+        module = nextModule(systemMask);
       }
       return null != module;
     }
@@ -148,7 +166,7 @@ final class InstrumenterIndex {
   }
 
   /** Returns the next {@link InstrumenterModule} in the index. */
-  InstrumenterModule nextModule() {
+  InstrumenterModule nextModule(int systemMask) {
     while (memberCount > 0) {
       skipMember(); // skip past unmatched members from previous module
     }
@@ -157,10 +175,14 @@ final class InstrumenterIndex {
       // use data from previously loaded module
       moduleName = module.getClass().getName();
       skipName();
+      skipNumber();
     } else {
       moduleName = readName();
-      module = buildNodule();
-      modules[instrumentationId] = module;
+      targetSystemId = readNumber();
+      if ((systemMask & (1 << targetSystemId)) != 0) {
+        module = buildNodule();
+        modules[instrumentationId] = module;
+      }
     }
     memberCount = readNumber();
     if (SELF_MEMBERSHIP == memberCount) {
@@ -215,6 +237,11 @@ final class InstrumenterIndex {
   /** Reads an unsigned byte from the packed name sequence. */
   private int readNumber() {
     return 0xFF & (int) packedNames[nameIndex++];
+  }
+
+  /** Skips an unsigned byte from the packed name sequence. */
+  private void skipNumber() {
+    nameIndex++;
   }
 
   public static InstrumenterIndex readIndex() {
@@ -295,6 +322,7 @@ final class InstrumenterIndex {
           instrumentationCount++;
           out.writeByte(moduleName.length());
           out.writeBytes(moduleName);
+          out.writeByte(module.targetSystem().ordinal());
           try {
             List<Instrumenter> members = module.typeInstrumentations();
             if (members.equals(singletonList(module))) {
