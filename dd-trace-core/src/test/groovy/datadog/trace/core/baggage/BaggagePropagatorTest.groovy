@@ -11,6 +11,7 @@ import java.util.function.BiConsumer
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS
+import static datadog.trace.api.TracePropagationBehaviorExtract.CONTINUE
 import static datadog.trace.core.baggage.BaggagePropagator.BAGGAGE_KEY
 
 class BaggagePropagatorTest extends DDSpecification {
@@ -35,7 +36,7 @@ class BaggagePropagatorTest extends DDSpecification {
   }
 
   def setup() {
-    this.propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_BYTES)
+    this.propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, DEFAULT_TRACE_BAGGAGE_MAX_BYTES, CONTINUE)
     this.setter = new MapCarrierAccessor()
     this.carrier = [:]
     this.context = Context.root()
@@ -65,7 +66,7 @@ class BaggagePropagatorTest extends DDSpecification {
 
   def "test baggage inject item limit"() {
     setup:
-    propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES) //creating a new instance after injecting config
+    propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES, CONTINUE) //creating a new instance after injecting config
     context = Baggage.create(baggage).storeInto(context)
 
     when:
@@ -82,7 +83,7 @@ class BaggagePropagatorTest extends DDSpecification {
 
   def "test baggage inject bytes limit"() {
     setup:
-    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20) //creating a new instance after injecting config
+    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20, CONTINUE) //creating a new instance after injecting config
     context = Baggage.create(baggage).storeInto(context)
 
     when:
@@ -184,7 +185,7 @@ class BaggagePropagatorTest extends DDSpecification {
 
   def "test baggage cache items limit"(){
     setup:
-    propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES) //creating a new instance after injecting config
+    propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES, CONTINUE) //creating a new instance after injecting config
     def headers = [
       (BAGGAGE_KEY) : baggageHeader,
     ]
@@ -205,7 +206,7 @@ class BaggagePropagatorTest extends DDSpecification {
 
   def "test baggage cache bytes limit"(){
     setup:
-    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20) //creating a new instance after injecting config
+    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20, CONTINUE) //creating a new instance after injecting config
     def headers = [
       (BAGGAGE_KEY) : baggageHeader,
     ]
