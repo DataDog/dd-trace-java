@@ -2,13 +2,10 @@ package com.datadog.appsec.event.data
 
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 import spock.lang.Shared
 
 import java.nio.CharBuffer
@@ -465,6 +462,17 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('"unicode: \\u0041"')          || 'unicode: A'
   }
 
+  void 'iterable json objects'() {
+    setup:
+    final map = [name: 'This is just a test', list: [1, 2, 3, 4, 5]]
+
+    when:
+    final result = convert(new IterableJsonObject(map), ctx)
+
+    then:
+    result == map
+  }
+
   private static int countNesting(final Map<String, Object>object, final int levels) {
     if (object.isEmpty()) {
       return levels
@@ -474,5 +482,19 @@ class ObjectIntrospectionSpecification extends DDSpecification {
       return levels
     }
     return countNesting(object.values().first() as Map, levels + 1)
+  }
+
+  private static class IterableJsonObject implements Iterable<Map.Entry<String, Object>> {
+
+    private final Map<String, Object> map
+
+    IterableJsonObject(Map<String, Object> map) {
+      this.map = map
+    }
+
+    @Override
+    Iterator<Map.Entry<String, Object>> iterator() {
+      return map.entrySet().iterator()
+    }
   }
 }

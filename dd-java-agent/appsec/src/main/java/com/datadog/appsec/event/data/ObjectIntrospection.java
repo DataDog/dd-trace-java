@@ -11,6 +11,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -211,20 +212,42 @@ public final class ObjectIntrospection {
 
     // iterables
     if (obj instanceof Iterable) {
-      List<Object> newList;
-      if (obj instanceof List) {
-        newList = new ArrayList<>(((List<?>) obj).size());
-      } else {
-        newList = new ArrayList<>();
-      }
-      for (Object o : ((Iterable<?>) obj)) {
-        if (state.elemsLeft <= 0) {
-          state.listMapTooLarge = true;
-          break;
+      final Iterator<?> it = ((Iterable<?>) obj).iterator();
+      final boolean isMap = it.hasNext() && it.next() instanceof Map.Entry;
+      // some json libraries implement objects as Iterable<Map.Entry>
+      if (isMap) {
+        Map<Object, Object> newMap;
+        if (obj instanceof Collection) {
+          newMap = new HashMap<>(((Collection<?>) obj).size());
+        } else {
+          newMap = new HashMap<>();
         }
-        newList.add(guardedConversion(o, depth + 1, state));
+        for (Map.Entry<?, ?> e : ((Iterable<Map.Entry<?, ?>>) obj)) {
+          Object key = e.getKey();
+          Object newKey = keyConversion(e.getKey(), state);
+          if (newKey == null && key != null) {
+            // probably we're out of elements anyway
+            continue;
+          }
+          newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
+        }
+        return newMap;
+      } else {
+        List<Object> newList;
+        if (obj instanceof Collection) {
+          newList = new ArrayList<>(((Collection<?>) obj).size());
+        } else {
+          newList = new ArrayList<>();
+        }
+        for (Object o : ((Iterable<?>) obj)) {
+          if (state.elemsLeft <= 0) {
+            state.listMapTooLarge = true;
+            break;
+          }
+          newList.add(guardedConversion(o, depth + 1, state));
+        }
+        return newList;
       }
-      return newList;
     }
 
     // arrays
