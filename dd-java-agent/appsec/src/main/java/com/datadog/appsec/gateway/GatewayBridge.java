@@ -98,6 +98,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo initialReqDataSubInfo;
   private volatile DataSubscriberInfo rawRequestBodySubInfo;
   private volatile DataSubscriberInfo requestBodySubInfo;
+  private volatile DataSubscriberInfo responseBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerMethodSubInfo;
@@ -137,6 +138,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.requestMethodUriRaw(), this::onRequestMethodUriRaw);
     subscriptionService.registerCallback(EVENTS.requestBodyStart(), this::onRequestBodyStart);
     subscriptionService.registerCallback(EVENTS.requestBodyDone(), this::onRequestBodyDone);
+    subscriptionService.registerCallback(EVENTS.responseBody(), this::onResponseBody);
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(), this::onRequestClientSocketAddress);
     subscriptionService.registerCallback(
@@ -177,6 +179,7 @@ public class GatewayBridge {
     initialReqDataSubInfo = null;
     rawRequestBodySubInfo = null;
     requestBodySubInfo = null;
+    responseBodySubInfo = null;
     pathParamsSubInfo = null;
     respDataSubInfo = null;
     grpcServerMethodSubInfo = null;
@@ -634,6 +637,39 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         rawRequestBodySubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onResponseBody(RequestContext ctx_, Object obj) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    if (ctx.isResponseBodyPublished()) {
+      log.debug(
+          "Response body already published; will ignore new value of type {}", obj.getClass());
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setResponseBodyPublished(true);
+
+    while (true) {
+      DataSubscriberInfo subInfo = responseBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT);
+        responseBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      Object converted = ObjectIntrospection.convert(obj, ctx);
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_OBJECT, converted);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        responseBodySubInfo = null;
       }
     }
   }
