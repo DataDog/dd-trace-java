@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -1297,7 +1298,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
-    if (!span.traceConfig().isDataStreamsEnabled()
+    if (!traceConfig().isDataStreamsEnabled()
         || progress == null
         || progress.description() == null) {
       return;

@@ -2,10 +2,15 @@ package datadog.trace.agent
 
 import spock.lang.Specification
 import spock.lang.Timeout
+import spock.lang.IgnoreIf
+import datadog.trace.api.Platform
 
 import jvmbootstraptest.InitializationTelemetryCheck
 
 @Timeout(30)
+@IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+  Platform.isJavaVersionAtLeast(24)
+})
 class InitializationTelemetryTest extends Specification {
   def "block agent start-up"() {
     // In this case, the SecurityManager blocks loading of the Premain Class,

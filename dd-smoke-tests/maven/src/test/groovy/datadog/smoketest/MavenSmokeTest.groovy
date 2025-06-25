@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.Platform
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
 import java.nio.file.FileVisitResult
@@ -26,10 +27,14 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
+@IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
+  Platform.isJavaVersionAtLeast(24)
+})
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)

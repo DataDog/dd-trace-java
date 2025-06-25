@@ -39,12 +39,12 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final Context extractedContext = DECORATE.extractContext(headers);
-    final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
+    final Context context = DECORATE.extractContext(headers);
+    final AgentSpan span = DECORATE.startSpan(headers, context);
 
-    try (final ContextScope scope = extractedContext.with(span).attach()) {
+    try (final ContextScope scope = context.with(span).attach()) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, channel, request, extractedContext);
+      DECORATE.onRequest(span, channel, request, context);
 
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);

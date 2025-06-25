@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.commonshttpclient.HttpHeadersInjectAdapter.SETTER;
@@ -17,7 +15,6 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -70,9 +67,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
 
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
-        DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator()
-            .inject(getCurrentContext().with(span).with(dsmContext), httpMethod, SETTER);
+        DECORATE.injectContext(getCurrentContext().with(span), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {
