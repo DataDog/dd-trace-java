@@ -1,9 +1,12 @@
 package datadog.smoketest.appsec
 
 import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
+
+import java.util.zip.GZIPInputStream
 
 class AppSecHttpMessageConverterSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -39,17 +42,8 @@ class AppSecHttpMessageConverterSmokeTest extends AbstractAppSecServerSmokeTest 
     given:
     def url = "http://localhost:${httpPort}/api_security/response"
     def body = [
-      source: 'AppSecSpringSmokeTest',
-      tests : [
-        [
-          name  : 'API Security samples only one request per endpoint',
-          status: 'SUCCESS'
-        ],
-        [
-          name  : 'test response schema extraction',
-          status: 'FAILED'
-        ]
-      ]
+      "main"    : [["key": "id001", "value": 1345.67], ["value": 1567.89, "key": "id002"]],
+      "nullable": null,
     ]
     def request = new Request.Builder()
       .url(url)
@@ -65,5 +59,12 @@ class AppSecHttpMessageConverterSmokeTest extends AbstractAppSecServerSmokeTest 
     def span = rootSpans.first()
     span.meta.containsKey('_dd.appsec.s.res.headers')
     span.meta.containsKey('_dd.appsec.s.res.body')
+    final schema = new JsonSlurper().parse(unzip(span.meta.get('_dd.appsec.s.res.body')))
+    assert schema == [["main": [[[["key": [8], "value": [16]]]], ["len": 2]], "nullable": [1]]]
+  }
+
+  private static byte[] unzip(final String text) {
+    final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
+    return inflaterStream.getBytes()
   }
 }
