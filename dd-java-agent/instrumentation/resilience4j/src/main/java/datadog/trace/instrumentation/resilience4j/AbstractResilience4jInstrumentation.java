@@ -19,13 +19,13 @@ public abstract class AbstractResilience4jInstrumentation extends InstrumenterMo
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DDContext",
-      packageName + ".DecoratorWithContext",
-      packageName + ".DecoratorWithContext$CheckedSupplierWithContext",
-      packageName + ".DecoratorWithContext$SupplierCompletionStageWithContext",
-      packageName + ".DecoratorWithContext$SupplierWithContext",
-      packageName + ".CheckedSupplierWithContext",
-      packageName + ".SupplierWithContext",
-      packageName + ".SupplierCompletionStageWithContext",
+      packageName + ".ContextHolder",
+      packageName + ".ContextHolder$CheckedSupplierWithContext",
+      packageName + ".ContextHolder$SupplierCompletionStageWithContext",
+      packageName + ".ContextHolder$SupplierWithContext",
+      packageName + ".AbstractResilience4jDecorator",
+      packageName + ".CircuitBreakerDecorator",
+      packageName + ".RetryDecorator",
     };
   }
 }

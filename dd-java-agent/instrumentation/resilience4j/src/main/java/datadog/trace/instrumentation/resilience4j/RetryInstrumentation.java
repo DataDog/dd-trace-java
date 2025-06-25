@@ -63,8 +63,8 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
         @Advice.Argument(value = 1) CheckedSupplier<?> inbound,
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
-          new DecoratorWithContext.CheckedSupplierWithContext(
-              outbound, inbound); // TODO pass decorator and a retry object
+          new ContextHolder.CheckedSupplierWithContext<>(
+              outbound, inbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -74,7 +74,7 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Argument(value = 1) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new DecoratorWithContext.SupplierWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierWithContext(outbound, inbound);
     }
   }
 
@@ -84,7 +84,7 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Argument(value = 2) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new DecoratorWithContext.SupplierCompletionStageWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }

@@ -34,7 +34,7 @@ public class FallbackCompletionStageInstrumentation extends FallbackAbstractInst
     public static void afterExecute(
         @Advice.Argument(value = 0) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new DecoratorWithContext.SupplierCompletionStageWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }

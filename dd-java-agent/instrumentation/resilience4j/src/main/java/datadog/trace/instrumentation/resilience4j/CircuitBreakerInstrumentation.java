@@ -63,7 +63,9 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1) CheckedSupplier<?> inbound,
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
-      outbound = new DecoratorWithContext.CheckedSupplierWithContext(outbound, inbound);
+      outbound =
+          new ContextHolder.CheckedSupplierWithContext<>(
+              outbound, inbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -73,7 +75,7 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new DecoratorWithContext.SupplierWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierWithContext(outbound, inbound);
     }
   }
 
@@ -83,7 +85,7 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Argument(value = 1) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new DecoratorWithContext.SupplierCompletionStageWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound, inbound);
     }
   }
 }
