@@ -9,3 +9,4 @@ GET     /welcomes                           controllers.SController.doGet(id: Op
 
 # AppSec endpoints for testing
 GET     /api_security/sampling/:statusCode  controllers.AppSecController.apiSecuritySampling(statusCode: Int, test: String)
+POST    /api_security/response              controllers.AppSecController.apiResponse()
