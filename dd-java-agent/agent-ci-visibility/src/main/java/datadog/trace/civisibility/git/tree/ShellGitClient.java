@@ -609,7 +609,7 @@ public class ShellGitClient implements GitClient {
     }
   }
 
-  private void addSafeDirectory() {
+  private void makeRepoRootSafeDirectory() {
     // Some CI envs check out the repo as a different user than the one running the command
     // This will avoid the "dubious ownership" error
     try {
@@ -674,7 +674,7 @@ public class ShellGitClient implements GitClient {
         ShellGitClient client =
             new ShellGitClient(
                 metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
-        client.addSafeDirectory();
+        client.makeRepoRootSafeDirectory();
         return client;
       } else {
         LOGGER.debug("Could not determine repository root, using no-op git client");
