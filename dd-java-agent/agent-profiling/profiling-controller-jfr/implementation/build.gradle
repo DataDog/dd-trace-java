@@ -26,6 +26,7 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
   main_java11CompileOnly project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
+  implementation project(':components:environment')
   implementation libs.slf4j
 
   testImplementation libs.bundles.mockito

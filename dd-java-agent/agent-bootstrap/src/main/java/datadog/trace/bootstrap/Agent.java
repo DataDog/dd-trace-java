@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isOracleJDK8;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -12,6 +12,8 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -873,12 +875,12 @@ public class Agent {
 
   private static boolean isSupportedAppSecArch() {
     final String arch = System.getProperty("os.arch");
-    if (Platform.isWindows()) {
+    if (OperatingSystem.isWindows()) {
       // TODO: Windows bindings need to be built for x86
       return "amd64".equals(arch) || "x86_64".equals(arch);
-    } else if (Platform.isMac()) {
+    } else if (OperatingSystem.isMacOs()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
-    } else if (Platform.isLinux()) {
+    } else if (OperatingSystem.isLinux()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
     }
     // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
@@ -997,7 +999,7 @@ public class Agent {
   }
 
   private static void initializeErrorTracking() {
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
@@ -1045,7 +1047,7 @@ public class Agent {
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !Platform.isWindows()) {
+      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
         try {
           return (ProfilingContextIntegration)
               AGENT_CLASSLOADER
