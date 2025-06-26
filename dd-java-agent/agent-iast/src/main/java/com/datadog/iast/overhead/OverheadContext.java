@@ -30,11 +30,10 @@ public class OverheadContext {
         public AtomicIntegerArray computeIfAbsent(
             String key,
             @NotNull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
-          AtomicIntegerArray prev = super.computeIfAbsent(key, mappingFunction);
           if (this.size() > GLOBAL_MAP_MAX_SIZE) {
             super.clear();
           }
-          return prev;
+          return super.computeIfAbsent(key, mappingFunction);
         }
       };
 
