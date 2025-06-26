@@ -10,6 +10,9 @@
       "flaky_test_retries_enabled": ${settings.flakyTestRetriesEnabled?c},
       "impacted_tests_enabled": ${settings.impactedTestsDetectionEnabled?c},
       "known_tests_enabled": ${settings.knownTestsEnabled?c},
+      <#if settings.defaultBranch??>
+        "default_branch": "${settings.defaultBranch}",
+      </#if>
       "early_flake_detection": {
         "enabled": ${settings.earlyFlakeDetectionSettings.enabled?c},
         "slow_test_retries": {
