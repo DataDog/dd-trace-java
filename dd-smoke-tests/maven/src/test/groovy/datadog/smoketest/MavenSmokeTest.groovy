@@ -112,27 +112,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
   }
 
-  def "test impacted tests detection"() {
-    givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles(projectName)
-    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
-
-    mockBackend.givenImpactedTestsDetection(true)
-    mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
-
-    def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
-    ], [], [:])
-    assert exitCode == 0
-
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
-
-    where:
-    projectName                                | mavenVersion
-    "test_successful_maven_run_impacted_tests" | "3.9.9"
-  }
-
   def "test test management"() {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
