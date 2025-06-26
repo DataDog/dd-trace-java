@@ -312,6 +312,9 @@ dependencies {
   sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
     transitive = false
   }
+  sharedShadowInclude project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow'), {
+    transitive = false
+  }
   traceShadowInclude project(':dd-trace-core')
 }
 
