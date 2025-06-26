@@ -2,6 +2,7 @@ package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -21,7 +22,8 @@ class DatadogProfilerRecordingTest {
   @BeforeEach
   void setup() throws Exception {
     Assume.assumeTrue(Platform.isLinux());
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.jvmAccess().getReasonNotLoaded());
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     Assume.assumeFalse(profiler.isActive());
     recording = (DatadogProfilerRecording) profiler.start();
@@ -39,7 +41,8 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testClose() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.javaProfiler().getReasonNotLoaded());
     assertTrue(Files.exists(recording.getRecordingFile()));
     recording.close();
     assertFalse(Files.exists(recording.getRecordingFile()));
@@ -47,7 +50,8 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testStop() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.javaProfiler().getReasonNotLoaded());
     RecordingData data = recording.stop();
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
@@ -55,7 +59,8 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testSnapshot() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.javaProfiler().getReasonNotLoaded());
     RecordingData data = recording.snapshot(Instant.now());
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
