@@ -1,6 +1,5 @@
 package datadog.trace.core.baggage;
 
-import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static java.util.Collections.emptyMap;
 
 import datadog.context.Context;
@@ -8,7 +7,6 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
-import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.core.util.PercentEscaper;
 import datadog.trace.core.util.PercentEscaper.Escaped;
@@ -30,29 +28,21 @@ public class BaggagePropagator implements Propagator {
   private final boolean extractBaggage;
   private final int maxItems;
   private final int maxBytes;
-  private final TracePropagationBehaviorExtract behaviorExtract;
 
   public BaggagePropagator(Config config) {
     this(
         config.isBaggageInject(),
         config.isBaggageExtract(),
         config.getTraceBaggageMaxItems(),
-        config.getTraceBaggageMaxBytes(),
-        config.getTracePropagationBehaviorExtract());
+        config.getTraceBaggageMaxBytes());
   }
 
   // use primarily for testing purposes
-  BaggagePropagator(
-      boolean injectBaggage,
-      boolean extractBaggage,
-      int maxItems,
-      int maxBytes,
-      TracePropagationBehaviorExtract behaviorExtract) {
+  BaggagePropagator(boolean injectBaggage, boolean extractBaggage, int maxItems, int maxBytes) {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
     this.maxItems = maxItems;
     this.maxBytes = maxBytes;
-    this.behaviorExtract = behaviorExtract;
   }
 
   @Override
@@ -114,11 +104,7 @@ public class BaggagePropagator implements Propagator {
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    if (!this.extractBaggage
-        || this.behaviorExtract == IGNORE
-        || context == null
-        || carrier == null
-        || visitor == null) {
+    if (!this.extractBaggage || context == null || carrier == null || visitor == null) {
       return context;
     }
     BaggageExtractor baggageExtractor = new BaggageExtractor();
