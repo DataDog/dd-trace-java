@@ -11,13 +11,18 @@ import io.vertx.pgclient.PgPool
 import io.vertx.sqlclient.*
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+import spock.lang.IgnoreIf
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import datadog.trace.api.Platform
 
+@IgnoreIf(reason = "A change in Locale.ROOT that was introduced in JDK 22 is not fixed until vertx-pg-client v4.5.1: https://github.com/eclipse-vertx/vertx-sql-client/pull/1394", value = {
+  Platform.isJavaVersionAtLeast(22)
+})
 class VertxPostgresSqlClientForkedTest extends AgentTestRunner {
   @AutoCleanup
   @Shared

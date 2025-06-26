@@ -13,6 +13,7 @@ import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.UserIdCollectionMode
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -50,6 +51,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
   AppSecConfigServiceImpl appSecConfigService
   SavedListeners listeners
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   void cleanup() {
     appSecConfigService?.close()
@@ -710,6 +712,51 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     cleanup:
     AppSecSystem.active = true
+  }
+
+  void 'InvalidRuleSetException is thrown when rules are not configured correctly' () {
+    setup:
+    // Mock WafMetricCollector
+    WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = wafMetricCollector
+
+    // Create a temporary file with invalid WAF configuration
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << '''{
+      "version": "2.2",
+      "rules": [
+        {
+          "id": "invalid-rule",
+          "name": "Invalid Rule",
+          "tags": {
+            "type": "invalid_type",
+            "category": "invalid_category"
+          },
+          "conditions": [
+            {
+              "operator": "invalid_operator",
+              "parameters": {
+                "invalid_param": "invalid_value"
+              }
+            }
+          ],
+          "type": "invalid_type",
+          "data": []
+        }
+      ]
+    }'''
+
+    when:
+    appSecConfigService.init()
+
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+    1 * wafMetricCollector.addWafConfigError(_ as Integer)
+    thrown RuntimeException
+
+    cleanup:
+    WafMetricCollector.INSTANCE = ORIGINAL_METRIC_COLLECTOR
+    p.toFile().delete()
   }
 
   private static AppSecFeatures autoUserInstrum(String mode) {
