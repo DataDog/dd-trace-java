@@ -258,7 +258,7 @@ public interface OverheadController {
         @Nullable final String httpMethod,
         @Nullable final String httpPath) {
 
-      if (ctx == null || type == null || ctx.requestMap == null || ctx.copyMap == null) {
+      if (ctx == null || type == null || ctx.getRequestMap() == null || ctx.getCopyMap() == null) {
         return false;
       }
 
@@ -266,18 +266,18 @@ public interface OverheadController {
 
       String currentEndpoint = httpMethod + " " + httpPath;
 
-      if (!ctx.requestMap.containsKey(currentEndpoint)) {
+      if (!ctx.getRequestMap().containsKey(currentEndpoint)) {
         AtomicIntegerArray globalArray =
             globalMap.computeIfAbsent(
                 currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
-        ctx.copyMap.put(currentEndpoint, toIntArray(globalArray));
+        ctx.getCopyMap().put(currentEndpoint, toIntArray(globalArray));
       }
 
-      ctx.requestMap.computeIfAbsent(
-          currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
-      int counter = ctx.requestMap.get(currentEndpoint).getAndIncrement(type.type());
+      ctx.getRequestMap()
+          .computeIfAbsent(currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+      int counter = ctx.getRequestMap().get(currentEndpoint).getAndIncrement(type.type());
       int storedCounter = 0;
-      int[] copyArray = ctx.copyMap.get(currentEndpoint);
+      int[] copyArray = ctx.getCopyMap().get(currentEndpoint);
       if (copyArray != null) {
         storedCounter = copyArray[type.type()];
       }

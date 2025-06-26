@@ -4,7 +4,6 @@ import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.util.NonBlockingSemaphore;
 import datadog.trace.api.iast.VulnerabilityTypes;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +29,7 @@ public class OverheadContext {
         public AtomicIntegerArray computeIfAbsent(
             String key,
             @NotNull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
-          if (this.size() > GLOBAL_MAP_MAX_SIZE) {
+          if (this.size() >= GLOBAL_MAP_MAX_SIZE) {
             super.clear();
           }
           return super.computeIfAbsent(key, mappingFunction);
@@ -38,10 +37,10 @@ public class OverheadContext {
       };
 
   // Snapshot of the globalMap for the current request
-  @Nullable final Map<String, int[]> copyMap;
+  private @Nullable final Map<String, int[]> copyMap;
   // Map of vulnerabilities per endpoint for the current request, needs to use AtomicIntegerArray
   // because it's possible to have concurrent updates in the same request
-  @Nullable final Map<String, AtomicIntegerArray> requestMap;
+  private @Nullable final Map<String, AtomicIntegerArray> requestMap;
 
   private final NonBlockingSemaphore availableVulnerabilities;
   private final boolean isGlobal;
@@ -56,8 +55,8 @@ public class OverheadContext {
             ? NonBlockingSemaphore.unlimited()
             : NonBlockingSemaphore.withPermitCount(vulnerabilitiesPerRequest);
     this.isGlobal = isGlobal;
-    this.requestMap = isGlobal ? null : new HashMap<>();
-    this.copyMap = isGlobal ? null : new HashMap<>();
+    this.requestMap = isGlobal ? null : new ConcurrentHashMap<>();
+    this.copyMap = isGlobal ? null : new ConcurrentHashMap<>();
   }
 
   public int getAvailableQuota() {
@@ -109,13 +108,17 @@ public class OverheadContext {
             }
           }
         });
-
-    // Clear the requestMap and copyMap related to this context
-    requestMap.clear();
-    copyMap.clear();
   }
 
   public boolean isGlobal() {
     return isGlobal;
+  }
+
+  public @Nullable Map<String, int[]> getCopyMap() {
+    return copyMap;
+  }
+
+  public @Nullable Map<String, AtomicIntegerArray> getRequestMap() {
+    return requestMap;
   }
 }
