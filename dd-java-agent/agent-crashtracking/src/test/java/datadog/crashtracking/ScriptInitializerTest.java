@@ -1,4 +1,4 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;

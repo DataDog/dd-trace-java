@@ -7,6 +7,8 @@ package datadog.trace.api.config;
  * documentation for details.
  */
 public final class CrashTrackingConfig {
+  public static final String CRASH_TRACKING_ENABLED = "crashtracking.enabled";
+  public static final boolean CRASH_TRACKING_ENABLED_DEFAULT = true;
 
   public static final String CRASH_TRACKING_TAGS = "crashtracking.tags";
 
@@ -21,6 +23,13 @@ public final class CrashTrackingConfig {
   // Not intended for production use
   public static final String CRASH_TRACKING_AGENTLESS = "crashtracking.agentless";
   public static final boolean CRASH_TRACKING_AGENTLESS_DEFAULT = false;
+
+  public static final String CRASH_TRACKING_START_EARLY = "crashtracking.debug.start-force-first";
+  public static final boolean CRASH_TRACKING_START_EARLY_DEFAULT = false;
+
+  public static final String CRASH_TRACKING_DISABLE_AUTOCONFIG =
+      "crashtracking.debug.autoconfig.disable";
+  public static final boolean CRASH_TRACKING_DISABLE_AUTOCONFIG_DEFAULT = false;
 
   private CrashTrackingConfig() {}
 }

@@ -1,16 +1,16 @@
-package com.datadog.crashtracking.parsers;
+package datadog.crashtracking.parsers;
 
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
-import com.datadog.crashtracking.dto.CrashLog;
-import com.datadog.crashtracking.dto.ErrorData;
-import com.datadog.crashtracking.dto.Metadata;
-import com.datadog.crashtracking.dto.OSInfo;
-import com.datadog.crashtracking.dto.ProcInfo;
-import com.datadog.crashtracking.dto.SemanticVersion;
-import com.datadog.crashtracking.dto.StackFrame;
-import com.datadog.crashtracking.dto.StackTrace;
 import datadog.common.version.VersionInfo;
+import datadog.crashtracking.dto.CrashLog;
+import datadog.crashtracking.dto.ErrorData;
+import datadog.crashtracking.dto.Metadata;
+import datadog.crashtracking.dto.OSInfo;
+import datadog.crashtracking.dto.ProcInfo;
+import datadog.crashtracking.dto.SemanticVersion;
+import datadog.crashtracking.dto.StackFrame;
+import datadog.crashtracking.dto.StackTrace;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
