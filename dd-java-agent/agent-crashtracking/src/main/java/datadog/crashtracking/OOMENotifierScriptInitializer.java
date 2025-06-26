@@ -1,17 +1,17 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
-import static com.datadog.crashtracking.ScriptInitializer.LOG;
-import static com.datadog.crashtracking.ScriptInitializer.PID_PREFIX;
-import static com.datadog.crashtracking.ScriptInitializer.RWXRWXRWX;
-import static com.datadog.crashtracking.ScriptInitializer.R_XR_XR_X;
-import static com.datadog.crashtracking.ScriptInitializer.findAgentJar;
-import static com.datadog.crashtracking.ScriptInitializer.getOomeNotifierTemplate;
-import static com.datadog.crashtracking.ScriptInitializer.writeConfig;
+import static datadog.crashtracking.Initializer.LOG;
+import static datadog.crashtracking.Initializer.RWXRWXRWX;
+import static datadog.crashtracking.Initializer.R_XR_XR_X;
+import static datadog.crashtracking.Initializer.findAgentJar;
+import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
+import static datadog.crashtracking.Initializer.getScriptPathFromArg;
+import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
+import static datadog.crashtracking.Initializer.writeConfig;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.FileVisitResult.CONTINUE;
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
 
 import datadog.trace.api.Config;
 import datadog.trace.util.PidHelper;
@@ -24,32 +24,35 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class OOMENotifierScriptInitializer {
-  private static final Pattern OOME_NOTIFIER_SCRIPT_PATTERN =
-      Pattern.compile("(.*?dd_oome_notifier[.](sh|bat))\\s+(%p)", CASE_INSENSITIVE);
+  private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
 
   private OOMENotifierScriptInitializer() {}
 
   // @VisibleForTests
   static void initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
-      LOG.debug("'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
+      LOG.debug(
+          SEND_TELEMETRY,
+          "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
       return;
     }
-    Path scriptPath = getOOMEScripPath(onOutOfMemoryVal);
+    Path scriptPath = getOOMEScriptPath(onOutOfMemoryVal);
     if (scriptPath == null) {
-      LOG.debug(
-          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
-          onOutOfMemoryVal);
+      LOG.error(
+          SEND_TELEMETRY,
+          "OOME notifier script value ("
+              + onOutOfMemoryVal
+              + ") does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.");
       return;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
-      LOG.warn("Unable to locate the agent jar. OOME notification will not work properly.");
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Unable to locate the agent jar. OOME notification will not work properly.");
       return;
     }
     if (!copyOOMEscript(scriptPath)) {
@@ -65,12 +68,9 @@ public final class OOMENotifierScriptInitializer {
         .collect(Collectors.joining(","));
   }
 
-  private static Path getOOMEScripPath(String onOutOfMemoryVal) {
-    Matcher m = OOME_NOTIFIER_SCRIPT_PATTERN.matcher(onOutOfMemoryVal);
-    if (!m.find()) {
-      return null;
-    }
-    return Paths.get(m.group(1));
+  private static Path getOOMEScriptPath(String onOutOfMemoryVal) {
+    String path = getScriptPathFromArg(onOutOfMemoryVal, OOME_NOTIFIER_SCRIPT_PREFIX);
+    return path == null ? null : Paths.get(path);
   }
 
   private static boolean copyOOMEscript(Path scriptPath) {
@@ -81,41 +81,59 @@ public final class OOMENotifierScriptInitializer {
     ScriptCleanupVisitor.run(scriptDirectory);
 
     try {
-      Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+      if (Files.exists(scriptDirectory)) {
+        // can be safely ignored; if the folder exists we will just reuse it
+        if (!Files.isWritable(scriptDirectory)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Read only directory "
+                  + scriptDirectory
+                  + ". OOME notification will not work properly.");
+          return false;
+        }
+      } else {
+        Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+      }
     } catch (UnsupportedOperationException e) {
       LOG.warn(
-          "Unsupported permissions {} for {}. OOME notification will not work properly.",
-          RWXRWXRWX,
-          scriptDirectory);
+          SEND_TELEMETRY,
+          "Unsupported permissions '"
+              + RWXRWXRWX
+              + "' for "
+              + scriptDirectory
+              + ". OOME notification will not work properly.");
       return false;
     } catch (FileAlreadyExistsException ignored) {
-      // can be safely ignored; if the folder exists we will just reuse it
-      if (!Files.isWritable(scriptDirectory)) {
-        LOG.warn(
-            "Read only directory {}. OOME notification will not work properly.", scriptDirectory);
-        return false;
-      }
+      LOG.warn(
+          SEND_TELEMETRY, "Path " + scriptDirectory + " already exists and is not a directory.");
+      return false;
     } catch (IOException e) {
       LOG.warn(
-          "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
-          scriptDirectory);
+          SEND_TELEMETRY,
+          "Failed to create writable OOME script folder "
+              + scriptDirectory
+              + ". OOME notification will not work properly.");
       return false;
     }
 
     try {
-      Files.copy(getOomeNotifierTemplate(), scriptPath, REPLACE_EXISTING);
+      // do not overwrite existing
+      if (!Files.exists(scriptPath)) {
+        Files.copy(getOomeNotifierTemplate(), scriptPath);
+      }
       Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
     } catch (IOException e) {
       LOG.warn(
-          "Failed to copy OOME script {}. OOME notification will not work properly.", scriptPath);
+          SEND_TELEMETRY,
+          "Failed to copy OOME script "
+              + scriptPath
+              + ". OOME notification will not work properly.");
       return false;
     }
     return true;
   }
 
   private static class ScriptCleanupVisitor implements FileVisitor<Path> {
-    private static final Pattern PID_PATTERN = Pattern.compile(".*?" + PID_PREFIX + "(\\d+)");
-
     private Set<String> pidSet;
 
     static void run(Path dir) {
@@ -142,17 +160,16 @@ public final class OOMENotifierScriptInitializer {
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
       String fileName = file.getFileName().toString();
-      Matcher matcher = PID_PATTERN.matcher(fileName);
-      if (matcher.find()) {
-        String pid = matcher.group(1);
-        if (pid != null && !pid.equals(PidHelper.getPid())) {
-          if (this.pidSet == null) {
-            this.pidSet = PidHelper.getJavaPids(); // only fork jps when required
-          }
-          if (!this.pidSet.contains(pid)) {
-            LOG.debug("Cleaning process specific file {}", file);
-            Files.delete(file);
-          }
+      String pid = pidFromSpecialFileName(fileName);
+      if (pid != null && !pid.equals(PidHelper.getPid())) {
+        if (this.pidSet == null) {
+          // if pidSet is not initialized, initialize it
+          // this will fork jps to get the list of Java PIDs
+          this.pidSet = PidHelper.getJavaPids();
+        }
+        if (!this.pidSet.contains(pid)) {
+          LOG.debug("Cleaning process specific file {}", file);
+          Files.delete(file);
         }
       }
       return CONTINUE;
