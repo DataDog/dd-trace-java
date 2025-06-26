@@ -3,7 +3,6 @@ package datadog.trace.bootstrap;
 import static datadog.trace.bootstrap.SystemUtils.getPropertyOrEnvVar;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import bootstrap.environment.SystemProperties;
 import datadog.cli.CLIHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -65,7 +64,7 @@ public final class AgentBootstrap {
     BootstrapInitializationTelemetry initTelemetry;
 
     // TODO Example calls that break Gradle smoke tests
-    String javaVersion = SystemProperties.get("java.version");
+    // String javaVersion = SystemProperties.get("java.version");
     // String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
 
     try {
