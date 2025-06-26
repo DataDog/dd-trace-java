@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
   id "com.gradleup.shadow"
 }
@@ -20,6 +22,10 @@ jar {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
+
+  // overriding the default timeout set in configure_tests.gradle, as Maven smoke
+  // tests might run for a longer duration
+  timeout = Duration.ofMinutes(20)
 
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
