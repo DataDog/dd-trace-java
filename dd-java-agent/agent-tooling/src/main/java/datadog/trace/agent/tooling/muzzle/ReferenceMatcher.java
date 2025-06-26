@@ -4,6 +4,8 @@ import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.api.Pair;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.reflect.Field;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +16,7 @@ import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
+// import sun.misc.URLClassPath;
 
 /** Matches a set of references against a classloader. */
 public class ReferenceMatcher {
@@ -71,6 +74,15 @@ public class ReferenceMatcher {
   public List<Reference.Mismatch> getMismatchedReferenceSources(ClassLoader loader) {
     List<Mismatch> mismatches = new ArrayList<>();
     TypePool typePool = SharedTypePools.typePool(loader);
+    // try {
+    //   Field ucpf = URLClassLoader.class.getDeclaredField("ucp");
+    //   ucpf.setAccessible(true);
+    //   URLClassPath ucp = (URLClassPath) ucpf.get(loader);
+    //   String url = ucp.getURLs()[0].getPath();
+    //   System.out.println("=======> " + url);
+    // } catch (NoSuchFieldException | IllegalAccessException e) {
+    //   throw new RuntimeException(e);
+    // }
     for (Reference reference : references) {
       checkReference(typePool, reference, loader, mismatches);
     }
