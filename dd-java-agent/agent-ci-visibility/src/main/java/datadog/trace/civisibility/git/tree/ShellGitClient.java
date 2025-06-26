@@ -980,6 +980,23 @@ public class ShellGitClient implements GitClient {
     }
   }
 
+  private void makeRepoRootSafeDirectory() {
+    // Some CI envs check out the repo as a different user than the one running the command
+    // This will avoid the "dubious ownership" error
+    try {
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          "git",
+          "config",
+          "--global",
+          "--add",
+          "safe.directory",
+          repoRoot);
+    } catch (IOException | TimeoutException | InterruptedException e) {
+      LOGGER.debug("Failed to add safe directory", e);
+    }
+  }
+
   @Override
   public String toString() {
     return "GitClient{" + repoRoot + "}";
@@ -1025,8 +1042,11 @@ public class ShellGitClient implements GitClient {
     public GitClient create(@Nullable String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
       if (repoRoot != null) {
-        return new ShellGitClient(
-            metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+        ShellGitClient client =
+            new ShellGitClient(
+                metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+        client.makeRepoRootSafeDirectory();
+        return client;
       } else {
         LOGGER.debug("Could not determine repository root, using no-op git client");
         return NoOpGitClient.INSTANCE;
