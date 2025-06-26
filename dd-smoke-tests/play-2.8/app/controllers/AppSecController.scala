@@ -10,4 +10,11 @@ class AppSecController @Inject() (cc: ControllerComponents) extends AbstractCont
     Status(statusCode)("EXECUTED")
   }
 
+  def apiResponse(): Action[AnyContent] = Action { request =>
+    request.body match {
+      case AnyContentAsJson(data) => Ok(data).as("application/json")
+      case _                      => BadRequest("No JSON")
+    }
+  }
+
 }
