@@ -48,6 +48,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.telemetry.LogCollector;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -263,7 +264,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           "Invalid rule during waf config update for config key {}: {}",
           configKey,
           e.wafDiagnostics);
-
+      if (e.wafDiagnostics.getNumConfigError() > 0) {
+        WafMetricCollector.get().addWafConfigError(e.wafDiagnostics.getNumConfigError());
+      }
       // TODO: Propagate diagostics back to remote config apply_error
 
       initReporter.setReportForPublication(e.wafDiagnostics);

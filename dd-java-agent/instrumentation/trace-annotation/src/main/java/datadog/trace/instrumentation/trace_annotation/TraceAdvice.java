@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.trace_annotation;
 
-import static datadog.trace.bootstrap.debugger.DebuggerContext.*;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;

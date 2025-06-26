@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.codeorigin;
 
-import static datadog.trace.bootstrap.debugger.DebuggerContext.*;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 
 import java.lang.reflect.Method;
