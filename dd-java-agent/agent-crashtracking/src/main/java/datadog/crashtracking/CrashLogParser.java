@@ -1,7 +1,7 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
-import com.datadog.crashtracking.dto.CrashLog;
-import com.datadog.crashtracking.parsers.HotspotCrashLogParser;
+import datadog.crashtracking.dto.CrashLog;
+import datadog.crashtracking.parsers.HotspotCrashLogParser;
 
 public final class CrashLogParser {
   public static CrashLog fromHotspotCrashLog(String logText) {

@@ -1,4 +1,4 @@
-package com.datadog.crashtracking.dto;
+package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
 import java.util.Collections;

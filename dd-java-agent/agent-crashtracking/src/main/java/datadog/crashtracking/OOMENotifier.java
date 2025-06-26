@@ -1,4 +1,4 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 
