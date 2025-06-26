@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
@@ -266,12 +265,11 @@ public interface OverheadController {
       int numberOfVulnerabilities = VulnerabilityTypes.STRINGS.length;
 
       String currentEndpoint = httpMethod + " " + httpPath;
-      Set<String> endpoints = ctx.requestMap.keySet();
 
-      if (!endpoints.contains(currentEndpoint)) {
+      if (!ctx.requestMap.containsKey(currentEndpoint)) {
         AtomicIntegerArray globalArray =
-            globalMap.getOrDefault(
-                currentEndpoint, new AtomicIntegerArray(numberOfVulnerabilities));
+            globalMap.computeIfAbsent(
+                currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
         ctx.copyMap.put(currentEndpoint, toIntArray(globalArray));
       }
 
