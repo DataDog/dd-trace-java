@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingScope;
@@ -43,7 +44,8 @@ class DatadogProfilerTest {
 
   @Test
   void test() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.javaProfiler().getReasonNotLoaded());
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     assertFalse(profiler.enabledModes().isEmpty());
 
@@ -76,7 +78,8 @@ class DatadogProfilerTest {
   @ParameterizedTest
   @MethodSource("profilingModes")
   void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assume.assumeNoException(
+        "Profiler not available", DdprofLibraryLoader.javaProfiler().getReasonNotLoaded());
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(configProvider(cpu, wall, alloc, memleak));
 
