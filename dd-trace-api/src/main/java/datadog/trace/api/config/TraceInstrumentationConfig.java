@@ -58,6 +58,8 @@ public final class TraceInstrumentationConfig {
       "trace.http.client.tag.query-string";
   public static final String HTTP_CLIENT_TAG_HEADERS = "http.client.tag.headers";
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
+  public static final String HTTP_URL_CONNECTION_ERRORS_ENABLED =
+      "trace.http-url-connection.errors.enabled";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX =
       "trace.db.client.split-by-instance.type.suffix";
