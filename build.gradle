@@ -35,13 +35,17 @@ def isCI = System.getenv("CI") != null
 
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/scm.gradle"
+
 spotless {
   // only resolve the spotless dependencies once in the build
   predeclareDeps()
 }
+
 spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
+    removeUnusedImports()
+
     // This is the last Google Java Format version that supports Java 8
     googleJavaFormat('1.7')
   }
