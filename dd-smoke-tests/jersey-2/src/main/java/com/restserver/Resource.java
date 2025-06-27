@@ -141,11 +141,11 @@ public class Resource {
   }
 
   @Path("/api_security/response")
-  @GET
+  @POST
   @Produces(MediaType.APPLICATION_JSON)
-  public Response bodyJson() {
-    TestEntity testEntity = new TestEntity("testing", "test");
-    return Response.ok().entity(testEntity).build();
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Response bodyJson(RequestBody input) {
+    return Response.ok(input).build();
   }
 
   @GET

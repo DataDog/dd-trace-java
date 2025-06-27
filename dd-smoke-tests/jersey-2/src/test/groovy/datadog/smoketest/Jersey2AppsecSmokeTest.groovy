@@ -1,9 +1,16 @@
 package datadog.smoketest
 
 import datadog.smoketest.appsec.AbstractAppSecServerSmokeTest
+import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.Platform
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
+
+import java.util.zip.GZIPInputStream
 
 class Jersey2AppsecSmokeTest extends AbstractAppSecServerSmokeTest{
 
@@ -62,9 +69,14 @@ class Jersey2AppsecSmokeTest extends AbstractAppSecServerSmokeTest{
   void 'test response schema extraction'() {
     given:
     def url = "http://localhost:${httpPort}/hello/api_security/response"
+    def client = OkHttpUtils.clientBuilder().build()
+    def body = [
+      "main"    : [["key": "id001", "value": 1345.67], ["value": 1567.89, "key": "id002"]],
+      "nullable": null,
+    ]
     def request = new Request.Builder()
       .url(url)
-      .get()
+      .post(RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
       .build()
 
     when:
@@ -76,5 +88,12 @@ class Jersey2AppsecSmokeTest extends AbstractAppSecServerSmokeTest{
     def span = rootSpans.first()
     span.meta.containsKey('_dd.appsec.s.res.headers')
     span.meta.containsKey('_dd.appsec.s.res.body')
+    final schema = new JsonSlurper().parse(unzip(span.meta.get('_dd.appsec.s.res.body')))
+    assert schema == [["main": [[[["key": [8], "value": [16]]]], ["len": 2]], "nullable": [1]]]
+  }
+
+  private static byte[] unzip(final String text) {
+    final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
+    return inflaterStream.getBytes()
   }
 }
