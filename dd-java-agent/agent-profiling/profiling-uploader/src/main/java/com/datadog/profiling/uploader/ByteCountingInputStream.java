@@ -15,7 +15,9 @@ final class ByteCountingInputStream extends InputStream {
   @Override
   public int read() throws IOException {
     int data = source.read();
-    readBytes++;
+    if (data >= 0) {
+      readBytes++;
+    }
     return data;
   }
 

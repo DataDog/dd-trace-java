@@ -24,7 +24,7 @@ buildscript {
   }
 }
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 apply from: "$rootDir/gradle/java.gradle"
 

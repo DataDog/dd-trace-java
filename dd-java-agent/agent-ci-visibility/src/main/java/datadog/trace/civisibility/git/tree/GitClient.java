@@ -73,6 +73,10 @@ public interface GitClient {
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
+  String getBaseCommitSha(@Nullable String baseBranch, @Nullable String defaultBranch)
+      throws IOException, TimeoutException, InterruptedException;
+
+  @Nullable
   LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException;
 
