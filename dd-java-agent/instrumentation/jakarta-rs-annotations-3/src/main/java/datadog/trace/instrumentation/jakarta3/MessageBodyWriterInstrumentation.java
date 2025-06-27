@@ -49,8 +49,8 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class MessageBodyWriterAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void before(
         @Advice.Argument(0) Object entity,
         @Advice.Argument(4) MediaType mediaType,
         @ActiveRequestContext RequestContext reqCtx,
