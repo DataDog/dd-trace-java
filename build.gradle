@@ -104,7 +104,10 @@ nexusPublishing {
       }
     } else {
       // see https://github.com/gradle-nexus/publish-plugin#publishing-to-maven-central-via-sonatype-central
-      sonatype {
+      // Also for official doc
+      // staging repo publishing https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/#configuration
+      // snapshot publishing https://central.sonatype.org/publish/publish-portal-snapshots/#publishing-via-other-methods
+sonatype {
         nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
         snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
         username = System.getenv("SONATYPE_USERNAME")
