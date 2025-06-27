@@ -52,7 +52,7 @@ public class OkHttpUtils {
   }
 
   public static OkHttpClient.Builder clientBuilder() {
-    final TimeUnit unit = TimeUnit.HOURS;
+    final TimeUnit unit = TimeUnit.MINUTES;
     return new OkHttpClient.Builder()
         .addInterceptor(EXPECT_CONTINUE_INTERCEPTOR)
         .addInterceptor(LOGGING_INTERCEPTOR)
