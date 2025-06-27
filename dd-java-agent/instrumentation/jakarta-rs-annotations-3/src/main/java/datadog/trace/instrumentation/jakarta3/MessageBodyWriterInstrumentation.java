@@ -59,7 +59,6 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      // TODO check if  this works or is better to use JSON MediaType
       if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
         return;
       }
