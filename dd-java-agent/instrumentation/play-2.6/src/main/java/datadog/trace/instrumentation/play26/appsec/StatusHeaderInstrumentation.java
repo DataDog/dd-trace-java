@@ -17,12 +17,10 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
-import play.mvc.StatusHeader;
 
 @AutoService(InstrumenterModule.class)
 public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
@@ -50,7 +48,9 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
+        named("sendJson")
+            .and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode")))
+            .and(takesArgument(1, named("com.fasterxml.jackson.core.JsonEncoding"))),
         StatusHeaderInstrumentation.class.getName() + "$StatusHeaderSendJsonAdvice");
   }
 
@@ -58,17 +58,9 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   public static class StatusHeaderSendJsonAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before() {
-      CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class);
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
-        @Advice.Argument(0) final JsonNode json, @ActiveRequestContext RequestContext reqCtx) {
-      final int depth = CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
-      if (depth > 0) {
-        return;
-      }
+    static void before(
+        @Advice.Argument(0) final JsonNode json,
+        @ActiveRequestContext final RequestContext reqCtx) {
 
       if (json == null) {
         return;

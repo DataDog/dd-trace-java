@@ -34,7 +34,9 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
+        named("sendJson")
+            .and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode")))
+            .and(takesArgument(1, named("com.fasterxml.jackson.core.JsonEncoding"))),
         packageName + ".StatusHeaderSendJsonAdvice");
   }
 }
