@@ -33,12 +33,8 @@ import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.util.SizeCheckedInputStream;
 import datadog.trace.util.TagsHelper;
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
@@ -155,8 +151,14 @@ public class DebuggerAgent {
     String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
-      loadFromFile(
-          probeFilePath, configurationUpdater, config.getDynamicInstrumentationMaxPayloadSize());
+      Configuration configuration =
+          ConfigurationFileLoader.from(
+              probeFilePath, config.getDynamicInstrumentationMaxPayloadSize());
+      if (configuration != null) {
+        LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
+        configurationUpdater.accept(
+            ConfigurationAcceptor.Source.LOCAL_FILE, configuration.getDefinitions());
+      }
       return;
     }
     if (configurationPoller != null) {
@@ -328,30 +330,6 @@ public class DebuggerAgent {
         new SourceFileTrackingTransformer(finder);
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
-  }
-
-  private static void loadFromFile(
-      Path probeFilePath, ConfigurationUpdater configurationUpdater, long maxPayloadSize) {
-    LOGGER.debug("try to load from file...");
-    try (InputStream inputStream =
-        new SizeCheckedInputStream(new FileInputStream(probeFilePath.toFile()), maxPayloadSize)) {
-      byte[] buffer = new byte[4096];
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream(4096);
-      int bytesRead;
-      do {
-        bytesRead = inputStream.read(buffer);
-        if (bytesRead > -1) {
-          outputStream.write(buffer, 0, bytesRead);
-        }
-      } while (bytesRead > -1);
-      Configuration configuration =
-          DebuggerProductChangesListener.Adapter.deserializeConfiguration(
-              outputStream.toByteArray());
-      LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
-      configurationUpdater.accept(REMOTE_CONFIG, configuration.getDefinitions());
-    } catch (IOException ex) {
-      LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
-    }
   }
 
   private static void subscribeConfigurationPoller(
