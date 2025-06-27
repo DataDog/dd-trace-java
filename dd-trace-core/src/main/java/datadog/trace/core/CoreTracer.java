@@ -4,7 +4,7 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
-import static datadog.trace.api.TracePropagationBehaviorExtract.RESTART;
+import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
@@ -716,7 +716,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (config.isDataStreamsEnabled()) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
-    if (config.isBaggagePropagationEnabled()) {
+    if (config.isBaggagePropagationEnabled()
+        && config.getTracePropagationBehaviorExtract() != IGNORE) {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
     }
 
