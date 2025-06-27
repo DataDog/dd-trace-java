@@ -127,9 +127,6 @@ class OverheadContextTest extends DDSpecification {
     then:
     // Since quota > 0, we remove any global entry for "endpoint" (none here)
     OverheadContext.globalMap.isEmpty()
-    // Per-request and copy maps are cleared
-    ctx.requestMap.isEmpty()
-    ctx.copyMap.isEmpty()
   }
 
   void "resetMaps merges and updates global entry when quota consumed "() {

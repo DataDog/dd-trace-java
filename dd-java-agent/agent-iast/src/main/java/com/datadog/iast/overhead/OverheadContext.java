@@ -81,9 +81,6 @@ public class OverheadContext {
     if (getAvailableQuota() > 0) {
       // clean endpoints from globalMap
       endpoints.forEach(globalMap::remove);
-      // Clear the requestMap and copyMap related to this context
-      requestMap.clear();
-      copyMap.clear();
       return;
     }
     // If the budget is consumed, we need to merge the requestMap into the globalMap

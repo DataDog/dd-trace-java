@@ -266,18 +266,25 @@ public interface OverheadController {
 
       String currentEndpoint = httpMethod + " " + httpPath;
 
-      if (!ctx.getRequestMap().containsKey(currentEndpoint)) {
+      AtomicIntegerArray requestArray = ctx.getRequestMap().get(currentEndpoint);
+      int[] copyArray;
+
+      if (requestArray == null) {
         AtomicIntegerArray globalArray =
             globalMap.computeIfAbsent(
                 currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
-        ctx.getCopyMap().put(currentEndpoint, toIntArray(globalArray));
+        copyArray = toIntArray(globalArray);
+        ctx.getCopyMap().put(currentEndpoint, copyArray);
+        requestArray =
+            ctx.getRequestMap()
+                .computeIfAbsent(
+                    currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+      } else {
+        copyArray = ctx.getCopyMap().get(currentEndpoint);
       }
 
-      ctx.getRequestMap()
-          .computeIfAbsent(currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
-      int counter = ctx.getRequestMap().get(currentEndpoint).getAndIncrement(type.type());
+      int counter = requestArray.getAndIncrement(type.type());
       int storedCounter = 0;
-      int[] copyArray = ctx.getCopyMap().get(currentEndpoint);
       if (copyArray != null) {
         storedCounter = copyArray[type.type()];
       }
