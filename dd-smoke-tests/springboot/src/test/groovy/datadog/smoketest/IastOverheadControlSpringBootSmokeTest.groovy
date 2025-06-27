@@ -17,6 +17,7 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
 
     List<String> command = []
     command.add(javaPath())
+    command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
@@ -36,57 +37,89 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     ]
   }
 
-  void 'test'() {
+  //  void 'test'() {
+  //    given:
+  //    // prepare a list of exactly three GET requests with path and query param
+  //    def requests = []
+  //    for (int i = 1; i <= 3; i++) {
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/multiple_vulns/${i}/?param=value${i}")
+  //        .get()
+  //        .build())
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/multiple_vulns-2/${i}/?param=value${i}")
+  //        .get()
+  //        .build())
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/multiple_vulns/${i}")
+  //        .post(new FormBody.Builder().add('param', "value${i}").build())
+  //        .build())
+  //    }
+  //
+  //
+  //    when:
+  //    requests.each { req ->
+  //      client.newCall(req as Request).execute()
+  //    }
+  //
+  //    then: 'check first get mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns'}
+  //    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns' }
+  //    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'MD2'}
+  //
+  //    and: 'check second get mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns2'}
+  //    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns2' }
+  //    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns2'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns2'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'MD2'}
+  //
+  //    and: 'check post mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+  //    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+  //    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulnsPost'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost'&& vul.evidence.value == 'MD2'}
+  //  }
+
+  void 'test different vulns in the same endpoint'() {
     given:
     // prepare a list of exactly three GET requests with path and query param
     def requests = []
-    for (int i = 1; i <= 3; i++) {
+    for (int i = 1; i <= 10; i++) {
       requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/multiple_vulns/${i}/?param=value${i}")
+        .url("http://localhost:${httpPort}/different_vulns/1")
         .get()
         .build())
       requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/multiple_vulns-2/${i}/?param=value${i}")
+        .url("http://localhost:${httpPort}/different_vulns/2")
         .get()
-        .build())
-      requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/multiple_vulns/${i}")
-        .post(new FormBody.Builder().add('param', "value${i}").build())
         .build())
     }
-
 
     when:
     requests.each { req ->
       client.newCall(req as Request).execute()
     }
 
-    then: 'check first get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns'}
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns' }
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns' && vul.evidence.value == 'MD2'}
-
-    and: 'check second get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulns2'}
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulns2' }
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulns2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulns2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulns2' && vul.evidence.value == 'MD2'}
-
-    and: 'check post mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
-    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'multipleVulnsPost'}
-    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'multipleVulnsPost'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'multipleVulnsPost'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'multipleVulnsPost'&& vul.evidence.value == 'MD2'}
+    then:
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'NO_SAMESITE_COOKIE' && vul.location.method == 'differentVulns'}
+    hasVulnerability { vul -> vul.type == 'NO_HTTPONLY_COOKIE' && vul.location.method == 'differentVulns' }
+    hasVulnerability { vul -> vul.type == 'INSECURE_COOKIE' && vul.location.method == 'differentVulns'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' && vul.location.method == 'differentVulns'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'MD2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'MD5'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'differentVulns' && vul.evidence.value == 'RIPEMD128'}
   }
 
 }
