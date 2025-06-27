@@ -225,7 +225,7 @@ build_tests:
   script:
     - |
       if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$CI_DEFAULT_BRANCH"
+        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=$DDCI_PULL_REQUEST_TARGET_SHA"
       fi
     - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
@@ -333,7 +333,7 @@ test_published_artifacts:
   script:
     - |
       if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$CI_DEFAULT_BRANCH"
+        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=$DDCI_PULL_REQUEST_TARGET_SHA"
       fi
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
@@ -470,7 +470,7 @@ muzzle-dep-report:
   script:
     - |
       if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$CI_DEFAULT_BRANCH"
+        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=$DDCI_PULL_REQUEST_TARGET_SHA"
       fi
     - >
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
