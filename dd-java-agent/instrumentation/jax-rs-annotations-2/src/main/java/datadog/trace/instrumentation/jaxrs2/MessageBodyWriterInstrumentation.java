@@ -58,11 +58,7 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
     static void before(
         @Advice.Argument(0) Object entity,
         @Advice.Argument(4) MediaType mediaType,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown Throwable t) {
-      if (t != null) {
-        return;
-      }
+        @ActiveRequestContext RequestContext reqCtx) {
 
       if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
         return;
