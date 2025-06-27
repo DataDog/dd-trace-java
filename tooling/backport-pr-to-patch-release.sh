@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# PATCH_RELEASE_NAME should be the name of the release that is being done without the patch number.
+# PATCH_RELEASE_NAME should be the name of the release that is being done without the patch number. (e.g. v1.2.x)
 PATCH_RELEASE_NAME=$1
 PATCH_RELEASE_BRANCH=release/$PATCH_RELEASE_NAME
 PR_NUMBER=$2
@@ -23,7 +23,7 @@ if [ -z "$PATCH_RELEASE_NAME" ]; then
 fi
 # Check patch release name does not start with "release/"
 if [[ "$PATCH_RELEASE_NAME" =~ ^release/.* ]]; then
-    echo "Patch release name should not be the same as the release branch name. Only include the release name without patch number. (e.g. 1.2.x)"
+    echo "Patch release name should not be the same as the release branch name. Only include the release name without patch number. (e.g. v1.2.x)"
     exit 1
 fi
 # Check PR number is provided
