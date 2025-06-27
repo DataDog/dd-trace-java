@@ -740,8 +740,6 @@ deploy_to_sonatype:
       when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
-    - if: '$CI_COMMIT_BRANCH == "sarahchen6/migrate-to-central"'
-      when: on_success
     # Do not deploy release candidate versions
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
