@@ -16,6 +16,7 @@ spotless {
   if (project.plugins.hasPlugin('java')) {
     java {
       toggleOffOn()
+      removeUnusedImports()
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
       // ignore embedded test projects
