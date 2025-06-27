@@ -114,7 +114,7 @@ public class IastSamplingController {
       } catch (IOException e) {
         // Ignore IOException
       }
-    } else {
+    } else if (i == 2) {
       // weak hash
       MessageDigest.getInstance("MD2").digest("hash3".getBytes(StandardCharsets.UTF_8));
       // weak hash
