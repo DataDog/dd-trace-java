@@ -4,8 +4,6 @@ ext {
   // By default tests with be compiled for `minJavaVersionForTests` version,
   // but in this case we would like to avoid this since we would like to run with ZULU8
   skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
