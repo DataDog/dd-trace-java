@@ -72,7 +72,7 @@ class FallbackTest extends AgentTestRunner {
       Decorators.ofSupplier{
         serviceCallErr(new IllegalStateException("test"))
       }
-      .withFallback(List.of(IllegalStateException.class), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
+      .withFallback(List.of(IllegalStateException), {t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>),
     ]
   }
 
@@ -109,11 +109,13 @@ class FallbackTest extends AgentTestRunner {
     value
   }
 
-  <T> T serviceCallErr(IllegalStateException e) {
+  def serviceCallErr(IllegalStateException e) {
     def span = AgentTracer.startSpan("test", "serviceCall")
-    try (def ignored = AgentTracer.activateSpan(span)) {
+    def scope = AgentTracer.activateSpan(span)
+    try {
       throw e
     } finally {
+      scope.close()
       span.finish()
     }
   }

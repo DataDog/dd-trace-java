@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import io.github.resilience4j.bulkhead.Bulkhead
+import io.github.resilience4j.cache.Cache
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.core.functions.CheckedFunction
 import io.github.resilience4j.core.functions.CheckedSupplier
@@ -16,13 +18,19 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class StackedDecoratorsTest extends AgentTestRunner {
 
+  //TODO ideally we should test all possible combination of decorators in different orders and different kind to make sure the ContextHolder is constructed only once per stack
+  // If some intermediate instrumentation is missing it will result in two separate ContextHolder instances and as a result two separate spans.
+
   def "happy path sync test"() {
     when:
     Supplier<String> supplier = Decorators
       .ofSupplier{serviceCall("foobar", "serviceCall")}
       .withCircuitBreaker(CircuitBreaker.ofDefaults("A"))
+      //      .withRateLimiter(RateLimiter.ofDefaults("L"))
       .withRetry(Retry.ofDefaults("R"))
+      //      .withBulkhead(Bulkhead.ofDefaults("B"))
       .withFallback({ t -> serviceCall("fallbackResult", "fallbackCall") } as Function<Throwable, String>)
+      //      .withCache(Cache.of(Caching.getCache("cacheName", String.class, String.class)))
       .decorate()
 
     then:

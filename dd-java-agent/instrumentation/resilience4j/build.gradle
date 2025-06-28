@@ -37,4 +37,17 @@ dependencies {
 
   testImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
   latestDepTestImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.+'
+
+  // TODO extract r4j-reactor to a separate module
+  compileOnly group: 'io.github.resilience4j', name: 'resilience4j-reactor', version: '2.0.0'
+
+  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
+  testImplementation group: 'io.github.resilience4j', name: 'resilience4j-reactor', version: '2.0.0'
+
+  // include other instrumentations that we rely upon
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:java-concurrent') // ???
+
+
 }
