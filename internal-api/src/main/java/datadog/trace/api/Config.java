@@ -427,7 +427,7 @@ public class Config {
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
-  private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
+  private final int dynamicInstrumentationLocalVarHoistingLevel;
   private final boolean symbolDatabaseEnabled;
   private final boolean symbolDatabaseForceUpload;
   private final int symbolDatabaseFlushThreshold;
@@ -1735,10 +1735,10 @@ public class Config {
             configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
     dynamicInstrumentationRedactedTypes =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
-    dynamicInstrumentationHoistLocalVarsEnabled =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
+    dynamicInstrumentationLocalVarHoistingLevel =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL);
     symbolDatabaseEnabled =
         configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
     symbolDatabaseForceUpload =
@@ -3426,8 +3426,8 @@ public class Config {
     return dynamicInstrumentationRedactedTypes;
   }
 
-  public boolean isDynamicInstrumentationHoistLocalVarsEnabled() {
-    return dynamicInstrumentationHoistLocalVarsEnabled;
+  public int getDynamicInstrumentationLocalVarHoistingLevel() {
+    return dynamicInstrumentationLocalVarHoistingLevel;
   }
 
   public boolean isAwsPropagationEnabled() {
