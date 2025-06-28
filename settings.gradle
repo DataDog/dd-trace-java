@@ -99,6 +99,9 @@ include ':dd-java-agent:appsec'
 // ci-visibility
 include ':dd-java-agent:agent-ci-visibility'
 
+// llm-observability
+include ':dd-java-agent:agent-llmobs'
+
 // iast
 include ':dd-java-agent:agent-iast'
 
