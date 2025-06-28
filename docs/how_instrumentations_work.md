@@ -203,8 +203,8 @@ example, [`ShutdownInstrumentation`](https://github.com/DataDog/dd-trace-java/bl
 or [`UrlInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006b54f73aae61f88c39b52a7267267075b/dd-java-agent/instrumentation/http-url-connection/src/main/java/datadog/trace/instrumentation/http_url_connection/UrlInstrumentation.java#L21).
 
 > [!NOTE]
-> Without classloader available, helper classes for bootstrap instrumentation must be place into the 
-> `:dd-java-agent:agent-bootstrap` module rather than loaded using [the default mechanism](#helper-classes). 
+> Without classloader available, helper classes for bootstrap instrumentation must be place into the
+> `:dd-java-agent:agent-bootstrap` module rather than loaded using [the default mechanism](#helper-classes).
 
 ### Method Matching
 
@@ -677,6 +677,8 @@ Tests are written in Groovy using the [Spock framework](http://spockframework.or
 instrumentations, `AgentTestRunner` must be extended. For example, HTTP server frameworks use base tests which enforce
 consistency between different implementations (
 see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
+Such Groovy-based tests are included by default in the CI instrumentation test jobs.
+
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
 
