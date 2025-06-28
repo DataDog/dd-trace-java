@@ -295,7 +295,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
       def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
-        returnF
+        return
       }
     }
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
