@@ -14,6 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
+import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -33,8 +34,8 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(11) && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return Platform.isJavaVersionAtLeast(11) && super.isEnabled(enabledSystems);
   }
 
   @Override

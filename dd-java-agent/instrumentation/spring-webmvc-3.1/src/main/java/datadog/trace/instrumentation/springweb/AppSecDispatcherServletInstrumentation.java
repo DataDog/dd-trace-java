@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.EndpointCollector;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.context.ApplicationContext;
@@ -63,8 +64,8 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isApiSecurityEndpointCollectionEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && Config.get().isApiSecurityEndpointCollectionEnabled();
   }
 
   public static class AppSecHandlerMappingAdvice {

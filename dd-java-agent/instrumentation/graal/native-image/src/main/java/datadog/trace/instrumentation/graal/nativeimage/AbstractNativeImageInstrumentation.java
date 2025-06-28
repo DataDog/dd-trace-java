@@ -12,7 +12,12 @@ public abstract class AbstractNativeImageInstrumentation extends InstrumenterMod
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return Platform.isNativeImageBuilder();
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON;
+  }
+
+  @Override
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return Platform.isNativeImageBuilder() && super.isEnabled(enabledSystems);
   }
 }

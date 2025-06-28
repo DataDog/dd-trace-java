@@ -6,7 +6,12 @@ import spock.lang.Shared
 class InstrumenterIndexTest extends DDSpecification {
 
   @Shared
-  def unknownInstrumentation = new InstrumenterModule('unknown') {}
+  def unknownInstrumentation = new InstrumenterModule('unknown') {
+    @Override
+    InstrumenterModule.TargetSystem targetSystem() {
+      return InstrumenterModule.TargetSystem.COMMON
+    }
+  }
 
   @Shared
   def unknownTransformation = new Instrumenter() {}

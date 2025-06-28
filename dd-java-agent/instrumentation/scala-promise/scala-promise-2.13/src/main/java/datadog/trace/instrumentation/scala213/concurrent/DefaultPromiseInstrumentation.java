@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import scala.util.Try;
 
@@ -54,10 +55,10 @@ public class DefaultPromiseInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    return super.isEnabled()
+    return super.isEnabled(enabledSystems)
         && InstrumenterConfig.get()
             .isIntegrationEnabled(
                 Collections.singletonList("scala_promise_completion_priority"), false);

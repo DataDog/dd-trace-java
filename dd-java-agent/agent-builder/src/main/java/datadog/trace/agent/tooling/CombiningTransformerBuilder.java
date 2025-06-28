@@ -93,17 +93,15 @@ public final class CombiningTransformerBuilder
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
   public void applyInstrumentation(InstrumenterModule module) {
-    if (module.isEnabled()) {
-      int instrumentationId = instrumenterIndex.instrumentationId(module);
-      if (instrumentationId < 0) {
-        // this is a non-indexed instrumentation configured at runtime
-        instrumentationId = nextRuntimeInstrumentationId++;
-      }
-      InstrumenterState.registerInstrumentation(module, instrumentationId);
-      prepareInstrumentation(module, instrumentationId);
-      for (Instrumenter member : module.typeInstrumentations()) {
-        buildTypeInstrumentation(member);
-      }
+    int instrumentationId = instrumenterIndex.instrumentationId(module);
+    if (instrumentationId < 0) {
+      // this is a non-indexed instrumentation configured at runtime
+      instrumentationId = nextRuntimeInstrumentationId++;
+    }
+    InstrumenterState.registerInstrumentation(module, instrumentationId);
+    prepareInstrumentation(module, instrumentationId);
+    for (Instrumenter member : module.typeInstrumentations()) {
+      buildTypeInstrumentation(member);
     }
   }
 

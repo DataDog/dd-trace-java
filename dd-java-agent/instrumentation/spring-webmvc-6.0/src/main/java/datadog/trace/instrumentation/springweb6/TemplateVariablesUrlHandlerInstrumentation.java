@@ -27,12 +27,16 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+  public TargetSystem targetSystem() {
+    return TargetSystem.SECURITY;
+  }
+
+  @Override
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     if (enabledSystems.contains(TargetSystem.IAST)) {
       postProcessorFactory = IastPostProcessorFactory.INSTANCE;
-      return true;
     }
-    return enabledSystems.contains(TargetSystem.APPSEC);
+    return super.isEnabled(enabledSystems);
   }
 
   @Override

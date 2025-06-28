@@ -22,8 +22,8 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isAgentlessLogSubmissionEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems) && Config.get().isAgentlessLogSubmissionEnabled();
   }
 
   @Override

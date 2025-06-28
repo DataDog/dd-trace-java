@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
+import java.util.Set;
 
 /**
  * Provides instrumentation to exclude exception types known to be used for control flow or
@@ -21,8 +22,8 @@ public final class KnownExcludesInstrumentation extends InstrumenterModule.Profi
   }
 
   @Override
-  public boolean isEnabled() {
-    return Platform.hasJfr() && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return Platform.hasJfr() && super.isEnabled(enabledSystems);
   }
 
   @Override
