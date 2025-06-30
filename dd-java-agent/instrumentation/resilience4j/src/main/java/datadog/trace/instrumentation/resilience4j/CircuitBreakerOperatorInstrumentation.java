@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import net.bytebuddy.asm.Advice;
 import reactor.core.CoreSubscriber;
 
@@ -16,7 +17,7 @@ import reactor.core.CoreSubscriber;
 public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jInstrumentation {
 
   public CircuitBreakerOperatorInstrumentation() {
-    super("resilience4j-circuitbreaker");
+    super("resilience4j-circuitbreaker", "resilience4j-reactor");
   }
 
   @Override
@@ -38,7 +39,7 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
             .and(named("subscribe")) // TODO CorePublisherInstrumentation instruments the subscribe
             // method to activate the propagated parent context. How do we
             // guarantee the this instrumentation is done first, so it's
-            // properly wrapped by the subscribe instrumentations
+            // properly wrapped by the subscribe instrumentation
             .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
         CircuitBreakerOperatorInstrumentation.class.getName() + "$SubscribeAdvice");
   }
@@ -46,20 +47,21 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
   public static class SubscribeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
-        @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> actual) {
-      // TODO check if resilience4j span already active
-      AgentSpan span = AgentTracer.startSpan("resilience4j", "resilience4j");
+        @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> actual,
+        @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
-      AgentScope scope = AgentTracer.activateSpan(span);
-      actual = new CompleteSpan<>(actual, span);
-      return scope;
+      AgentSpan span = ActiveResilience4jSpan.activeSpan();
+      if (span == null) {
+        span = ActiveResilience4jSpan.startSpan();
+        actual = new CompleteSpan<>(actual, span);
+      }
+      //      CircuitBreakerDecorator.DECORATE.decorate(scope, circuitBreaker);
+      return AgentTracer.activateSpan(span);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(@Advice.Enter final AgentScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+      ActiveResilience4jSpan.finishScope(scope);
     }
   }
 }

@@ -27,18 +27,18 @@ public class CompleteSpan<T> implements CoreSubscriber<T> {
   @Override
   public void onError(Throwable throwable) {
     delegate.onError(throwable);
-    span.finish();
+    ActiveResilience4jSpan.finishSpan(span);
   }
 
   @Override
   public void onComplete() {
     delegate.onComplete();
-    span.finish();
+    ActiveResilience4jSpan.finishSpan(span);
   }
 
   @Override
   public void onNext(T o) {
     delegate.onNext(o);
-    span.finish();
+    ActiveResilience4jSpan.finishSpan(span);
   }
 }

@@ -1,18 +1,13 @@
 package datadog.trace.instrumentation.resilience4j;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 public abstract class ContextHolder {
-  public static final CharSequence SPAN_NAME = UTF8BytesString.create("resilience4j");
-  public static final String INSTRUMENTATION_NAME = "resilience4j";
 
   public static final class CheckedSupplierWithContext<T> extends ContextHolder
       implements CheckedSupplier<Object> {
@@ -74,26 +69,20 @@ public abstract class ContextHolder {
   }
 
   private AgentSpan span;
-  private boolean isOwner;
 
   protected AgentScope activateDecoratorScope() {
-    AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null && SPAN_NAME.equals(activeSpan.getOperationName())) {
-      // a Resilience4j span is already active
+    AgentSpan activeSpan = ActiveResilience4jSpan.activeSpan();
+    if (activeSpan == null) {
+      activeSpan = ActiveResilience4jSpan.startSpan();
       this.span = activeSpan;
-      isOwner = false;
-    } else {
-      // TODO call decorator
-      this.span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
-      isOwner = true;
     }
-    return AgentTracer.activateSpan(this.span);
+    return AgentTracer.activateSpan(activeSpan);
   }
 
   protected void finishSpanIfNeeded() {
-    if (isOwner) {
-      // TODO call decorator
-      span.finish();
+    if (span != null) {
+      ActiveResilience4jSpan.finishSpan(span);
+      span = null;
     }
   }
 }
