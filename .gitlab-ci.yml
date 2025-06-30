@@ -739,6 +739,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
+# If the deploy_to_sonatype job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_sonatype:
   extends: .gradle_build
   stage: publish
@@ -775,7 +776,7 @@ deploy_artifacts_to_github:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
-  # Requires the deploy_to_sonatype job to have run first the UP-TO-DATE gradle check across jobs is broken
+  # Requires the deploy_to_sonatype job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
     - job: deploy_to_sonatype
