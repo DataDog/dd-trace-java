@@ -1,3 +1,4 @@
+// TEST CHANGE
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
