@@ -119,6 +119,13 @@ default:
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
 
+.gitlab_base_ref_params: &gitlab_base_ref_params
+  - |
+    if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
+      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
+    fi
+
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
@@ -223,11 +230,7 @@ build_tests:
         MAVEN_OPTS: "-Xms64M -Xmx512M -Dorg.slf4j.simpleLogger.defaultLogLevel=debug" # FIXME: Build :smokeTest build fails unless mvn debug logging is on
 
   script:
-    - |
-      if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      fi
+    - *gitlab_base_ref_params
     - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
 populate_dep_cache:
@@ -332,11 +335,7 @@ test_published_artifacts:
   variables:
     CACHE_TYPE: lib
   script:
-    - |
-      if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      fi
+    - *gitlab_base_ref_params
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
     - *cgroup_info
@@ -470,11 +469,7 @@ muzzle-dep-report:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
   script:
-    - |
-      if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-        export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      fi
+    - *gitlab_base_ref_params
     - >
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
       then
