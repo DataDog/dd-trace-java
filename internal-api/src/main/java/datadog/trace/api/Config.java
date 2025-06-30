@@ -2898,7 +2898,7 @@ public class Config {
     return llmObsAgentlessEnabled;
   }
 
-  public String getLlMObsAgentlessUrl() {
+  public String getLlmObsAgentlessUrl() {
     return llmObsAgentlessUrl;
   }
 

@@ -72,7 +72,7 @@ public class BackendApiFactory {
 
   public enum Intake {
     API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl),
-    LLMOBS_API("api", "v2", Config::isLlmObsAgentlessEnabled, Config::getLlMObsAgentlessUrl),
+    LLMOBS_API("api", "v2", Config::isLlmObsAgentlessEnabled, Config::getLlmObsAgentlessUrl),
     LOGS(
         "http-intake.logs",
         "v2",

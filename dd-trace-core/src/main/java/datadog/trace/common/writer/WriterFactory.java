@@ -82,7 +82,7 @@ public class WriterFactory {
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
-    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isCiVisibilityEnabled())) {
+    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && config.isCiVisibilityEnabled()) {
       if (featuresDiscovery.supportsEvpProxy() || config.isCiVisibilityAgentlessEnabled()) {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
@@ -192,7 +192,7 @@ public class WriterFactory {
           .build();
     } else {
       HttpUrl hostUrl = null;
-      String llmObsAgentlessUrl = config.getLlMObsAgentlessUrl();
+      String llmObsAgentlessUrl = config.getLlmObsAgentlessUrl();
 
       if (config.getCiVisibilityAgentlessUrl() != null) {
         hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());

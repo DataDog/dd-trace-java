@@ -90,7 +90,6 @@ public class DDAgentApi extends RemoteApi {
   public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
-
     if (null == tracesEndpoint) {
       featuresDiscovery.discoverIfOutdated();
       tracesEndpoint = featuresDiscovery.getTraceEndpoint();

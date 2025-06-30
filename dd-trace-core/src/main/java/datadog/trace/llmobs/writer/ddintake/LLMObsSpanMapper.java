@@ -243,7 +243,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String tagKey = tag.getKey();
         if (tagKey.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
           writable.writeString(tagKey.substring(LLMOBS_METRIC_PREFIX.length()), null);
-          writable.writeDouble((double) tag.getValue());
+          writable.writeObjectString(tag.getValue(), null);
         }
       }
 
