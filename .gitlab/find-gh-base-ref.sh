@@ -23,7 +23,7 @@ if [[ -z "${GITHUB_TOKEN:-}" ]]; then
     echo "aws is not installed, please install it" >&2
     exit 1
   fi
-  GITHUB_TOKEN=$(aws ssm get-parameter --name "ci.$CI_PROJECT_NAME.gh_token" --with-decryption --query "Parameter.Value" --output text)
+  GITHUB_TOKEN=$(aws ssm get-parameter --name "ci.$CI_PROJECT_NAME.gh_release_token" --with-decryption --query "Parameter.Value" --output text)
   if [[ -z "${GITHUB_TOKEN}" ]]; then
     echo "Failed to fetch GITHUB_TOKEN from AWS SSM" >&2
     exit 1
