@@ -647,17 +647,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
       this.span = span;
       this.headerTags = headerTags;
-      if(headerTags.size() > 0)
-        System.out.println("responseHeaderTags Post-Processing\nsize: " + headerTags.size() + "; " + headerTags.keySet().toArray()[0] + " : " + headerTags.get(headerTags.keySet().toArray()[0]));
       this.wildcardHeaderPrefix = this.headerTags.getOrDefault("*", null);
     }
 
     @Override
     public boolean accept(String key, String value) {
-      System.out.println("key: " + key);
       if (wildcardHeaderPrefix != null) {
-        System.out.println("wildcardKey: " + wildcardHeaderPrefix + key);
-        span.setTag(wildcardHeaderPrefix + key, value);
+        span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
       }
       String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
