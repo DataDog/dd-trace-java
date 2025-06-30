@@ -739,7 +739,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
-# If the deploy_to_sonatype job is manually re-run, you will also need to re-run the deploy_artifacts_to_github job
+# If the deploy_to_sonatype job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_sonatype:
   extends: .gradle_build
   stage: publish
