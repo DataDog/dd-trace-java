@@ -36,7 +36,6 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateCheckedSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named(CHECKED_SUPPLIER_FQCN)))
             .and(returns(named(CHECKED_SUPPLIER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$CheckedSupplierAdvice");
     transformer.applyAdvice(
@@ -44,7 +43,6 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateSupplier"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named(SUPPLIER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$SupplierAdvice");
     transformer.applyAdvice(
@@ -52,7 +50,6 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
             .and(isStatic())
             .and(named("decorateCompletionStage"))
             .and(takesArgument(0, named(CIRCUIT_BREAKER_FQCN)))
-            .and(takesArgument(1, named(SUPPLIER_FQCN)))
             .and(returns(named(SUPPLIER_FQCN))),
         CircuitBreakerInstrumentation.class.getName() + "$CompletionStageAdvice");
   }
@@ -61,11 +58,10 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1) CheckedSupplier<?> inbound,
         @Advice.Return(readOnly = false) CheckedSupplier<?> outbound) {
       outbound =
           new ContextHolder.CheckedSupplierWithContext<>(
-              outbound, inbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -73,9 +69,8 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierWithContext(outbound);
     }
   }
 
@@ -83,9 +78,8 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
-        @Advice.Argument(value = 1) Supplier<?> inbound,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound, inbound);
+      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound);
     }
   }
 }

@@ -18,7 +18,6 @@ public abstract class AbstractResilience4jInstrumentation extends InstrumenterMo
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DDContext",
       packageName + ".ContextHolder",
       packageName + ".ContextHolder$CheckedSupplierWithContext",
       packageName + ".ContextHolder$SupplierCompletionStageWithContext",

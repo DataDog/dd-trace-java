@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,19 +21,14 @@ public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumenta
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("recover", "andThen"))
-            .and(takesArgument(0, named(SUPPLIER_FQCN)))
-            .and(returns(named(SUPPLIER_FQCN))),
+        isMethod().and(namedOneOf("recover", "andThen")).and(returns(named(SUPPLIER_FQCN))),
         FallbackSupplierInstrumentation.class.getName() + "$SupplierAdvice");
   }
 
   public static class SupplierAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterExecute(
-        @Advice.Argument(value = 0) Supplier<?> inbound,
-        @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext(outbound, inbound);
+    public static void afterExecute(@Advice.Return(readOnly = false) Supplier<?> outbound) {
+      outbound = new ContextHolder.SupplierWithContext(outbound);
     }
   }
 }

@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.resilience4j;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -9,7 +11,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 public abstract class ContextHolder {
-
   public static final CharSequence SPAN_NAME = UTF8BytesString.create("resilience4j");
   public static final String INSTRUMENTATION_NAME = "resilience4j";
 
@@ -20,11 +21,7 @@ public abstract class ContextHolder {
     private final T data;
 
     public CheckedSupplierWithContext(
-        CheckedSupplier<?> outbound,
-        CheckedSupplier<?> inbound,
-        AbstractResilience4jDecorator<T> spanDecorator,
-        T data) {
-      super(inbound);
+        CheckedSupplier<?> outbound, AbstractResilience4jDecorator<T> spanDecorator, T data) {
       this.outbound = outbound;
       this.spanDecorator = spanDecorator;
       this.data = data;
@@ -44,8 +41,7 @@ public abstract class ContextHolder {
   public static final class SupplierWithContext extends ContextHolder implements Supplier<Object> {
     private final Supplier<?> outbound;
 
-    public SupplierWithContext(Supplier<?> outbound, Supplier<?> inbound) {
-      super(inbound);
+    public SupplierWithContext(Supplier<?> outbound) {
       this.outbound = outbound;
     }
 
@@ -63,9 +59,7 @@ public abstract class ContextHolder {
       implements Supplier<CompletionStage<?>> {
     private final Supplier<CompletionStage<?>> outbound;
 
-    public SupplierCompletionStageWithContext(
-        Supplier<CompletionStage<?>> outbound, Supplier<?> inbound) {
-      super(inbound);
+    public SupplierCompletionStageWithContext(Supplier<CompletionStage<?>> outbound) {
       this.outbound = outbound;
     }
 
@@ -79,40 +73,27 @@ public abstract class ContextHolder {
     }
   }
 
-  // Use an array so that it can be created and referenced before the span. This is necessary
-  // because the holder is created when the innermost decorator is initialized, and then it is
-  // referenced in the outer decorators until the outermost one, where the span is created and
-  // finished.
-  private final AgentSpan[] spanHolder;
-  private boolean isOwner = true;
-
-  protected ContextHolder(Object contextHolder) {
-    if (contextHolder instanceof ContextHolder) {
-      ContextHolder that = (ContextHolder) contextHolder;
-      this.spanHolder = that.takeOwnership();
-    } else {
-      this.spanHolder = new AgentSpan[] {null};
-    }
-  }
-
-  private AgentSpan[] takeOwnership() {
-    isOwner = false;
-    return spanHolder;
-  }
+  private AgentSpan span;
+  private boolean isOwner;
 
   protected AgentScope activateDecoratorScope() {
-    if (spanHolder[0] == null) {
+    AgentSpan activeSpan = activeSpan();
+    if (activeSpan != null && SPAN_NAME.equals(activeSpan.getOperationName())) {
+      // a Resilience4j span is already active
+      this.span = activeSpan;
+      isOwner = false;
+    } else {
       // TODO call decorator
-      spanHolder[0] = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+      this.span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+      isOwner = true;
     }
-    return AgentTracer.activateSpan(spanHolder[0]);
+    return AgentTracer.activateSpan(this.span);
   }
 
   protected void finishSpanIfNeeded() {
     if (isOwner) {
       // TODO call decorator
-      spanHolder[0].finish();
-      spanHolder[0] = null;
+      span.finish();
     }
   }
 }
