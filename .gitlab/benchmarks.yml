@@ -53,6 +53,7 @@ benchmarks-dacapo:
 
 benchmarks-post-results:
   extends: .benchmarks
+  tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/upload-results-to-s3.sh
