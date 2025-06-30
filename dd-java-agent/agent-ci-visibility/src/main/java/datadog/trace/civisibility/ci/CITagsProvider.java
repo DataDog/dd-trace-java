@@ -22,7 +22,7 @@ public class CITagsProvider {
   }
 
   public Map<String, String> getCiTags(CIInfo ciInfo, PullRequestInfo pullRequestInfo) {
-    String repoRoot = ciInfo.getNormalizedCiWorkspace();
+    String repoRoot = ciInfo.getCiWorkspace();
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
     return new CITagsBuilder()
@@ -42,6 +42,7 @@ public class CITagsProvider {
         .withPullRequestBaseBranch(pullRequestInfo)
         .withPullRequestBaseBranchSha(pullRequestInfo)
         .withGitCommitHeadSha(pullRequestInfo)
+        .withPullRequestNumber(pullRequestInfo)
         .withGitRepositoryUrl(gitInfo)
         .withGitCommit(gitInfo)
         .withGitBranch(gitInfo)
@@ -133,6 +134,10 @@ public class CITagsProvider {
 
     public CITagsBuilder withGitCommitHeadSha(final PullRequestInfo pullRequestInfo) {
       return putTagValue(Tags.GIT_COMMIT_HEAD_SHA, pullRequestInfo.getGitCommitHeadSha());
+    }
+
+    public CITagsBuilder withPullRequestNumber(final PullRequestInfo pullRequestInfo) {
+      return putTagValue(Tags.PULL_REQUEST_NUMBER, pullRequestInfo.getPullRequestNumber());
     }
 
     public CITagsBuilder withGitRepositoryUrl(final GitInfo gitInfo) {

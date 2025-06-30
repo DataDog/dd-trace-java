@@ -113,7 +113,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
-  static final boolean DEFAULT_API_SECURITY_ENABLED = false;
+  static final boolean DEFAULT_API_SECURITY_ENABLED = true;
   static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
   // TODO: change to true once the RFC is approved
   static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = false;
@@ -122,6 +122,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
+  static final int DEFAULT_APPSEC_MAX_COLLECTED_HEADERS = 50;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -193,7 +194,6 @@ public final class ConfigDefaults {
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE = true;
-  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD = false;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT = 100; // milliseconds
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED = false;
   static final boolean DEFAULT_SYMBOL_DATABASE_ENABLED = true;
@@ -240,8 +240,12 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
+  static final boolean DEFAULT_SSI_INJECTION_FORCE = false;
+  static final String DEFAULT_INSTRUMENTATION_SOURCE = "manual";
+
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
-      new HashSet<>(asList("DD_TAGS", "DD_LOGS_INJECTION"));
+      new HashSet<>(
+          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;

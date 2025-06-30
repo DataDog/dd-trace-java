@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.jetty_client10;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.HTTP_REQUEST;
 
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
@@ -26,8 +24,7 @@ public class SendAdvice {
     responseListeners.add(0, new SpanFinishingCompleteListener(span));
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-    defaultPropagator().inject(span.with(dsmContext), request, SETTER);
+    DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
     return span;
   }
 

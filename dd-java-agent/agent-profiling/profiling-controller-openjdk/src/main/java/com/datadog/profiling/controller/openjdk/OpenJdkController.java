@@ -16,7 +16,6 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
-import static com.datadog.profiling.controller.ProfilingSupport.isObjectCountParallelized;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
@@ -263,7 +262,8 @@ public final class OpenJdkController implements Controller {
           ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
           ProfilingConfig.PROFILING_TEMP_DIR);
     }
-    Path repositoryPath = TempLocationManager.getInstance().getTempDir().resolve("jfr");
+    TempLocationManager tempLocationManager = TempLocationManager.getInstance();
+    Path repositoryPath = tempLocationManager.getTempDir().resolve("jfr");
     if (!Files.exists(repositoryPath)) {
       try {
         Files.createDirectories(repositoryPath);

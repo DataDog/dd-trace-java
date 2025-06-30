@@ -13,17 +13,18 @@ buildscript {
 }
 
 plugins {
-  id "datadog.dependency-locking"
+  id 'datadog.gradle-debug'
+  id 'datadog.dependency-locking'
 
-  id "com.diffplug.spotless" version "6.13.0"
+  id 'com.diffplug.spotless' version '6.13.0'
   id 'com.github.spotbugs' version '5.0.14'
-  id "de.thetaphi.forbiddenapis" version "3.8"
+  id 'de.thetaphi.forbiddenapis' version '3.8'
 
   id 'pl.allegro.tech.build.axion-release' version '1.14.4'
-  id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
+  id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 
-  id "com.github.johnrengelman.shadow" version "7.1.2" apply false
-  id "me.champeau.jmh" version "0.7.0" apply false
+  id 'com.gradleup.shadow' version '8.3.6' apply false
+  id 'me.champeau.jmh' version '0.7.0' apply false
   id 'org.gradle.playframework' version '0.13' apply false
   id 'info.solidsoft.pitest' version '1.9.11'  apply false
 }
@@ -34,13 +35,17 @@ def isCI = System.getenv("CI") != null
 
 apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/scm.gradle"
+
 spotless {
   // only resolve the spotless dependencies once in the build
   predeclareDeps()
 }
+
 spotlessPredeclare {
   // these need to align with the types and versions in gradle/spotless.gradle
   java {
+    removeUnusedImports()
+
     // This is the last Google Java Format version that supports Java 8
     googleJavaFormat('1.7')
   }
@@ -87,7 +92,7 @@ nexusPublishing {
     def forceLocal = project.hasProperty('forceLocal') && forceLocal
     if (forceLocal && !isCI) {
       local {
-        // For testing use with https://hub.docker.com/r/sonatype/nexus
+        // For testing, use with https://hub.docker.com/r/sonatype/nexus
         // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus:oss
         // ./gradlew publishToLocal
         // Doesn't work for testing releases though... (due to staging)
@@ -98,7 +103,13 @@ nexusPublishing {
         allowInsecureProtocol = true
       }
     } else {
+      // see https://github.com/gradle-nexus/publish-plugin#publishing-to-maven-central-via-sonatype-central
+      // For official documentation:
+      // staging repo publishing https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/#configuration
+      // snapshot publishing https://central.sonatype.org/publish/publish-portal-snapshots/#publishing-via-other-methods
       sonatype {
+        nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+        snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
         username = System.getenv("SONATYPE_USERNAME")
         password = System.getenv("SONATYPE_PASSWORD")
       }

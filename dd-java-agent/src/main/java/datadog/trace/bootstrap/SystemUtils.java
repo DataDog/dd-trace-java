@@ -23,11 +23,31 @@ public final class SystemUtils {
     }
   }
 
+  public static String trySetProperty(String property, String value) {
+    try {
+      return System.setProperty(property, value);
+    } catch (SecurityException e) {
+      return null;
+    }
+  }
+
   public static String getPropertyOrDefault(String property, String defaultValue) {
     try {
       return System.getProperty(property, defaultValue);
     } catch (SecurityException e) {
       return defaultValue;
     }
+  }
+
+  private static String toEnvVar(String string) {
+    return string.replace('.', '_').replace('-', '_').toUpperCase();
+  }
+
+  public static String getPropertyOrEnvVar(String property) {
+    String envVarValue = System.getenv(toEnvVar(property));
+    if (envVarValue != null) {
+      return envVarValue;
+    }
+    return System.getProperty(property);
   }
 }

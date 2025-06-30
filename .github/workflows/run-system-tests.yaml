@@ -1,0 +1,73 @@
+name: Run system tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# Cancel long-running jobs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on:
+      group: APM Larger Runners
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build dd-trace-java
+        run: |
+          GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew clean :dd-java-agent:shadowJar \
+            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: binaries
+          path: workspace/dd-java-agent/build/libs/
+
+  main:
+    needs:
+    - build
+    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      library: java
+      binaries_artifact: binaries
+      desired_execution_time: 900  # 15 minutes
+      scenarios_groups: tracer-release
+      excluded_scenarios: CROSSED_TRACING_LIBRARIES,INTEGRATIONS_AWS,APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # require AWS and datadog credentials 
+      skip_empty_scenarios: true
+
+  # Ensure the main job is run to completion
+  check:
+    name: Check system tests success
+    runs-on: ubuntu-latest
+    needs:
+    - main
+    steps:
+    - run: exit 0

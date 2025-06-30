@@ -1,6 +1,6 @@
 plugins {
   id 'application'
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -34,7 +34,7 @@ forbiddenApisMain {
 }
 
 application {
-  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+  mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 dependencies {

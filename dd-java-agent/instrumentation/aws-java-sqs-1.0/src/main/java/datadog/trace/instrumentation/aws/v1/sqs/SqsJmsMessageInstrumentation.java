@@ -21,6 +21,10 @@ import net.bytebuddy.asm.Advice;
 public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
+  public SqsJmsMessageInstrumentation() {
+    super("jms");
+  }
+
   @Override
   public String instrumentedType() {
     return "com.amazon.sqs.javamessaging.message.SQSMessage";

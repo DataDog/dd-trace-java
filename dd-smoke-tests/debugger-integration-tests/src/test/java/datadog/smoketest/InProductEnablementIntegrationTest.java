@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static datadog.smoketest.debugger.TestApplicationHelper.waitForSpecificLine;
-
 import com.datadog.debugger.probe.LogProbe;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -37,6 +35,28 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
     waitForReTransformation(appUrl); // wait for retransformation of removed probe
+  }
+
+  @Test
+  @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
+  void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
+    appUrl = startAppAndAndGetUrl();
+    setConfigOverrides(createConfigOverrides(true, false));
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(LINE_PROBE_ID1)
+            .where("ServerDebuggerTestApplication.java", 312)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    execute(appUrl, "topLevelMethod", "");
+    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel");
+    // disable DI
+    setConfigOverrides(createConfigOverrides(false, false));
+    waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
+    waitForReTransformation(
+        appUrl,
+        "datadog.smoketest.debugger.TopLevel"); // wait for retransformation of removed probe
   }
 
   @Test

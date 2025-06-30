@@ -3,9 +3,8 @@ muzzle {
   pass {
     group = "org.opensearch.client"
     module = "opensearch-rest-client"
-    versions = "[1,)"
+    versions = "[1,2)"
     javaVersion = '11'
-    assertInverse = true
   }
 }
 

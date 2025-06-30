@@ -19,7 +19,8 @@ public class GitRepoUnshallow {
     this.gitClient = gitClient;
   }
 
-  public boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+  public synchronized boolean unshallow()
+      throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }

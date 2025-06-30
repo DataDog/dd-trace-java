@@ -24,6 +24,14 @@ final class ScopeStack {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
+  ScopeStack copy() {
+    ScopeStack copy = new ScopeStack(profilingContextIntegration);
+    copy.stack.addAll(stack);
+    copy.top = top;
+    copy.overdueRootScope = overdueRootScope;
+    return copy;
+  }
+
   ContinuableScope active() {
     // avoid attaching further spans to the root scope when it's been marked as overdue
     return top != overdueRootScope ? top : null;

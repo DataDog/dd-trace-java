@@ -1,5 +1,6 @@
 package com.datadog.debugger.symbol;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,7 +64,7 @@ class SymDBEnablementTest {
         new SymDBEnablement(
             instr,
             config,
-            new SymbolAggregator(classNameFiltering, symbolSink, 1),
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
             classNameFiltering);
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
     waitForUpload(symDBEnablement);
@@ -79,7 +80,7 @@ class SymDBEnablementTest {
         new SymDBEnablement(
             instr,
             config,
-            new SymbolAggregator(classNameFiltering, symbolSink, 1),
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
             classNameFiltering);
     symDBEnablement.accept(ParsedConfigKey.parse(CONFIG_KEY), UPlOAD_SYMBOL_TRUE, null);
     waitForUpload(symDBEnablement);
@@ -96,7 +97,7 @@ class SymDBEnablementTest {
         new SymDBEnablement(
             instr,
             config,
-            new SymbolAggregator(classNameFiltering, symbolSink, 1),
+            new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1),
             classNameFiltering);
     symDBEnablement.startSymbolExtraction();
     ArgumentCaptor<SymbolExtractionTransformer> captor =
@@ -122,7 +123,7 @@ class SymDBEnablementTest {
                 .collect(Collectors.toSet()));
     ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
     SymbolAggregator symbolAggregator =
-        spy(new SymbolAggregator(classNameFiltering, symbolSink, 1));
+        spy(new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1));
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     symDBEnablement.startSymbolExtraction();
@@ -150,7 +151,7 @@ class SymDBEnablementTest {
                 .collect(Collectors.toSet()));
     ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
     SymbolAggregator symbolAggregator =
-        spy(new SymbolAggregator(classNameFiltering, symbolSink, 1));
+        spy(new SymbolAggregator(classNameFiltering, emptyList(), symbolSink, 1));
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     symDBEnablement.startSymbolExtraction();
@@ -171,7 +172,8 @@ class SymDBEnablementTest {
             Collections.singleton("org.springframework."),
             Collections.singleton("com.datadog.debugger."),
             Collections.emptySet());
-    SymbolAggregator symbolAggregator = new SymbolAggregator(classNameFiltering, mockSymbolSink, 1);
+    SymbolAggregator symbolAggregator =
+        new SymbolAggregator(classNameFiltering, emptyList(), mockSymbolSink, 1);
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     doAnswer(

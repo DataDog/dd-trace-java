@@ -6,6 +6,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +32,7 @@ public class MuzzleVersionScanPlugin {
     HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
   }
 
+  @SuppressForbidden
   public static void assertInstrumentationMuzzled(
       final ClassLoader instrumentationLoader,
       final ClassLoader testApplicationLoader,
@@ -139,6 +141,7 @@ public class MuzzleVersionScanPlugin {
     return helperMap;
   }
 
+  @SuppressForbidden
   public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {

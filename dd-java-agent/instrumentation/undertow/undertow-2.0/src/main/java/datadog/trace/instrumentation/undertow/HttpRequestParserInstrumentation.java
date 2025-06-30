@@ -2,18 +2,17 @@ package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -72,14 +71,14 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       // this because undertow will just write down a http 400 raw response over the net channel.
       // Here we try to create a span to record this
       AgentSpan span = activeSpan();
-      AgentScope scope = null;
+      ContextScope scope = null;
       try {
         if (span == null) {
-          final AgentSpanContext.Extracted extractedContext = DECORATE.extract(exchange);
-          span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-          scope = activateSpan(span);
+          final Context context = DECORATE.extractContext(exchange);
+          span = DECORATE.startSpan(exchange, context).setMeasured(true);
+          scope = context.with(span).attach();
           DECORATE.afterStart(span);
-          DECORATE.onRequest(span, exchange, exchange, extractedContext);
+          DECORATE.onRequest(span, exchange, exchange, context);
         }
         DECORATE.onError(span, throwable);
         // because we know that a http 400 will be thrown

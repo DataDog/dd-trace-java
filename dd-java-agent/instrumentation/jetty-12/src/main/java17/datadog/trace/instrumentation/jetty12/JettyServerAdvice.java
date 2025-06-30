@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.jetty12;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.internal.HttpChannelState;
@@ -22,18 +21,18 @@ public class JettyServerAdvice {
       Request req = channel.getRequest();
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
-        try (final AgentScope scope = activateSpan((AgentSpan) existingSpan)) {
+        try (final ContextScope scope = ((AgentSpan) existingSpan).attach()) {
           ret = JettyRunnableWrapper.wrapIfNeeded(ret);
           return;
         }
       }
 
-      final AgentSpanContext.Extracted extractedContext = JettyDecorator.DECORATE.extract(req);
-      final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, extractedContext);
-      try (final AgentScope scope = activateSpan(span)) {
+      final Context context = JettyDecorator.DECORATE.extractContext(req);
+      final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, context);
+      try (final ContextScope scope = context.with(span).attach()) {
         span.setMeasured(true);
         JettyDecorator.DECORATE.afterStart(span);
-        JettyDecorator.DECORATE.onRequest(span, req, req, extractedContext);
+        JettyDecorator.DECORATE.onRequest(span, req, req, context);
 
         req.setAttribute(DD_SPAN_ATTRIBUTE, span);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

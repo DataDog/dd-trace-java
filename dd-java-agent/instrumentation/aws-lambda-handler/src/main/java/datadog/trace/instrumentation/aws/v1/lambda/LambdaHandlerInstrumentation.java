@@ -13,6 +13,7 @@ import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -79,20 +80,24 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     @OnMethodEnter
     static AgentScope enter(
         @This final Object that,
-        @Advice.Argument(0) final Object event,
+        @Advice.Argument(0) final Object in,
+        @Advice.Argument(1) final Object out,
+        @Advice.Argument(2) final Context awsContext,
         @Origin("#m") final String methodName) {
 
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
 
-      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(event);
+      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(in);
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan(INVOCATION_SPAN_NAME);
       } else {
         span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
       }
+      span.setTag("request_id", awsContext.getAwsRequestId());
+
       final AgentScope scope = activateSpan(span);
       return scope;
     }

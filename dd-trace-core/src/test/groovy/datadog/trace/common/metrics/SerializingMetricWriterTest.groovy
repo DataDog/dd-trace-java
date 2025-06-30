@@ -1,5 +1,7 @@
 package datadog.trace.common.metrics
 
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.Pair
 import datadog.trace.test.util.DDSpecification
@@ -9,13 +11,18 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLongArray
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterTest extends DDSpecification {
 
-  def "should produce correct message #iterationIndex" () {
+  def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
+    if (withProcessTags) {
+      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    }
+    ProcessTags.reset()
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
@@ -43,6 +50,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         Pair.of(new MetricKey("resource" + i, "service" + i, "operation" + i, "type", 0, false), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L)))
       })
     ]
+    withProcessTags << [true, false]
   }
 
 
@@ -70,7 +78,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      assert mapSize == 6
+      assert mapSize == (6 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0))
       assert unpacker.unpackString() == "RuntimeId"
       assert unpacker.unpackString() == wellKnownTags.getRuntimeId() as String
       assert unpacker.unpackString() == "Seq"
@@ -81,6 +89,10 @@ class SerializingMetricWriterTest extends DDSpecification {
       assert unpacker.unpackString() == wellKnownTags.getEnv() as String
       assert unpacker.unpackString() == "Version"
       assert unpacker.unpackString() == wellKnownTags.getVersion() as String
+      if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
+        assert unpacker.unpackString() == "ProcessTags"
+        assert unpacker.unpackString() == ProcessTags.tagsForSerialization as String
+      }
       assert unpacker.unpackString() == "Stats"
       int outerLength = unpacker.unpackArrayHeader()
       assert outerLength == 1

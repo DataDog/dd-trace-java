@@ -1,21 +1,21 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,7 +33,7 @@ public class Servlet3Advice {
       @Advice.Argument(value = 1) ServletResponse response,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
-      @Advice.Local("agentScope") AgentScope scope) {
+      @Advice.Local("contextScope") ContextScope scope) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
@@ -53,7 +53,7 @@ public class Servlet3Advice {
       // the dispatch span was already activated in Jetty's HandleAdvice. We let it finish the span
       // to avoid trying to finish twice
       finishSpan = activeSpan() != dispatchSpan;
-      scope = activateSpan(castDispatchSpan);
+      scope = castDispatchSpan.attach();
       return false;
     }
 
@@ -69,12 +69,12 @@ public class Servlet3Advice {
       return false;
     }
 
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = activateSpan(span);
+    final Context context = DECORATE.extractContext(httpServletRequest);
+    final AgentSpan span = DECORATE.startSpan(httpServletRequest, context);
+    scope = context.with(span).attach();
 
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, context);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
@@ -97,7 +97,7 @@ public class Servlet3Advice {
   public static void stopSpan(
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response,
-      @Advice.Local("agentScope") final AgentScope scope,
+      @Advice.Local("contextScope") final ContextScope scope,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Thrown final Throwable throwable) {
@@ -119,7 +119,7 @@ public class Servlet3Advice {
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromContext(scope.context());
 
       if (request.isAsyncStarted()) {
         AtomicBoolean activated = new AtomicBoolean();

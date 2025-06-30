@@ -40,7 +40,7 @@ abstract class CITagsProviderTest extends Specification {
   def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:
     ciSpec.env.each {
-      environmentVariables.set(it.key, it.value)
+      environmentVariables.set(it.key, it.value.toString())
       if (it.key == "HOME") {
         System.setProperty("user.home", it.value)
       }
@@ -50,8 +50,9 @@ abstract class CITagsProviderTest extends Specification {
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(Config.get(), GIT_FOLDER_FOR_TESTS, new CiEnvironmentImpl(System.getenv()))
     def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
+    def prInfo = ciProviderInfo.buildPullRequestInfo()
     def ciTagsProvider = ciTagsProvider()
-    def tags = ciTagsProvider.getCiTags(ciInfo, PullRequestInfo.EMPTY)
+    def tags = ciTagsProvider.getCiTags(ciInfo, prInfo)
 
     then:
     if (isCi()) {

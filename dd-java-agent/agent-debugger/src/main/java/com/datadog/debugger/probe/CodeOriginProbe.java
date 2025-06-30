@@ -1,7 +1,6 @@
 package com.datadog.debugger.probe;
 
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
@@ -26,23 +25,18 @@ import org.slf4j.LoggerFactory;
 public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
 
-  private final boolean instrument;
   private final boolean entrySpanProbe;
   private String signature;
 
-  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where, boolean instrument) {
+  public CodeOriginProbe(ProbeId probeId, boolean entry, Where where) {
     super(LANGUAGE, probeId, (Tag[]) null, where, MethodLocation.ENTRY);
-    this.instrument = instrument;
     this.entrySpanProbe = entry;
   }
 
   @Override
   public Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    if (instrument) {
-      return new CodeOriginInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
-    }
-    return Status.INSTALLED;
+    return new CodeOriginInstrumentor(this, methodInfo, probeIds).instrument();
   }
 
   @Override

@@ -2,10 +2,15 @@ package datadog.trace.agent
 
 import spock.lang.Specification
 import spock.lang.Timeout
+import spock.lang.IgnoreIf
+import datadog.trace.api.Platform
 
 import jvmbootstraptest.InitializationTelemetryCheck
 
 @Timeout(30)
+@IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+  Platform.isJavaVersionAtLeast(24)
+})
 class InitializationTelemetryTest extends Specification {
   def "block agent start-up"() {
     // In this case, the SecurityManager blocks loading of the Premain Class,
@@ -21,7 +26,7 @@ class InitializationTelemetryTest extends Specification {
 
   def "normal start-up"() {
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(null)
+    def result = InitializationTelemetryCheck.runTestJvm(null, false, "sleep")
 
     then:
     result.exitCode == 0
@@ -33,7 +38,7 @@ class InitializationTelemetryTest extends Specification {
     // agent initialization to fail.  However, we should catch the exception allowing the application
     // to run normally.
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy)
+    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy, false, "sleep")
 
     then:
     result.exitCode == 0

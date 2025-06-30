@@ -150,6 +150,17 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+  if (testJvm == "stable") {
+    def javaVersions = System.getenv()
+      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+
+    if (javaVersions.isEmpty()) {
+      throw new GradleException("No valid JAVA_X_HOME environment variables found.")
+    }
+
+    testJvm = javaVersions.max().toString()
+  }
   if (testJvm) {
     def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
     if (!matcher.matches()) {
@@ -228,9 +239,7 @@ project.afterEvaluate {
   if (project.plugins.hasPlugin('kotlin')) {
     ['compileKotlin', 'compileTestKotlin'].each { type ->
       tasks.named(type).configure {
-        kotlinOptions {
-          freeCompilerArgs += '-Xmx256m'
-        }
+        kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
       }
     }
   }
@@ -242,7 +251,7 @@ project.afterEvaluate {
   }
 }
 
-if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   // Remove the no-deps jar from the archives to prevent publication
   configurations.archives.with {
     artifacts.remove artifacts.find {
@@ -266,18 +275,27 @@ if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
 }
 
 ext.setJavaVersion = (it, javaVersionInteger) -> {
-  AbstractCompile ac = (AbstractCompile) it
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
+  Provider<JavaLauncher> launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+  }
   try {
-    ac.configure {
-      options.fork = true
-      if (ac.hasProperty('javaCompiler')) {
-        javaCompiler = compiler
-      } else {
-        options.forkOptions.javaHome = compiler.get().metadata.installationPath.asFile
+    if (it instanceof JavaCompile) {
+      JavaCompile jc = (JavaCompile) it
+      jc.javaCompiler = compiler
+      if (javaVersionInteger == 8) {
+        jc.options.release = null
       }
+    } else if (it instanceof GroovyCompile) {
+      GroovyCompile gc = (GroovyCompile) it
+      gc.javaLauncher = launcher
+    } else if (it instanceof ScalaCompile) {
+      ScalaCompile sc = (ScalaCompile) it
+      sc.javaLauncher = launcher
+    } else {
+      throw new GradleException("Unsupported compile type: ${it.getClass()}")
     }
   } catch (NoSuchElementException ignored) {
     throw new GradleException("Unable to find compiler for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
@@ -300,16 +318,20 @@ def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix =
   def definedMin = project.hasProperty(minProp)
   def definedMax = project.hasProperty(maxProp)
   if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minProp=${minProp} is defined and greater than version=${version}")
     return false
   }
   //default to the general min if defined and specific one is was not defined
   if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.getProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
     return false
   }
   if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.getProperty(maxProp)} is defined and lower than version=${version}")
     return false
   }
   if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.getProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
     return false
   }
   return true

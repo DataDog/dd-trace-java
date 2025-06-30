@@ -11,8 +11,12 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
+import com.datadog.debugger.symbol.AvroFilter;
+import com.datadog.debugger.symbol.ProtoFilter;
+import com.datadog.debugger.symbol.ScopeFilter;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
+import com.datadog.debugger.symbol.WireFilter;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.DebuggerMetrics;
@@ -41,7 +45,9 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.zip.ZipOutputStream;
@@ -74,10 +80,7 @@ public class DebuggerAgent {
     Config config = Config.get();
     DebuggerContext.initProductConfigUpdater(new DefaultProductConfigUpdater());
     classesToRetransformFinder = new ClassesToRetransformFinder();
-    if (config.isDynamicInstrumentationEnabled() || config.isDebuggerExceptionEnabled()) {
-      // only activate Source File Tracking if DI or ER is enabled from the start
-      setupSourceFileTracking(instrumentation, classesToRetransformFinder);
-    }
+    setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     if (config.isDebuggerCodeOriginEnabled()) {
       startCodeOriginForSpans();
     }
@@ -86,7 +89,8 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
-      if (config.isDynamicInstrumentationInstrumentTheWorld()) {
+      startCodeOriginForSpans();
+      if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
     }
@@ -158,9 +162,14 @@ public class DebuggerAgent {
     if (configurationPoller != null) {
       if (config.isSymbolDatabaseEnabled()) {
         initClassNameFilter();
+        List<ScopeFilter> scopeFilters =
+            Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
         SymbolAggregator symbolAggregator =
             new SymbolAggregator(
-                classNameFilter, sink.getSymbolSink(), config.getSymbolDatabaseFlushThreshold());
+                classNameFilter,
+                scopeFilters,
+                sink.getSymbolSink(),
+                config.getSymbolDatabaseFlushThreshold());
         symbolAggregator.start();
         symDBEnablement =
             new SymDBEnablement(instrumentation, config, symbolAggregator, classNameFilter);
@@ -204,7 +213,8 @@ public class DebuggerAgent {
             configurationUpdater,
             classNameFilter,
             Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
-            config.getDebuggerMaxExceptionPerSecond());
+            config.getDebuggerMaxExceptionPerSecond(),
+            config.getDebuggerExceptionMaxCapturedFrames());
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     LOGGER.info("Started Exception Replay");
   }
@@ -314,7 +324,10 @@ public class DebuggerAgent {
 
   private static void setupSourceFileTracking(
       Instrumentation instrumentation, ClassesToRetransformFinder finder) {
-    instrumentation.addTransformer(new SourceFileTrackingTransformer(finder));
+    SourceFileTrackingTransformer sourceFileTrackingTransformer =
+        new SourceFileTrackingTransformer(finder);
+    sourceFileTrackingTransformer.start();
+    instrumentation.addTransformer(sourceFileTrackingTransformer);
   }
 
   private static void loadFromFile(

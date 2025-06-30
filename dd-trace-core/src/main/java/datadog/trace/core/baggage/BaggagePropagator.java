@@ -24,42 +24,41 @@ public class BaggagePropagator implements Propagator {
   private static final Logger LOG = LoggerFactory.getLogger(BaggagePropagator.class);
   private static final PercentEscaper UTF_ESCAPER = PercentEscaper.create();
   static final String BAGGAGE_KEY = "baggage";
-  private final Config config;
   private final boolean injectBaggage;
   private final boolean extractBaggage;
+  private final int maxItems;
+  private final int maxBytes;
 
   public BaggagePropagator(Config config) {
-    this.injectBaggage = config.isBaggageInject();
-    this.extractBaggage = config.isBaggageExtract();
-    this.config = config;
+    this(
+        config.isBaggageInject(),
+        config.isBaggageExtract(),
+        config.getTraceBaggageMaxItems(),
+        config.getTraceBaggageMaxBytes());
   }
 
   // use primarily for testing purposes
-  public BaggagePropagator(boolean injectBaggage, boolean extractBaggage) {
+  BaggagePropagator(boolean injectBaggage, boolean extractBaggage, int maxItems, int maxBytes) {
     this.injectBaggage = injectBaggage;
     this.extractBaggage = extractBaggage;
-    this.config = Config.get();
+    this.maxItems = maxItems;
+    this.maxBytes = maxBytes;
   }
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    int maxItems = this.config.getTraceBaggageMaxItems();
-    int maxBytes = this.config.getTraceBaggageMaxBytes();
-    //noinspection ConstantValue
+    Baggage baggage;
     if (!this.injectBaggage
-        || maxItems == 0
-        || maxBytes == 0
+        || this.maxItems == 0
+        || this.maxBytes == 0
         || context == null
         || carrier == null
-        || setter == null) {
+        || setter == null
+        || (baggage = Baggage.fromContext(context)) == null) {
       return;
     }
 
-    Baggage baggage = Baggage.fromContext(context);
-    if (baggage == null) {
-      return;
-    }
-
+    // Inject cached header if any as optimized path
     String headerValue = baggage.getW3cHeader();
     if (headerValue != null) {
       setter.set(carrier, BAGGAGE_KEY, headerValue);
@@ -86,11 +85,11 @@ public class BaggagePropagator implements Propagator {
 
       processedItems++;
       // reached the max number of baggage items allowed
-      if (processedItems == maxItems) {
+      if (processedItems == this.maxItems) {
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
-      if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > maxBytes) {
+      if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
         break;
       }
@@ -98,13 +97,13 @@ public class BaggagePropagator implements Propagator {
     }
 
     headerValue = baggageText.toString();
+    // Save header as cache to re-inject it later if baggage did not change
     baggage.setW3cHeader(headerValue);
     setter.set(carrier, BAGGAGE_KEY, headerValue);
   }
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    //noinspection ConstantValue
     if (!this.extractBaggage || context == null || carrier == null || visitor == null) {
       return context;
     }
@@ -113,12 +112,11 @@ public class BaggagePropagator implements Propagator {
     return baggageExtractor.extracted == null ? context : context.with(baggageExtractor.extracted);
   }
 
-  private static class BaggageExtractor implements BiConsumer<String, String> {
+  private class BaggageExtractor implements BiConsumer<String, String> {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
     private Baggage extracted;
-
-    private BaggageExtractor() {}
+    private String w3cHeader;
 
     /** URL decode value */
     private String decode(final String value) {
@@ -134,6 +132,7 @@ public class BaggagePropagator implements Propagator {
     private Map<String, String> parseBaggageHeaders(String input) {
       Map<String, String> baggage = new HashMap<>();
       int start = 0;
+      boolean truncatedCache = false;
       int pairSeparatorInd = input.indexOf(PAIR_SEPARATOR);
       pairSeparatorInd = pairSeparatorInd == -1 ? input.length() : pairSeparatorInd;
       int kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR);
@@ -152,11 +151,29 @@ public class BaggagePropagator implements Propagator {
         }
         baggage.put(key, value);
 
+        // need to percent-encode non-ascii headers we pass down
+        if (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value)) {
+          truncatedCache = true;
+          this.w3cHeader = null;
+        } else if (!truncatedCache && (end > maxBytes || baggage.size() > maxItems)) {
+          if (start == 0) { // if we go out of range after first k/v pair, there is no cache
+            this.w3cHeader = null;
+          } else {
+            this.w3cHeader = input.substring(0, start - 1); // -1 to ignore the k/v separator
+          }
+          truncatedCache = true;
+        }
+
         kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR, pairSeparatorInd + 1);
         pairSeparatorInd = input.indexOf(PAIR_SEPARATOR, pairSeparatorInd + 1);
         pairSeparatorInd = pairSeparatorInd == -1 ? input.length() : pairSeparatorInd;
         start = end + 1;
       }
+
+      if (!truncatedCache) {
+        this.w3cHeader = input;
+      }
+
       return baggage;
     }
 
@@ -166,7 +183,7 @@ public class BaggagePropagator implements Propagator {
       if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
         Map<String, String> baggage = parseBaggageHeaders(value);
         if (!baggage.isEmpty()) {
-          this.extracted = Baggage.create(baggage, value);
+          this.extracted = Baggage.create(baggage, this.w3cHeader);
         }
       }
     }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.server.latestdep
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler
@@ -121,7 +120,7 @@ class PlayRouters {
       .POST(BODY_JSON.path).routingTo({ Http.Request req ->
         controller(BODY_JSON) {
           JsonNode json = req.body().asJson()
-          Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+          Results.status(BODY_JSON.status, json)
         }
       } as RequestFunctions.Params0<Result>)
       .POST(BODY_XML.path).routingTo({ Http.Request req ->
@@ -254,7 +253,7 @@ class PlayRouters {
         CompletableFuture.supplyAsync({
           ->
           controller(BODY_JSON) {
-            Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+            Results.status(BODY_JSON.status, json)
           }
         }, execContext)
       } as RequestFunctions.Params0<? extends CompletionStage<Result>>)

@@ -1,17 +1,19 @@
 package datadog.trace.bootstrap.config.provider
-
 import datadog.trace.test.util.DDSpecification
-
 import java.nio.file.Files
 import java.nio.file.Path
 
 class StableConfigParserTest extends DDSpecification {
+
   def "test parse valid"() {
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create: " + filePath)
     }
+
+    when:
     injectEnvConfig("DD_SERVICE", "mysvc")
     // From the below yaml, only apm_configuration_default and the second selector should be applied: We use the first matching rule and discard the rest
     String yaml = """
@@ -40,19 +42,15 @@ apm_configuration_rules:
       matches: ["mysvc"]
     configuration:
       KEY_FOUR: "ignored"
+  - selectors:
+    - origin: process_arguments
+      key: "-Darg1"
+      operator: exists
+    configuration:
+      KEY_FIVE: "ignored"
 """
-    try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
-    }
-
-    StableConfigSource.StableConfig cfg
-    try {
-      cfg = StableConfigParser.parse(filePath.toString())
-    } catch (Exception e) {
-      throw new AssertionError("Failed to parse the file: ${e.message}")
-    }
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
 
     then:
     def keys = cfg.getKeys()
@@ -76,71 +74,84 @@ apm_configuration_rules:
     match == expectMatch
 
     where:
-    origin | matches | operator | key | expectMatch
-    "language" | ["java"] | "equals" | "" | true
-    "LANGUAGE" | ["JaVa"] | "EQUALS" | "" | true // check case insensitivity
-    "language" | ["java", "golang"] | "equals" | "" | true
-    "language" | ["java"] | "starts_with" | "" | true
-    "language" | ["golang"] | "equals" | "" | false
-    "environment_variables" | [] | "exists" | "DD_TAGS" | true
-    "environment_variables" | ["team:apm"] | "contains" | "DD_TAGS" | true
-    "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"] | "CoNtAiNs" | "Dd_TaGs" | true // check case insensitivity
-    "environment_variables" | ["team:apm"] | "equals" | "DD_TAGS" | false
-    "environment_variables" | ["team:apm"] | "starts_with" | "DD_TAGS" | true
-    "environment_variables" | ["true"] | "equals" | "DD_PROFILING_ENABLED" | true
-    "environment_variables" | ["abcdefg"] | "equals" | "DD_PROFILING_ENABLED" | false
-    "environment_variables" | ["true"] | "equals" | "DD_PROFILING_ENABLED" | true
-    "environment_variables" | ["mysvc", "othersvc"] | "equals" | "DD_SERVICE" | true
-    "environment_variables" | ["my"] | "starts_with" | "DD_SERVICE" | true
-    "environment_variables" | ["svc"] | "ends_with" | "DD_SERVICE" | true
-    "environment_variables" | ["svc"] | "contains" | "DD_SERVICE" | true
-    "environment_variables" | ["other"] | "contains" | "DD_SERVICE" | false
-    "environment_variables" | [null] | "contains" | "DD_SERVICE" | false
-    //    "process_arguments" | null | "equals" | "-DCustomKey" | true
+    origin                  | matches               | operator               | key                    | expectMatch
+    "language"              | ["java"]              | "equals"               | ""                     | true
+    "LANGUAGE"              | ["JaVa"]              | "EQUALS"               | ""                     | true // check case insensitivity
+    "language"              | ["java", "golang"]    | "equals"               | ""                     | true
+    "language"              | ["java"]              | "starts_with"          | ""                     | true
+    "language"              | ["golang"]            | "equals"               | ""                     | false
+    "language"              | ["java"]              | "exists"               | ""                     | false
+    "language"              | ["java"]              | "something unexpected" | ""                     | false
+    "environment_variables" | []                    | "exists"               | "DD_TAGS"              | true
+    "environment_variables" | ["team:apm"]          | "contains"             | "DD_TAGS"              | true
+    "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"]          | "CoNtAiNs"             | "Dd_TaGs"              | true // check case insensitivity
+    "environment_variables" | ["team:apm"]          | "equals"               | "DD_TAGS"              | false
+    "environment_variables" | ["team:apm"]          | "starts_with"          | "DD_TAGS"              | true
+    "environment_variables" | ["true"]              | "equals"               | "DD_PROFILING_ENABLED" | true
+    "environment_variables" | ["abcdefg"]           | "equals"               | "DD_PROFILING_ENABLED" | false
+    "environment_variables" | ["true"]              | "equals"               | "DD_PROFILING_ENABLED" | true
+    "environment_variables" | ["mysvc", "othersvc"] | "equals"               | "DD_SERVICE"           | true
+    "environment_variables" | ["my"]                | "starts_with"          | "DD_SERVICE"           | true
+    "environment_variables" | ["svc"]               | "ends_with"            | "DD_SERVICE"           | true
+    "environment_variables" | ["svc"]               | "contains"             | "DD_SERVICE"           | true
+    "environment_variables" | ["other"]             | "contains"             | "DD_SERVICE"           | false
+    "environment_variables" | [null]                | "contains"             | "DD_SERVICE"           | false
   }
 
-  def "test duplicate entries"() {
-    // When duplicate keys are encountered, snakeyaml preserves the last value by default
+  def "test duplicate entries not allowed"() {
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create: " + filePath)
     }
+
+    when:
     String yaml = """
   config_id: 12345
   config_id: 67890
-  apm_configuration_default:
-    DD_KEY: value_1
-  apm_configuration_default:
-    DD_KEY: value_2
   """
+    Files.write(filePath, yaml.getBytes())
+    StableConfigParser.parse(filePath.toString())
 
-    try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
+    then:
+    def ex = thrown(RuntimeException)
+
+    and:
+    ex.message.contains "found duplicate key config_id"
+  }
+
+  def "test config_id only"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
     }
 
-    StableConfigSource.StableConfig cfg
-    try {
-      cfg = StableConfigParser.parse(filePath.toString())
-    } catch (Exception e) {
-      throw new AssertionError("Failed to parse the file: ${e.message}")
-    }
+    when:
+    String yaml = """
+  config_id: 12345
+  """
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
 
     then:
     cfg != null
-    cfg.getConfigId() == "67890"
-    cfg.get("DD_KEY") == "value_2"
+    cfg.getConfigId() == "12345"
+    cfg.getKeys().size() == 0
   }
 
   def "test parse invalid"() {
     // If any piece of the file is invalid, the whole file is rendered invalid and an exception is thrown
     when:
-    Path filePath = StableConfigSourceTest.tempFile()
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
     if (filePath == null) {
-      throw new AssertionError("Failed to create test file")
+      throw new AssertionError("Failed to create: " + filePath)
     }
+
+    when:
     String yaml = """
   something-irrelevant: ""
   config_id: 12345
@@ -158,13 +169,8 @@ apm_configuration_rules:
     KEY_FIVE: [a,b,c,d]
   something-else-irrelevant: value-irrelevant
   """
-    try {
-      StableConfigSourceTest.writeFileRaw(filePath, yaml)
-    } catch (IOException e) {
-      throw new AssertionError("Failed to write to file: ${e.message}")
-    }
-
-    StableConfigSource.StableConfig cfg
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = null
     Exception exception = null
     try {
       cfg = StableConfigParser.parse(filePath.toString())
@@ -176,5 +182,84 @@ apm_configuration_rules:
     exception != null
     cfg == null
     Files.delete(filePath)
+  }
+
+  def "test file over max size"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    if (filePath == null) {
+      throw new AssertionError("Failed to create test file")
+    }
+
+    // Create a file with valid contents, but bigger than MAX_FILE_SIZE_BYTES
+    String baseYaml = """
+config_id: 12345
+apm_configuration_default:
+    KEY_ONE: "value_one"
+apm_configuration_rules:
+"""
+    String builderYaml = """
+  - selectors:
+    - origin: language
+      matches: ["Java"]
+      operator: equals
+    configuration:
+      KEY_TWO: "value_two"
+"""
+    String bigYaml = baseYaml
+    while(bigYaml.size() < StableConfigParser.MAX_FILE_SIZE_BYTES) {
+      bigYaml += builderYaml
+    }
+
+    try {
+      Files.write(filePath, bigYaml.getBytes())
+    } catch (IOException e) {
+      throw new AssertionError("Failed to write to file: ${e.message}")
+    }
+
+    StableConfigSource.StableConfig cfg
+    try {
+      cfg = StableConfigParser.parse(filePath.toString())
+    } catch (Exception e) {
+      throw new AssertionError("Failed to parse the file: ${e.message}")
+    }
+
+    then:
+    cfg == StableConfigSource.StableConfig.EMPTY
+  }
+
+  def "test processTemplate valid cases"() {
+    when:
+    if (envKey != null) {
+      injectEnvConfig(envKey, envVal)
+    }
+
+    then:
+    StableConfigParser.processTemplate(templateVar) == expect
+
+    where:
+    templateVar                                                                                                 | envKey   | envVal  | expect
+    "{{environment_variables['DD_KEY']}}"                                                                       | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY']}}"                                                                       | null     | null    | ""
+    "{{}}"                                                                                                      | null     | null    | ""
+    "{}"                                                                                                        | null     | null    | "{}"
+    "{{environment_variables['dd_key']}}"                                                                       | "DD_KEY" | "value" | "value"
+    "{{environment_variables['DD_KEY}}"                                                                         | "DD_KEY" | "value" | ""
+    "header-{{environment_variables['DD_KEY']}}-footer"                                                         | "DD_KEY" | "value" | "header-value-footer"
+    "{{environment_variables['HEADER']}}{{environment_variables['DD_KEY']}}{{environment_variables['FOOTER']}}" | "DD_KEY" | "value" | "value"
+  }
+
+  def "test processTemplate error cases"() {
+    when:
+    StableConfigParser.processTemplate(templateVar)
+
+    then:
+    def e = thrown(IOException)
+    e.message == expect
+
+    where:
+    templateVar                          | expect
+    "{{environment_variables['']}}"      | "Empty environment variable name in template"
+    "{{environment_variables['DD_KEY']}" | "Unterminated template in config"
   }
 }

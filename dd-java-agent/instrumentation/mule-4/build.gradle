@@ -78,6 +78,10 @@ configurations.all {
     // avoid bringing in logback based on java 11
     force libs.logback.classic
     force libs.logback.core
+
+    // mule depends specifically on byte-buddy 1.14
+    // https://docs.mulesoft.com/release-notes/mule-runtime/mule-4.5.0-release-notes
+    force 'net.bytebuddy:byte-buddy:1.14.18'
   }
 }
 
@@ -146,7 +150,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:caffeine')
   testImplementation project(':dd-java-agent:instrumentation:quartz-2')
 
-
   testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   //testImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: muleVersion
@@ -169,14 +172,12 @@ dependencies {
   mule46Services group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.5.0', classifier: 'mule-service'
   mule46Services group: 'org.mule.services', name: 'mule-service-weave', version: '2.5.0', classifier: 'mule-service'
 
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.8.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.8.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.8.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.8.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.8.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.+'
 
-
-  //TODO: 4.9.0 is not yet out but it looks like using 4.+ instead of above 4.8.+ brings in 4.9.0-SNAPSHOT artifacts.
   /*
    When testing with them, the mule container does not bootstrap because of:
    None of [protected void java.lang.Object.finalize() throws java.lang.Throwable, public final void java.lang.Object.wait(long,int) throws java.lang.InterruptedException, public final void java.lang.Object.wait() throws java.lang.InterruptedException, public final native void java.lang.Object.wait(long) throws java.lang.InterruptedException, public boolean java.lang.Object.equals(java.lang.Object), public java.lang.String java.lang.Object.toString(), public native int java.lang.Object.hashCode(), public final native java.lang.Class java.lang.Object.getClass(), protected native java.lang.Object java.lang.Object.clone() throws java.lang.CloneNotSupportedException, public final native void java.lang.Object.notify(), public final native void java.lang.Object.notifyAll(), public abstract java.lang.Object java.lang.reflect.InvocationHandler.invoke(java.lang.Object,java.lang.reflect.Method,java.lang.Object[]) throws java.lang.Throwable] allows for delegation from public boolean org.springframework.beans.factory.SmartFactoryBean.isEagerInit()

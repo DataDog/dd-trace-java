@@ -14,6 +14,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.datastreams.DataStreamsContext
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -39,6 +40,8 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import net.bytebuddy.utility.RandomString
@@ -48,8 +51,6 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.WebSocketListener
-import okio.ByteString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -98,14 +99,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
-  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect {
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpServer().sortedTags().collect {
     key, value ->
     return key + ":" + value
   }
@@ -137,6 +137,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ss.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ss.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
+    ss.registerCallback(events.responseBody(), callbacks.responseBodyObjectCb)
     ss.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
@@ -337,6 +338,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+
   boolean isRequestBodyNoStreaming() {
     // if true, plain text request body tests expect the requestBodyProcessed
     // callback to tbe called, not requestBodyStart/requestBodyDone
@@ -352,6 +354,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testBodyJson() {
+    false
+  }
+
+  boolean testResponseBodyJson() {
     false
   }
 
@@ -409,8 +415,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     server instanceof WebsocketServer
   }
 
+  WebsocketClient websocketClient() {
+    new OkHttpWebsocketClient()
+  }
+
   boolean testEndpointDiscovery() {
     false
+  }
+
+  /**
+   * To be set if the integration name (_dd.integration) differs from the component.
+   * This happen when the controller integration modify the parent component name (i.e. jaxrs)
+   * @return
+   */
+  String expectedIntegrationName() {
+    null
   }
 
   @Override
@@ -565,7 +584,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responses
     def request = request(SUCCESS, method, body).build()
     if (testParallelRequest()) {
-      def executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+      // Limit pool size. Too many threads overwhelm the server and starve the host
+      def availableProcessorsOverride = System.getenv().get("RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE")
+      def poolSize = availableProcessorsOverride == null ? Runtime.getRuntime().availableProcessors() : Integer.valueOf(availableProcessorsOverride)
+      def executor = Executors.newFixedThreadPool(poolSize)
       def completionService = new ExecutorCompletionService(executor)
       (1..count).each {
         completionService.submit {
@@ -1286,7 +1308,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" })
+      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
       extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
@@ -1565,6 +1587,44 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | null
     false        | 'text/html;q=0.9, application/json;q=0.8'
     true         | 'text/html;q=0.8, application/json;q=0.9'
+  }
+
+  void 'test instrumentation gateway json response body'() {
+    setup:
+    assumeTrue(testResponseBodyJson())
+    final body = [a: 'x']
+    def request = request(
+    BODY_JSON, 'POST',
+    RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
+    .header(IG_RESPONSE_BODY_TAG, 'true')
+    .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == BODY_JSON.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    final responseBody = rootSpan.getTag('response.body') as String
+    new JsonSlurper().parseText(responseBody) == body
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
@@ -1934,12 +1994,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-
+    def client = websocketClient()
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     runUnderTrace("parent", {
       if (messages[0] instanceof String) {
@@ -1981,21 +2038,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testWebsockets())
     def wsServer = getServer() as WebsocketServer
-    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads())
+    def client = websocketClient()
+    assumeTrue(chunks == 1 || wsServer.canSplitLargeWebsocketPayloads() || client.supportMessageChunks())
 
     when:
-    def request = new Request.Builder().url(HttpUrl.get(WEBSOCKET.resolve(address)))
-    .get().build()
-
-    def ws = client.newWebSocket(request, new WebSocketListener() {})
+    client.connect(WEBSOCKET.resolve(address).toString())
     wsServer.awaitConnected()
     wsServer.setMaxPayloadSize(10)
+    // in case the client can also send partial fragments
+    client.setSplitChunksAfter(10)
     if (message instanceof String) {
-      ws.send(message as String)
+      client.send(message as String)
     } else {
-      ws.send(ByteString.of(message as byte[]))
+      client.send(message as byte[])
     }
-    ws.close(1000, "goodbye")
+    client.close(1000, "goodbye")
 
     then:
     assertTraces(3, {
@@ -2189,6 +2246,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
+    def expectedIntegrationName = expectedIntegrationName()
     trace.span {
       serviceName expectedServiceName()
       operationName operation()
@@ -2208,8 +2266,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
-          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-          "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          if(span.getTag(Tags.PEER_HOST_IPV6) != null) {
+            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+          } else {
+            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+          }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
@@ -2236,6 +2299,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        if (expectedIntegrationName != null) {
+          withCustomIntegrationName(expectedIntegrationName)
+        }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
@@ -2260,6 +2326,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
   static final String IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER = "x-include-response-headers-in-tags"
+  static final String IG_RESPONSE_BODY_TAG = "x-include-response-body-in-tags"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -2283,6 +2350,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean bodyEndBlock
       boolean bodyConvertedBlock
       boolean responseHeadersInTags
+      boolean responseBodyTag
     }
 
     static final String stringOrEmpty(String string) {
@@ -2335,6 +2403,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER.equalsIgnoreCase(key)) {
         context.responseHeadersInTags = true
+      }
+      if (IG_RESPONSE_BODY_TAG.equalsIgnoreCase(key)) {
+        context.responseBodyTag = true
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -2422,6 +2493,31 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.bodyConvertedBlock) {
+        new RbaFlow(
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
+      } else {
+        Flow.ResultFlow.empty()
+      }
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
+
+    final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
+    ({ RequestContext rqCtxt, Object obj ->
+      String body
+      // we need to extract a JSON representation of the response object, some frameworks classes might need updating
+      // as they might not work with a simple toString() call
+      if (obj instanceof String) {
+        body = obj as String
+      } else if (obj instanceof Map | obj instanceof List) {
+        body = JsonOutput.toJson(obj)
+      } else {
+        body = obj.toString()
+      }
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseBodyTag) {
+        rqCtxt.traceSegment.setTagTop('response.body', body)
+      }
+      if (context.responseBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )

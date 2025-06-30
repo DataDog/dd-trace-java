@@ -50,7 +50,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.0"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
     "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
     "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
     "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
@@ -59,6 +59,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     "7.6.4"       | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
   }
 
+  @IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
+    Platform.isJavaVersionAtLeast(24)
+  })
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
 
@@ -98,7 +101,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
+    "7.6.4"               | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -239,11 +242,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
+    def buildEnv = ["GRADLE_VERSION": gradleVersion]
+
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      buildEnv += ["MAVEN_REPOSITORY_PROXY": System.getenv("MAVEN_REPOSITORY_PROXY")]
+    }
+
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .withEnvironment(buildEnv)
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"

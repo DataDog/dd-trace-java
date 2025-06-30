@@ -13,25 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  datadog-static-analyzer:
-    name: Analyze changes with DataDog Static Analyzer
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
-        with:
-          submodules: 'recursive'
-      # Run the static analysis on the staging environment to benefit from the new features not yet released
-      - name: Check code meets quality standards (staging)
-        id: datadog-static-analysis-staging
-        uses: DataDog/datadog-static-analyzer-github-action@1297a546e6bb268e2ac5bc98a1477d22be335822 # v1
-        with:
-          dd_app_key: ${{ secrets.DATADOG_APP_KEY_STAGING }}
-          dd_api_key: ${{ secrets.DATADOG_API_KEY_STAGING }}
-          dd_site: "datad0g.com"
-          cpu_count: 2
-          enable_performance_statistics: false
-
   codeql:
     name: Analyze changes with GitHub CodeQL
     # Don’t run on PR, only when pushing to master
@@ -49,7 +30,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |
             ~/.gradle/caches
@@ -59,7 +40,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        uses: github/codeql-action/init@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3.29.0
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -76,28 +57,12 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
-
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog CI Static Analysis
-      #   run: |
-      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
-      #     chmod +x datadog-ci
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_APP_KEY_PROD }}
-      #     DD_SITE: datadoghq.com
-
-      # For now, CodeQL SARIF results are not supported by Datadog CI
-      # - name: Upload results to Datadog Staging CI Static Analysis
-      #   run: |
-      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-      #   env:
-      #     DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-      #     DD_SITE: datad0g.com
+        uses: github/codeql-action/analyze@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3.29.0
 
   trivy:
     name: Analyze changes with Trivy
+    # Don’t run on PR, only when pushing to master
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -111,7 +76,7 @@ jobs:
           submodules: 'recursive'
       
       - name: Cache Gradle dependencies
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |
             ~/.gradle/caches
@@ -144,7 +109,7 @@ jobs:
           ls -laR "./workspace/.trivy"
 
       - name: Run Trivy security scanner
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.31.0
         with:
           scan-type: rootfs
           scan-ref: './workspace/.trivy/'
@@ -157,7 +122,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        uses: github/codeql-action/upload-sarif@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3.29.0
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -170,10 +135,3 @@ jobs:
         env:
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
           DD_SITE: datadoghq.com
-
-      - name: Upload results to Datadog Staging CI Static Analysis
-        run: |
-          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
-        env:
-          DD_API_KEY: ${{ secrets.DATADOG_API_KEY_STAGING }}
-          DD_SITE: datad0g.com

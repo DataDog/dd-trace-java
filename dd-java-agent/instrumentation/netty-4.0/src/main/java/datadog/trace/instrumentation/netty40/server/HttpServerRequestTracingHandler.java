@@ -1,16 +1,15 @@
 package datadog.trace.instrumentation.netty40.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -31,7 +30,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       if (span == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
-        try (final AgentScope scope = activateSpan(span)) {
+        try (final ContextScope scope = span.attach()) {
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }
@@ -40,12 +39,12 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(headers);
-    final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
+    final Context context = DECORATE.extractContext(headers);
+    final AgentSpan span = DECORATE.startSpan(headers, context);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = context.with(span).attach()) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, channel, request, extractedContext);
+      DECORATE.onRequest(span, channel, request, context);
 
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);

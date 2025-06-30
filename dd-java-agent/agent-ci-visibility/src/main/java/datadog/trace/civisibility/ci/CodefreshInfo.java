@@ -12,6 +12,8 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 public class CodefreshInfo implements CIProviderInfo {
+
+  // https://codefresh.io/docs/docs/pipelines/variables/#system-variables
   public static final String CODEFRESH = "CF_BUILD_ID";
   public static final String CODEFRESH_PROVIDER_NAME = "codefresh";
   public static final String CF_STEP_NAME = "CF_STEP_NAME";
@@ -21,6 +23,8 @@ public class CodefreshInfo implements CIProviderInfo {
   private static final String CF_REVISION = "CF_REVISION";
   private static final String CF_COMMIT_MESSAGE = "CF_COMMIT_MESSAGE";
   private static final String CF_COMMIT_AUTHOR = "CF_COMMIT_AUTHOR";
+  private static final String CF_PULL_REQUEST_NUMBER = "CF_PULL_REQUEST_NUMBER";
+  private static final String CF_PULL_REQUEST_TARGET_BRANCH = "CF_PULL_REQUEST_TARGET";
 
   private final CiEnvironment environment;
 
@@ -44,7 +48,11 @@ public class CodefreshInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(CF_PULL_REQUEST_TARGET_BRANCH)),
+        null,
+        null,
+        environment.get(CF_PULL_REQUEST_NUMBER));
   }
 
   private String buildGitBranch() {

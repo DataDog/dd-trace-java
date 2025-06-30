@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 class ClientDecoratorTest extends BaseDecoratorTest {
@@ -11,6 +12,7 @@ class ClientDecoratorTest extends BaseDecoratorTest {
   def "test afterStart"() {
     setup:
     def decorator = newDecorator((String) serviceName)
+    def spanContext = Mock(AgentSpanContext)
 
     when:
     decorator.afterStart(span)
@@ -21,6 +23,8 @@ class ClientDecoratorTest extends BaseDecoratorTest {
     }
     1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.context() >> spanContext
+    1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType(decorator.spanType())
     1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)

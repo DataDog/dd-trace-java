@@ -10,7 +10,7 @@ public final class TagsPostProcessorFactory {
 
   private static class Lazy {
     private static TagsPostProcessor create() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(4);
+      final List<TagsPostProcessor> processors = new ArrayList<>(7);
       processors.add(new PeerServiceCalculator());
       if (addBaseService) {
         processors.add(new BaseServiceAdder(Config.get().getServiceName()));
@@ -32,6 +32,7 @@ public final class TagsPostProcessorFactory {
       if (Config.get().isAddSpanPointers("aws")) {
         processors.add(new SpanPointersProcessor());
       }
+      processors.add(new IntegrationAdder());
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }
@@ -52,6 +53,7 @@ public final class TagsPostProcessorFactory {
     addBaseService = enabled;
     Lazy.instance = Lazy.create();
   }
+
   /**
    * Mostly used for test purposes.
    *
