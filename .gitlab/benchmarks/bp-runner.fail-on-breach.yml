@@ -1,0 +1,46 @@
+# Example of measurements can be seen here:
+#  https://benchmarking.us1.prod.dog/benchmarks?benchmarkGroupPipelineId=66629462&benchmarkGroupSha=16054515e292a66c5eaf79b9ea62df6f348cd67e&page=1&ciJobDateStart=1746309551994&ciJobDateEnd=1748901551994&benchmarkId=14167634
+
+# Thresholds set based on guidance in https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5070193198/How+to+set+up+pre-release+performance+quality+gates#How-to-choose-thresholds-for-pre-release-gates%3F
+
+experiments:
+  - name: Run SLO breach check
+    steps:
+      - name: SLO breach check
+        run: fail_on_breach
+        # https://datadoghq.atlassian.net/wiki/x/LgI1LgE#How-to-choose-a-warning-range-for-pre-release-gates%3F
+        warning_range: 10
+        # File spec
+        #   https://datadoghq.atlassian.net/wiki/x/LgI1LgE#Specification
+        # Measurements
+        #   https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario
+        scenarios:
+
+          # Standard macrobenchmarks
+          - name: normal_operation/only-tracing
+            thresholds:
+              - agg_http_req_duration_p50 < 2.28 ms
+          - name: normal_operation/only-tracing
+            thresholds:
+              - agg_http_req_duration_p99 < 7.45 ms
+          - name: normal_operation/otel-latest
+            thresholds:
+              - agg_http_req_duration_p50 < 2.28 ms
+          - name: normal_operation/otel-latest
+            thresholds:
+              - agg_http_req_duration_p99 < 9.00 ms
+
+          - name: high_load/only-tracing
+            thresholds:
+              - throughput > 1400.0 op/s
+          - name: high_load/otel-latest
+            thresholds:
+              - throughput > 1400.0 op/s
+
+          # Startup macrobenchmarks
+          - name: "startup:petclinic:(tracing|appsec|iast):GlobalTracer"
+            thresholds:
+              - execution_time < 245 ms
+          - name: "startup:petclinic:profiling:GlobalTracer"
+            thresholds:
+              - execution_time < 368 ms

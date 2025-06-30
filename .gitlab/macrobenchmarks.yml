@@ -1,3 +1,8 @@
+include:
+  project: 'DataDog/benchmarking-platform-tools'
+  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  ref: '925e0a3e7dd628885f6fc69cdaea5c8cc9e212bc'
+
 .macrobenchmarks:
   stage: macrobenchmarks
   rules:
@@ -68,3 +73,34 @@ otel-latest:
     BP_BENCHMARKS_CONFIGURATION: otel-latest
     TRACER_OPTS: -javaagent:/app/otel-java-agent.jar -Ddd.env=otel-latest -Ddd.service=bp-java-petclinic
     JAVA_OPTS: -javaagent:/app/memcheck/stability-testing-memwatch.jar -Xmx128M
+
+
+check-slo-breaches:
+  stage: macrobenchmarks
+  when: always
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  needs:
+    - job: baseline
+      artifacts: true
+    - job: only-tracing
+      artifacts: true
+    - job: otel-latest
+      artifacts: true
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+  script:
+    - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/"
+    - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
+
+notify-slo-breaches:
+  extends: .notify-slo-breaches
+  stage: macrobenchmarks
+  needs: ["check-slo-breaches"]
+  when: always
+  variables:
+    CHANNEL: "apm-release-platform"
