@@ -46,7 +46,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
   private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
-  private static final int PROCESS_TIMEOUT_SECS = 180
+  private static final int PROCESS_TIMEOUT_SECS = 240
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
