@@ -50,18 +50,18 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
         @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> actual,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
-      AgentSpan span = ActiveResilience4jSpan.activeSpan();
-      if (span == null) {
-        span = ActiveResilience4jSpan.startSpan();
-        actual = new CompleteSpan<>(actual, span);
+      AgentSpan current = ActiveResilience4jSpan.current();
+      if (current == null) {
+        current = ActiveResilience4jSpan.start();
+        actual = new CompleteSpan<>(actual, current);
       }
       //      CircuitBreakerDecorator.DECORATE.decorate(scope, circuitBreaker);
-      return AgentTracer.activateSpan(span);
+      return AgentTracer.activateSpan(current);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(@Advice.Enter final AgentScope scope) {
-      ActiveResilience4jSpan.finishScope(scope);
+      ActiveResilience4jSpan.close(scope);
     }
   }
 }

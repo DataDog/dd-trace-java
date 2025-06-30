@@ -71,17 +71,17 @@ public abstract class ContextHolder {
   private AgentSpan span;
 
   protected AgentScope activateDecoratorScope() {
-    AgentSpan activeSpan = ActiveResilience4jSpan.activeSpan();
-    if (activeSpan == null) {
-      activeSpan = ActiveResilience4jSpan.startSpan();
-      this.span = activeSpan;
+    AgentSpan current = ActiveResilience4jSpan.current();
+    if (current == null) {
+      current = ActiveResilience4jSpan.start();
+      this.span = current;
     }
-    return AgentTracer.activateSpan(activeSpan);
+    return AgentTracer.activateSpan(current);
   }
 
   protected void finishSpanIfNeeded() {
     if (span != null) {
-      ActiveResilience4jSpan.finishSpan(span);
+      ActiveResilience4jSpan.finish(span);
       span = null;
     }
   }

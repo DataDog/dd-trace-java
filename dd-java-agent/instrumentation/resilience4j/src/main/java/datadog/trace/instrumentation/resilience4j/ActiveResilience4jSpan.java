@@ -9,7 +9,7 @@ public class ActiveResilience4jSpan {
   public static final CharSequence SPAN_NAME = UTF8BytesString.create("resilience4j");
   public static final String INSTRUMENTATION_NAME = "resilience4j";
 
-  public static AgentSpan activeSpan() {
+  public static AgentSpan current() {
     AgentSpan span = AgentTracer.activeSpan();
     if (span == null || !SPAN_NAME.equals(span.getOperationName())) {
       return null;
@@ -17,20 +17,20 @@ public class ActiveResilience4jSpan {
     return span;
   }
 
-  public static AgentSpan startSpan() {
+  public static AgentSpan start() {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     // TODO decorate
     return span;
   }
 
-  public static void finishScope(AgentScope scope) {
+  public static void close(AgentScope scope) {
     if (scope != null) {
       // TODO decorate
       scope.close();
     }
   }
 
-  public static void finishSpan(AgentSpan span) {
+  public static void finish(AgentSpan span) {
     if (span != null) {
       // TODO decorate
       span.finish();
