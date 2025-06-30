@@ -18,8 +18,17 @@ if [[ -z "${CI_COMMIT_REF_NAME}" ]]; then
 fi
 
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  echo "GITHUB_TOKEN is not set, please set it" >&2
-  exit 1
+  echo "GITHUB_TOKEN is not set, fetching from AWS SSM" >&2
+  if ! command -v aws >/dev/null 2>&1; then
+    echo "aws is not installed, please install it" >&2
+    exit 1
+  fi
+  GITHUB_TOKEN=$(aws ssm get-parameter --name "ci.$CI_PROJECT_NAME.gh_token" --with-decryption --query "Parameter.Value" --output text)
+  if [[ -z "${GITHUB_TOKEN}" ]]; then
+    echo "Failed to fetch GITHUB_TOKEN from AWS SSM" >&2
+    exit 1
+  fi
+  export GITHUB_TOKEN
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
