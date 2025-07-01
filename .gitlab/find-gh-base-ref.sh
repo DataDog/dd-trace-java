@@ -2,9 +2,39 @@
 # Determines the base branch for the current PR (if we are running in a PR).
 set -euo pipefail
 
+CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+if [[ -z "${CURRENT_HEAD_SHA:-}" ]]; then
+  echo "Failed to determine current HEAD SHA" >&2
+  exit 1
+fi
+
+CACHE_PATH=workspace/find-gh-base-ref.cache
+save_cache() {
+  local base_ref="$1"
+  local head_sha="$2"
+  mkdir -p workspace
+  echo "CACHED_BASE_REF=${base_ref}" > "$CACHE_PATH"
+  echo "CACHED_HEAD_SHA=${head_sha}" >> "$CACHE_PATH"
+}
+
+# Get cached result (if HEAD commit matches)
+if [[ -f $CACHE_PATH ]]; then
+  set -a
+  source "$CACHE_PATH"
+  set +a
+  if [[ "$CURRENT_HEAD_SHA" == "${CACHED_HEAD_SHA:-}" && -n "${CACHED_BASE_REF:-}" ]]; then
+    echo "Cache hit" >&2
+    echo "$CACHED_BASE_REF"
+    exit 0
+  else
+    echo "Cache miss" >&2
+  fi
+fi
+
 # Happy path: if we're just one commit away from master, base ref is master.
 if [[ $(git log --pretty=oneline origin/master..HEAD | wc -l) -eq 1 ]]; then
   echo "We are just one commit away from master, base ref is master" >&2
+  save_cache "master" "$CURRENT_HEAD_SHA"
   echo "master"
   exit 0
 fi
@@ -64,6 +94,7 @@ while true; do
     PR_BASE_REF=$(echo "$PR_DATA" | sed '1,/^[[:space:]]*$/d' | jq -r '.[].base.ref')
     if [[ -n "${PR_BASE_REF:-}" ]]; then
       echo "PR is https://github.com/datadog/dd-trace-java/pull/${PR_NUMBER} and base ref is ${PR_BASE_REF}">&2
+      save_cache "${PR_BASE_REF}" "$CURRENT_HEAD_SHA"
       echo "${PR_BASE_REF}"
       exit 0
     fi
@@ -77,7 +108,5 @@ while true; do
     continue
   fi
   echo -e "GitHub request failed for an unknown reason:\n$(echo "$PR_DATA" | sed '/^$/q')" >&2
-  echo "Assuming base ref is master" >&2
-  echo "master"
-  exit 0
+  exit 1
 done
