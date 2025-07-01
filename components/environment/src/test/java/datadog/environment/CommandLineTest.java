@@ -7,7 +7,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.io.BufferedReader;
@@ -25,8 +24,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class CommandLineTest {
   private static final String JVM_OPTIONS_MARKER = "-- JVM OPTIONS --";
+  private static final String MAIN_CLASS_MARKER = "-- MAIN CLASS --";
   private static final String CMD_ARGUMENTS_MARKER = "-- CMD ARGUMENTS --";
   private static final String REAL_CMD_ARGUMENTS_MARKER = "-- REAL CMD ARGUMENTS --";
+  private static final String TEST_PROCESS_CLASS_NAME = CommandLineTestProcess.class.getName();
 
   static Stream<Arguments> data() {
     // spotless:off
@@ -50,8 +51,20 @@ class CommandLineTest {
             of(asList("-Xmx128m", "-XX:+UseG1GC", "-Dtest.property=value"), asList("arg1", "arg2"))),
         arguments(
             "JVM options from argfile",
+            of(asList("-Dtest.property=value", argFile("carriage-return-separated")), asList("arg1", "arg2")),
+            of(flatten("-Dtest.property=value", expectedArsFromArgFile("carriage-return-separated")), asList("arg1", "arg2"))),
+        arguments(
+            "JVM options from argfile",
+            of(asList("-Dtest.property=value", argFile("new-line-separated")), asList("arg1", "arg2")),
+            of(flatten("-Dtest.property=value", expectedArsFromArgFile("new-line-separated")), asList("arg1", "arg2"))),
+        arguments(
+            "JVM options from argfile",
             of(asList("-Dtest.property=value", argFile("space-separated")), asList("arg1", "arg2")),
-            of(flatten("-Dtest.property=value", expectedArsFromArgFile("space-separated")), asList("arg1", "arg2")))
+            of(flatten("-Dtest.property=value", expectedArsFromArgFile("space-separated")), asList("arg1", "arg2"))),
+        arguments(
+            "JVM options from argfile",
+            of(asList("-Dtest.property=value", argFile("tab-separated")), asList("arg1", "arg2")),
+            of(flatten("-Dtest.property=value", expectedArsFromArgFile("tab-separated")), asList("arg1", "arg2")))
     );
     // spotless:on
   }
@@ -60,50 +73,16 @@ class CommandLineTest {
   @MethodSource("data")
   void testGetVmArguments(String useCase, RunArguments arguments, RunArguments expectedArguments)
       throws Exception {
-    if (useCase.contains("argfile")) {
-      System.out.println(">>> java.home" + System.getProperty("java.home"));
-      System.err.println(">>> java.home" + System.getProperty("java.home"));
-    }
     // Skip unsupported test cases
     skipArgFileTestOnJava8(arguments);
-    // keepDisabledArgFileOnLinuxOnly(arguments);
     // Run test process
     Result result = forkAndRunWithArgs(CommandLineTestProcess.class, arguments);
     // Check results
     assertEquals(expectedArguments.jvmOptions, result.jvmOptions, "Failed to get JVM options");
+    assertEquals(TEST_PROCESS_CLASS_NAME, result.mainClass(), "Failed to get main class");
     assertEquals(result.realCmdArgs, result.cmdArgs, "Failed to get command arguments");
     assertEquals(result.realCmdArgs, expectedArguments.cmdArgs, "Unexpected command arguments");
   }
-
-  //  @Test
-  //  // Disable the test for Java 8. Using -PtestJvm will set Java HOME to the JVM to use to run
-  // this
-  //  // test.
-  //  @DisabledIfSystemProperty(named = "java.home", matches = ".*[-/]8\\..*")
-  //  public void testGetVmArgumentsFromArgFile() throws Exception {
-  //    List<String> jvmOptions = asList("-Dproperty1=value1", argFile("space-separated"));
-  //    List<String> expectedJvmOptions = flatten("-Dproperty1=value1",
-  // expectedArsFromArgFile("space-separated"));
-  //    Result result = forkAndRunWithArgs(CommandLineTestProcess.class, of(jvmOptions,
-  // emptyList()));
-  //    assertEquals(expectedJvmOptions, result.jvmOptions, "Failed to get JVM options");
-  //    // TODO CMD ARGS
-  //  }
-  //
-  //  @Test
-  //  // Enable only for Java 20+: https://bugs.openjdk.org/browse/JDK-8297258
-  //  // Using -PtestJvm will set Java HOME to the JVM to use to run this test.
-  //  @EnabledIfSystemProperty(named = "java.home", matches = ".*[-/]21\\..*")
-  //  public void testGetVmArgumentsFromDisabledArgFile() throws Exception {
-  //    List<String> jvmArgs = asList("-Dproperty1=value1", "--disable-@files");
-  //    List<String> cmdArgs = asList("arg1", argFile("space-separated"), "arg2");
-  //    // --disable-@files won't be reported
-  //    List<String> expectedJvmOptions = singletonList("-Dproperty1=value1");
-  //    List<String> expectedCmdArgs = flatten(CommandLineTestProcess.class.getName(), cmdArgs);
-  //    Result result = forkAndRunWithArgs(CommandLineTestProcess.class, of(jvmArgs, cmdArgs));
-  //    assertEquals(expectedJvmOptions, result.jvmOptions, "Failed to get JVM options");
-  //    assertEquals(expectedCmdArgs, result.cmdArgs, "Failed to get command arguments");
-  //  }
 
   private static void skipArgFileTestOnJava8(RunArguments arguments) {
     boolean useArgFile = false;
@@ -123,19 +102,6 @@ class CommandLineTest {
     }
     if (useArgFile) {
       assumeFalse(System.getProperty("java.home").matches(".*[-/]8[./].*"));
-    }
-  }
-
-  private static void keepDisabledArgFileOnLinuxOnly(RunArguments arguments) {
-    boolean disableArgFile = false;
-    for (String jvmOptions : arguments.jvmOptions) {
-      if (jvmOptions.startsWith("--disable-@files")) {
-        disableArgFile = true;
-        break;
-      }
-    }
-    if (disableArgFile) {
-      assumeTrue(OperatingSystem.isLinux());
     }
   }
 
@@ -182,6 +148,8 @@ class CommandLineTest {
       while ((line = reader.readLine()) != null) {
         if (JVM_OPTIONS_MARKER.equals(line)) {
           current = result.jvmOptions;
+        } else if (MAIN_CLASS_MARKER.equals(line)) {
+          current = result.mainClasses;
         } else if (CMD_ARGUMENTS_MARKER.equals(line)) {
           current = result.cmdArgs;
         } else if (REAL_CMD_ARGUMENTS_MARKER.equals(line)) {
@@ -240,7 +208,11 @@ class CommandLineTest {
 
   static class Result extends CommandLineTest.RunArguments {
     List<String> realCmdArgs = new ArrayList<>();
-    String command; // TODO
+    List<String> mainClasses = new ArrayList<>();
+
+    String mainClass() {
+      return String.join(",", this.mainClasses);
+    }
   }
 
   // This class will be executed in the subprocess
@@ -251,6 +223,9 @@ class CommandLineTest {
       for (String option : JavaVirtualMachine.getVmOptions()) {
         System.out.println(option);
       }
+      // Print main class
+      System.out.println(MAIN_CLASS_MARKER);
+      System.out.println(JavaVirtualMachine.getMainClass());
       // Print each command argument on a new line
       System.out.println(CMD_ARGUMENTS_MARKER);
       for (String arg : JavaVirtualMachine.getCommandArguments()) {
