@@ -119,6 +119,13 @@ default:
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
 
+.gitlab_base_ref_params: &gitlab_base_ref_params
+  - |
+    if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
+      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
+    fi
+
 .gradle_build: &gradle_build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
@@ -223,7 +230,8 @@ build_tests:
         MAVEN_OPTS: "-Xms64M -Xmx512M -Dorg.slf4j.simpleLogger.defaultLogLevel=debug" # FIXME: Build :smokeTest build fails unless mvn debug logging is on
 
   script:
-    - ./gradlew clean $GRADLE_TARGET -PskipTests $GRADLE_ARGS
+    - *gitlab_base_ref_params
+    - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
 populate_dep_cache:
   extends: build_tests
@@ -327,7 +335,8 @@ test_published_artifacts:
   variables:
     CACHE_TYPE: lib
   script:
-    - ./gradlew $GRADLE_TARGET -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - *gitlab_base_ref_params
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
@@ -460,6 +469,7 @@ muzzle-dep-report:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
   script:
+    - *gitlab_base_ref_params
     - >
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
       then
@@ -506,7 +516,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.24.1
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -729,6 +739,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
+# If the deploy_to_sonatype job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_sonatype:
   extends: .gradle_build
   stage: publish
@@ -765,7 +776,7 @@ deploy_artifacts_to_github:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
-  # Requires the deploy_to_sonatype job to have run first the UP-TO-DATE gradle check across jobs is broken
+  # Requires the deploy_to_sonatype job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
     - job: deploy_to_sonatype
