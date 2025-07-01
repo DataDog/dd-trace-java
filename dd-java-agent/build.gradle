@@ -174,7 +174,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
-  it.destinationDirectory.set(file("${project.buildDir}/shared-lib"))
+  it.destinationDirectory.set(project.layout.buildDirectory.dir("shared-lib"))
   // Add a classifier so we don't confuse the jar file with the normal shadow jar
   archiveClassifier = 'shared'
   it.dependencies {
@@ -192,7 +192,7 @@ includeShadowJar(sharedShadowJar, 'shared')
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
   configurations = [project.configurations.traceShadowInclude]
-  it.destinationDirectory.set(file("${project.buildDir}/trace-lib"))
+  it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
   archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
@@ -263,6 +263,9 @@ dependencies {
   testImplementation project(':dd-trace-api')
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
+
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging
   testImplementation libs.guava

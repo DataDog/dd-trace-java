@@ -10,7 +10,9 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -168,19 +170,20 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final String[] jvmArgs(Class<? extends TestSecurityManager> securityManagerClass) {
+  public static final List<String> jvmArgs(
+      Class<? extends TestSecurityManager> securityManagerClass) {
     if (securityManagerClass == null) {
-      return new String[] {};
+      return Collections.emptyList();
     } else {
-      return new String[] {"-Djava.security.manager=" + securityManagerClass.getName()};
+      return Collections.singletonList("-Djava.security.manager=" + securityManagerClass.getName());
     }
   }
 
-  public static final String[] mainArgs(String args) {
+  public static final List<String> mainArgs(String args) {
     if (args == null) {
-      return new String[] {};
+      return Collections.emptyList();
     } else {
-      return args.split(",");
+      return Arrays.asList(args.split(","));
     }
   }
 
