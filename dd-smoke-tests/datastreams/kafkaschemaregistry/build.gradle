@@ -1,5 +1,5 @@
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
   id 'java'
   id 'org.springframework.boot' version '2.6.3'
 }

@@ -1,0 +1,24 @@
+plugins {
+  id "com.gradleup.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.ratpack.RatpackApp')
+  }
+}
+dependencies {
+  implementation 'io.ratpack:ratpack-core:1.5.0'
+  implementation 'com.sun.activation:jakarta.activation:1.2.2'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:appsec')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.ratpack.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
+
