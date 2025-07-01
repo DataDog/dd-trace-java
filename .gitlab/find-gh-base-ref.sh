@@ -8,6 +8,7 @@ if [[ -z "${CURRENT_HEAD_SHA:-}" ]]; then
   exit 1
 fi
 
+# 'workspace' is declared in the ci pipeline cache
 CACHE_PATH=workspace/find-gh-base-ref.cache
 save_cache() {
   local base_ref="$1"
