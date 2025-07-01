@@ -366,7 +366,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       return responseSpan
     }
 
-    def decorator = newDecorator()
+    def decorator = newDecorator(null, false)
 
     when:
     decorator.onResponse(responseSpan, resp)
@@ -385,83 +385,86 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   @Override
   def newDecorator() {
-    return newDecorator(null)
+    return newDecorator(null, true)
   }
 
-  def newDecorator(TracerAPI tracer) {
+  def newDecorator(TracerAPI tracer, boolean noopResponseGetter) {
     if (!tracer) {
       tracer = AgentTracer.NOOP_TRACER
     }
 
     return new HttpServerDecorator<Map, Map, Map, Map<String, String>>() {
-      @Override
-      protected TracerAPI tracer() {
-        return tracer
-      }
-
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
-
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
-        return ContextVisitors.stringValuesMap()
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Map> responseGetter() {
-        return new MapCarrierVisitor()
-      }
-
-      @Override
-      CharSequence spanName() {
-        return "http-test-span"
-      }
-
-      @Override
-      protected String method(Map m) {
-        return m.method
-      }
-
-      @Override
-      protected URIDataAdapter url(Map m) {
-        return m.url == null ? null : new URIDefaultDataAdapter(m.url)
-      }
-
-      @Override
-      protected String peerHostIP(Map m) {
-        return m.peerIp
-      }
-
-      @Override
-      protected int peerPort(Map m) {
-        return m.port == null ? 0 : m.port
-      }
-
-      @Override
-      protected int status(Map m) {
-        return m.status == null ? 0 : m.status
-      }
-
-      static class MapCarrierVisitor
-        implements AgentPropagation.ContextVisitor<Map> {
         @Override
-        void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
-          Map<String, String> headers = carrier.headers
-          if (headers != null) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-              classifier.accept(entry.key, entry.value)
+        protected TracerAPI tracer() {
+          return tracer
+        }
+
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
+
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
+          return ContextVisitors.stringValuesMap()
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map> responseGetter() {
+          if (noopResponseGetter){
+            return null
+          }
+          return new MapCarrierVisitor()
+        }
+
+        @Override
+        CharSequence spanName() {
+          return "http-test-span"
+        }
+
+        @Override
+        protected String method(Map m) {
+          return m.method
+        }
+
+        @Override
+        protected URIDataAdapter url(Map m) {
+          return m.url == null ? null : new URIDefaultDataAdapter(m.url)
+        }
+
+        @Override
+        protected String peerHostIP(Map m) {
+          return m.peerIp
+        }
+
+        @Override
+        protected int peerPort(Map m) {
+          return m.port == null ? 0 : m.port
+        }
+
+        @Override
+        protected int status(Map m) {
+          return m.status == null ? 0 : m.status
+        }
+
+        static class MapCarrierVisitor
+        implements AgentPropagation.ContextVisitor<Map> {
+          @Override
+          void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
+            Map<String, String> headers = carrier.headers
+            if (headers != null) {
+              for (Map.Entry<String, String> entry : headers.entrySet()) {
+                classifier.accept(entry.key, entry.value)
+              }
             }
           }
         }
       }
-    }
   }
 
   def "test startSpan and InstrumentationGateway"() {
@@ -495,7 +498,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
       getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
-    def decorator = newDecorator(mTracer)
+    def decorator = newDecorator(mTracer, true)
 
     when:
     decorator.startSpan("test", headers, null)

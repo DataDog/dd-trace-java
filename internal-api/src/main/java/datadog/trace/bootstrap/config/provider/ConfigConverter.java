@@ -312,20 +312,18 @@ final class ConfigConverter {
             String value;
             if (delimiter == mapPos) {
               value = trimmedHeader(str, delimiter + 1, end, false);
-              System.out.println("delimiter==mapPos value: " + value);
               // tags must start with a letter
               if (!value.isEmpty() && !Character.isLetter(value.charAt(0))) {
                 throw new BadFormatException(
                     "Illegal tag starting with non letter for key '" + key + "'");
               }
             } else {
-              if(key.charAt(0) == '*'){
+              if (key.charAt(0) == '*') {
                 map.put(key, defaultPrefix);
                 return;
               }
               if (Character.isLetter(key.charAt(0))) {
                 value = defaultPrefix + Strings.normalizedHeaderTag(key);
-                System.out.println("else value: " + value);
               } else {
                 // tags must start with a letter
                 throw new BadFormatException(

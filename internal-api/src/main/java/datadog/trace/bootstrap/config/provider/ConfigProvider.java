@@ -318,7 +318,6 @@ public final class ConfigProvider {
     for (String key : keys) {
       for (int i = sources.length - 1; 0 <= i; i--) {
         String value = sources[i].get(key);
-//        System.out.println("value: " + value);
         Map<String, String> parsedMap =
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {

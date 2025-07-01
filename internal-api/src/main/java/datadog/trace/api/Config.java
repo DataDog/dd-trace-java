@@ -833,16 +833,12 @@ public class Config {
         logIgnoredSettingWarning(RESPONSE_HEADER_TAGS, HEADER_TAGS, ".legacy.parsing.enabled");
       }
     } else {
-      System.out.println("requestHeaderTags: ");
       requestHeaderTags =
           configProvider.getMergedMapWithOptionalMappings(
               "http.request.headers.", true, HEADER_TAGS, REQUEST_HEADER_TAGS);
-      System.out.println("responseHeaderTags: ");
       responseHeaderTags =
           configProvider.getMergedMapWithOptionalMappings(
               "http.response.headers.", true, HEADER_TAGS, RESPONSE_HEADER_TAGS);
-      if(responseHeaderTags.size() > 0)
-        System.out.println("responseHeaderTags Post-Processing\nsize: " + responseHeaderTags.size() + "; " + responseHeaderTags.keySet().toArray()[0] + " : " + responseHeaderTags.get(responseHeaderTags.keySet().toArray()[0]));
     }
     requestHeaderTagsCommaAllowed =
         configProvider.getBoolean(REQUEST_HEADER_TAGS_COMMA_ALLOWED, true);
