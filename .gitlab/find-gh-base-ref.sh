@@ -23,11 +23,11 @@ if [[ -f $CACHE_PATH ]]; then
   source "$CACHE_PATH"
   set +a
   if [[ "$CURRENT_HEAD_SHA" == "${CACHED_HEAD_SHA:-}" && -n "${CACHED_BASE_REF:-}" ]]; then
-    echo "Cache hit" >&2
+    echo "Cache hit on $CACHE_PATH" >&2
     echo "$CACHED_BASE_REF"
     exit 0
   else
-    echo "Cache miss" >&2
+    echo "Cache miss on $CACHE_PATH" >&2
   fi
 fi
 
