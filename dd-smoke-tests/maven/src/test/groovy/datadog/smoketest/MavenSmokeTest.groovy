@@ -59,6 +59,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   def setup() {
     mockBackend.reset()
+    println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
   }
 
   def "test #projectName, v#mavenVersion"() {
@@ -311,6 +312,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static runProcess(ProcessBuilder processBuilder) {
     println "Starting: " + processBuilder.command().join(" ")
+    println "MVN_HOME: " + processBuilder.environment().get("MAVEN_USER_HOME")
     Process p = processBuilder.start()
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
