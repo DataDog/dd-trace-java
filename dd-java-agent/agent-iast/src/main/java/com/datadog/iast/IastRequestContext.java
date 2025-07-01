@@ -48,8 +48,13 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   }
 
   public IastRequestContext(final TaintedObjects taintedObjects) {
+    this(taintedObjects, false);
+  }
+
+  public IastRequestContext(final TaintedObjects taintedObjects, boolean isGlobal) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
-    this.overheadContext = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
+    this.overheadContext =
+        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), isGlobal);
     this.taintedObjects = taintedObjects;
   }
 
