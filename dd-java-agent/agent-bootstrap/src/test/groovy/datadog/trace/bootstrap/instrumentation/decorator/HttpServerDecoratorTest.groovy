@@ -34,6 +34,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
+  def respHeaders = ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']
 
   boolean origAppSecActive
 
@@ -353,13 +354,18 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test response headers with trace.header.tags"() {
     setup:
-    injectSysConfig("trace.header.tags", headerTags)
     def traceConfig = Mock(TraceConfig)
-    traceConfig.getResponseHeaderTags() >> [(headerTags.split(":")[0].toLowerCase()): headerTags.split(":")[1]]
-    
+    traceConfig.getResponseHeaderTags() >> headerTags
+
+    def tags = [:]
+
     def responseSpan = Mock(AgentSpan)
     responseSpan.traceConfig() >> traceConfig
-    
+    responseSpan.setTag(_, _) >> { String k, String v ->
+      tags[k] = v
+      return responseSpan
+    }
+
     def decorator = newDecorator()
 
     when:
@@ -367,12 +373,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     for (Map.Entry<String, String> entry : expectedTag.entrySet()) {
-      responseSpan.getTag(entry.getKey()).equals(entry.getValue())
+      assert tags[entry.getKey()] == entry.getValue()
     }
 
     where:
-    headerTags | resp           | expectedTag
-    "X-Custom-Header:abc"    | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [abc:"custom-value"]
+    headerTags                         | resp                                                                                             | expectedTag
+    [:]                                | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [:]
+    ["x-custom-header": "abc"]         | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [abc:"custom-value"]
+    ["*": "datadog.response.headers."] | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | ["datadog.response.headers.x-custom-header":"custom-value", "datadog.response.headers.content-type":"application/json"]
   }
 
   @Override
