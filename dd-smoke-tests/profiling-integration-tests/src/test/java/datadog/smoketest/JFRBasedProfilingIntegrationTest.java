@@ -847,6 +847,6 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   public static boolean isJavaVersionAtLeast24() {
-    return Platform.isJavaVersionAtLeast(24);
+    return JavaVirtualMachine.isJavaVersionAtLeast(24);
   }
 }
