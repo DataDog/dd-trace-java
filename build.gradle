@@ -121,17 +121,6 @@ wrapper {
   distributionType = Wrapper.DistributionType.ALL
 }
 
-tasks.register('writeMuzzleTasksToFile') {
-  doLast {
-    def muzzleFile = file("${buildDir}/muzzleTasks")
-    assert muzzleFile.parentFile.mkdirs() || muzzleFile.parentFile.directory
-
-    muzzleFile.text = subprojects.findAll { subproject -> subproject.plugins.hasPlugin('muzzle') }
-    .collect { it.path + ":muzzle" }
-    .join('\n')
-  }
-}
-
 def writeMainVersionFileTask = tasks.register('writeMainVersionFile') {
   def versionFile = file("${rootProject.buildDir}/main.version")
   inputs.property "version", scmVersion.version
