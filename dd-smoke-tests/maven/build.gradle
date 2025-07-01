@@ -20,13 +20,67 @@ jar {
   }
 }
 
+// Pre-cache Maven dependencies for smoke tests projects during build phase
+tasks.register('mvnBuild') {
+  description = 'Pre-cache Maven dependencies for all test projects'
+
+  inputs.files fileTree("$projectDir/src/test/resources") {
+    include "**/pom.xml"
+    include "**/settings.xml"
+  }
+  outputs.dir "$projectDir/.gradle/maven-dependencies-cache"
+
+  doLast {
+    file("$projectDir/.gradle/maven-dependencies-cache").mkdirs()
+
+    def pomFiles = fileTree("$projectDir/src/test/resources") {
+      include "**/pom.xml"
+    }
+
+    def processedProjects = [] as Set
+
+    pomFiles.each { pomFile ->
+      def projectDir = pomFile.parentFile
+      def projectKey = projectDir.name
+
+      if (!processedProjects.contains(projectKey)) {
+        processedProjects.add(projectKey)
+
+        logger.info("Pre-caching dependencies for Maven project: ${projectKey}")
+
+        def processBuilder = new ProcessBuilder()
+        processBuilder.directory(projectDir)
+        processBuilder.command("$rootDir/mvnw", "dependency:go-offline", "-B")
+
+        // Handle proxy configuration if available
+        if (project.hasProperty("mavenRepositoryProxy")) {
+          processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy"))
+        }
+
+        def process = processBuilder.start()
+        def exitCode = process.waitFor()
+
+        if (exitCode != 0) {
+          logger.warn("Failed to cache dependencies for project ${projectKey}, exit code: ${exitCode}")
+        } else {
+          logger.info("Successfully cached dependencies for project: ${projectKey}")
+        }
+      }
+    }
+  }
+}
+
+tasks.named("compileTestGroovy").configure {
+  dependsOn 'mvnBuild'
+}
+
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
 
   // overriding the default timeout set in configure_tests.gradle, as Maven smoke
   // tests might run for a longer duration
-  timeout = Duration.of(20, ChronoUnit.MINUTES)
+  timeout = Duration.of(15, ChronoUnit.MINUTES)
 
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds
