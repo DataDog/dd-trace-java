@@ -59,10 +59,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   def setup() {
     mockBackend.reset()
-    println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
   }
 
   def "test #projectName, v#mavenVersion"() {
+    println "Starting: ${projectName} ${mavenVersion}"
     Assumptions.assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
       "Current JVM " + Jvm.current.javaVersion + " is not compatible with minimum required version " + minSupportedJavaVersion)
 
@@ -350,6 +350,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
     if (mavenRepositoryProxy != null) {
       processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy)
+    } else {
+      println "MAVEN_REPOSITORY_PROXY NOT SET FOR ${mvnCommand}"
     }
 
     return processBuilder
