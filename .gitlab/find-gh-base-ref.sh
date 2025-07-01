@@ -17,14 +17,19 @@ if [[ -z "${CI_COMMIT_REF_NAME}" ]]; then
   exit 1
 fi
 
+# In GitLab, CI_PROJECT_NAME is set, otherwise, set it for testing.
+export CI_PROJECT_NAME="${CI_PROJECT_NAME:-dd-trace-java}"
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   echo "GITHUB_TOKEN is not set, fetching from AWS SSM" >&2
   if ! command -v aws >/dev/null 2>&1; then
     echo "aws is not installed, please install it" >&2
     exit 1
   fi
+  set +e
   GITHUB_TOKEN=$(aws ssm get-parameter --name "ci.$CI_PROJECT_NAME.gh_release_token" --with-decryption --query "Parameter.Value" --output text)
-  if [[ -z "${GITHUB_TOKEN}" ]]; then
+  set -e
+  if [[ -z "${GITHUB_TOKEN:-}" ]]; then
     echo "Failed to fetch GITHUB_TOKEN from AWS SSM" >&2
     exit 1
   fi
@@ -57,9 +62,11 @@ while true; do
   if [[ ${exit_code} -eq 0 ]]; then
     PR_NUMBER=$(echo "$PR_DATA" | sed '1,/^[[:space:]]*$/d' | jq -r '.[].number')
     PR_BASE_REF=$(echo "$PR_DATA" | sed '1,/^[[:space:]]*$/d' | jq -r '.[].base.ref')
-    echo "PR is https://github.com/datadog/dd-trace-java/pull/${PR_NUMBER} and base ref is ${PR_BASE_REF}">&2
-    echo "${PR_BASE_REF}"
-    exit 0
+    if [[ -n "${PR_BASE_REF:-}" ]]; then
+      echo "PR is https://github.com/datadog/dd-trace-java/pull/${PR_NUMBER} and base ref is ${PR_BASE_REF}">&2
+      echo "${PR_BASE_REF}"
+      exit 0
+    fi
   fi
   if echo "$PR_DATA" | grep -q "^x-ratelimit-reset:"; then
     reset_timestamp=$(echo -n "$PR_DATA" | grep "^x-ratelimit-reset:" | sed -e 's/^x-ratelimit-reset: //' -e 's/\r//')
