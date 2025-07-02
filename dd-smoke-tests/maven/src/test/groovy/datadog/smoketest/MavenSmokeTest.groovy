@@ -337,6 +337,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
     command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.xml".toString()])
+
+    String m2 = System.getenv().get("MAVEN_USER_HOME")
+    if (m2 != null) {
+      command.add("-Dmaven.repo.local=${m2}".toString())
+    }
+    
     command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
