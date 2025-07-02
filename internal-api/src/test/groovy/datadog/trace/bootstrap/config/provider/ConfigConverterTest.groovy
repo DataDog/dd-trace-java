@@ -156,7 +156,8 @@ class ConfigConverterTest extends DDSpecification {
     // Test for wildcard header tags
     "*"                           | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
     "*:"                          | [:]                                    | true          | "datadog.response.headers"
-
+    "*,header1:tag"               | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
+    "header1:tag,*"               | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
     // logs warning: Illegal key only tag starting with non letter '1header'
     "1header,header2:two"         | [:]                                    | true          | ""
     // logs warning: Illegal tag starting with non letter for key 'header'

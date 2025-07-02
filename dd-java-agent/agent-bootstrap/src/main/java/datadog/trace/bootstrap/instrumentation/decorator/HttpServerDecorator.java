@@ -647,7 +647,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
       this.span = span;
       this.headerTags = headerTags;
-      this.wildcardHeaderPrefix = this.headerTags.getOrDefault("*", null);
+      this.wildcardHeaderPrefix = this.headerTags.get("*");
     }
 
     @Override

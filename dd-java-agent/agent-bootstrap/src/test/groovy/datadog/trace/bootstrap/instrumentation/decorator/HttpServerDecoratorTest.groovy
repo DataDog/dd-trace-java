@@ -34,7 +34,17 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
-  def respHeaders = ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']
+
+  static class MapCarrierVisitor
+  implements AgentPropagation.ContextVisitor<Map> {
+    @Override
+    void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
+      Map<String, String> headers = carrier.headers
+      headers?.each {
+        classifier.accept(it.key, it.value)
+      }
+    }
+  }
 
   boolean origAppSecActive
 
@@ -366,14 +376,16 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       return responseSpan
     }
 
-    def decorator = newDecorator(null, false)
+    def decorator = newDecorator(null, new MapCarrierVisitor())
 
     when:
     decorator.onResponse(responseSpan, resp)
 
     then:
-    for (Map.Entry<String, String> entry : expectedTag.entrySet()) {
-      assert tags[entry.getKey()] == entry.getValue()
+    if (expectedTag){
+      expectedTag.each {
+        assert tags[it.key] == it.value
+      }
     }
 
     where:
@@ -385,10 +397,10 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   @Override
   def newDecorator() {
-    return newDecorator(null, true)
+    return newDecorator(null, null)
   }
 
-  def newDecorator(TracerAPI tracer, boolean noopResponseGetter) {
+  def newDecorator(TracerAPI tracer, AgentPropagation.ContextVisitor<Map> contextVisitor) {
     if (!tracer) {
       tracer = AgentTracer.NOOP_TRACER
     }
@@ -416,10 +428,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected AgentPropagation.ContextVisitor<Map> responseGetter() {
-          if (noopResponseGetter){
-            return null
-          }
-          return new MapCarrierVisitor()
+          return contextVisitor
         }
 
         @Override
@@ -450,19 +459,6 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         @Override
         protected int status(Map m) {
           return m.status == null ? 0 : m.status
-        }
-
-        static class MapCarrierVisitor
-        implements AgentPropagation.ContextVisitor<Map> {
-          @Override
-          void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
-            Map<String, String> headers = carrier.headers
-            if (headers != null) {
-              for (Map.Entry<String, String> entry : headers.entrySet()) {
-                classifier.accept(entry.key, entry.value)
-              }
-            }
-          }
         }
       }
   }
@@ -498,7 +494,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
       getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
-    def decorator = newDecorator(mTracer, true)
+    def decorator = newDecorator(mTracer, null)
 
     when:
     decorator.startSpan("test", headers, null)
