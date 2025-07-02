@@ -303,7 +303,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
-    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
+    def processBuilder = createProcessBuilder(["-B", "-X", "help:active-profiles", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
