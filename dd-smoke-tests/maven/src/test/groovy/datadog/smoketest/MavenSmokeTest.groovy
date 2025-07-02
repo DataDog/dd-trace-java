@@ -297,7 +297,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand, Map<String, String> additionalEnvVars = [:]) {
     def processBuilder = createProcessBuilder(mvnCommand, false, false, [], additionalEnvVars)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = runProcess(processBuilder)
+      def exitCode = runProcess(processBuilder.start())
       if (exitCode == 0) {
         return
       }
@@ -310,11 +310,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
-    return runProcess(processBuilder)
+    return runProcess(processBuilder.start())
   }
 
-  private static runProcess(ProcessBuilder processBuilder) {
-    Process p = processBuilder.start()
+  private static runProcess(Process p) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
