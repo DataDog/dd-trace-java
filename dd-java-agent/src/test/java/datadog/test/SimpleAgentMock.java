@@ -15,7 +15,7 @@ import okhttp3.mockwebserver.RecordedRequest;
 
 /**
  * Simple web server to mock responses from agent and collect spans. We can not use `TestHttpServer`
- * from `:dd-java-agent:testing` because it will bring unwanted dependencies into classpath and were
+ * from `:dd-java-agent:testing` because it will bring unwanted dependencies into classpath, and we
  * are trying to make sure that we expose as little as possible into the bootstrap and system class
  * loaders.
  */
