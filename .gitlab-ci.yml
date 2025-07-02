@@ -164,6 +164,8 @@ default:
     - source .gitlab/gitlab-utils.sh
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
+    - mkdir -p .m2
+    - export MAVEN_USER_HOME=$(pwd)/.m2
     - |
       # Don't put jvm args here as it will be picked up by child gradle processes used in tests
       cat << EOF > $GRADLE_USER_HOME/gradle.properties
