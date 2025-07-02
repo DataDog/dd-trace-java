@@ -61,4 +61,9 @@ public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterMo
           buildScopeServices, parentServices);
     }
   }
+
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
+  }
 }
