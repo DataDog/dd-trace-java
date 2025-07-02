@@ -306,7 +306,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
-    def processBuilder = createProcessBuilder(["-B", "-X", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
+    def processBuilder = createProcessBuilder(["-B", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
@@ -370,11 +370,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       "-Dmaven.mainClass=org.apache.maven.cli.MavenCli".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
     ]
-
-    String m2 = System.getenv().get("MAVEN_USER_HOME")
-    if (m2 != null) {
-      arguments += "-Dmaven.repo.local=${m2}".toString()
-    }
 
     if (runWithAgent) {
       if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
