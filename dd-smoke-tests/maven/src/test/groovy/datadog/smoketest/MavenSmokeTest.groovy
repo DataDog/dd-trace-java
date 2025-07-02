@@ -270,10 +270,17 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   /**
-   * Dependencies are now pre-cached during the Gradle build phase via the mvnBuild task.
-   * This method still handles runtime-specific dependencies that are added by the tracer.
+   * Sometimes Maven has problems downloading project dependencies because of intermittent network issues.
+   * Here, in order to reduce flakiness, we ensure that all of the dependencies are loaded (retrying if necessary),
+   * before proceeding with running the build
    */
   private void givenMavenDependenciesAreLoaded(String projectName, String mavenVersion, Map<String, String> additionalEnvVars = [:]) {
+    if (LOADED_DEPENDENCIES.add("$projectName:$mavenVersion")) {
+      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline"], additionalEnvVars)
+    }
+    // dependencies below are download separately
+    // because they are not declared in the project,
+    // but are added at runtime by the tracer
     if (LOADED_DEPENDENCIES.add("com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION")) {
       retryUntilSuccessfulOrNoAttemptsLeft(["dependency:get", "-Dartifact=com.datadoghq:dd-javac-plugin:$JAVAC_PLUGIN_VERSION".toString()], additionalEnvVars)
     }
