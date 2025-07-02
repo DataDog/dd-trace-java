@@ -15,33 +15,33 @@ public class LLMObs {
       String modelName,
       String modelProvider,
       @Nullable String mlApp,
-      @Nullable String sessionID) {
+      @Nullable String sessionId) {
 
-    return SPAN_FACTORY.startLLMSpan(spanName, modelName, modelProvider, mlApp, sessionID);
+    return SPAN_FACTORY.startLLMSpan(spanName, modelName, modelProvider, mlApp, sessionId);
   }
 
   public static LLMObsSpan startAgentSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
-    return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionID);
+    return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId);
   }
 
   public static LLMObsSpan startToolSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
-    return SPAN_FACTORY.startToolSpan(spanName, mlApp, sessionID);
+    return SPAN_FACTORY.startToolSpan(spanName, mlApp, sessionId);
   }
 
   public static LLMObsSpan startTaskSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
-    return SPAN_FACTORY.startTaskSpan(spanName, mlApp, sessionID);
+    return SPAN_FACTORY.startTaskSpan(spanName, mlApp, sessionId);
   }
 
   public static LLMObsSpan startWorkflowSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionID) {
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
-    return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionID);
+    return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionId);
   }
 
   public interface LLMObsSpanFactory {
@@ -50,33 +50,33 @@ public class LLMObs {
         String modelName,
         String modelProvider,
         @Nullable String mlApp,
-        @Nullable String sessionID);
+        @Nullable String sessionId);
 
-    LLMObsSpan startAgentSpan(String spanName, @Nullable String mlApp, @Nullable String sessionID);
+    LLMObsSpan startAgentSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
-    LLMObsSpan startToolSpan(String spanName, @Nullable String mlApp, @Nullable String sessionID);
+    LLMObsSpan startToolSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
-    LLMObsSpan startTaskSpan(String spanName, @Nullable String mlApp, @Nullable String sessionID);
+    LLMObsSpan startTaskSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
     LLMObsSpan startWorkflowSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionID);
+        String spanName, @Nullable String mlApp, @Nullable String sessionId);
   }
 
   public static class ToolCall {
     private String name;
     private String type;
-    private String toolID;
+    private String toolId;
     private Map<String, Object> arguments;
 
     public static ToolCall from(
-        String name, String type, String toolID, Map<String, Object> arguments) {
-      return new ToolCall(name, type, toolID, arguments);
+        String name, String type, String toolId, Map<String, Object> arguments) {
+      return new ToolCall(name, type, toolId, arguments);
     }
 
-    private ToolCall(String name, String type, String toolID, Map<String, Object> arguments) {
+    private ToolCall(String name, String type, String toolId, Map<String, Object> arguments) {
       this.name = name;
       this.type = type;
-      this.toolID = toolID;
+      this.toolId = toolId;
       this.arguments = arguments;
     }
 
@@ -88,8 +88,8 @@ public class LLMObs {
       return type;
     }
 
-    public String getToolID() {
-      return toolID;
+    public String gettoolId() {
+      return toolId;
     }
 
     public Map<String, Object> getArguments() {
