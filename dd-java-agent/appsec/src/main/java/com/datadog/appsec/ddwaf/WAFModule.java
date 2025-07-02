@@ -86,11 +86,11 @@ public class WAFModule implements AppSecModule {
   private String rulesetVersion;
   private WafBuilder wafBuilder;
 
-  private static class ActionInfo {
+  public static class ActionInfo {
     final String type;
     final Map<String, Object> parameters;
 
-    private ActionInfo(String type, Map<String, Object> parameters) {
+    public ActionInfo(String type, Map<String, Object> parameters) {
       this.type = type;
       this.parameters = parameters;
     }
@@ -142,6 +142,7 @@ public class WAFModule implements AppSecModule {
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private final RateLimiter rateLimiter;
+  private final TraceTaggingResultProcessor traceTaggingResultProcessor;
 
   public WAFModule() {
     this(null);
@@ -149,6 +150,7 @@ public class WAFModule implements AppSecModule {
 
   public WAFModule(Monitoring monitoring) {
     this.rateLimiter = getRateLimiter(monitoring);
+    this.traceTaggingResultProcessor = new TraceTaggingResultProcessor(rateLimiter);
   }
 
   @Override
@@ -361,84 +363,93 @@ public class WAFModule implements AppSecModule {
 
       StandardizedLogging.inAppWafReturn(log, resultWithData);
 
-      if (resultWithData.result != Waf.Result.OK) {
-        if (log.isDebugEnabled()) {
-          log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
-        }
+      // Check if this is a new trace tagging result structure
+      if (isTraceTaggingResult(resultWithData)) {
+        // Handle new trace tagging result structure
+        WAFResultData.TraceTaggingResult traceTaggingResult =
+            convertToTraceTaggingResult(resultWithData);
+        traceTaggingResultProcessor.processResult(traceTaggingResult, flow, reqCtx, gwCtx);
+      } else {
+        // Handle legacy result structure
+        if (resultWithData.result != Waf.Result.OK) {
+          if (log.isDebugEnabled()) {
+            log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
+          }
 
-        if (gwCtx.isRasp) {
-          reqCtx.setRaspMatched(true);
-          WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
-        }
+          if (gwCtx.isRasp) {
+            reqCtx.setRaspMatched(true);
+            WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
+          }
 
-        for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {
-          String actionType = action.getKey();
-          Map<String, Object> actionParams = action.getValue();
+          for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {
+            String actionType = action.getKey();
+            Map<String, Object> actionParams = action.getValue();
 
-          ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
+            ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
 
-          if ("block_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba =
-                createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
-            flow.setAction(rba);
-          } else if ("redirect_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba =
-                createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
-            flow.setAction(rba);
-          } else if ("generate_stack".equals(actionInfo.type)) {
-            if (Config.get().isAppSecStackTraceEnabled()) {
-              String stackId = (String) actionInfo.parameters.get("stack_id");
-              StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
-              reqCtx.reportStackTrace(stackTraceEvent);
+            if ("block_request".equals(actionInfo.type)) {
+              Flow.Action.RequestBlockingAction rba =
+                  createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
+              flow.setAction(rba);
+            } else if ("redirect_request".equals(actionInfo.type)) {
+              Flow.Action.RequestBlockingAction rba =
+                  createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
+              flow.setAction(rba);
+            } else if ("generate_stack".equals(actionInfo.type)) {
+              if (Config.get().isAppSecStackTraceEnabled()) {
+                String stackId = (String) actionInfo.parameters.get("stack_id");
+                StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
+                reqCtx.reportStackTrace(stackTraceEvent);
+              } else {
+                log.debug("Ignoring action with type generate_stack (disabled by config)");
+              }
             } else {
-              log.debug("Ignoring action with type generate_stack (disabled by config)");
-            }
-          } else {
-            log.info("Ignoring action with type {}", actionInfo.type);
-            if (!gwCtx.isRasp) {
-              reqCtx.setWafRequestBlockFailure();
+              log.info("Ignoring action with type {}", actionInfo.type);
+              if (!gwCtx.isRasp) {
+                reqCtx.setWafRequestBlockFailure();
+              }
             }
           }
-        }
-        Collection<AppSecEvent> events = buildEvents(resultWithData);
+          Collection<AppSecEvent> events = buildEvents(resultWithData);
 
-        if (!events.isEmpty()) {
-          if (!reqCtx.isThrottled(rateLimiter)) {
-            AgentSpan activeSpan = AgentTracer.get().activeSpan();
-            if (activeSpan != null) {
-              log.debug("Setting force-keep tag on the current span");
-              // Keep event related span, because it could be ignored in case of
-              // reduced datadog sampling rate.
-              activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
-              // If APM is disabled, inform downstream services that the current
-              // distributed trace contains at least one ASM event and must inherit
-              // the given force-keep priority
-              activeSpan
-                  .getLocalRootSpan()
-                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+          if (!events.isEmpty()) {
+            if (!reqCtx.isThrottled(rateLimiter)) {
+              AgentSpan activeSpan = AgentTracer.get().activeSpan();
+              if (activeSpan != null) {
+                log.debug("Setting force-keep tag on the current span");
+                // Keep event related span, because it could be ignored in case of
+                // reduced datadog sampling rate.
+                activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+                // If APM is disabled, inform downstream services that the current
+                // distributed trace contains at least one ASM event and must inherit
+                // the given force-keep priority
+                activeSpan
+                    .getLocalRootSpan()
+                    .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+              } else {
+                // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
+                // when the request ends
+                log.debug("There is no active span available");
+              }
+              reqCtx.reportEvents(events);
             } else {
-              // If active span is not available the ASM_KEEP tag will be set in the GatewayBridge
-              // when the request ends
-              log.debug("There is no active span available");
+              log.debug("Rate limited WAF events");
+              if (!gwCtx.isRasp) {
+                reqCtx.setWafRateLimited();
+              }
             }
-            reqCtx.reportEvents(events);
-          } else {
-            log.debug("Rate limited WAF events");
+          }
+
+          if (flow.isBlocking()) {
             if (!gwCtx.isRasp) {
-              reqCtx.setWafRateLimited();
+              reqCtx.setWafBlocked();
             }
           }
         }
 
-        if (flow.isBlocking()) {
-          if (!gwCtx.isRasp) {
-            reqCtx.setWafBlocked();
-          }
+        if (resultWithData.derivatives != null) {
+          reqCtx.reportDerivatives(resultWithData.derivatives);
         }
-      }
-
-      if (resultWithData.derivatives != null) {
-        reqCtx.reportDerivatives(resultWithData.derivatives);
       }
     }
 
@@ -554,6 +565,86 @@ public class WAFModule implements AppSecModule {
       throws AbstractWafException {
     return wafContext.runEphemeral(
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+  }
+
+  /**
+   * Check if the result is a new trace tagging result structure. For now, we'll use a simple
+   * heuristic based on the presence of trace tagging actions.
+   */
+  private boolean isTraceTaggingResult(Waf.ResultWithData resultWithData) {
+    // Check if the result has trace tagging actions
+    if (resultWithData.actions != null) {
+      for (String actionType : resultWithData.actions.keySet()) {
+        if ("trace_tagging".equals(actionType)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Convert the legacy ResultWithData to the new TraceTaggingResult structure. */
+  private WAFResultData.TraceTaggingResult convertToTraceTaggingResult(
+      Waf.ResultWithData resultWithData) {
+    WAFResultData.TraceTaggingResult result = new WAFResultData.TraceTaggingResult();
+
+    // Map the fields from the legacy structure to the new structure
+    result.timeout = false; // Timeout is handled separately in the calling code
+    result.keep = extractKeepFlag(resultWithData);
+    result.duration = 0L; // Duration is not available in current structure
+    result.events = buildWafResultData(resultWithData);
+    result.actions = resultWithData.actions;
+    result.attributes = extractTraceAttributes(resultWithData);
+
+    return result;
+  }
+
+  /** Extract keep flag from trace tagging actions. */
+  private boolean extractKeepFlag(Waf.ResultWithData resultWithData) {
+    if (resultWithData.actions != null) {
+      Map<String, Object> traceTaggingAction = resultWithData.actions.get("trace_tagging");
+      if (traceTaggingAction != null) {
+        Object keepObj = traceTaggingAction.get("keep");
+        if (keepObj instanceof Boolean) {
+          return (Boolean) keepObj;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Extract trace attributes from the WAF result. */
+  private Map<String, Object> extractTraceAttributes(Waf.ResultWithData resultWithData) {
+    Map<String, Object> attributes = new HashMap<>();
+
+    // Extract attributes from trace tagging actions
+    if (resultWithData.actions != null) {
+      Map<String, Object> traceTaggingAction = resultWithData.actions.get("trace_tagging");
+      if (traceTaggingAction != null) {
+        Object attrs = traceTaggingAction.get("attributes");
+        if (attrs instanceof Map) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> attrMap = (Map<String, Object>) attrs;
+          attributes.putAll(attrMap);
+        }
+      }
+    }
+
+    return attributes;
+  }
+
+  private List<WAFResultData> buildWafResultData(Waf.ResultWithData actionWithData) {
+    List<WAFResultData> listResults;
+    try {
+      listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
+    } catch (IOException e) {
+      throw new UndeclaredThrowableException(e);
+    }
+
+    if (listResults != null && !listResults.isEmpty()) {
+      return listResults;
+    }
+    return emptyList();
   }
 
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
