@@ -124,7 +124,7 @@ public final class DdprofLibraryLoader {
     return new JavaProfilerHolder(profiler, reasonNotLoaded);
   }
 
-  static JVMAccessHolder initJVMAccess() {
+  private static JVMAccessHolder initJVMAccess() {
     ConfigProvider configProvider = ConfigProvider.getInstance();
     AtomicReference<Throwable> reasonNotLoaded = new AtomicReference<>();
     JVMAccess jvmAccess = null;
