@@ -76,10 +76,7 @@ The system tests are setup to run on continous integration as pull request check
 If you would like to run them locally, you would have to grab [a local copy of the system tests](https://github.com/DataDog/system-tests), and run them from there.
 You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests. 
 
-If you would like to run another version of the system tests on continuous integration, or update them to the latest version, you would need to use [the update pinned system tests script](../.circleci/update_pinned_system_tests.sh) as your pull request won't use the latest `main` version from the system test repository, but a pinned version. 
-
-> [!NOTE]
-> The system tests version used for continous integration is defined using `default_system_tests_commit` in [CircleCI configuration](../.circleci/config.continue.yml.j2).
+In the CI System tests will be run with the pipeline defined [`DataDog/system-tests/blob/main/.github/workflows/system-tests.yml`](https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)
 
 ### The APM test agent
 
