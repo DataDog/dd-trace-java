@@ -72,6 +72,11 @@ public final class TraceInstrumentationConfig {
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
+  public static final String AKKA_FORK_JOIN_TASK_NAME = "trace.akka.fork.join.task.name";
+  public static final String AKKA_FORK_JOIN_EXECUTOR_TASK_NAME =
+      "trace.akka.fork.join.executor.task.name";
+  public static final String AKKA_FORK_JOIN_POOL_NAME = "trace.akka.fork.join.pool.name";
+
   public static final String EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT =
       "trace.experimental.jee.split-by-deployment";
 
@@ -166,6 +171,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES =
       "trace.websocket.messages.separate.traces";
   public static final String TRACE_WEBSOCKET_TAG_SESSION_ID = "trace.websocket.tag.session-id";
+
+  public static final String TRACE_PEKKO_SCHEDULER_ENABLED = "trace.pekko.scheduler.enabled";
 
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";

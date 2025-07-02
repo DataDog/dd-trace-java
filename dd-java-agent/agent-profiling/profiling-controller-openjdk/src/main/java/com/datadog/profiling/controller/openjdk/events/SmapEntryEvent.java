@@ -19,120 +19,120 @@ import jdk.jfr.StackTrace;
 public class SmapEntryEvent extends Event {
 
   @Label("Region Start Address")
-  private final long startAddress;
+  long startAddress;
 
   @Label("Region End Address")
-  private final long endAddress;
+  long endAddress;
 
   @Label("Region Permissions")
-  private final String perms;
+  String perms;
 
   @Label("Offset into mapping")
-  private final long offset;
+  long offset;
 
   @Label("Device")
-  private final String dev;
+  String dev;
 
   @Label("INode ID")
-  private final int inodeID;
+  int inodeID;
 
   @Label("Path associated with mapping")
-  private final String pathname;
+  String pathname;
 
   @Label("Mapping Size")
-  private final long size;
+  long size;
 
   @Label("Page Size")
-  private final long kernelPageSize;
+  long kernelPageSize;
 
   @Label("Memory Management Unit Page Size")
-  private final long mmuPageSize;
+  long mmuPageSize;
 
   @Label("Resident Set Size")
   @DataAmount
-  private final long rss;
+  long rss;
 
   @Label("Proportional Set Size")
   @DataAmount
-  private final long pss;
+  long pss;
 
   @Label("Dirty Proportional Set Size")
   @DataAmount
-  private final long pssDirty;
+  long pssDirty;
 
   @Label("Shared Clean Pages")
-  private final long sharedClean;
+  long sharedClean;
 
   @Label("Shared Dirty Pages")
   @DataAmount
-  private final long sharedDirty;
+  long sharedDirty;
 
   @Label("Private Clean Pages")
   @DataAmount
-  private final long privateClean;
+  long privateClean;
 
   @Label("Private Dirty Pages")
   @DataAmount
-  private final long privateDirty;
+  long privateDirty;
 
   @Label("Referenced Memory")
-  private final long referenced;
+  long referenced;
 
   @Label("Anonymous Memory")
   @DataAmount
-  private final long anonymous;
+  long anonymous;
 
   @Label("Kernel Same-page Merging")
   @DataAmount
-  private final long ksm;
+  long ksm;
 
   @Label("Lazily Freed Memory")
   @DataAmount
-  private final long lazyFree;
+  long lazyFree;
 
   @Label("Anon Huge Pages")
   @DataAmount
-  private final long anonHugePages;
+  long anonHugePages;
 
   @Label("Shared Memory Huge Pages")
   @DataAmount
-  private final long shmemPmdMapped;
+  long shmemPmdMapped;
 
   @Label("Page Cache Huge Pages")
   @DataAmount
-  private final long filePmdMapped;
+  long filePmdMapped;
 
   @Label("Shared Huge Pages")
   @DataAmount
-  private final long sharedHugetlb;
+  long sharedHugetlb;
 
   @Label("Private Huge Pages")
   @DataAmount
-  private final long privateHugetlb;
+  long privateHugetlb;
 
   @Label("Swap Size")
   @DataAmount
-  private final long swap;
+  long swap;
 
   @Label("Proportional Swap Size")
   @DataAmount
-  private final long swapPss;
+  long swapPss;
 
   @Label("Locked Memory")
   @DataAmount
-  private final long locked;
+  long locked;
 
   @Label("THP Eligible")
-  private final boolean thpEligible;
+  boolean thpEligible;
 
   @Label("VM Flags")
-  private final String vmFlags;
+  String vmFlags;
 
   @Label("Encountered foreign keys")
-  private final boolean encounteredForeignKeys;
+  boolean encounteredForeignKeys;
 
   @Label("NMT Category")
-  private final String nmtCategory;
+  String nmtCategory;
 
   public SmapEntryEvent() {
     startAddress = 0;

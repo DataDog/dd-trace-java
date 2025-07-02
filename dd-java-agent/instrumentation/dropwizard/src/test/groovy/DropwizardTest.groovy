@@ -94,6 +94,11 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
+  String expectedIntegrationName() {
+    "java-web-servlet"
+  }
+
+  @Override
   boolean hasHandlerSpan() {
     true
   }

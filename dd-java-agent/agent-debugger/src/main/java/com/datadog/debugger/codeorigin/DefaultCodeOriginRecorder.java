@@ -45,7 +45,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final int maxUserFrames;
 
-  private AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
+  private AgentTaskScheduler scheduler;
 
   public DefaultCodeOriginRecorder(Config config, ConfigurationUpdater configurationUpdater) {
     this(config, configurationUpdater, AgentTaskScheduler.INSTANCE);
@@ -70,7 +70,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
               element.getMethodName(),
               null,
               String.valueOf(element.getLineNumber()));
-      probe = createProbe(fingerprint, entry, where, true);
+      probe = createProbe(fingerprint, entry, where);
 
       LOG.debug("Creating probe for location {}", where);
     }
@@ -78,43 +78,36 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   @Override
-  public String captureCodeOrigin(Method method, boolean entry, boolean instrument) {
+  public String captureCodeOrigin(Method method, boolean entry) {
     String fingerprint = method.toString();
     CodeOriginProbe probe = probesByFingerprint.get(fingerprint);
     if (probe == null) {
-      probe = createProbe(fingerprint, entry, Where.of(method), instrument);
+      probe = createProbe(fingerprint, entry, Where.of(method));
       LOG.debug("Creating probe for method {}", fingerprint);
-    } else if (!instrument) {
-      // direct call to fill code origin info without using probe instrumentation
-      // buildLocation should be called before in order to gather location info
-      probe.commit(
-          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
     }
     return probe.getId();
   }
 
   public void registerLogProbe(CodeOriginProbe probe) {
-    LogProbe logProbe =
-        logProbes.computeIfAbsent(
-            probe.getId(),
-            key ->
-                new Builder()
-                    .language(probe.getLanguage())
-                    .probeId(ProbeId.newId())
-                    .where(probe.getWhere())
-                    .evaluateAt(probe.getEvaluateAt())
-                    .captureSnapshot(true)
-                    .tags("session_id:*")
-                    .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
-                    .build());
+    logProbes.computeIfAbsent(
+        probe.getId(),
+        key ->
+            new Builder()
+                .language(probe.getLanguage())
+                .probeId(ProbeId.newId())
+                .where(probe.getWhere())
+                .evaluateAt(probe.getEvaluateAt())
+                .captureSnapshot(true)
+                .tags("session_id:*")
+                .snapshotProcessor(new CodeOriginSnapshotConsumer(probe.entrySpanProbe()))
+                .build());
   }
 
-  private CodeOriginProbe createProbe(
-      String fingerPrint, boolean entry, Where where, boolean instrument) {
+  private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
     CodeOriginProbe probe;
     AgentSpan span = AgentTracer.activeSpan();
 
-    probe = new CodeOriginProbe(ProbeId.newId(), entry, where, instrument);
+    probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
     addFingerprint(fingerPrint, probe);
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
 

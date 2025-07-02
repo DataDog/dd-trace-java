@@ -119,9 +119,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile WafMetrics wafMetrics;
   private volatile WafMetrics raspMetrics;
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
-  private volatile boolean blocked;
+
+  private volatile boolean wafBlocked;
+  private volatile boolean wafErrors;
+  private volatile boolean wafTruncated;
+  private volatile boolean wafRequestBlockFailure;
+  private volatile boolean wafRateLimited;
+
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
+
+  private volatile Object processedRequestBody;
+  private volatile boolean raspMatched;
 
   // keep a reference to the last published usr.id
   private volatile String userId;
@@ -174,12 +183,44 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return raspMetricsCounter;
   }
 
-  public void setBlocked() {
-    this.blocked = true;
+  public void setWafBlocked() {
+    this.wafBlocked = true;
   }
 
-  public boolean isBlocked() {
-    return blocked;
+  public boolean isWafBlocked() {
+    return wafBlocked;
+  }
+
+  public void setWafErrors() {
+    this.wafErrors = true;
+  }
+
+  public boolean hasWafErrors() {
+    return wafErrors;
+  }
+
+  public void setWafTruncated() {
+    this.wafTruncated = true;
+  }
+
+  public boolean isWafTruncated() {
+    return wafTruncated;
+  }
+
+  public void setWafRequestBlockFailure() {
+    this.wafRequestBlockFailure = true;
+  }
+
+  public boolean isWafRequestBlockFailure() {
+    return wafRequestBlockFailure;
+  }
+
+  public void setWafRateLimited() {
+    this.wafRateLimited = true;
+  }
+
+  public boolean isWafRateLimited() {
+    return wafRateLimited;
   }
 
   public void increaseWafTimeouts() {
@@ -636,5 +677,21 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /** Must be called during request end event processing. */
   void setRequestEndCalled() {
     requestEndCalled = true;
+  }
+
+  public void setProcessedRequestBody(Object processedRequestBody) {
+    this.processedRequestBody = processedRequestBody;
+  }
+
+  public Object getProcessedRequestBody() {
+    return processedRequestBody;
+  }
+
+  public boolean isRaspMatched() {
+    return raspMatched;
+  }
+
+  public void setRaspMatched(boolean raspMatched) {
+    this.raspMatched = raspMatched;
   }
 }

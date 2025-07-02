@@ -1,4 +1,6 @@
 muzzle {
+  extraRepository("restlet", "https://maven.restlet.talend.com/")
+
   pass {
     group = "org.restlet.jse"
     module = "org.restlet"

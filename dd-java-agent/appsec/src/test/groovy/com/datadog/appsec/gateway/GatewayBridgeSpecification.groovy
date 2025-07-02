@@ -9,6 +9,9 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.ProductTraceSource
+import datadog.trace.api.config.GeneralConfig
+import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -20,10 +23,13 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.LoginEvent
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
@@ -36,6 +42,9 @@ import static datadog.trace.api.telemetry.LoginEvent.LOGIN_SUCCESS
 import static datadog.trace.api.telemetry.LoginEvent.SIGN_UP
 
 class GatewayBridgeSpecification extends DDSpecification {
+
+  @Shared
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   private static final String USER_ID = 'user'
 
@@ -106,12 +115,16 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
 
+  WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+
   void setup() {
     callInitAndCaptureCBs()
     AppSecSystem.active = true
+    WafMetricCollector.INSTANCE = wafMetricCollector
   }
 
   void cleanup() {
+    WafMetricCollector.INSTANCE  = ORIGINAL_METRIC_COLLECTOR
     bridge.stop()
   }
 
@@ -169,6 +182,13 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
+    1 * mockAppSecCtx.isWafBlocked()
+    1 * mockAppSecCtx.hasWafErrors()
+    1 * mockAppSecCtx.getWafTimeouts()
+    1 * mockAppSecCtx.isWafRequestBlockFailure()
+    1 * mockAppSecCtx.isWafRateLimited()
+    1 * mockAppSecCtx.isWafTruncated()
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -1146,4 +1166,152 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.getDataSubscribers(KnownAddresses.SESSION_ID) >> nonEmptyDsInfo
     1 * eventDispatcher.publishDataEvent(_, _, _, _)
   }
+
+  void 'test api security sampling'() {
+    given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> true
+    0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+  void 'test api security sampling - trace excluded'() {
+    given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> false
+    0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+  void 'test api security sampling with tracing disabled'() {
+    given:
+    injectSysConfig(GeneralConfig.APM_TRACING_ENABLED, "false")
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * requestSampler.preSampleRequest(_) >> true
+    1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
+
+  void 'test default writeRequestHeaders'(){
+    given:
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, false)
+
+    then:
+    1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.request.headers.x-multiple-allowed-header', 'value1A,value1B')
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test default writeResponseHeaders'(){
+    given:
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, false)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.response.headers.x-multiple-allowed-header', 'value1A,value1B')
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test  writeRequestHeaders collecting all headers '(){
+    setup:
+    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeRequestHeaders(traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.request.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.request.headers.x-multiple-allowed-header', 'value1A,value1B')
+    1 * traceSegment.setTagTop('http.request.headers.x-other-header-1', 'value2')
+    1 * traceSegment.setTagTop('http.request.headers.x-other-header-2', 'value3')
+    1 * traceSegment.setTagTop('_dd.appsec.request.header_collection.discarded', 1)
+    0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test  writeResponseHeaders collecting all headers '(){
+    setup:
+    injectEnvConfig('DD_APPSEC_COLLECT_ALL_HEADERS' , 'true')
+    injectEnvConfig('DD_APPSEC_MAX_COLLECTED_HEADERS', '4')
+
+    def allowedHeaders = ['x-allowed-header', 'x-multiple-allowed-header', 'x-always-included'] as Set
+    def headers = [
+      'x-allowed-header' : ['value1'],
+      'x-multiple-allowed-header' : ['value1A', 'value1B'],
+      'x-other-header-1' : ['value2'],
+      'x-other-header-2' : ['value3'],
+      'x-other-header-3' : ['value4']
+    ]
+
+    when:
+    GatewayBridge.writeResponseHeaders(traceSegment, allowedHeaders, headers, true)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.x-allowed-header', 'value1')
+    1 * traceSegment.setTagTop('http.response.headers.x-multiple-allowed-header', 'value1A,value1B')
+    1 * traceSegment.setTagTop('http.response.headers.x-other-header-1', 'value2')
+    1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
+    1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
+    0 * traceSegment.setTagTop(_, _)
+  }
+
 }

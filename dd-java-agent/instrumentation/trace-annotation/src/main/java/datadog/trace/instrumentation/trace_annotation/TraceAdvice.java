@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.trace_annotation;
 
+import static datadog.trace.bootstrap.debugger.DebuggerContext.*;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
 
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
@@ -15,7 +16,8 @@ public class TraceAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Origin final Method method) {
     AgentScope agentScope = activateSpan(DECORATE.startMethodSpan(method));
-    DebuggerContext.captureCodeOrigin(method, true, false);
+    marker();
+    captureCodeOrigin(method, true);
     return agentScope;
   }
 

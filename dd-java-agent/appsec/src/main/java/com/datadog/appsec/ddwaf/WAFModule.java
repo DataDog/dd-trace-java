@@ -40,7 +40,6 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.api.telemetry.WafTruncatedType;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -440,7 +439,6 @@ public class WAFModule implements AppSecModule {
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
         } else {
           reqCtx.increaseWafTimeouts();
-          WafMetricCollector.get().wafRequestTimeout();
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
@@ -448,12 +446,10 @@ public class WAFModule implements AppSecModule {
         if (!reqCtx.isWafContextClosed()) {
           log.error("Error calling WAF", e);
         }
-        // TODO this is wrong and will be fixed in another PR
-        WafMetricCollector.get().wafRequestError();
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } finally {
         if (log.isDebugEnabled()) {
@@ -467,17 +463,10 @@ public class WAFModule implements AppSecModule {
             final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
             final long objectTooDeep = wafMetrics.getTruncatedObjectTooDeepCount();
 
-            if (stringTooLong > 0) {
+            if (stringTooLong > 0 || listMapTooLarge > 0 || objectTooDeep > 0) {
+              reqCtx.setWafTruncated();
               WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, stringTooLong);
-            }
-            if (listMapTooLarge > 0) {
-              WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
-            }
-            if (objectTooDeep > 0) {
-              WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+                  .wafInputTruncated(stringTooLong > 0, listMapTooLarge > 0, objectTooDeep > 0);
             }
           }
         }
@@ -491,6 +480,7 @@ public class WAFModule implements AppSecModule {
         }
 
         if (gwCtx.isRasp) {
+          reqCtx.setRaspMatched(true);
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
@@ -501,10 +491,12 @@ public class WAFModule implements AppSecModule {
           ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
 
           if ("block_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
+            Flow.Action.RequestBlockingAction rba =
+                createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
             flow.setAction(rba);
           } else if ("redirect_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
+            Flow.Action.RequestBlockingAction rba =
+                createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
             flow.setAction(rba);
           } else if ("generate_stack".equals(actionInfo.type)) {
             if (Config.get().isAppSecStackTraceEnabled()) {
@@ -516,7 +508,9 @@ public class WAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
-            WafMetricCollector.get().wafRequestBlockFailure();
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRequestBlockFailure();
+            }
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
@@ -543,12 +537,16 @@ public class WAFModule implements AppSecModule {
             reqCtx.reportEvents(events);
           } else {
             log.debug("Rate limited WAF events");
-            WafMetricCollector.get().wafRequestRateLimited();
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRateLimited();
+            }
           }
         }
 
         if (flow.isBlocking()) {
-          reqCtx.setBlocked();
+          if (!gwCtx.isRasp) {
+            reqCtx.setWafBlocked();
+          }
         }
       }
 
@@ -557,7 +555,8 @@ public class WAFModule implements AppSecModule {
       }
     }
 
-    private Flow.Action.RequestBlockingAction createBlockRequestAction(ActionInfo actionInfo) {
+    private Flow.Action.RequestBlockingAction createBlockRequestAction(
+        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -578,12 +577,15 @@ public class WAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
+        if (!isRasp) {
+          reqCtx.setWafRequestBlockFailure();
+        }
         return null;
       }
     }
 
-    private Flow.Action.RequestBlockingAction createRedirectRequestAction(ActionInfo actionInfo) {
+    private Flow.Action.RequestBlockingAction createRedirectRequestAction(
+        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -604,7 +606,9 @@ public class WAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
+        if (!isRasp) {
+          reqCtx.setWafRequestBlockFailure();
+        }
         return null;
       }
     }
@@ -649,11 +653,13 @@ public class WAFModule implements AppSecModule {
     }
   }
 
-  private static void incrementErrorCodeMetric(GatewayContext gwCtx, int code) {
+  private static void incrementErrorCodeMetric(
+      AppSecRequestContext reqCtx, GatewayContext gwCtx, int code) {
     if (gwCtx.isRasp) {
       WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
     } else {
       WafMetricCollector.get().wafErrorCode(code);
+      reqCtx.setWafErrors();
     }
   }
 

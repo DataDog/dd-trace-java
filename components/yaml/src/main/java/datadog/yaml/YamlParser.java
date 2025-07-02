@@ -1,19 +1,18 @@
 package datadog.yaml;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import org.yaml.snakeyaml.Yaml;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
 
 public class YamlParser {
-  // Supports clazz == null for default yaml parsing
-  public static <T> T parse(String filePath, Class<T> clazz) throws IOException {
-    Yaml yaml = new Yaml();
-    try (FileInputStream fis = new FileInputStream(filePath)) {
-      if (clazz == null) {
-        return yaml.load(fis);
-      } else {
-        return yaml.loadAs(fis, clazz);
-      }
-    }
+  /**
+   * Parses YAML content. Duplicate keys are not allowed and will result in a runtime exception..
+   *
+   * @param content - text context to be parsed as YAML
+   * @return - a parsed representation as a composition of map and list objects.
+   */
+  public static Object parse(String content) {
+    LoadSettings settings = LoadSettings.builder().build();
+    Load yaml = new Load(settings);
+    return yaml.loadFromString(content);
   }
 }

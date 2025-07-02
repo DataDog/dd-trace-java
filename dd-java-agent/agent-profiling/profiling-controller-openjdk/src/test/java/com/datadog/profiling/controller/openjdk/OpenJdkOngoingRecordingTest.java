@@ -1,11 +1,13 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.ControllerContext;
+import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
 import jdk.jfr.Recording;
@@ -34,6 +36,7 @@ public class OpenJdkOngoingRecordingTest {
 
   @BeforeEach
   public void setup() {
+    assumeFalse(Platform.isJ9());
     when(recording.getState()).thenReturn(RecordingState.RUNNING);
     when(recording.getName()).thenReturn(TEST_NAME);
 

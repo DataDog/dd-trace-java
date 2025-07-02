@@ -9,6 +9,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
+import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
@@ -25,6 +26,8 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_BRANCH = "APPVEYOR_REPO_BRANCH";
   public static final String APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH =
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
+  public static final String APPVEYOR_PULL_REQUEST_HEAD_COMMIT =
+      "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_SUBJECT = "APPVEYOR_REPO_COMMIT_MESSAGE";
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_BODY =
@@ -83,7 +86,15 @@ class AppVeyorInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    // check if PR is detected
+    if (Strings.isNotBlank(environment.get(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH))) {
+      return new PullRequestInfo(
+          normalizeBranch(environment.get(APPVEYOR_REPO_BRANCH)),
+          null,
+          environment.get(APPVEYOR_PULL_REQUEST_HEAD_COMMIT));
+    } else {
+      return PullRequestInfo.EMPTY;
+    }
   }
 
   private String buildGitBranch(final String repoProvider) {

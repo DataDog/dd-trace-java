@@ -150,6 +150,7 @@ public class Config {
   private final boolean peerServiceDefaultsEnabled;
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
+  private final boolean experimentalPropagateProcessTagsEnabled;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -291,6 +292,10 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
+  private final boolean appSecCollectAllHeaders;
+  private final boolean appSecHeaderCollectionRedactionEnabled;
+  private final int appSecMaxCollectedHeaders;
+  private final boolean appSecRaspCollectRequestBody;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final boolean apiSecurityEndpointCollectionEnabled;
@@ -385,6 +390,9 @@ public class Config {
   private final boolean ciVisibilityTestManagementEnabled;
   private final Integer ciVisibilityTestManagementAttemptToFixRetries;
   private final boolean ciVisibilityScalatestForkMonitorEnabled;
+  private final String gitPullRequestBaseBranch;
+  private final String gitPullRequestBaseBranchSha;
+  private final String gitCommitHeadSha;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -410,7 +418,7 @@ public class Config {
   private final int dynamicInstrumentationUploadBatchSize;
   private final long dynamicInstrumentationMaxPayloadSize;
   private final boolean dynamicInstrumentationVerifyByteCode;
-  private final boolean dynamicInstrumentationInstrumentTheWorld;
+  private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
   private final int dynamicInstrumentationCaptureTimeout;
@@ -528,6 +536,7 @@ public class Config {
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
+  private final int dogStatsDPort;
 
   private String env;
   private String version;
@@ -573,6 +582,8 @@ public class Config {
   private final Set<String> experimentalFeaturesEnabled;
 
   private final boolean jdkSocketEnabled;
+
+  private final int stackTraceLengthLimit;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -630,7 +641,8 @@ public class Config {
       serviceNameSetByUser = false;
       serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
     } else {
-      serviceNameSetByUser = true;
+      // might be an auto-detected name propagated from instrumented parent process
+      serviceNameSetByUser = configProvider.getBoolean(SERVICE_NAME_SET_BY_USER, true);
       serviceName = userProvidedServiceName;
     }
 
@@ -846,6 +858,8 @@ public class Config {
     // feature flag to remove fake services in v0
     removeIntegrationServiceNamesEnabled =
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
+    experimentalPropagateProcessTagsEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, false);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1085,6 +1099,8 @@ public class Config {
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
+    dogStatsDPort = configProvider.getInteger(DOGSTATSD_PORT, DEFAULT_DOGSTATSD_PORT);
+
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
@@ -1251,7 +1267,9 @@ public class Config {
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     profilingUploadCompression =
         configProvider.getString(
-            PROFILING_UPLOAD_COMPRESSION, PROFILING_UPLOAD_COMPRESSION_DEFAULT);
+            PROFILING_DEBUG_UPLOAD_COMPRESSION,
+            PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+            PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
@@ -1381,6 +1399,14 @@ public class Config {
             APPSEC_MAX_STACK_TRACE_DEPTH,
             DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH,
             APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED);
+    appSecCollectAllHeaders = configProvider.getBoolean(APPSEC_COLLECT_ALL_HEADERS, false);
+    appSecHeaderCollectionRedactionEnabled =
+        configProvider.getBoolean(APPSEC_HEADER_COLLECTION_REDACTION_ENABLED, true);
+    appSecMaxCollectedHeaders =
+        configProvider.getInteger(
+            APPSEC_MAX_COLLECTED_HEADERS, DEFAULT_APPSEC_MAX_COLLECTED_HEADERS);
+    appSecRaspCollectRequestBody =
+        configProvider.getBoolean(APPSEC_RASP_COLLECT_REQUEST_BODY, false);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1627,6 +1653,9 @@ public class Config {
         configProvider.getInteger(TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES);
     ciVisibilityScalatestForkMonitorEnabled =
         configProvider.getBoolean(CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED, false);
+    gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
+    gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
+    gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -1696,9 +1725,7 @@ public class Config {
             DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE,
             DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE);
     dynamicInstrumentationInstrumentTheWorld =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
+        configProvider.getString(DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD);
     dynamicInstrumentationExcludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
@@ -2035,6 +2062,13 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
+    int defaultStackTraceLengthLimit =
+        instrumenterConfig.isCiVisibilityEnabled()
+            ? 5000 // EVP limit
+            : Integer.MAX_VALUE; // no effective limit (old behavior)
+    this.stackTraceLengthLimit =
+        configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
+
     log.debug("New instance: {}", this);
   }
 
@@ -2103,6 +2137,10 @@ public class Config {
 
   public Set<String> getExperimentalFeaturesEnabled() {
     return experimentalFeaturesEnabled;
+  }
+
+  public boolean isExperimentalPropagateProcessTagsEnabled() {
+    return experimentalPropagateProcessTagsEnabled;
   }
 
   public boolean isTraceEnabled() {
@@ -3194,6 +3232,18 @@ public class Config {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
+  public String getGitPullRequestBaseBranch() {
+    return gitPullRequestBaseBranch;
+  }
+
+  public String getGitPullRequestBaseBranchSha() {
+    return gitPullRequestBaseBranchSha;
+  }
+
+  public String getGitCommitHeadSha() {
+    return gitCommitHeadSha;
+  }
+
   public String getAppSecRulesFile() {
     return appSecRulesFile;
   }
@@ -3270,7 +3320,7 @@ public class Config {
     return dynamicInstrumentationVerifyByteCode;
   }
 
-  public boolean isDynamicInstrumentationInstrumentTheWorld() {
+  public String getDynamicInstrumentationInstrumentTheWorld() {
     return dynamicInstrumentationInstrumentTheWorld;
   }
 
@@ -3549,6 +3599,10 @@ public class Config {
     return dogStatsDArgs;
   }
 
+  public int getDogsStatsDPort() {
+    return dogStatsDPort;
+  }
+
   public String getConfigFileStatus() {
     return configFileStatus;
   }
@@ -3651,6 +3705,10 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
+  }
+
+  public int getStackTraceLengthLimit() {
+    return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4207,6 +4265,22 @@ public class Config {
 
   public int getAppSecMaxStackTraceDepth() {
     return appSecMaxStackTraceDepth;
+  }
+
+  public boolean isAppSecCollectAllHeaders() {
+    return appSecCollectAllHeaders;
+  }
+
+  public boolean isAppSecHeaderCollectionRedactionEnabled() {
+    return appSecHeaderCollectionRedactionEnabled;
+  }
+
+  public int getAppsecMaxCollectedHeaders() {
+    return appSecMaxCollectedHeaders;
+  }
+
+  public boolean isAppSecRaspCollectRequestBody() {
+    return appSecRaspCollectRequestBody;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
@@ -4923,6 +4997,8 @@ public class Config {
         + cloudRequestPayloadTagging
         + ", cloudResponsePayloadTagging="
         + cloudResponsePayloadTagging
+        + ", experimentalPropagateProcessTagsEnabled="
+        + experimentalPropagateProcessTagsEnabled
         + '}';
   }
 }

@@ -42,6 +42,7 @@ public enum JDBCConnectionUrlParser {
         }
 
         String path = uri.getPath();
+
         if (path.startsWith("/")) {
           path = path.substring(1);
         }
@@ -795,7 +796,23 @@ public enum JDBCConnectionUrlParser {
       }
       return GENERIC_URL_LIKE.doParse(url, builder);
     }
-  };
+  },
+  // https://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.infocenter.dc01776.1601/doc/html/san1357754914053.html
+  // Sybase TDS
+  SYBASE_TDS("sybase") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      if (jdbcUrl.startsWith("sybase:tds:")) {
+        // that uri is opaque so we need to adjust it in order to be parsed with the classical
+        // hierarchical way
+        return GENERIC_URL_LIKE
+            .doParse("sybase://" + jdbcUrl.substring("sybase:tds:".length()), builder)
+            .subtype("tds");
+      }
+      return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
+    }
+  },
+  ;
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
 
@@ -924,6 +941,10 @@ public enum JDBCConnectionUrlParser {
         } catch (final NumberFormatException e) {
           ExceptionLogger.LOGGER.debug("Error parsing portnumber property: {}", portNumber, e);
         }
+      }
+      if (props.containsKey("servicename")) {
+        // this property is used to specify the db to use for Sybase connection strings
+        builder.instance((String) props.get("servicename"));
       }
 
       if (props.containsKey("portNumber")) {
