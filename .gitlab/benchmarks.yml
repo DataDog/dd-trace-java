@@ -27,9 +27,6 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
-    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
-
 benchmarks-startup:
   extends: .benchmarks
   script:
@@ -56,6 +53,7 @@ benchmarks-dacapo:
 
 benchmarks-post-results:
   extends: .benchmarks
+  tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/upload-results-to-s3.sh
