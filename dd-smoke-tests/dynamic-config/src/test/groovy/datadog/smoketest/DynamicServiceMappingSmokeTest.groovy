@@ -20,7 +20,6 @@ class DynamicServiceMappingSmokeTest extends AbstractSmokeTest {
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
-    return processBuilder
   }
 
   @Override
