@@ -353,8 +353,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
     if (mavenRepositoryProxy != null) {
       processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy)
-    } else {
-      println "MAVEN_REPOSITORY_PROXY NOT SET FOR ${mvnCommand}"
     }
 
     return processBuilder
