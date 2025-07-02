@@ -5,6 +5,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
@@ -18,6 +19,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
@@ -113,6 +115,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (tracerConfig.isAppSecWafMetrics()) {
       traceSegmentPostProcessors.add(statsReporter);
     }
+    // Add trace tagging post processor for handling trace attributes
+    traceSegmentPostProcessors.add(new com.datadog.appsec.ddwaf.TraceTaggingPostProcessor());
   }
 
   private void subscribeConfigurationPoller() {
@@ -140,7 +144,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT;
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_DD_MULTICONFIG
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -490,7 +496,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT);
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_DD_MULTICONFIG
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);

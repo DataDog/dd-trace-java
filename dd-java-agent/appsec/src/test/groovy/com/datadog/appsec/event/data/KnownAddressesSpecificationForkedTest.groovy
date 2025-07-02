@@ -45,13 +45,24 @@ class KnownAddressesSpecificationForkedTest extends Specification {
       'server.io.fs.file',
       'server.sys.exec.cmd',
       'server.sys.shell.cmd',
-      'waf.context.processor'
+      'waf.context.processor',
+      'server.request.jwt',
+      'server.request.jwt.header',
+      'server.request.jwt.payload',
+      'server.request.jwt.algorithm',
+      'server.request.jwt.issuer',
+      'server.request.jwt.subject',
+      'server.request.jwt.audience',
+      'server.request.jwt.expiration',
+      'server.request.jwt.issued_at',
+      'server.request.jwt.custom_claims'
     ]
   }
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 39
-    KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
+    Address.instanceCount() == 49
+    KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 2
+    KnownAddresses.REQUEST_JWT.serial == Address.instanceCount() - 1
   }
 }

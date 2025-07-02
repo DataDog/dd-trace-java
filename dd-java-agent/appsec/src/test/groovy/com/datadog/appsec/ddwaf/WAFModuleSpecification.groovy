@@ -904,7 +904,7 @@ class WAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
+    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors[1]
 
     when:
     dataListener.onDataAvailable(flow, ctx, db, gwCtx)
@@ -939,7 +939,7 @@ class WAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     TraceSegment segment = Mock()
-    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
+    TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors[1]
 
     gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION)
 

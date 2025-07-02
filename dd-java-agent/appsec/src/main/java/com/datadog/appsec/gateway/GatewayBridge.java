@@ -20,6 +20,7 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import com.datadog.appsec.util.JwtPreprocessor;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Events;
@@ -881,6 +882,60 @@ public class GatewayBridge {
       ctx.addCookies(cookies);
     } else {
       ctx.addRequestHeader(name, value);
+
+      // Check for JWT token in Authorization header
+      if (name.equalsIgnoreCase("authorization") && value != null) {
+        String jwtToken = extractJwtToken(value);
+        if (jwtToken != null) {
+          processJwtToken(ctx, jwtToken);
+        }
+      }
+    }
+  }
+
+  /** Extract JWT token from Authorization header value. Supports "Bearer <token>" format */
+  private String extractJwtToken(String authorizationValue) {
+    if (authorizationValue == null || authorizationValue.trim().isEmpty()) {
+      return null;
+    }
+
+    // Check for Bearer scheme
+    if (authorizationValue.trim().toLowerCase().startsWith("bearer ")) {
+      String token = authorizationValue.trim().substring(7).trim();
+      if (!token.isEmpty()) {
+        return token;
+      }
+    }
+
+    return null;
+  }
+
+  /** Process JWT token using the JwtPreprocessor and publish the decoded data. */
+  private void processJwtToken(AppSecRequestContext ctx, String jwtToken) {
+    try {
+      DataBundle jwtBundle = JwtPreprocessor.processJwt(jwtToken);
+      if (jwtBundle != null) {
+        // Add the decoded JWT to the request context
+        ctx.addAll(jwtBundle);
+
+        // Publish the JWT data to subscribers if any exist
+        publishJwtData(ctx, jwtBundle);
+      }
+    } catch (Exception e) {
+      log.debug("Failed to process JWT token", e);
+    }
+  }
+
+  /** Publish JWT data to subscribers if any are registered for the JWT address. */
+  private void publishJwtData(AppSecRequestContext ctx, DataBundle jwtBundle) {
+    try {
+      DataSubscriberInfo subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_JWT);
+      if (subInfo != null && !subInfo.isEmpty()) {
+        GatewayContext gwCtx = new GatewayContext(false);
+        producerService.publishDataEvent(subInfo, ctx, jwtBundle, gwCtx);
+      }
+    } catch (Exception e) {
+      log.debug("Failed to publish JWT data", e);
     }
   }
 

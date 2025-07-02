@@ -144,6 +144,38 @@ public interface KnownAddresses {
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
+  // JWT: single address for the whole token (header, payload, signature)
+  Address<Map<String, Object>> REQUEST_JWT = new Address<>("server.request.jwt");
+
+  // JWT-related addresses
+  /** JWT header as parsed from the token */
+  Address<Map<String, Object>> REQUEST_JWT_HEADER = new Address<>("server.request.jwt.header");
+
+  /** JWT payload as parsed from the token */
+  Address<Map<String, Object>> REQUEST_JWT_PAYLOAD = new Address<>("server.request.jwt.payload");
+
+  /** JWT signing algorithm from header */
+  Address<String> REQUEST_JWT_ALGORITHM = new Address<>("server.request.jwt.algorithm");
+
+  /** JWT issuer claim from payload */
+  Address<String> REQUEST_JWT_ISSUER = new Address<>("server.request.jwt.issuer");
+
+  /** JWT subject claim from payload */
+  Address<String> REQUEST_JWT_SUBJECT = new Address<>("server.request.jwt.subject");
+
+  /** JWT audience claim from payload */
+  Address<String> REQUEST_JWT_AUDIENCE = new Address<>("server.request.jwt.audience");
+
+  /** JWT expiration time claim from payload */
+  Address<Long> REQUEST_JWT_EXPIRATION = new Address<>("server.request.jwt.expiration");
+
+  /** JWT issued at time claim from payload */
+  Address<Long> REQUEST_JWT_ISSUED_AT = new Address<>("server.request.jwt.issued_at");
+
+  /** JWT custom claims (non-standard claims) from payload */
+  Address<Map<String, Object>> REQUEST_JWT_CUSTOM_CLAIMS =
+      new Address<>("server.request.jwt.custom_claims");
+
   static Address<?> forName(String name) {
     switch (name) {
       case "server.request.body":
@@ -224,6 +256,27 @@ public interface KnownAddresses {
         return EXEC_CMD;
       case "server.sys.shell.cmd":
         return SHELL_CMD;
+        // JWT-related addresses
+      case "server.request.jwt":
+        return REQUEST_JWT;
+      case "server.request.jwt.header":
+        return REQUEST_JWT_HEADER;
+      case "server.request.jwt.payload":
+        return REQUEST_JWT_PAYLOAD;
+      case "server.request.jwt.algorithm":
+        return REQUEST_JWT_ALGORITHM;
+      case "server.request.jwt.issuer":
+        return REQUEST_JWT_ISSUER;
+      case "server.request.jwt.subject":
+        return REQUEST_JWT_SUBJECT;
+      case "server.request.jwt.audience":
+        return REQUEST_JWT_AUDIENCE;
+      case "server.request.jwt.expiration":
+        return REQUEST_JWT_EXPIRATION;
+      case "server.request.jwt.issued_at":
+        return REQUEST_JWT_ISSUED_AT;
+      case "server.request.jwt.custom_claims":
+        return REQUEST_JWT_CUSTOM_CLAIMS;
       default:
         return null;
     }

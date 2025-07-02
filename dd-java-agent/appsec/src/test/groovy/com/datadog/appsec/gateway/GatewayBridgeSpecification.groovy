@@ -1355,4 +1355,103 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
   }
 
+  void 'test JWT token extraction from Authorization header'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_JWT) >> nonEmptyDsInfo
+    DataBundle jwtBundle
+    GatewayContext gwCtx
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _) >> { args ->
+      jwtBundle = args[2]
+      gwCtx = args[3]
+      NoopFlow.INSTANCE
+    }
+
+    jwtBundle != null
+    jwtBundle.hasAddress(KnownAddresses.REQUEST_JWT)
+    gwCtx.isTransient == false
+    gwCtx.isRasp == false
+
+    def jwt = jwtBundle.get(KnownAddresses.REQUEST_JWT) as Map<String, Object>
+    jwt != null
+    jwt.containsKey("header")
+    jwt.containsKey("payload")
+    jwt.containsKey("signature")
+
+    def header = jwt.get("header") as Map<String, Object>
+    def payload = jwt.get("payload") as Map<String, Object>
+    def signature = jwt.get("signature") as Map<String, Object>
+
+    header.get("alg") == "HS256"
+    header.get("typ") == "JWT"
+    payload.get("sub") == "1234567890"
+    payload.get("name") == "John Doe"
+    payload.get("iat") == 1516239022L
+    signature.get("available") == true
+  }
+
+  void 'test JWT token extraction with different Bearer formats'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_JWT) >> nonEmptyDsInfo
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _) >> NoopFlow.INSTANCE
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _) >> NoopFlow.INSTANCE
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'BEARER eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _) >> NoopFlow.INSTANCE
+  }
+
+  void 'test JWT token extraction ignores non-Bearer Authorization headers'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_JWT) >> nonEmptyDsInfo
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'Basic dXNlcjpwYXNz')
+    reqHeaderCB.accept(ctx, 'Authorization', 'Digest username="user", realm="example.com"')
+    reqHeaderCB.accept(ctx, 'Authorization', 'CustomScheme token123')
+
+    then:
+    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _)
+  }
+
+  void 'test JWT token extraction handles invalid tokens gracefully'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_JWT) >> nonEmptyDsInfo
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer invalid.token.here')
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer not.a.valid.jwt')
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+
+    then:
+    0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _, _)
+  }
+
+  void 'test JWT token extraction with no subscribers'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.REQUEST_JWT) >> emptyDsInfo
+
+    when:
+    reqHeaderCB.accept(ctx, 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c')
+
+    then:
+    0 * eventDispatcher.publishDataEvent(_, _, _, _)
+  }
+
 }
