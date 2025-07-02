@@ -37,7 +37,7 @@ import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -287,7 +287,7 @@ public final class DatadogProfiler {
       } else {
         // using cpu time schedule
         int interval = getCpuInterval();
-        if (Platform.isJ9())
+        if (JavaVirtualMachine.isJ9())
           interval =
               interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
                   ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT

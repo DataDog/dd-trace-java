@@ -16,7 +16,7 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
@@ -34,8 +34,8 @@ import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
@@ -61,7 +61,7 @@ public final class OpenJdkController implements Controller {
   private static final String EXPLICITLY_DISABLED = "explicitly disabled by user";
   private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
   private static final String EXPENSIVE_ON_CURRENT_JVM =
-      "expensive on this version of the JVM (" + Platform.getRuntimeVersion() + ")";
+      "expensive on this version of the JVM (" + JavaVirtualMachine.getRuntimeVersion() + ")";
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
   private final ConfigProvider configProvider;

@@ -5,9 +5,9 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -35,7 +35,7 @@ public class StructuredTaskScopeInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(21) && super.isEnabled();
+    return JavaVirtualMachine.isJavaVersionAtLeast(21) && super.isEnabled();
   }
 
   @Override
