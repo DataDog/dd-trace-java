@@ -88,7 +88,7 @@ public class LLMObs {
       return type;
     }
 
-    public String gettoolId() {
+    public String getToolId() {
       return toolId;
     }
 
