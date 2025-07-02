@@ -2,9 +2,6 @@
 # Determines the base branch for the current PR (if we are running in a PR).
 set -euo pipefail
 
-# DEBUG: List all branches (to stderr)
-git branch -a --sort=committerdate --format='%(refname:short)' >&2
-
 CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
 if [[ -z "${CURRENT_HEAD_SHA:-}" ]]; then
   echo "Failed to determine current HEAD SHA" >&2
@@ -77,5 +74,10 @@ if [[ ${#BEST_CANDIDATES[@]} -eq 1 ]]; then
   exit 0
 fi
 
+# If base ref is ambiguous, we cannot determine the correct one.
+# Example: a release branch is created, and a PR is opened starting from the
+# commit where the release branch was created. The distance to the merge base
+# for both master and the release branch is the same. In this case, we bail
+# out, and make no assumption on which is the correct base ref.
 echo "Base ref is ambiguous, candidates are: ${BEST_CANDIDATES[*]}" >&2
 exit 1
