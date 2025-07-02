@@ -119,8 +119,7 @@ default:
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
-    # FIXME: Disabled until we find a way to not hit GitHub API rate limit
-    if false && [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
+    if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
       export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
       if [[ -n "$GIT_BASE_REF" ]]; then
         export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
