@@ -101,7 +101,7 @@ public class Resource {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response bodyJson(RequestBody input) {
+  public Response apiSecurityResponse(RequestBody input) {
     return Response.ok(input).build();
   }
 

@@ -13,9 +13,7 @@ import spock.lang.IgnoreIf
 
 import java.util.zip.GZIPInputStream
 
-@IgnoreIf({
-  System.getProperty("java.vendor").contains("IBM") && System.getProperty("java.version").contains("1.8.")
-})
+
 class ResteasyAppsecSmokeTest extends AbstractAppSecServerSmokeTest {
 
   @Override
@@ -71,7 +69,6 @@ class ResteasyAppsecSmokeTest extends AbstractAppSecServerSmokeTest {
   void 'test response schema extraction'() {
     given:
     def url = "http://localhost:${httpPort}/hello/api_security/response"
-    def client = OkHttpUtils.clientBuilder().build()
     def body = [
       "main"    : [["key": "id001", "value": 1345.67], ["value": 1567.89, "key": "id002"]],
       "nullable": null,
