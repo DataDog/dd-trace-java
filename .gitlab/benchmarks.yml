@@ -27,9 +27,6 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
-    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
-
 benchmarks-startup:
   extends: .benchmarks
   script:
@@ -56,6 +53,7 @@ benchmarks-dacapo:
 
 benchmarks-post-results:
   extends: .benchmarks
+  tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/upload-results-to-s3.sh
@@ -67,6 +65,36 @@ benchmarks-post-results:
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
+
+check-big-regressions:
+  extends: .benchmarks
+  needs:
+    - job: benchmarks-startup
+      artifacts: true
+    - job: benchmarks-load
+      artifacts: true
+  when: on_success
+  tags: ["arch:amd64"]
+  # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
+  # need to convert them
+  script:
+    - !reference [ .benchmarks, script ]
+    - | 
+      for benchmarkType in startup load; do
+          find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
+            relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
+            prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
+            prefix="${prefix#./}" # Remove any leading ./
+            prefix="${prefix//\//-}" # Replace / with -
+            case "$file" in
+              *benchmark-baseline.json) type="baseline" ;;
+              *benchmark-candidate.json) type="candidate" ;;
+            esac
+            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+          done
+      done
+    - bp-runner $CI_PROJECT_DIR/.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
 
 .dsm-kafka-benchmarks:
   stage: benchmarks

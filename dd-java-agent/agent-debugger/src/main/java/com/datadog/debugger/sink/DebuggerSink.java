@@ -73,6 +73,7 @@ public class DebuggerSink {
     } else {
       currentLowRateFlushInterval = uploadFlushInterval;
     }
+    LOGGER.debug("Scheduling low rate debugger sink flush to {}ms", currentLowRateFlushInterval);
     lowRateScheduled =
         lowRateScheduler.scheduleAtFixedRate(
             this::lowRateFlush, this, 0, currentLowRateFlushInterval, TimeUnit.MILLISECONDS);

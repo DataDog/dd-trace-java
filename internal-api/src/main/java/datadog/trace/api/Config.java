@@ -374,7 +374,6 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityImpactedTestsDetectionEnabled;
-  private final boolean ciVisibilityImpactedTestsBackendRequestEnabled;
   private final boolean ciVisibilityKnownTestsRequestEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
@@ -428,7 +427,7 @@ public class Config {
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
-  private final boolean dynamicInstrumentationHoistLocalVarsEnabled;
+  private final int dynamicInstrumentationLocalVarHoistingLevel;
   private final boolean symbolDatabaseEnabled;
   private final boolean symbolDatabaseForceUpload;
   private final int symbolDatabaseFlushThreshold;
@@ -1610,8 +1609,6 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityImpactedTestsDetectionEnabled =
         configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED, true);
-    ciVisibilityImpactedTestsBackendRequestEnabled =
-        configProvider.getBoolean(CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED, false);
     ciVisibilityKnownTestsRequestEnabled =
         configProvider.getBoolean(CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED, true);
     ciVisibilityFlakyRetryOnlyKnownFlakes =
@@ -1678,10 +1675,19 @@ public class Config {
     dynamicInstrumentationUploadTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT);
-    dynamicInstrumentationUploadFlushInterval =
-        configProvider.getInteger(
-            DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    if (configProvider.isSet(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS)) {
+      dynamicInstrumentationUploadFlushInterval =
+          (int)
+              (configProvider.getFloat(
+                      DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS,
+                      DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL)
+                  * 1000);
+    } else {
+      dynamicInstrumentationUploadFlushInterval =
+          configProvider.getInteger(
+              DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL,
+              DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL);
+    }
     dynamicInstrumentationClassFileDumpEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED,
@@ -1729,10 +1735,10 @@ public class Config {
             configProvider.getList(DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS));
     dynamicInstrumentationRedactedTypes =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, null);
-    dynamicInstrumentationHoistLocalVarsEnabled =
-        configProvider.getBoolean(
-            DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED);
+    dynamicInstrumentationLocalVarHoistingLevel =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL);
     symbolDatabaseEnabled =
         configProvider.getBoolean(SYMBOL_DATABASE_ENABLED, DEFAULT_SYMBOL_DATABASE_ENABLED);
     symbolDatabaseForceUpload =
@@ -3136,10 +3142,6 @@ public class Config {
     return ciVisibilityImpactedTestsDetectionEnabled;
   }
 
-  public boolean isCiVisibilityImpactedTestsBackendRequestEnabled() {
-    return ciVisibilityImpactedTestsBackendRequestEnabled;
-  }
-
   public boolean isCiVisibilityKnownTestsRequestEnabled() {
     return ciVisibilityKnownTestsRequestEnabled;
   }
@@ -3424,8 +3426,8 @@ public class Config {
     return dynamicInstrumentationRedactedTypes;
   }
 
-  public boolean isDynamicInstrumentationHoistLocalVarsEnabled() {
-    return dynamicInstrumentationHoistLocalVarsEnabled;
+  public int getDynamicInstrumentationLocalVarHoistingLevel() {
+    return dynamicInstrumentationLocalVarHoistingLevel;
   }
 
   public boolean isAwsPropagationEnabled() {

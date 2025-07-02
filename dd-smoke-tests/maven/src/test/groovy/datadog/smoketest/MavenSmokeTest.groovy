@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.Platform
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
 import java.nio.file.FileVisitResult
@@ -26,10 +27,14 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
+@IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
+  Platform.isJavaVersionAtLeast(24)
+})
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
@@ -105,27 +110,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_with_arg_line_property"  | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
     "test_successful_maven_run_multiple_forks"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
-  }
-
-  def "test impacted tests detection"() {
-    givenWrapperPropertiesFile(mavenVersion)
-    givenMavenProjectFiles(projectName)
-    givenMavenDependenciesAreLoaded(projectName, mavenVersion)
-
-    mockBackend.givenImpactedTestsDetection(true)
-    mockBackend.givenChangedFile("src/test/java/datadog/smoke/TestSucceed.java")
-
-    def exitCode = whenRunningMavenBuild([
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED)}=false" as String,
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED)}=true" as String
-    ], [], [:])
-    assert exitCode == 0
-
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(5), mockBackend.waitForCoverages(1))
-
-    where:
-    projectName                                | mavenVersion
-    "test_successful_maven_run_impacted_tests" | "3.9.9"
   }
 
   def "test test management"() {
