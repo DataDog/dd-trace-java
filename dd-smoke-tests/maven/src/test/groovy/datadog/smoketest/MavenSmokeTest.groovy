@@ -246,6 +246,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
     copyFolder(projectResourcesPath, projectHome)
+
+    def sharedSettingsPath = Paths.get(this.getClass().getClassLoader().getResource("settings.mirror.xml").toURI())
+    Files.copy(sharedSettingsPath, projectHome.resolve("settings.mirror.xml"))
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
@@ -303,7 +306,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private int whenRunningMavenBuild(List<String> additionalAgentArgs, List<String> additionalCommandLineParams, Map<String, String> additionalEnvVars, boolean setServiceName = true) {
-    def processBuilder = createProcessBuilder(["-B", "-X", "help:active-profiles", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
+    def processBuilder = createProcessBuilder(["-B", "-X", "--offline", "test"] + additionalCommandLineParams, true, setServiceName, additionalAgentArgs, additionalEnvVars)
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF")
 
@@ -336,13 +339,16 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     command.addAll(jvmArguments(runWithAgent, setServiceName, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
-    command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.xml".toString()])
+
+    if (System.getenv().get("MAVEN_REPOSITORY_PROXY") != null) {
+      command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.mirror.xml".toString()])
+    }
 
     String m2 = System.getenv().get("MAVEN_USER_HOME")
     if (m2 != null) {
       command.add("-Dmaven.repo.local=${m2}".toString())
     }
-    
+
     command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)

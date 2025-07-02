@@ -61,40 +61,4 @@
       </plugin>
     </plugins>
   </build>
-  <profiles>
-    <profile>
-      <id>with-proxy</id>
-      <activation>
-        <property>
-          <name>env.MAVEN_REPOSITORY_PROXY</name>
-        </property>
-      </activation>
-      <repositories>
-        <repository>
-          <id>env-proxy</id>
-          <url>${env.MAVEN_REPOSITORY_PROXY}</url>
-          <releases>
-            <enabled>true</enabled>
-            <updatePolicy>never</updatePolicy>
-          </releases>
-          <snapshots>
-            <enabled>true</enabled>
-            <updatePolicy>never</updatePolicy>
-          </snapshots>
-        </repository>
-      </repositories>
-      <pluginRepositories>
-        <pluginRepository>
-          <releases>
-            <updatePolicy>never</updatePolicy>
-          </releases>
-          <snapshots>
-            <enabled>false</enabled>
-          </snapshots>
-          <id>env-proxy-plugins</id>
-          <url>${env.MAVEN_REPOSITORY_PROXY}</url>
-        </pluginRepository>
-      </pluginRepositories>
-    </profile>
-  </profiles>
 </project>
