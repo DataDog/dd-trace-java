@@ -463,6 +463,33 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should start even if the agent is not available"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> false
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, 10, queueSize, 200, MILLISECONDS)
+    final spans = [
+      new SimpleSpan("service" , "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
+    ]
+    aggregator.start()
+    when:
+    aggregator.publish(spans)
+    Thread.sleep(1_000)
+    then:
+    0 * writer._
+    when:
+    features.supportsMetrics() >> true
+    aggregator.publish(spans)
+    Thread.sleep(1_000)
+    then:
+    (1.._) * writer._
+    cleanup:
+    aggregator.close()
+  }
+
   def "force flush should wait for aggregator to start"() {
     setup:
     int maxAggregates = 10
