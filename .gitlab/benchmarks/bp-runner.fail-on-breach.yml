@@ -1,7 +1,4 @@
-# Example of measurements can be seen here:
-#  https://benchmarking.us1.prod.dog/benchmarks?benchmarkGroupPipelineId=66629462&benchmarkGroupSha=16054515e292a66c5eaf79b9ea62df6f348cd67e&page=1&ciJobDateStart=1746309551994&ciJobDateEnd=1748901551994&benchmarkId=14167634
-
-# Thresholds set based on guidance in https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5070193198/How+to+set+up+pre-release+performance+quality+gates#How-to-choose-thresholds-for-pre-release-gates%3F
+# Thresholds set based on guidance in https://datadoghq.atlassian.net/wiki/x/LgI1LgE#How-to-choose-thresholds-for-pre-release-gates%3F
 
 experiments:
   - name: Run SLO breach check
@@ -20,14 +17,10 @@ experiments:
           - name: normal_operation/only-tracing
             thresholds:
               - agg_http_req_duration_p50 < 2.28 ms
-          - name: normal_operation/only-tracing
-            thresholds:
               - agg_http_req_duration_p99 < 7.45 ms
           - name: normal_operation/otel-latest
             thresholds:
               - agg_http_req_duration_p50 < 2.28 ms
-          - name: normal_operation/otel-latest
-            thresholds:
               - agg_http_req_duration_p99 < 9.00 ms
 
           - name: high_load/only-tracing
