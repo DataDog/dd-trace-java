@@ -475,17 +475,21 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       new SimpleSpan("service" , "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
     ]
     aggregator.start()
+
     when:
     aggregator.publish(spans)
     Thread.sleep(1_000)
+
     then:
     0 * writer._
     when:
     features.supportsMetrics() >> true
     aggregator.publish(spans)
     Thread.sleep(1_000)
+
     then:
     (1.._) * writer._
+
     cleanup:
     aggregator.close()
   }
