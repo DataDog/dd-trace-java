@@ -17,6 +17,7 @@ final class CachedData {
       exclude(project(':internal-api:internal-api-9'))
       exclude(project(':communication'))
       exclude(project(':components:context'))
+      exclude(project(':components:environment'))
       exclude(project(':components:json'))
       exclude(project(':components:yaml'))
       exclude(project(':components:cli'))
