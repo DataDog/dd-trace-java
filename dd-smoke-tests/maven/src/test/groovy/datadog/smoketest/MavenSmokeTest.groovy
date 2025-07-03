@@ -371,11 +371,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
     ]
 
-    String m2 = System.getenv().get("MAVEN_USER_HOME")
-    if (m2 != null) {
-      arguments += "-Dmaven.repo.local=${m2}".toString()
-    }
-
     if (runWithAgent) {
       if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
         // for convenience when debugging locally
