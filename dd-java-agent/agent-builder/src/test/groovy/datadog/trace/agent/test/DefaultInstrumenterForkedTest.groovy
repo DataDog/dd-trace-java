@@ -1,7 +1,7 @@
 package datadog.trace.agent.test
 
-
 import datadog.trace.agent.tooling.InstrumenterModule
+import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
 import datadog.trace.test.util.DDSpecification
@@ -17,12 +17,12 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     def target = new TestDefaultInstrumenter("test")
 
     expect:
-    target.enabled
+    assertEnabled(target)
   }
 
   def "default enabled override #enabled"() {
     expect:
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     enabled | target
@@ -51,7 +51,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
       }
 
     expect:
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     enabled << [true, false]
@@ -65,7 +65,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     def target = new TestDefaultInstrumenter("test")
 
     then:
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     value   | enabled
@@ -80,7 +80,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     def target = new TestDefaultInstrumenter("test")
 
     expect:
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     value   | enabled
@@ -96,7 +96,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     def target = new TestDefaultInstrumenter(name, altName)
 
     expect:
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     value             | enabled | name          | altName
@@ -119,7 +119,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
     then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
-    target.enabled == enabled
+    assertEnabled(target, enabled)
 
     where:
     value             | enabled | name          | altName
@@ -130,6 +130,10 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     "DASH_TEST"       | true    | "dash-test"   | "asdf"
     "UNDERSCORE_TEST" | true    | "asdf"        | "underscore_test"
     "PERIOD_TEST"     | true    | "period.test" | "asdf"
+  }
+
+  def assertEnabled(target, enabled = true) {
+    target.isEnabled(EnumSet.of(TargetSystem.TRACING)) == enabled
   }
 
   class TestDefaultInstrumenter extends InstrumenterModule.Tracing {

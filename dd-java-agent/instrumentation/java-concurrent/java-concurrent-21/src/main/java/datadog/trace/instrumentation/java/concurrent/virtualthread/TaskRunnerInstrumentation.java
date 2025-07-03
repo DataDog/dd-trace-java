@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -35,8 +36,8 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(19) && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return Platform.isJavaVersionAtLeast(19) && super.isEnabled(enabledSystems);
   }
 
   @Override

@@ -36,8 +36,9 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   }
 
   @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST) || isRaspEnabled();
+  public boolean isEnabled(final Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
+        && (enabledSystems.contains(TargetSystem.IAST) || isRaspEnabled());
   }
 
   private boolean isRaspEnabled() {

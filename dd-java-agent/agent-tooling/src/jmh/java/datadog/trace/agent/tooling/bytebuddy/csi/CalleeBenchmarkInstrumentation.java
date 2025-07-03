@@ -34,13 +34,13 @@ public class CalleeBenchmarkInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public boolean isEnabled() {
-    return "callee".equals(System.getProperty("dd.benchmark.instrumentation", ""));
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON; // always active during this benchmark
   }
 
   @Override
-  public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return true;
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return "callee".equals(System.getProperty("dd.benchmark.instrumentation", ""));
   }
 
   public static class Muzzle extends ReferenceMatcher {}

@@ -13,6 +13,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -29,9 +30,9 @@ public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
   }
 
   @Override
-  public boolean isEnabled() {
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
     // only needed if wallclock profiling is enabled, which requires tracing
-    return super.isEnabled()
+    return super.isEnabled(enabledSystems)
         && ConfigProvider.getInstance()
             .getBoolean(
                 PROFILING_DATADOG_PROFILER_WALL_ENABLED,

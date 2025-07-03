@@ -8,6 +8,11 @@ public class TestIndexLastModule extends InstrumenterModule {
   }
 
   @Override
+  public TargetSystem targetSystem() {
+    return TargetSystem.COMMON;
+  }
+
+  @Override
   public int order() {
     return 100; // higher-values applied last
   }

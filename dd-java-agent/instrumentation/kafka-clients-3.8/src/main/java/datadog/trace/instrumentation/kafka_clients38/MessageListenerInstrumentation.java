@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -21,8 +22,8 @@ public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled(enabledSystems);
   }
 
   @Override

@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
 import java.util.Collections;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -33,8 +34,8 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
+  public boolean isEnabled(Set<TargetSystem> enabledSystems) {
+    return super.isEnabled(enabledSystems)
         && "com.ibm.ws.management.PlatformMBeanServerBuilder".equals(customBuilder)
         // we must avoid loading the global Config while setting up instrumentation, so use the same
         // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
