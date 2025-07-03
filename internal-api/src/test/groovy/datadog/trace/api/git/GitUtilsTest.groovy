@@ -22,6 +22,24 @@ class GitUtilsTest extends Specification {
     "Jane Doe <jane.doe@email.com>" | janeDoePersonInfo
   }
 
+  def "test commit SHA validity of full length (#sha): #expectedResult "() {
+    when:
+    def result = GitUtils.isValidFullCommitSha(sha)
+
+    then:
+    result == expectedResult
+
+    where:
+    sha                                        | expectedResult
+    null                                       | false
+    ""                                         | false
+    "123456789"                                | false
+    "1234567890123456789012345678901234567890" | true
+    "1234567890123456789012345678901234abcdef" | true
+    "1234567890123456789012345678901234ABCDEF" | true
+    "1234567890123456789012345678901234ABCDEX" | false
+  }
+
   def "test commit SHA validity (#sha): #expectedResult "() {
     when:
     def result = GitUtils.isValidCommitSha(sha)
@@ -33,8 +51,9 @@ class GitUtilsTest extends Specification {
     sha                                        | expectedResult
     null                                       | false
     ""                                         | false
-    "123456789"                                | false
-    "1234567890123456789012345678901234567890" | true
+    "123456"                                   | false
+    "123456789"                                | true
+    "123456abcdef"                             | true
     "1234567890123456789012345678901234abcdef" | true
     "1234567890123456789012345678901234ABCDEF" | true
     "1234567890123456789012345678901234ABCDEX" | false

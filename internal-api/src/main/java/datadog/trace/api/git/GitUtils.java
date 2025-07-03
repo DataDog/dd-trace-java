@@ -40,6 +40,9 @@ public class GitUtils {
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 
+  private static final int SHORT_SHA_LENGTH = 7;
+  private static final int FULL_SHA_LENGTH = 40;
+
   private static final Logger log = LoggerFactory.getLogger(GitUtils.class);
 
   /**
@@ -225,12 +228,28 @@ public class GitUtils {
    * Checks if the provided string is a valid commit SHA:
    *
    * <ul>
-   *   <li>length >= 40
+   *   <li>length >= 7
    *   <li>every character is a hexadecimal digit
    * </ul>
    */
   public static boolean isValidCommitSha(final String commitSha) {
-    if (commitSha == null || commitSha.length() < 40) {
+    return isValidCommitSha(commitSha, SHORT_SHA_LENGTH);
+  }
+
+  /**
+   * Checks if the provided string is a valid commit SHA of full length:
+   *
+   * <ul>
+   *   <li>length >= 40
+   *   <li>every character is a hexadecimal digit
+   * </ul>
+   */
+  public static boolean isValidFullCommitSha(final String commitSha) {
+    return isValidCommitSha(commitSha, FULL_SHA_LENGTH);
+  }
+
+  private static boolean isValidCommitSha(final String commitSha, final int minLength) {
+    if (commitSha == null || commitSha.length() < minLength) {
       return false;
     }
     for (char c : commitSha.toCharArray()) {
