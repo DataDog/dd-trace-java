@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -29,7 +29,7 @@ public abstract class ProcessUtils {
   @Nullable
   @SuppressForbidden
   public static String getCurrentJvmPath() {
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         Supplier<String> jdk9Supplier =
             (Supplier<String>)
