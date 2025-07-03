@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import datadog.json.JsonWriter;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -262,7 +263,8 @@ public abstract class BootstrapInitializationTelemetry {
     public void run() {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
 
-      try {
+      // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
+      try (final Closeable ignored = muteTracing()) {
         Process process = builder.start();
         try (OutputStream out = process.getOutputStream()) {
           out.write(payload);
@@ -270,6 +272,20 @@ public abstract class BootstrapInitializationTelemetry {
       } catch (Throwable e) {
         // We don't have a log manager here, so just print.
         System.err.println("Failed to send telemetry: " + e.getMessage());
+      }
+    }
+
+    @SuppressForbidden
+    private Closeable muteTracing() {
+      try {
+        Class<?> agentTracerClass =
+            Class.forName("datadog.trace.bootstrap.instrumentation.api.AgentTracer");
+        Object tracerAPI = agentTracerClass.getMethod("get").invoke(null);
+        Object scope = tracerAPI.getClass().getMethod("muteTracing").invoke(tracerAPI);
+        return (Closeable) scope;
+      } catch (Throwable e) {
+        // Ignore all exceptions and fallback to No-Op Closable.
+        return () -> {};
       }
     }
   }
