@@ -246,7 +246,7 @@ public class GitUtils {
   }
 
   /** Checks if a string that will be used as a Git command argument is valid and safe */
-  public static boolean isValidArg(@Nullable String arg) {
+  static boolean isValidArg(@Nullable String arg) {
     if (Strings.isBlank(arg)) {
       return false;
     }
