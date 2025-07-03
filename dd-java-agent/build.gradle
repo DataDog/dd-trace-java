@@ -250,7 +250,8 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 
 dependencies {
   implementation project(path: ':components:json')
-  implementation project(path: ':components:cli')
+  // Depend on the bootstrap-specific shadow configuration to avoid having the same component reused by both bootstrap and agent
+  implementation project(path: ':components:environment', configuration: 'shadow')
   modules {
     module("com.squareup.okio:okio") {
       replacedBy("com.datadoghq.okio:okio") // embed our patched fork
@@ -273,6 +274,7 @@ dependencies {
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
+  shadowInclude project(path: ':components:environment', configuration: 'shadow')
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
