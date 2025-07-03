@@ -1,7 +1,6 @@
 package smoketest
 
 import datadog.smoketest.appsec.AbstractAppSecServerSmokeTest
-import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.Platform
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
@@ -9,7 +8,6 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import spock.lang.IgnoreIf
 
 import java.util.zip.GZIPInputStream
 
