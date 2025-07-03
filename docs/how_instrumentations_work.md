@@ -677,7 +677,7 @@ Tests are written in Groovy using the [Spock framework](http://spockframework.or
 instrumentations, `AgentTestRunner` must be extended. For example, HTTP server frameworks use base tests which enforce
 consistency between different implementations (
 see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
-Such Groovy-based tests are included by default in the CI instrumentation test jobs.
+Such Groovy-based tests are included by default in the CI instrumentation test jobs unless they are marked as flaky.
 
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
