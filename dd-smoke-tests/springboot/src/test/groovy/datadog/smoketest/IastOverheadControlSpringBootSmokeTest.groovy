@@ -36,7 +36,7 @@ class IastOverheadControlSpringBootSmokeTest extends AbstractIastServerSmokeTest
     ]
   }
 
-  void 'test'() {
+  void 'Test that all the vulnerabilities are detected'() {
     given:
     // prepare a list of exactly three GET requests with path and query param
     def requests = []
