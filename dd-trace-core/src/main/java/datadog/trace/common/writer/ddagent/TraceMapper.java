@@ -12,4 +12,5 @@ public interface TraceMapper extends RemoteMapper {
   UTF8BytesString SAMPLING_PRIORITY_KEY =
       UTF8BytesString.create(DDSpanContext.PRIORITY_SAMPLING_KEY);
   UTF8BytesString ORIGIN_KEY = UTF8BytesString.create(DDTags.ORIGIN_KEY);
+  UTF8BytesString PROCESS_TAGS_KEY = UTF8BytesString.create(DDTags.PROCESS_TAGS);
 }

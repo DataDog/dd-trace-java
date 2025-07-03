@@ -1,5 +1,5 @@
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
   id "me.champeau.jmh"
 }
 
@@ -41,6 +41,8 @@ dependencies {
     // why all communication pulls in remote config is beyond me...
     exclude(group: 'com.datadoghq', module: 'remote-config-core')
   }
+  // exception replay
+  implementation(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
 
   // OpenTracing
   api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'

@@ -123,10 +123,12 @@ public abstract class ProfilerSettingsSupport {
         configProvider.getInteger(
             ProfilingConfig.PROFILING_UPLOAD_TIMEOUT,
             ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT);
+    // First try the new debug upload compression property, and fall back to the deprecated one
     uploadCompression =
         configProvider.getString(
-            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION,
-            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION_DEFAULT);
+            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
+            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
     allocationProfilingEnabled =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_ALLOCATION_ENABLED,

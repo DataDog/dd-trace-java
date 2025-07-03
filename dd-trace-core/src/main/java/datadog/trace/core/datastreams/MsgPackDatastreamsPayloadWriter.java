@@ -7,7 +7,9 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
@@ -33,6 +35,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
+  private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -80,7 +83,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
   @Override
   public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
-    writer.startMap(8);
+    final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
+    final boolean hasProcessTags = processTags != null;
+    writer.startMap(8 + (hasProcessTags ? 1 : 0));
     /* 1 */
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -138,6 +143,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     /* 8 */
     writer.writeUTF8(PRODUCTS_MASK);
     writer.writeLong(getProductsMask());
+
+    /* 9 */
+    if (hasProcessTags) {
+      writer.writeUTF8(PROCESS_TAGS);
+      writer.startArray(processTags.size());
+      processTags.forEach(writer::writeUTF8);
+    }
 
     buffer.mark();
     sink.accept(buffer.messageCount(), buffer.slice());

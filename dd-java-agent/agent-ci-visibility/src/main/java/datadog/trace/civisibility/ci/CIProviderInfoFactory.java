@@ -57,6 +57,8 @@ public class CIProviderInfoFactory {
     } else if (environment.get(AwsCodePipelineInfo.AWS_CODEPIPELINE) != null
         && environment.get(AwsCodePipelineInfo.AWS_CODEPIPELINE).startsWith("codepipeline")) {
       return new AwsCodePipelineInfo(environment);
+    } else if (environment.get(DroneInfo.DRONE) != null) {
+      return new DroneInfo(environment);
     } else {
       return new UnknownCIInfo(environment, targetFolder, currentPath);
     }

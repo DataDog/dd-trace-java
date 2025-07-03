@@ -2,19 +2,19 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
@@ -63,21 +63,23 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
   public static final class ServerRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginRequest(
+    public static ContextScope beginRequest(
         @Advice.Argument(0) final NHttpServerConnection connection) {
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      AgentSpanContext.Extracted extractedContext = DECORATE.extract(request);
+      Context extractedContext = DECORATE.extractContext(request);
+      ContextScope scope;
 
       AgentSpan span;
       if (null != extractedContext) {
         span = DECORATE.startSpan(request, extractedContext);
+        scope = extractedContext.with(span).attach();
       } else {
         span = startSpan(DECORATE.spanName());
         span.setMeasured(true);
+        scope = span.attach();
       }
-      AgentScope scope = activateSpan(span);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, extractedContext);
 
@@ -88,19 +90,19 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void requestReceived(@Advice.Enter final AgentScope scope) {
+    public static void requestReceived(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
   }
 
   public static final class ServerResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginResponse(
+    public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpServerConnection connection) {
       // check and remove span from context so it won't be finished twice
       AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
       if (null != span) {
-        return activateSpan(span);
+        return span.attach();
       }
       return null;
     }
@@ -108,12 +110,12 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void responseReady(
         @Advice.Argument(0) final NHttpServerConnection connection,
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromContext(scope.context());
       DECORATE.onResponse(span, connection.getHttpResponse());
       if (null != error) {
         DECORATE.onError(span, error);

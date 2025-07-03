@@ -12,6 +12,8 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +21,6 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -114,7 +115,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   public static class ServiceAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
+    public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
@@ -122,11 +123,15 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpanContext.Extracted extractedContext = DECORATE.extract(req);
-      req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
+      final Context extractedContext = DECORATE.extractContext(req);
+      // TODO: Migrate setting DD_EXTRACTED_CONTEXT_ATTRIBUTE from AgentSpanContext.Extracted to
+      // Context
+      req.setAttribute(
+          DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(extractedContext));
 
       final AgentSpan span = DECORATE.startSpan(req, extractedContext);
-      final AgentScope scope = activateSpan(span);
+      final ContextScope scope = extractedContext.with(span).attach();
+
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
 
@@ -137,7 +142,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final AgentScope scope) {
+    public static void closeScope(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
 

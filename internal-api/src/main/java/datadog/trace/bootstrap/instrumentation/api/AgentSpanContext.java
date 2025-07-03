@@ -53,6 +53,8 @@ public interface AgentSpanContext {
 
   default void mergePathwayContext(PathwayContext pathwayContext) {}
 
+  default void setIntegrationName(CharSequence componentName) {}
+
   /**
    * Gets whether the span context used is part of the local trace or from another service
    *

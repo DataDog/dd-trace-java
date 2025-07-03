@@ -1,12 +1,15 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -84,6 +87,7 @@ public class DDSpanContext
   private final UTF8BytesString threadName;
 
   private volatile short httpStatusCode;
+  private CharSequence integrationName;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -143,7 +147,6 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile CharSequence lastParentId;
-  private final boolean isRemote;
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -194,8 +197,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true,
-        false);
+        true);
   }
 
   public DDSpanContext(
@@ -241,8 +243,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags,
-        false);
+        injectBaggageAsTags);
   }
 
   public DDSpanContext(
@@ -288,8 +289,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        true,
-        false);
+        true);
   }
 
   public DDSpanContext(
@@ -314,8 +314,7 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags,
-      final boolean isRemote) {
+      final boolean injectBaggageAsTags) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -374,8 +373,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    setLastParentId(this.propagationTags.getLastParentId());
-    this.isRemote = isRemote;
+    setTag(PARENT_ID, this.propagationTags.getLastParentId());
   }
 
   @Override
@@ -874,8 +872,18 @@ public class DDSpanContext
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
-              longRunningVersion));
+              longRunningVersion,
+              ProcessTags.getTagsForSerialization()));
     }
+  }
+
+  @Override
+  public void setIntegrationName(CharSequence integrationName) {
+    this.integrationName = integrationName;
+  }
+
+  public CharSequence getIntegrationName() {
+    return integrationName;
   }
 
   @Override
@@ -885,9 +893,9 @@ public class DDSpanContext
             .append("DDSpan [ t_id=")
             .append(traceId)
             .append(", s_id=")
-            .append(spanId)
+            .append(DDSpanId.toString(spanId))
             .append(", p_id=")
-            .append(parentId)
+            .append(DDSpanId.toString(parentId))
             .append(" ] trace=")
             .append(getServiceName())
             .append('/')
@@ -1043,20 +1051,8 @@ public class DDSpanContext
     setMetaStruct(field, value);
   }
 
-  public CharSequence getLastParentId() {
-    return lastParentId;
-  }
-
-  public void setLastParentId(CharSequence lastParentId) {
-    if (lastParentId != null) {
-      synchronized (unsafeTags) {
-        unsafeSetTag("_dd.parent_id", lastParentId);
-      }
-      this.lastParentId = lastParentId;
-    }
-  }
-
+  @Override
   public boolean isRemote() {
-    return isRemote;
+    return false;
   }
 }

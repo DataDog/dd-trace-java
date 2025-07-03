@@ -14,6 +14,13 @@ repositories {
   }
 }
 
+configurations.all {
+  // shut up about broken xml-api pom relocation
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01'
+  }
+}
+
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testImplementation group: 'xalan', name: 'xalan', version: '2.7.0'

@@ -1,6 +1,6 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id "com.gradleup.shadow"
   id 'me.champeau.jmh'
 }
 
@@ -64,4 +64,12 @@ idea {
 jmh {
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    }
+  }
 }

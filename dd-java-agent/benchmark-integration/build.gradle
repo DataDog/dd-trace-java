@@ -25,10 +25,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Integration Level Agent benchmarks.'
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 subprojects { sub ->
-  sub.apply plugin: 'com.github.johnrengelman.shadow'
+  sub.apply plugin: 'com.gradleup.shadow'
   sub.apply from: "$rootDir/gradle/java.gradle"
 }

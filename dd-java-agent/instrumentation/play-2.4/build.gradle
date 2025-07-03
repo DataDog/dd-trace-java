@@ -4,6 +4,8 @@ ext {
 }
 
 muzzle {
+  extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
+
   pass {
     name = "play24and25"
     group = 'com.typesafe.play'

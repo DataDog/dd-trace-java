@@ -131,7 +131,6 @@ public class DDIntakeApi extends RemoteApi {
             .post(payload.toRequest())
             .tag(OkHttpUtils.CustomListener.class, telemetryListener)
             .build();
-
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 

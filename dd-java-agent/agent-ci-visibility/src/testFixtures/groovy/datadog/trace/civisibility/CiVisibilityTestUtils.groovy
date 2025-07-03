@@ -55,7 +55,8 @@ abstract class CiVisibilityTestUtils {
   ]
 
   // ignored tags on assertion and fixture build
-  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList())
+  static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList()) +
+  ["content.meta.['_dd.integration']"]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
@@ -70,28 +71,28 @@ abstract class CiVisibilityTestUtils {
   /**
    * Use this method to generate expected data templates
    */
-  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags = []) {
+  static void generateTemplates(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Collection<String> additionalDynamicPaths, List<String> ignoredTags = []) {
     if (!ignoredTags.empty) {
       events = removeTags(events, ignoredTags)
     }
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def templateGenerator = new TemplateGenerator(new LabelGenerator())
-    def compiledAdditionalReplacements = compile(additionalReplacements.keySet())
+    def compiledAdditionalReplacements = compile(additionalDynamicPaths)
 
     Files.createDirectories(Paths.get(baseTemplatesPath))
     Files.write(Paths.get(baseTemplatesPath, "events.ftl"), templateGenerator.generateTemplate(events, EVENT_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements, List<String> ignoredTags, List<String> additionalDynamicPaths = []) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
     def templateGenerator = new TemplateGenerator(labelGenerator)
 
     def replacementMap
-    replacementMap = templateGenerator.generateReplacementMap(events, EVENT_DYNAMIC_PATHS)
+    replacementMap = templateGenerator.generateReplacementMap(events, EVENT_DYNAMIC_PATHS + compile(additionalDynamicPaths))
     replacementMap = templateGenerator.generateReplacementMap(coverages, COVERAGE_DYNAMIC_PATHS)
 
     for (Map.Entry<String, String> e : additionalReplacements.entrySet()) {

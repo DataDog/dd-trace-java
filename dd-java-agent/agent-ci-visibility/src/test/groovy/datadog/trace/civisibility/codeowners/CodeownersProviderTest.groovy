@@ -8,7 +8,7 @@ import java.nio.file.Files
 
 class CodeownersProviderTest extends Specification {
 
-  private static final String REPO_ROOT = "/repo/root/"
+  private static final String REPO_ROOT = "/repo/root"
 
   def "test codeowners loading: #path"() {
     setup:
@@ -30,10 +30,10 @@ class CodeownersProviderTest extends Specification {
 
     where:
     path << [
-      REPO_ROOT + "CODEOWNERS",
-      REPO_ROOT + ".github/CODEOWNERS",
-      REPO_ROOT + ".gitlab/CODEOWNERS",
-      REPO_ROOT + "docs/CODEOWNERS"
+      REPO_ROOT + "/CODEOWNERS",
+      REPO_ROOT + "/.github/CODEOWNERS",
+      REPO_ROOT + "/.gitlab/CODEOWNERS",
+      REPO_ROOT + "/docs/CODEOWNERS"
     ]
   }
 }

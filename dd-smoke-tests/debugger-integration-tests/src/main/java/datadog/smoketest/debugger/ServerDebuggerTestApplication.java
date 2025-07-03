@@ -43,6 +43,7 @@ public class ServerDebuggerTestApplication {
     methodsByName.put("tracedMethod", ServerDebuggerTestApplication::runTracedMethod);
     methodsByName.put("loopingFullMethod", ServerDebuggerTestApplication::runLoopingFullMethod);
     methodsByName.put("loopingTracedMethod", ServerDebuggerTestApplication::runLoopingTracedMethod);
+    methodsByName.put("topLevelMethod", ServerDebuggerTestApplication::runTopLevelMethod);
   }
 
   public ServerDebuggerTestApplication(String controlServerUrl) {
@@ -152,6 +153,8 @@ public class ServerDebuggerTestApplication {
       tracedMethodWithDeepException1(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else if ("lambdaOops".equals(arg)) {
       tracedMethodWithLambdaException(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    } else if ("recursiveOops".equals(arg)) {
+      tracedMethodWithRecursiveException(42, "foobar", 3.42, map, "var1", "var2", "var3");
     } else {
       tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
     }
@@ -161,6 +164,10 @@ public class ServerDebuggerTestApplication {
     for (int i = 0; i < Integer.parseInt(arg); i++) {
       runTracedMethod(arg);
     }
+  }
+
+  private static String runTopLevelMethod(String arg) {
+    return TopLevel.process(arg);
   }
 
   private static String fullMethod(
@@ -234,6 +241,15 @@ public class ServerDebuggerTestApplication {
     throw toRuntimeException("lambdaOops");
   }
 
+  private static void tracedMethodWithRecursiveException(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    if (argInt > 0) {
+      tracedMethodWithRecursiveException(argInt - 8, argStr, argDouble, argMap, argVar);
+    } else {
+      throw new RuntimeException("recursiveOops");
+    }
+  }
+
   private static RuntimeException toRuntimeException(String msg) {
     return toException(RuntimeException::new, msg);
   }
@@ -288,5 +304,11 @@ public class ServerDebuggerTestApplication {
       }
       return EMPTY_HTTP_200;
     }
+  }
+}
+
+class TopLevel {
+  public static String process(String arg) {
+    return "TopLevel.process: " + arg;
   }
 }

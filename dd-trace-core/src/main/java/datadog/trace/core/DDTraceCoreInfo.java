@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -30,6 +31,7 @@ public class DDTraceCoreInfo {
     VERSION = v;
   }
 
+  @SuppressForbidden
   public static void main(final String... args) {
     System.out.println(VERSION);
   }

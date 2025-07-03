@@ -235,6 +235,7 @@ public class JUnit4TracingListener extends TracingListener {
             testParameters,
             categories,
             testSourceData,
-            reason);
+            reason,
+            executionHistories.get(description));
   }
 }

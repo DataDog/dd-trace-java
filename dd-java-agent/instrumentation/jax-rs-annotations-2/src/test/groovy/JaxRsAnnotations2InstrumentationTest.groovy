@@ -59,6 +59,7 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jax-rs"
             "$Tags.HTTP_ROUTE" name.split(" ").last()
+            withCustomIntegrationName(null)
             defaultTags()
           }
         }

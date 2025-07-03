@@ -314,7 +314,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   writable.writeUTF8(LLM_TOOL_CALL_TYPE);
                   writable.writeString(toolCall.getType(), null);
                   writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
-                  writable.writeString(toolCall.getToolID(), null);
+                  writable.writeString(toolCall.getToolId(), null);
                   if (hasArguments) {
                     writable.writeUTF8(LLM_TOOL_CALL_ARGUMENTS);
                     writable.startMap(arguments.size());
