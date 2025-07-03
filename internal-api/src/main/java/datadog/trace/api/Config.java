@@ -1190,6 +1190,10 @@ public class Config {
 
   private final int stackTraceLengthLimit;
 
+  // RUM config -- start
+  // TODO
+  // RUM config -- end
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());

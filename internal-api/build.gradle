@@ -244,6 +244,7 @@ dependencies {
   api project(':dd-trace-api')
   api libs.slf4j
   api project(':components:context')
+  api project(':components:json')
   api project(':components:yaml')
   api project(':components:cli')
   api project(":utils:time-utils")
