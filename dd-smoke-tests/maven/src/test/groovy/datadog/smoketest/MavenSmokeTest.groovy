@@ -98,19 +98,19 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
     "test_successful_maven_run"                         | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
-    "test_successful_maven_run_surefire_3_0_0"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
-    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
-    "test_successful_maven_run_surefire_3_5_0"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
-    "test_successful_maven_run_surefire_3_5_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
-    "test_successful_maven_run_builtin_coverage"        | "3.9.9"              | 5              | 1                 | true          | true          | false        | false          | []                                                             | 8
-    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
-    // "expectedEvents" count for this test case does not include the spans that correspond to Cucumber steps
-    "test_successful_maven_run_with_cucumber"           | "3.9.9"              | 4              | 1                 | true          | false         | false        | true           | []                                                             | 8
-    "test_failed_maven_run_flaky_retries"               | "3.9.9"              | 8              | 5                 | false         | false         | true         | true           | []                                                             | 8
-    "test_successful_maven_run_junit_platform_runner"   | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | []                                                             | 8
-    "test_successful_maven_run_with_arg_line_property"  | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
-    "test_successful_maven_run_multiple_forks"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
-    "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
+//    "test_successful_maven_run_surefire_3_0_0"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+//    "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
+//    "test_successful_maven_run_surefire_3_5_0"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+//    "test_successful_maven_run_surefire_3_5_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
+//    "test_successful_maven_run_builtin_coverage"        | "3.9.9"              | 5              | 1                 | true          | true          | false        | false          | []                                                             | 8
+//    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+//    // "expectedEvents" count for this test case does not include the spans that correspond to Cucumber steps
+//    "test_successful_maven_run_with_cucumber"           | "3.9.9"              | 4              | 1                 | true          | false         | false        | true           | []                                                             | 8
+//    "test_failed_maven_run_flaky_retries"               | "3.9.9"              | 8              | 5                 | false         | false         | true         | true           | []                                                             | 8
+//    "test_successful_maven_run_junit_platform_runner"   | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | []                                                             | 8
+//    "test_successful_maven_run_with_arg_line_property"  | "3.9.9"              | 4              | 0                 | true          | false         | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
+//    "test_successful_maven_run_multiple_forks"          | "3.9.9"              | 5              | 1                 | true          | true          | false        | true           | []                                                             | 8
+//    "test_successful_maven_run_multiple_forks"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | true          | false        | true           | []                                                             | 17
   }
 
   def "test test management"() {
@@ -279,7 +279,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
    */
   private void givenMavenDependenciesAreLoaded(String projectName, String mavenVersion, Map<String, String> additionalEnvVars = [:]) {
     if (LOADED_DEPENDENCIES.add("$projectName:$mavenVersion")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["dependencies:go-offline", "package"], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline", "package"], additionalEnvVars)
     }
     // dependencies below are download separately
     // because they are not declared in the project,

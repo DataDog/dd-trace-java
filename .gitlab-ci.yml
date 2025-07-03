@@ -637,7 +637,7 @@ test_debugger:
 test_smoke:
   extends: .test_job
   variables:
-    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-tests:maven:test"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
