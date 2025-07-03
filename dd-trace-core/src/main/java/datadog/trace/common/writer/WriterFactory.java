@@ -40,7 +40,6 @@ public class WriterFactory {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics) {
-    System.out.println("=====" + config.getWriterType());
     return createWriter(
         config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
   }
@@ -213,7 +212,6 @@ public class WriterFactory {
           && config.isLlmObsAgentlessEnabled()
           && llmObsAgentlessUrl != null
           && !llmObsAgentlessUrl.isEmpty()) {
-        System.out.println("------entering llmobs block");
         hostUrl = HttpUrl.get(llmObsAgentlessUrl);
         log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
