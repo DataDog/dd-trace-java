@@ -183,9 +183,6 @@ public abstract class BootstrapInitializationTelemetry {
       synchronized (this.points) {
         this.points.add(name);
         this.points.add(tag);
-        setInjectResult("success");
-        setInjectResultReason("Success");
-        setInjectResultClass("success");
       }
     }
 
