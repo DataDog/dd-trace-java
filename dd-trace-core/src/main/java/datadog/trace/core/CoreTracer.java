@@ -1040,7 +1040,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         try {
           // If one TraceInterceptor throws an exception, then continue with the next one
           interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
-        } catch (Exception e) {
+        } catch (Throwable e) {
           String interceptorName = interceptor.getClass().getName();
           rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
         }
