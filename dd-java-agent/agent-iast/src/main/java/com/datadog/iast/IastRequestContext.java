@@ -48,8 +48,27 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   }
 
   public IastRequestContext(final TaintedObjects taintedObjects) {
+    this(taintedObjects, false);
+  }
+
+  public IastRequestContext(final TaintedObjects taintedObjects, boolean isGlobal) {
     this.vulnerabilityBatch = new VulnerabilityBatch();
-    this.overheadContext = new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest());
+    this.overheadContext =
+        new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), isGlobal);
+    this.taintedObjects = taintedObjects;
+  }
+
+  /**
+   * Use this constructor only when you want to create a new context with a fresh overhead context
+   * (e.g. for testing purposes).
+   *
+   * @param taintedObjects the tainted objects to use
+   * @param overheadContext the overhead context to use
+   */
+  public IastRequestContext(
+      final TaintedObjects taintedObjects, final OverheadContext overheadContext) {
+    this.vulnerabilityBatch = new VulnerabilityBatch();
+    this.overheadContext = overheadContext;
     this.taintedObjects = taintedObjects;
   }
 
@@ -188,6 +207,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
         pool.offer(unwrapped);
         iastCtx.setTaintedObjects(TaintedObjects.NoOp.INSTANCE);
       }
+      iastCtx.overheadContext.resetMaps();
     }
   }
 }
