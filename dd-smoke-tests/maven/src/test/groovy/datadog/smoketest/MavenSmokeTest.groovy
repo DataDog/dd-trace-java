@@ -279,7 +279,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
    */
   private void givenMavenDependenciesAreLoaded(String projectName, String mavenVersion, Map<String, String> additionalEnvVars = [:]) {
     if (LOADED_DEPENDENCIES.add("$projectName:$mavenVersion")) {
-      retryUntilSuccessfulOrNoAttemptsLeft(["dependency:go-offline"], additionalEnvVars)
+      retryUntilSuccessfulOrNoAttemptsLeft(["dependencies:go-offline", "package"], additionalEnvVars)
     }
     // dependencies below are download separately
     // because they are not declared in the project,
