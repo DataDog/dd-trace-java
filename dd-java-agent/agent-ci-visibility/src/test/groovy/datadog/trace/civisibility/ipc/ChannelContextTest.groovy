@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.ipc
 
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 
@@ -9,7 +9,7 @@ import java.nio.channels.ByteChannel
 import java.util.concurrent.ThreadLocalRandom
 
 @IgnoreIf(reason = "JVM crash with OpenJ9", value = {
-  Platform.isJ9()
+  JavaVirtualMachine.isJ9()
 })
 class ChannelContextTest extends Specification {
 

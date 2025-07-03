@@ -47,7 +47,9 @@ class SymbolAggregatorTest {
   }
 
   @Test
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testScopeFilter() {
     ScopeFilter mockFilter = mock(ScopeFilter.class);
     when(mockFilter.filterOut(any())).thenReturn(true);

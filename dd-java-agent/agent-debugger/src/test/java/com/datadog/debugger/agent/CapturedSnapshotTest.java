@@ -622,7 +622,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void sourceFileProbeKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot301";
@@ -652,7 +652,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendKotlin() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot302";
@@ -679,7 +679,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void suspendMethodKotlin() {
     final String CLASS_NAME = "CapturedSnapshot302";
@@ -712,7 +712,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
   public void hoistVarKotlin() {
     final String CLASS_NAME = "CapturedSnapshot303";
@@ -1863,7 +1863,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
     if (Config.get().getDynamicInstrumentationLocalVarHoistingLevel() < 2) {
@@ -1901,7 +1901,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionCaptureLocalVars() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -1925,7 +1925,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -1942,7 +1942,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeLocalVarsDeepScopes() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -1974,7 +1974,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void methodProbeExceptionLocalVars() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2008,7 +2008,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void overlappingLocalVarSlot() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2025,7 +2025,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
@@ -22,7 +23,7 @@ public final class DirectByteBufferInstrumentation extends InstrumenterModule.Pr
 
   @Override
   public boolean isEnabled() {
-    return Platform.isJavaVersionAtLeast(11)
+    return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
         && ConfigProvider.getInstance()
             .getBoolean(
