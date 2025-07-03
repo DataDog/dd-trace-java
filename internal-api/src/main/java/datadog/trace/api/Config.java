@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ADD_SPAN_POINTERS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
@@ -609,6 +611,8 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -3299,41 +3303,41 @@ public class Config {
   public static boolean isDatadogProfilerEnablementOverridden() {
     // old non-LTS versions without important backports
     // also, we have no windows binaries
-    return Platform.isWindows()
-        || Platform.isJavaVersion(18)
-        || Platform.isJavaVersion(16)
-        || Platform.isJavaVersion(15)
-        || Platform.isJavaVersion(14)
-        || Platform.isJavaVersion(13)
-        || Platform.isJavaVersion(12)
-        || Platform.isJavaVersion(10)
-        || Platform.isJavaVersion(9);
+    return OperatingSystem.isWindows()
+        || isJavaVersion(18)
+        || isJavaVersion(16)
+        || isJavaVersion(15)
+        || isJavaVersion(14)
+        || isJavaVersion(13)
+        || isJavaVersion(12)
+        || isJavaVersion(10)
+        || isJavaVersion(9);
   }
 
   public static boolean isDatadogProfilerSafeInCurrentEnvironment() {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
-    if (!Platform.isJ9() && Platform.isJavaVersion(8)) {
+    if (!JavaVirtualMachine.isJ9() && isJavaVersion(8)) {
       String arch = System.getProperty("os.arch");
       if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
     }
-    if (Platform.isGraalVM()) {
+    if (JavaVirtualMachine.isGraalVM()) {
       // let's be conservative about GraalVM and require opt-in from the users
       return false;
     }
     boolean result = false;
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // OpenJ9 will activate only JVMTI GetAllStackTraces based profiling which is safe
       result = true;
     } else {
       // JDK 18 is missing ASGCT fixes, so we can't use it
-      if (!Platform.isJavaVersion(18)) {
+      if (!isJavaVersion(18)) {
         result =
-            Platform.isJavaVersionAtLeast(17, 0, 5)
-                || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-                || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
+            isJavaVersionAtLeast(17, 0, 5)
+                || (isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 17))
+                || (isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 352));
       }
     }
     return result;

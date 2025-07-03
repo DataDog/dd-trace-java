@@ -3,7 +3,7 @@ package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet
