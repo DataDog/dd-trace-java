@@ -40,6 +40,7 @@ public class WriterFactory {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics) {
+    System.out.println("=====" + config.getWriterType());
     return createWriter(
         config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
   }
@@ -68,7 +69,8 @@ public class WriterFactory {
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
         && !DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
       log.warn(
-          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
+          "Writer type not configured correctly: Type {} not recognized. Ignoring ",
+          configuredType);
       configuredType = datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
     }
 
@@ -90,6 +92,14 @@ public class WriterFactory {
       } else {
         log.info(
             "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ or enable Agentless mode.");
+      }
+    }
+    if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isLlmObsEnabled())) {
+      if (featuresDiscovery.supportsEvpProxy() || config.isLlmObsAgentlessEnabled()) {
+        configuredType = DD_INTAKE_WRITER_TYPE;
+      } else {
+        log.info("LLM Observability functionality is limited.");
+        // TODO: add supported agent version to this log line for llm obs
       }
     }
 
@@ -117,11 +127,11 @@ public class WriterFactory {
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
         builder.addTrack(TrackType.CITESTCOV, coverageApi);
       }
-
-      final RemoteApi llmobsApi =
-          createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
-      builder.addTrack(TrackType.LLMOBS, llmobsApi);
-
+      if (config.isLlmObsEnabled()) {
+        final RemoteApi llmobsApi =
+            createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
+        builder.addTrack(TrackType.LLMOBS, llmobsApi);
+      }
       remoteWriter = builder.build();
 
     } else { // configuredType == DDAgentWriter
@@ -203,6 +213,7 @@ public class WriterFactory {
           && config.isLlmObsAgentlessEnabled()
           && llmObsAgentlessUrl != null
           && !llmObsAgentlessUrl.isEmpty()) {
+        System.out.println("------entering llmobs block");
         hostUrl = HttpUrl.get(llmObsAgentlessUrl);
         log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
