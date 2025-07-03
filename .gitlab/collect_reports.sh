@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Save all important reports into (project-root)/reports
-# This folder will be saved by circleci and available after test runs.
+# This folder will be saved by gitlab and available after test runs.
 
 set -e
 #Enable '**' support
