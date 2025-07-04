@@ -27,6 +27,21 @@ public abstract class InitializationTelemetry {
   }
 
   /**
+   * Sets the injection result. 
+   */
+  public abstract void setInjectResult(String result);
+
+  /**
+   * Sets the injection result reason - a customer-facing reason for the injection result
+   */
+  public abstract void setInjectResultReason(String reason);
+
+  /**
+   * Sets the injection result class - a standardized classification type for results across components
+   */
+  public abstract void setInjectResultClass(String resultClass);
+
+  /**
    * Indicates that an abort condition occurred during the bootstrapping process. Abort conditions
    * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
    */
@@ -70,6 +85,15 @@ public abstract class InitializationTelemetry {
     NoOp() {}
 
     @Override
+    public void setInjectResult(String result) {}
+
+    @Override
+    public void setInjectResultReason(String reason) {}
+
+    @Override
+    public void setInjectResultClass(String resultClass) {}
+
+    @Override
     public void onAbort(String reasonCode) {}
 
     @Override
@@ -89,6 +113,9 @@ public abstract class InitializationTelemetry {
   static final class BootstrapProxy extends InitializationTelemetry {
     private final Object bootstrapInitTelemetry;
     private volatile MethodHandle bmh_onAbortString;
+    private volatile MethodHandle bmh_setInjectResult;
+    private volatile MethodHandle bmh_setInjectResultReason;
+    private volatile MethodHandle bmh_setInjectResultClass;
     private volatile MethodHandle bmh_onErrorString;
     private volatile MethodHandle bmh_onErrorThrowable;
     private volatile MethodHandle bmh_onFatalErrorThrowable;
@@ -100,6 +127,54 @@ public abstract class InitializationTelemetry {
     /** @param bootstrapInitTelemetry - non-null BootstrapInitializationTelemetry */
     BootstrapProxy(final Object bootstrapInitTelemetry) {
       this.bootstrapInitTelemetry = bootstrapInitTelemetry;
+    }
+
+    @Override
+    public void setInjectResult(String result) {
+      MethodHandle bmh_setInjectResult = this.bmh_setInjectResult;
+      if (bmh_setInjectResult == null) {
+        bmh_setInjectResult = findBoundHandle("setInjectResult", String.class);
+        this.bmh_setInjectResult = bmh_setInjectResult;
+      }
+      if (bmh_setInjectResult != null) {
+        try {
+          bmh_setInjectResult.invokeExact(result);
+        } catch (Throwable t) {
+          // ignore
+        }
+      }
+    }
+
+    @Override
+    public void setInjectResultReason(String reason) {
+      MethodHandle bmh_setInjectResultReason = this.bmh_setInjectResultReason;
+      if (bmh_setInjectResultReason == null) {
+        bmh_setInjectResultReason = findBoundHandle("setInjectResultReason", String.class);
+        this.bmh_setInjectResultReason = bmh_setInjectResultReason;
+      }
+      if (bmh_setInjectResultReason != null) {
+        try {
+          bmh_setInjectResultReason.invokeExact(reason);
+        } catch (Throwable t) {
+          // ignore
+        }
+      }
+    }
+
+    @Override
+    public void setInjectResultClass(String resultClass) {
+      MethodHandle bmh_setInjectResultClass = this.bmh_setInjectResultClass;
+      if (bmh_setInjectResultClass == null) {
+        bmh_setInjectResultClass = findBoundHandle("setInjectResultClass", String.class);
+        this.bmh_setInjectResultClass = bmh_setInjectResultClass;
+      }
+      if (bmh_setInjectResultClass != null) {
+        try {
+          bmh_setInjectResultClass.invokeExact(resultClass);
+        } catch (Throwable t) {
+          // ignore
+        }
+      }
     }
 
     @Override
