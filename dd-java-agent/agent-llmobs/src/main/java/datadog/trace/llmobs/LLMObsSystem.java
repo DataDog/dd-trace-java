@@ -32,8 +32,7 @@ public class LLMObsSystem {
     sco.createRemaining(config);
 
     LLMObsInternal.setLLMObsSpanFactory(
-        new LLMObsManualSpanFactory(
-            config.getLlmObsMlApp(), config.getServiceName()));
+        new LLMObsManualSpanFactory(config.getLlmObsMlApp(), config.getServiceName()));
 
     String mlApp = config.getLlmObsMlApp();
     LLMObsInternal.setLLMObsSpanFactory(
@@ -108,7 +107,7 @@ public class LLMObsSystem {
         LOGGER.error("null llm obs span provided, eval not recorded");
         return;
       }
-      
+
       if (mlApp == null || mlApp.isEmpty()) {
         mlApp = defaultMLApp;
       }
@@ -133,8 +132,7 @@ public class LLMObsSystem {
     private final String serviceName;
     private final String defaultMLApp;
 
-    public LLMObsManualSpanFactory(
-        String defaultMLApp, String serviceName) {
+    public LLMObsManualSpanFactory(String defaultMLApp, String serviceName) {
       this.defaultMLApp = defaultMLApp;
       this.serviceName = serviceName;
     }
