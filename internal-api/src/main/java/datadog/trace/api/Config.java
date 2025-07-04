@@ -2702,7 +2702,7 @@ public class Config {
   }
 
   private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
-    if (this.rumEnabled) {
+    if (!this.rumEnabled) {
       return null;
     }
     try {
