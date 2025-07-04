@@ -1,14 +1,12 @@
-package datadog.smoketest.rum.tomcat9
+package datadog.smoketest.rum.tomcat11
 
 import datadog.smoketest.rum.AbstractRumServerSmokeTest
 import datadog.trace.api.Platform
 
-class Tomcat9RumSmokeTest extends AbstractRumServerSmokeTest {
-
-
+class Tomcat11RumSmokeTest extends AbstractRumServerSmokeTest {
   @Override
   ProcessBuilder createProcessBuilder() {
-    String jarPath = System.getProperty('datadog.smoketest.rum.tomcat9.shadowJar.path')
+    String jarPath = System.getProperty('datadog.smoketest.rum.tomcat11.shadowJar.path')
 
     List<String> command = []
     command.add(javaPath())

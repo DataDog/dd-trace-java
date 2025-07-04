@@ -17,9 +17,9 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
     given:
     def url = "http://localhost:${httpPort}/html"
     def request = new Request.Builder()
-            .url(url)
-            .get()
-            .build()
+      .url(url)
+      .get()
+      .build()
 
     when:
     Response response = client.newCall(request).execute()
@@ -33,9 +33,9 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
     given:
     def url = "http://localhost:${httpPort}/xml"
     def request = new Request.Builder()
-            .url(url)
-            .get()
-            .build()
+      .url(url)
+      .get()
+      .build()
 
     when:
     Response response = client.newCall(request).execute()
