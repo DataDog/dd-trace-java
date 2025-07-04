@@ -3,12 +3,11 @@ package datadog.trace.api.rum;
 import static java.util.Locale.ROOT;
 
 import datadog.json.JsonWriter;
-import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public class RumConfig {
+public class RumInjectorConfig {
   private static final String DEFAULT_SITE = "datadoghq.com";
   private static final String GOV_CLOUD_SITE = "ddog-gov.com";
   private static final Map<String, String> REGIONS = new HashMap<>();
@@ -44,19 +43,14 @@ public class RumConfig {
   /** The privacy level for data collection. */
   @Nullable public final PrivacyLevel defaultPrivacyLevel;
   /** The percentage of user sessions to be tracked (between 0.0 and 100.0). */
-  @Nullable public final Float sessionSampleRate;
+  public final float sessionSampleRate;
   /**
    * The percentage of tracked sessions that will include Session Replay data (between 0.0 and
    * 100.0).
    */
-  @Nullable public final Float sessionReplaySampleRate;
+  public final float sessionReplaySampleRate;
 
-  public static RumConfig from(Config config) {
-    // TODO
-    return null;
-  }
-
-  RumConfig(
+  public RumInjectorConfig(
       String applicationId,
       String clientToken,
       @Nullable String site,
@@ -68,8 +62,8 @@ public class RumConfig {
       @Nullable Boolean trackResources,
       @Nullable Boolean trackLongTask,
       @Nullable PrivacyLevel defaultPrivacyLevel,
-      @Nullable Float sessionSampleRate,
-      @Nullable Float sessionReplaySampleRate) {
+      float sessionSampleRate,
+      float sessionReplaySampleRate) {
     if (applicationId == null || applicationId.isEmpty()) {
       throw new IllegalArgumentException("Invalid application id: " + applicationId);
     }
@@ -95,12 +89,11 @@ public class RumConfig {
     this.trackUserInteractions = trackUserInteractions;
     this.trackResources = trackResources;
     this.trackLongTask = trackLongTask;
-    if (sessionSampleRate != null && (sessionSampleRate < 0f || sessionSampleRate > 100f)) {
+    if (sessionSampleRate < 0f || sessionSampleRate > 100f) {
       throw new IllegalArgumentException("Invalid session sample rate: " + sessionSampleRate);
     }
     this.sessionSampleRate = sessionSampleRate;
-    if (sessionReplaySampleRate != null
-        && (sessionReplaySampleRate < 0f || sessionReplaySampleRate > 100f)) {
+    if (sessionReplaySampleRate < 0f || sessionReplaySampleRate > 100f) {
       throw new IllegalArgumentException(
           "Invalid session replay sample rate: " + sessionReplaySampleRate);
     }
@@ -145,7 +138,7 @@ public class RumConfig {
         + "/datadog-rum.js";
   }
 
-  private String jsonPayload() {
+  public String jsonPayload() {
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
       writer.name("application_id").value(this.applicationId);
@@ -174,12 +167,8 @@ public class RumConfig {
       if (this.defaultPrivacyLevel != null) {
         writer.name("default_privacy_level").value(this.defaultPrivacyLevel.toJson());
       }
-      if (this.sessionSampleRate != null) {
-        writer.name("session_sample_rate").value(this.sessionSampleRate);
-      }
-      if (this.sessionReplaySampleRate != null) {
-        writer.name("session_replay_sample_rate").value(this.sessionReplaySampleRate);
-      }
+      writer.name("session_sample_rate").value(this.sessionSampleRate);
+      writer.name("session_replay_sample_rate").value(this.sessionReplaySampleRate);
       return writer.toString();
     } catch (Exception e) {
       throw new IllegalStateException("Fail to generate config payload", e);

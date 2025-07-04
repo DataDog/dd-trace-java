@@ -240,6 +240,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
+  static final boolean DEFAULT_RUM_ENABLED = false;
+  static final int DEFAULT_RUM_MAJOR_VERSION = 6;
+  static final float DEFAULT_RUM_SESSION_SAMPLE_RATE = 100f;
+  static final float DEFAULT_RUM_SESSION_REPLAY_SAMPLE_RATE = 100f;
+
   static final boolean DEFAULT_SSI_INJECTION_FORCE = false;
   static final String DEFAULT_INSTRUMENTATION_SOURCE = "manual";
 
