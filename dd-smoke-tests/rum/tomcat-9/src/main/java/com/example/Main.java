@@ -1,12 +1,12 @@
 package com.example;
 
+import java.io.File;
 import org.apache.catalina.Context;
+import org.apache.catalina.LifecycleException;
 import org.apache.catalina.startup.Tomcat;
 
-import java.io.File;
-
 public class Main {
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) throws LifecycleException {
     int port = 8080;
     if (args.length == 1) {
       port = Integer.parseInt(args[0]);
@@ -14,12 +14,11 @@ public class Main {
 
     Tomcat tomcat = new Tomcat();
     tomcat.setPort(port);
-
-    // Setup base directory
+    tomcat.getConnector(); // This is required to make Tomcat start
     tomcat.setBaseDir(".");
 
     // Add webapp context
-    String contextPath = "/";
+    String contextPath = "";
     String docBase = new File(".").getAbsolutePath();
     Context context = tomcat.addContext(contextPath, docBase);
 
