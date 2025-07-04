@@ -23,6 +23,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
    * @param downstream the delegate output stream
    * @param marker the marker to find in the stream
    * @param contentToInject the content to inject once before the marker if found.
+   * @param onContentInjected callback called when and if the content is injected.
    */
   public InjectingPipeOutputStream(
       final OutputStream downstream,
