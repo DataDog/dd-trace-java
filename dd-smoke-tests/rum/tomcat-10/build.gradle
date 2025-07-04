@@ -2,12 +2,16 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'RUM Tomcat 10 Smoke Tests'
 
 dependencies {
-  implementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.13'
-  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper:10.1.13'
+  implementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.42'
+  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper:10.1.42'
   implementation 'jakarta.servlet:jakarta.servlet-api:5.0.0'
 
   testImplementation project(':dd-smoke-tests:rum')
@@ -17,6 +21,17 @@ jar {
   manifest {
     attributes('Main-Class': 'com.example.Main')
   }
+}
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+}
+tasks.withType(JavaCompile).configureEach {
+  setJavaVersion(it, 11)
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
 }
 
 tasks.withType(Test).configureEach {
