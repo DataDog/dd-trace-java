@@ -50,7 +50,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   @ParameterizedTest(name = "Process tags enabled ''{0}''")
   @ValueSource(booleans = {true, false})
   @DisplayName("testTracer")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracer(boolean processTagsEnabled) throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -81,7 +83,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerDynamicLog")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerDynamicLog() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -104,7 +108,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerSameMethod")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerSameMethod() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -124,7 +130,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerLineSnapshotProbe")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerLineSnapshotProbe() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -144,7 +152,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerLineDynamicLogProbe")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerLineDynamicLogProbe() throws Exception {
     final String LOG_TEMPLATE = "processWithArg {argInt}";
     LogProbe logProbe =
