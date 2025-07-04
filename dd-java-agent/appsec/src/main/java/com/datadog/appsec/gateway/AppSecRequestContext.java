@@ -126,6 +126,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
+  private volatile boolean raspBlocked;
 
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
@@ -139,6 +140,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile String userLogin;
   // keep a reference to the last published usr.session_id
   private volatile String sessionId;
+
+  // trace attributes for trace tagging support
+  private volatile Map<String, Object> traceAttributes;
 
   // Used to detect missing request-end event at close.
   private volatile boolean requestEndCalled;
@@ -222,6 +226,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafRateLimited() {
     return wafRateLimited;
+  }
+
+  public void setRaspBlocked() {
+    this.raspBlocked = true;
+  }
+
+  public boolean isRaspBlocked() {
+    return raspBlocked;
   }
 
   public void increaseWafTimeouts() {
@@ -702,5 +714,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  /**
+   * Set trace attributes for trace tagging support. These attributes will be serialized to the
+   * trace segment.
+   */
+  public void setTraceAttributes(Map<String, Object> attributes) {
+    this.traceAttributes = attributes;
+  }
+
+  /** Get trace attributes for trace tagging support. */
+  public Map<String, Object> getTraceAttributes() {
+    return traceAttributes;
   }
 }
