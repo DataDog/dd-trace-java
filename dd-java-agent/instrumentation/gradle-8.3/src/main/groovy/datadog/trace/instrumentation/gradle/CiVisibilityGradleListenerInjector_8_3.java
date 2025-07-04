@@ -1,13 +1,22 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.util.MethodHandles;
+import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
+import org.gradle.api.Action;
 import org.gradle.initialization.ClassLoaderRegistry;
 import org.gradle.internal.service.DefaultServiceRegistry;
+import org.gradle.internal.service.ServiceRegistration;
 import org.gradle.internal.service.ServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilityGradleListenerInjector_8_3 {
+
+  private static final MethodHandles METHOD_HANDLES =
+      new MethodHandles(DefaultServiceRegistry.class.getClassLoader());
+  private static final MethodHandle REGISTER_SERVICE =
+      METHOD_HANDLES.method(DefaultServiceRegistry.class, "register", Action.class);
 
   private static final Logger LOGGER =
       LoggerFactory.getLogger(CiVisibilityGradleListenerInjector_8_3.class);
@@ -21,8 +30,9 @@ public class CiVisibilityGradleListenerInjector_8_3 {
       Class<?> ciVisibilityGradleListener =
           CiVisibilityGradleListenerInjector_8_3.loadCiVisibilityGradleListener(
               classLoaderRegistry);
-      buildScopeServices.register(
-          serviceRegistration -> serviceRegistration.add(ciVisibilityGradleListener));
+      Action<ServiceRegistration> registrationAction =
+          serviceRegistration -> serviceRegistration.add(ciVisibilityGradleListener);
+      METHOD_HANDLES.invoke(REGISTER_SERVICE, buildScopeServices, registrationAction);
     } catch (Exception e) {
       LOGGER.warn("Could not inject CI Visibility Gradle listener", e);
     }
