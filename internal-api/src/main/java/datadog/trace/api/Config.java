@@ -5653,7 +5653,7 @@ public class Config {
         + ", rumEnabled="
         + rumEnabled
         + ", rumInjectorConfig="
-        + rumInjectorConfig.jsonPayload()
+        + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + '}';
   }
 }
