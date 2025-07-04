@@ -307,6 +307,7 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
+        null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM
