@@ -1,7 +1,7 @@
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.Platform
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.KarateUtils
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
@@ -22,7 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @IgnoreIf(reason = "Karate instrumentation is creating an unclosed span of kind test_suite_end specifically for Java 24. Skip until we have a fix.", value = {
-  Platform.isJavaVersionAtLeast(24)
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
 })
 @DisableTestTrace(reason = "avoid self-tracing")
 class KarateTest extends CiVisibilityInstrumentationTest {

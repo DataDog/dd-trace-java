@@ -58,7 +58,8 @@ public abstract class SinkModuleBase {
   }
 
   protected void report(@Nullable final AgentSpan span, final Vulnerability vulnerability) {
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+    if (!overheadController.consumeQuota(
+        Operations.REPORT_VULNERABILITY, span, vulnerability.getType())) {
       return;
     }
     reporter.report(span, vulnerability);
@@ -70,7 +71,7 @@ public abstract class SinkModuleBase {
 
   protected void report(
       @Nullable final AgentSpan span, final VulnerabilityType type, final Evidence evidence) {
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, type)) {
       return;
     }
     final Vulnerability vulnerability =
@@ -170,7 +171,7 @@ public abstract class SinkModuleBase {
     }
 
     final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, type)) {
       return null;
     }
 
@@ -251,7 +252,7 @@ public abstract class SinkModuleBase {
       if (!spanFetched && valueRanges != null && valueRanges.length > 0) {
         span = AgentTracer.activeSpan();
         spanFetched = true;
-        if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+        if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, type)) {
           return null;
         }
       }

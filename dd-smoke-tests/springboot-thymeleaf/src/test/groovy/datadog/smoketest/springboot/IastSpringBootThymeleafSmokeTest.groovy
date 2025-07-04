@@ -37,13 +37,50 @@ class IastSpringBootThymeleafSmokeTest extends AbstractIastServerSmokeTest {
     final request = new Request.Builder().url(url).get().build()
 
     when:
-    client.newCall(request).execute()
+    def response = client.newCall(request).execute()
 
     then:
+    response.code() == 200
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
 
     where:
     method    | param |templateName| line
     'utext'    | 'test' | 'utext' | 12
+  }
+
+  void 'xss with string template returns html as template name'() {
+    setup:
+    final param = '<script>'
+    final encoded = URLEncoder.encode(param, 'UTF-8')
+    final url = "http://localhost:${httpPort}/xss/string-template?string=${encoded}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'XSS' &&
+        vul.location.path == '<p th:utext="${xss}">Test!</p>' &&
+        vul.location.line == 1
+    }
+  }
+
+  void 'xss with string template returns html as template name - truncated'() {
+    setup:
+    final param = '<script>'
+    final encoded = URLEncoder.encode(param, 'UTF-8')
+    final url = "http://localhost:${httpPort}/xss/big-string-template?string=${encoded}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul ->
+      vul.type == 'XSS' &&
+        vul.location.path == 'A'*500 &&
+        vul.location.line == 1
+    }
   }
 }

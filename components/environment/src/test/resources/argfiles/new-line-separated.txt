@@ -1,0 +1,3 @@
+-Xms256m
+-Xmx512m
+-Dargfile.prop=test

@@ -41,9 +41,6 @@ variables:
     description: "Enable flaky tests"
     value: "false"
 
-default:
-  interruptible: true
-
 # trigger new commit cancel
 workflow:
   auto_cancel:
@@ -100,6 +97,7 @@ workflow:
 
 default:
   tags: [ "arch:amd64" ]
+  interruptible: true
 
 .set_datadog_api_keys: &set_datadog_api_keys
   - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text)
@@ -521,7 +519,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.24.1
+    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.27.1
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"

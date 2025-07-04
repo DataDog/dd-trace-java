@@ -20,8 +20,8 @@ import play.api.libs.json.JsValue;
 public class ResultsStatusApplyAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void after(
-      @Advice.Argument(0) final Object content, @ActiveRequestContext RequestContext reqCtx) {
+  static void before(
+      @Advice.Argument(0) final Object content, @ActiveRequestContext final RequestContext reqCtx) {
 
     if (!(content instanceof JsValue)) {
       return;

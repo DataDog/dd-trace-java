@@ -20,8 +20,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.jmxfetch.refresh-beans-period=1",
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -36,8 +36,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -52,8 +52,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djava.util.logging.manager=jvmbootstraptest.MissingLogManager"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -68,8 +68,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customlogmanager=true"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -84,8 +84,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.profiling.enabled=true",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customjmxbuilder=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["JBOSS_HOME": "/"]
       , true) == 0
   }
@@ -102,8 +102,8 @@ class CustomLogManagerTest extends Specification {
         "-Ddd.app.customlogmanager=false",
         "-Ddd.app.customjmxbuilder=false",
         "-Djava.util.logging.manager=jvmbootstraptest.CustomLogManager"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["JBOSS_HOME": "/"]
       , true) == 0
   }

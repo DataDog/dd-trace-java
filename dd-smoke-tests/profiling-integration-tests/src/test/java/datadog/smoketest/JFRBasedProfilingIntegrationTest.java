@@ -13,8 +13,8 @@ import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Pair;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
 import io.airlift.compress.zstd.ZstdInputStream;
@@ -217,7 +217,7 @@ class JFRBasedProfilingIntegrationTest {
                   logFilePath)
               .start();
 
-      Assumptions.assumeFalse(Platform.isJ9());
+      Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
       final RecordedRequest firstRequest = retrieveRequest();
 
@@ -623,7 +623,7 @@ class JFRBasedProfilingIntegrationTest {
       verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
-          Platform.isJavaVersionAtLeast(11),
+          JavaVirtualMachine.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
@@ -847,6 +847,6 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   public static boolean isJavaVersionAtLeast24() {
-    return Platform.isJavaVersionAtLeast(24);
+    return JavaVirtualMachine.isJavaVersionAtLeast(24);
   }
 }

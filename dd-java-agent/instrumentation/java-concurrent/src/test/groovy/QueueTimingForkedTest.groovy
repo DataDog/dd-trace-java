@@ -1,6 +1,6 @@
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.TestProfilingContextIntegration
-import datadog.trace.api.Platform
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 
 import java.util.concurrent.Executors
@@ -40,10 +40,10 @@ class QueueTimingForkedTest extends AgentTestRunner {
 
     then:
     // Starting from Java 24, ForkJoinPool will wrap a Runnable with the {@code java.util.concurrent.ForkJoinTask$AdaptedInterruptibleRunnable} class
-    String expectedTaskClassName = Platform.isJavaVersionAtLeast(24) ? 'AdaptedInterruptibleRunnable' : 'TestRunnable'
+    String expectedTaskClassName = JavaVirtualMachine.isJavaVersionAtLeast(24) ? 'AdaptedInterruptibleRunnable' : 'TestRunnable'
 
     // flaky before JDK21
-    if (Platform.isJavaVersionAtLeast(21)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
       verify("java.util.concurrent.ForkJoinPool\$WorkQueue", expectedTaskClassName)
     }
 

@@ -1,8 +1,8 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.smoketest.appsec.AbstractAppSecServerSmokeTest
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.api.Platform
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import okhttp3.MediaType
@@ -23,7 +23,7 @@ class Jersey2AppsecSmokeTest extends AbstractAppSecServerSmokeTest{
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
     command.add('-Ddd.integration.grizzly.enabled=true')
-    if (Platform.isJavaVersionAtLeast(17)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'])
     }
     command.addAll(['-jar', jarPath, Integer.toString(httpPort)])

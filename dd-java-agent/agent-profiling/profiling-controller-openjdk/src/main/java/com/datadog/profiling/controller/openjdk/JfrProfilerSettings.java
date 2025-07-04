@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
@@ -22,7 +23,7 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
     this.jfrImplementation =
         Platform.isNativeImage()
             ? "native-image"
-            : (Platform.isOracleJDK8() ? "oracle" : "openjdk");
+            : (JavaVirtualMachine.isOracleJDK8() ? "oracle" : "openjdk");
   }
 
   public void publish() {

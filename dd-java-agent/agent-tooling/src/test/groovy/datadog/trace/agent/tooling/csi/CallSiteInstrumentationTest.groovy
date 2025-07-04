@@ -68,7 +68,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     0 * builder.visit(_ as AsmVisitorWrapper) >> builder
   }
 
-  void 'test call site transformer with super call in ctor'() {
+  void 'test call site transformer with super call in ctor (#test)'() {
     setup:
     SuperInCtorExampleAdvice.CALLS.set(0)
     final source = Type.getType(SuperInCtorExample)
@@ -91,11 +91,16 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     when:
     final transformedClass = transformType(source, target, callSiteTransformer)
     final transformed = loadClass(target, transformedClass)
-    final reader = transformed.newInstance("test")
+    final reader = transformed.newInstance(param)
 
     then:
     reader != null
     SuperInCtorExampleAdvice.CALLS.get() > 0
+
+    where:
+    param                     | test
+    "test"                    | "Operand stack underflow"
+    new StringBuilder("test") | "Inconsistent stackmap frames"
   }
 
   static class StringCallSites implements CallSites, TestCallSites {

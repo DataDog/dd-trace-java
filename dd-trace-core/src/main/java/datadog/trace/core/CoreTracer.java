@@ -169,7 +169,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Default service name if none provided on the trace or span */
   final String serviceName;
 
-  /** Writer is an charge of reporting traces and spans to the desired endpoint */
+  /** Writer is in charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
 
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */

@@ -642,14 +642,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     private final AgentSpan span;
     private final Map<String, String> headerTags;
+    private final String wildcardHeaderPrefix;
 
     public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
       this.span = span;
       this.headerTags = headerTags;
+      this.wildcardHeaderPrefix = this.headerTags.get("*");
     }
 
     @Override
     public boolean accept(String key, String value) {
+      if (wildcardHeaderPrefix != null) {
+        span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
+      }
       String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);

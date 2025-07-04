@@ -1,10 +1,10 @@
 package datadog.smoketest
 
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import spock.lang.IgnoreIf
 
 @IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
-  Platform.isJavaVersionAtLeast(24)
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
 })
 class QuarkusJBossLoggingSmokeTest extends QuarkusSmokeTest {
   @Override
