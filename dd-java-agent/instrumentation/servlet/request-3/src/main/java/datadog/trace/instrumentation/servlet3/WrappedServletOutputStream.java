@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
+import datadog.trace.util.MethodHandles;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.invoke.MethodHandle;
 import java.util.function.Consumer;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
@@ -10,6 +12,18 @@ import javax.servlet.WriteListener;
 public class WrappedServletOutputStream extends ServletOutputStream {
   private final OutputStream filtered;
   private final ServletOutputStream delegate;
+
+  private static final MethodHandle IS_READY_MH = getMh("isReady");
+  private static final MethodHandle SET_WRITELISTENER_MH = getMh("setWriteListener");
+
+  private static final MethodHandle getMh(final String name) {
+    try {
+      return new MethodHandles(ServletOutputStream.class.getClassLoader())
+          .method(ServletOutputStream.class, name);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
 
   public WrappedServletOutputStream(
       ServletOutputStream delegate,
@@ -45,13 +59,27 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     filtered.close();
   }
 
-  @Override
   public boolean isReady() {
-    return delegate.isReady();
+    if (IS_READY_MH == null) {
+      return false;
+    }
+    try {
+      return (boolean) IS_READY_MH.invoke(delegate);
+    } catch (Throwable e) {
+      // how to sneaky throw?
+      throw new RuntimeException(e);
+    }
   }
 
-  @Override
   public void setWriteListener(WriteListener writeListener) {
-    delegate.setWriteListener(writeListener);
+    if (SET_WRITELISTENER_MH == null) {
+      return;
+    }
+    try {
+      SET_WRITELISTENER_MH.invoke(delegate, writeListener);
+    } catch (Throwable e) {
+      // how to sneaky throw?
+      throw new RuntimeException(e);
+    }
   }
 }
