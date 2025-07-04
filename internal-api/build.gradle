@@ -233,7 +233,7 @@ excludedClassesBranchCoverage = [
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory',
   'datadog.trace.util.TempLocationManager',
-  'datadog.trace.util.TempLocationManager.*'
+  'datadog.trace.util.TempLocationManager.*',
   // Tested using forked process
   'datadog.trace.api.env.CapturedEnvironment',
   'datadog.trace.api.env.CapturedEnvironment.ProcessInfo'
