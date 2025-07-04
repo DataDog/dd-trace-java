@@ -15,7 +15,7 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
 
   static void assertRumInjected(Response response) {
     assert response.header('x-datadog-rum-injected') == '1': 'RUM injected header missing'
-    def content = response.body().toString()
+    def content = response.body().string()
     assert content.contains('https://www.datadoghq-browser-agent.com'): 'RUM script not injected'
   }
 }
