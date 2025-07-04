@@ -45,7 +45,7 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
 
   @Override
   File createTemporaryFile() {
-    return new File("${buildDirectory}/tmp/trace-structure-play-2.5-iast-netty.out")
+    return new File("${buildDirectory}/tmp/trace-structure-play-2.4-iast-netty.out")
   }
 
   void 'Test that all the vulnerabilities are detected'() {

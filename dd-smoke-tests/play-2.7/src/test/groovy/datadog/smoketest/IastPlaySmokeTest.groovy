@@ -7,8 +7,7 @@ import spock.lang.Shared
 
 import java.nio.file.Files
 
-
-class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
+abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
 
   @Shared
   File playDirectory = new File("${buildDirectory}/stage/main")
@@ -30,23 +29,27 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
       runningPid.delete()
     }
     def command = isWindows() ? 'main.bat' : 'main'
-    ProcessBuilder processBuilder = new ProcessBuilder("${playDirectory}/bin/${command}")
+    ProcessBuilder processBuilder =
+      new ProcessBuilder("${playDirectory}/bin/${command}")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
-      //'-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 '+
       (defaultIastProperties + defaultJavaProperties).collect({ it.replace(' ', '\\ ')}).join(" ")
       + " -Dconfig.file=${playDirectory}/conf/application.conf"
       + " -Dhttp.port=${httpPort}"
       + " -Dhttp.address=127.0.0.1"
-      + " -Dplay.server.provider=play.core.server.NettyServerProvider"
+      + " -Dplay.server.provider=${serverProvider()}"
       + " -Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter")
     return processBuilder
   }
 
   @Override
   File createTemporaryFile() {
-    return new File("${buildDirectory}/tmp/trace-structure-play-2.5-iast-netty.out")
+    new File("${buildDirectory}/tmp/trace-structure-play-2.7-iast-${serverProviderName()}.out")
   }
+
+  abstract String serverProviderName()
+
+  abstract String serverProvider()
 
   void 'Test that all the vulnerabilities are detected'() {
     given:
@@ -74,11 +77,11 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
     }
 
     then: 'check first get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'apply' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'apply' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'apply' && vul.evidence.value == 'MD2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'apply' && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == 'apply' && vul.evidence.value == 'RIPEMD128'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD5'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'RIPEMD128'}
   }
 
   // Ensure to clean up server and not only the shell script that starts it
@@ -98,7 +101,31 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
   }
 
   static isWindows() {
-    return System.getProperty('os.name').toLowerCase().contains('win')
+    return System.getProperty('os.name').toLowerCase().contains("win")
   }
 
+  static class Akka extends IastPlaySmokeTest {
+
+    @Override
+    String serverProviderName() {
+      return "akka-http"
+    }
+
+    @Override
+    String serverProvider() {
+      return "play.core.server.AkkaHttpServerProvider"
+    }
+  }
+
+  static class Netty extends IastPlaySmokeTest {
+    @Override
+    String serverProviderName() {
+      return "netty"
+    }
+
+    @Override
+    String serverProvider() {
+      return "play.core.server.NettyServerProvider"
+    }
+  }
 }
