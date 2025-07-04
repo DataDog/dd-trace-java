@@ -1,13 +1,11 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
-import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.util.Strings
-import java.nio.file.Files
-import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -21,6 +19,9 @@ import org.gradle.wrapper.WrapperConfiguration
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
@@ -43,7 +44,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
-    Platform.isJ9()
+    JavaVirtualMachine.isJ9()
   })
   def "test legacy #projectName, v#gradleVersion"() {
     runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
@@ -60,7 +61,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
-    Platform.isJavaVersionAtLeast(24)
+    JavaVirtualMachine.isJavaVersionAtLeast(24)
   })
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
