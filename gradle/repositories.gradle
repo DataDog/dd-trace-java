@@ -10,7 +10,7 @@ repositories {
     }
   }
   mavenCentral()
-  // add sonatype repository for snapshot dependencies
+  // add maven central repository for snapshot dependencies
   maven {
     content {
       includeGroup "com.datadoghq"
