@@ -25,9 +25,9 @@ class Tomcat9RumSmokeTest extends AbstractRumServerSmokeTest {
     return processBuilder
   }
 
-  void 'test RUM SDK injection'() {
+  void 'test RUM SDK injection on html'() {
     given:
-    def url = "http://localhost:${httpPort}/hello"
+    def url = "http://localhost:${httpPort}/html"
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -39,5 +39,21 @@ class Tomcat9RumSmokeTest extends AbstractRumServerSmokeTest {
     then:
     response.code() == 200
     assertRumInjected(response)
+  }
+
+  void 'test RUM SDK injection skip on supported mime type'() {
+    given:
+    def url = "http://localhost:${httpPort}/xml"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+
+    when:
+    Response response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    assertRumNotInjected(response)
   }
 }

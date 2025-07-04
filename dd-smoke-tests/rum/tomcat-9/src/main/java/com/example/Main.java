@@ -25,7 +25,8 @@ public class Main {
     // Add servlet programmatically
     context.addServletContainerInitializer(
         (c, ctx) -> {
-          ctx.addServlet("helloServlet", new HelloServlet()).addMapping("/hello");
+          ctx.addServlet("htmlServlet", new HtmlServlet()).addMapping("/html");
+          ctx.addServlet("xmlServlet", new HtmlServlet()).addMapping("/xml");
         },
         null);
 
