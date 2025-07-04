@@ -74,3 +74,10 @@ upstream.env
 benchmark/reports
 benchmark/tracer
 benchmark/dacapo/scratch
+
+# JDK provisioning tools #
+# mise
+mise.local.toml
+.mise.local.toml
+# asdf
+.tool-versions
