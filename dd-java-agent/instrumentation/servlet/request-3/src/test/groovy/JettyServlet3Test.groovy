@@ -3,6 +3,7 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
+import datadog.trace.api.rum.RumInjector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -20,6 +21,7 @@ import javax.servlet.AsyncListener
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 import javax.servlet.annotation.WebServlet
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -167,8 +169,8 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       ["error.message": "${endpoint.body}",
-        "error.type": { it == Exception.name || it == InputMismatchException.name },
-        "error.stack": String]
+        "error.type"   : { it == Exception.name || it == InputMismatchException.name },
+        "error.stack"  : String]
     } else {
       Collections.emptyMap()
     }
@@ -233,6 +235,77 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   }
 }
 
+class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
+
+  static class RumServlet extends HttpServlet {
+    private final String mimeType
+
+    RumServlet(String mime) {
+      this.mimeType = mime
+    }
+
+    @Override
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+      resp.setContentType(mimeType)
+      try (def writer = resp.getWriter()) {
+        writer.println("\n" +
+        "<!doctype html>\n" +
+        "<html>\n" +
+        "  <head>\n" +
+        "    <title>This is the title of the webpage!</title>\n" +
+        "  </head>\n" +
+        "  <body>\n" +
+        "    <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>\n" +
+        "  </body>\n" +
+        "</html>")
+      }
+    }
+  }
+
+  static class HtmlRumServlet extends RumServlet {
+    HtmlRumServlet() {
+      super("text/html")
+    }
+  }
+
+  static class XmlRumServlet extends RumServlet {
+    XmlRumServlet() {
+      super("text/xml")
+    }
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("rum.enabled", "true")
+    injectSysConfig("rum.application.id", "test")
+    injectSysConfig("rum.client.token", "secret")
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler servletContextHandler) {
+    super.setupServlets(servletContextHandler)
+    addServlet(servletContextHandler, "/gimme-html", HtmlRumServlet)
+    addServlet(servletContextHandler, "/gimme-xml", XmlRumServlet)
+  }
+
+  def "test rum injection in head for mime #mime"() {
+    setup:
+    def request = new okhttp3.Request.Builder().url(server.address().resolve("gimme-$mime").toURL())
+      .get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    assert response.code() == 200
+    assert response.body().string().contains(new String(RumInjector.getSnippet("UTF-8"), "UTF-8")) == expected
+    assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
+    where:
+    mime   | expected
+    "html" | true
+    "xml"  | false
+  }
+}
+
 
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
 
@@ -260,6 +333,7 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
 class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
 
 }
+
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 
   @Override
@@ -586,16 +660,16 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     client.newCall(request).execute()
 
     then:
-    1 *  appModule.onRealPath(_)
-    1 *  appModule.checkSessionTrackingModes(_)
+    1 * appModule.onRealPath(_)
+    1 * appModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
     client.newCall(request).execute()
 
     then: //Only call once per application context
-    0 *  appModule.onRealPath(_)
-    0 *  appModule.checkSessionTrackingModes(_)
+    0 * appModule.onRealPath(_)
+    0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
 

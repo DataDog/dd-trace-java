@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
@@ -15,6 +16,7 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
@@ -30,7 +32,7 @@ public class Servlet3Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
-      @Advice.Argument(value = 1) ServletResponse response,
+      @Advice.Argument(value = 1, readOnly = false) ServletResponse response,
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Local("contextScope") ContextScope scope) {
@@ -41,7 +43,13 @@ public class Servlet3Advice {
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
-    final HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+    HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+
+    if (RumInjector.isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
+      httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
+      httpServletResponse = new RumHttpServletResponseWrapper(httpServletResponse);
+      response = httpServletResponse;
+    }
 
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
