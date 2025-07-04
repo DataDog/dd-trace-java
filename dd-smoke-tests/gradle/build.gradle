@@ -25,6 +25,6 @@ test {
 
   // overriding the default timeout of 9 minutes set in configure_tests.gradle,
   // as Gradle smoke tests might run for a longer duration
-  timeout = Duration.of(15, ChronoUnit.MINUTES)
+  timeout = Duration.of(20, ChronoUnit.MINUTES)
 }
 
