@@ -266,6 +266,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SAN
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
@@ -1002,6 +1003,7 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
+  private final boolean ciVisibilityFailedTestReplayEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -2248,6 +2250,8 @@ public class Config {
     gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
+    ciVisibilityFailedTestReplayEnabled =
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3830,6 +3834,10 @@ public class Config {
 
   public Integer getCiVisibilityTestManagementAttemptToFixRetries() {
     return ciVisibilityTestManagementAttemptToFixRetries;
+  }
+
+  public boolean isCiVisibilityFailedTestReplayEnabled() {
+    return ciVisibilityFailedTestReplayEnabled;
   }
 
   public String getGitPullRequestBaseBranch() {

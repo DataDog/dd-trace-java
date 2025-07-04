@@ -176,6 +176,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             settings,
             CiVisibilitySettings::isKnownTestsEnabled,
             Config::isCiVisibilityKnownTestsRequestEnabled);
+    boolean failedTestReplayEnabled =
+        isFeatureEnabled(
+            settings,
+            CiVisibilitySettings::isFailedTestReplayEnabled,
+            Config::isCiVisibilityFailedTestReplayEnabled);
 
     TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
@@ -188,7 +193,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             + "Impacted tests detection - {},\n"
             + "Known tests marking - {},\n"
             + "Auto test retries - {},\n"
-            + "Test Management - {}",
+            + "Test Management - {},\n"
+            + "Failed Test Replay - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -200,7 +206,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         impactedTestsEnabled,
         knownTestsRequest,
         flakyTestRetriesEnabled,
-        testManagementSettings.isEnabled());
+        testManagementSettings.isEnabled(),
+        failedTestReplayEnabled);
 
     Future<SkippableTests> skippableTestsFuture =
         executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
@@ -252,6 +259,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               testSkippingEnabled,
               flakyTestRetriesEnabled,
               impactedTestsEnabled,
+              failedTestReplayEnabled,
               earlyFlakeDetectionEnabled
                   ? settings.getEarlyFlakeDetectionSettings()
                   : EarlyFlakeDetectionSettings.DEFAULT,
