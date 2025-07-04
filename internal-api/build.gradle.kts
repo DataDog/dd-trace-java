@@ -1,30 +1,40 @@
+import groovy.lang.Closure
+import org.gradle.api.tasks.compile.AbstractCompile
+
 plugins {
-  id 'me.champeau.jmh'
+  `java-library`
+  id("me.champeau.jmh")
 }
 
-ext {
-  // need access to sun.misc.SharedSecrets
-  skipSettingCompilerRelease = true
+val skipSettingCompilerRelease by extra(true) // need access to sun.misc.SharedSecrets
+
+apply(from = "$rootDir/gradle/java.gradle")
+apply(from = "$rootDir/gradle/tries.gradle")
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
 }
 
-// sun.misc.SharedSecrets is gone in later versions
-compileJava {
+tasks.compileJava {
   javaCompiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(8)
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/tries.gradle"
-
-tasks.compileTestJava.configure {
-  setJavaVersion(it, 8)
+tasks.compileTestJava {
+  setJavaVersion(8)
 }
 
-minimumBranchCoverage = 0.7
-minimumInstructionCoverage = 0.8
+fun AbstractCompile.setJavaVersion(javaVersionInteger: Int) {
+  (project.extra["setJavaVersion"] as Closure<*>).call(this, javaVersionInteger)
+}
 
-excludedClassesCoverage += [
+val minimumBranchCoverage by extra(0.7)
+val minimumInstructionCoverage by extra(0.8)
+
+val excludedClassesCoverage by extra(listOf(
   "datadog.trace.api.ClassloaderConfigurationOverrides",
   "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
   // Interface
@@ -53,10 +63,10 @@ excludedClassesCoverage += [
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
   // These are almost fully abstract classes so nothing to test
-  'datadog.trace.api.profiling.RecordingData',
-  'datadog.trace.api.appsec.AppSecEventTracker',
+  "datadog.trace.api.profiling.RecordingData",
+  "datadog.trace.api.appsec.AppSecEventTracker",
   // A plain enum
-  'datadog.trace.api.profiling.RecordingType',
+  "datadog.trace.api.profiling.RecordingType",
   // Data Streams Monitoring
   "datadog.trace.api.datastreams.Backlog",
   "datadog.trace.api.datastreams.InboxItem",
@@ -196,78 +206,82 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
   // debug
-  'datadog.trace.api.iast.Taintable.DebugLogger',
+  "datadog.trace.api.iast.Taintable.DebugLogger",
   // POJO
-  'datadog.trace.api.iast.util.Cookie',
-  'datadog.trace.api.iast.util.Cookie.Builder',
-  'datadog.trace.api.telemetry.Endpoint',
-  'datadog.trace.api.telemetry.Endpoint.Method',
-  'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
+  "datadog.trace.api.iast.util.Cookie",
+  "datadog.trace.api.iast.util.Cookie.Builder",
+  "datadog.trace.api.telemetry.Endpoint",
+  "datadog.trace.api.telemetry.Endpoint.Method",
+  "datadog.trace.api.telemetry.LogCollector.RawLogMessage",
   "datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint",
   "datadog.trace.api.telemetry.MetricCollector",
   //Enum
   "datadog.trace.api.telemetry.WafTruncatedType",
   // stubs
-  'datadog.trace.api.profiling.Timing.NoOp',
-  'datadog.trace.api.profiling.Timer.NoOp',
-  'datadog.trace.api.profiling.Timer.TimerType',
+  "datadog.trace.api.profiling.Timing.NoOp",
+  "datadog.trace.api.profiling.Timer.NoOp",
+  "datadog.trace.api.profiling.Timer.TimerType",
   // tested in agent-logging
-  'datadog.trace.logging.LogLevel',
-  'datadog.trace.logging.GlobalLogLevelSwitcher',
+  "datadog.trace.logging.LogLevel",
+  "datadog.trace.logging.GlobalLogLevelSwitcher",
   //POJO
-  'datadog.trace.util.stacktrace.StackTraceBatch',
-  'datadog.trace.util.stacktrace.StackTraceEvent',
-  'datadog.trace.util.stacktrace.StackTraceFrame',
-  'datadog.trace.api.iast.VulnerabilityMarks',
-  'datadog.trace.api.iast.securitycontrol.SecurityControlHelper',
-  'datadog.trace.api.iast.securitycontrol.SecurityControl',
+  "datadog.trace.util.stacktrace.StackTraceBatch",
+  "datadog.trace.util.stacktrace.StackTraceEvent",
+  "datadog.trace.util.stacktrace.StackTraceFrame",
+  "datadog.trace.api.iast.VulnerabilityMarks",
+  "datadog.trace.api.iast.securitycontrol.SecurityControlHelper",
+  "datadog.trace.api.iast.securitycontrol.SecurityControl",
   // Trivial holder and no-op
-  'datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.Holder',
-  'datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor',
-]
-excludedClassesBranchCoverage = [
-  'datadog.trace.api.ProductActivationConfig',
-  'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
-  'datadog.trace.util.stacktrace.HotSpotStackWalker',
-  'datadog.trace.util.stacktrace.StackWalkerFactory',
-  // Tested using forked process
-  'datadog.trace.api.env.CapturedEnvironment',
-  'datadog.trace.api.env.CapturedEnvironment.ProcessInfo'
-]
-excludedClassesInstructionCoverage = [
-  'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
-  'datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource',
-  'datadog.trace.util.stacktrace.StackWalkerFactory'
-]
+  "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.Holder",
+  "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor"
+))
 
-compileTestJava.dependsOn 'generateTestClassNameTries'
+val excludedClassesBranchCoverage by extra(listOf(
+  "datadog.trace.api.ProductActivationConfig",
+  "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
+  "datadog.trace.util.stacktrace.HotSpotStackWalker",
+  "datadog.trace.util.stacktrace.StackWalkerFactory",
+  // Tested using forked process
+  "datadog.trace.api.env.CapturedEnvironment",
+  "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
+))
+
+val excludedClassesInstructionCoverage by extra(listOf(
+  "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
+  "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+  "datadog.trace.util.stacktrace.StackWalkerFactory"
+))
+
+tasks.compileTestJava {
+  dependsOn("generateTestClassNameTries")
+}
 
 dependencies {
   // references TraceScope and Continuation from public api
-  api project(':dd-trace-api')
-  api libs.slf4j
-  api project(':components:context')
-  api project(':components:environment')
-  api project(':components:yaml')
-  api project(':components:cli')
-  api project(":utils:time-utils")
+  api(project(":dd-trace-api"))
+  api(libs.slf4j)
+  api(project(":components:context"))
+  api(project(":components:environment"))
+  api(project(":components:yaml"))
+  api(project(":components:cli"))
+  api(project(":utils:time-utils"))
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
-  api "com.datadoghq:dd-javac-plugin-client:0.2.2"
+  api("com.datadoghq:dd-javac-plugin-client:0.2.2")
 
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-  testImplementation project(":utils:test-utils")
+  testImplementation(project(":utils:test-utils"))
   testImplementation("org.assertj:assertj-core:3.20.2")
-  testImplementation libs.bundles.junit5
-  testImplementation group: 'org.junit.vintage', name: 'junit-vintage-engine', version: libs.versions.junit5.get()
-  testImplementation libs.commons.math
-  testImplementation libs.bundles.mockito
-  testImplementation libs.truth
+  testImplementation(libs.bundles.junit5)
+  testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
+  testImplementation(libs.commons.math)
+  testImplementation(libs.bundles.mockito)
+  testImplementation(libs.truth)
 }
 
 jmh {
-  jmhVersion = '1.32'
+  jmhVersion = "1.32"
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
