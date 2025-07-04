@@ -43,12 +43,14 @@ public class RumInjectorConfig {
   /** The privacy level for data collection. */
   @Nullable public final PrivacyLevel defaultPrivacyLevel;
   /** The percentage of user sessions to be tracked (between 0.0 and 100.0). */
-  public final float sessionSampleRate;
+  @Nullable public final Float sessionSampleRate;
   /**
    * The percentage of tracked sessions that will include Session Replay data (between 0.0 and
    * 100.0).
    */
-  public final float sessionReplaySampleRate;
+  @Nullable public final Float sessionReplaySampleRate;
+  /** The remote configuration identifier. */
+  @Nullable public final String remoteConfigurationId;
 
   public RumInjectorConfig(
       String applicationId,
@@ -62,8 +64,9 @@ public class RumInjectorConfig {
       @Nullable Boolean trackResources,
       @Nullable Boolean trackLongTask,
       @Nullable PrivacyLevel defaultPrivacyLevel,
-      float sessionSampleRate,
-      float sessionReplaySampleRate) {
+      @Nullable Float sessionSampleRate,
+      @Nullable Float sessionReplaySampleRate,
+      @Nullable String remoteConfigurationId) {
     if (applicationId == null || applicationId.isEmpty()) {
       throw new IllegalArgumentException("Invalid application id: " + applicationId);
     }
@@ -89,16 +92,23 @@ public class RumInjectorConfig {
     this.trackUserInteractions = trackUserInteractions;
     this.trackResources = trackResources;
     this.trackLongTask = trackLongTask;
-    if (sessionSampleRate < 0f || sessionSampleRate > 100f) {
+    if (sessionSampleRate != null && (sessionSampleRate < 0f || sessionSampleRate > 100f)) {
       throw new IllegalArgumentException("Invalid session sample rate: " + sessionSampleRate);
     }
     this.sessionSampleRate = sessionSampleRate;
-    if (sessionReplaySampleRate < 0f || sessionReplaySampleRate > 100f) {
+    if (sessionReplaySampleRate != null
+        && (sessionReplaySampleRate < 0f || sessionReplaySampleRate > 100f)) {
       throw new IllegalArgumentException(
           "Invalid session replay sample rate: " + sessionReplaySampleRate);
     }
     this.sessionReplaySampleRate = sessionReplaySampleRate;
     this.defaultPrivacyLevel = defaultPrivacyLevel;
+    this.remoteConfigurationId = remoteConfigurationId;
+    if (this.remoteConfigurationId == null
+        && (this.sessionSampleRate == null || this.sessionReplaySampleRate == null)) {
+      throw new IllegalArgumentException(
+          "Either remote configuration id or both session and session replay sample rates must be set");
+    }
   }
 
   private static boolean validateSite(String site) {
@@ -141,8 +151,8 @@ public class RumInjectorConfig {
   public String jsonPayload() {
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
-      writer.name("application_id").value(this.applicationId);
-      writer.name("client_token").value(this.clientToken);
+      writer.name("applicationId").value(this.applicationId);
+      writer.name("clientToken").value(this.clientToken);
       if (this.site != null) {
         writer.name("site").value(this.site);
       }
@@ -156,19 +166,26 @@ public class RumInjectorConfig {
         writer.name("version").value(this.version);
       }
       if (this.trackUserInteractions != null) {
-        writer.name("track_user_interactions").value(this.trackUserInteractions);
+        writer.name("trackUserInteractions").value(this.trackUserInteractions);
       }
       if (this.trackResources != null) {
-        writer.name("track_resources").value(this.trackResources);
+        writer.name("trackResources").value(this.trackResources);
       }
       if (this.trackLongTask != null) {
-        writer.name("track_long_task").value(this.trackLongTask);
+        writer.name("trackLongTask").value(this.trackLongTask);
       }
       if (this.defaultPrivacyLevel != null) {
-        writer.name("default_privacy_level").value(this.defaultPrivacyLevel.toJson());
+        writer.name("defaultPrivacyLevel").value(this.defaultPrivacyLevel.toJson());
       }
-      writer.name("session_sample_rate").value(this.sessionSampleRate);
-      writer.name("session_replay_sample_rate").value(this.sessionReplaySampleRate);
+      if (this.sessionSampleRate != null) {
+        writer.name("sessionSampleRate").value(this.sessionSampleRate);
+      }
+      if (this.sessionReplaySampleRate != null) {
+        writer.name("sessionReplaySampleRate").value(this.sessionReplaySampleRate);
+      }
+      if (this.remoteConfigurationId != null) {
+        writer.name("remoteConfigurationId").value(this.remoteConfigurationId);
+      }
       return writer.toString();
     } catch (Exception e) {
       throw new IllegalStateException("Fail to generate config payload", e);

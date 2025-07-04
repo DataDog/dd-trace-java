@@ -120,8 +120,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SESSION_REPLAY_SAMPLE_RATE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SESSION_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
@@ -471,6 +469,7 @@ import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
 import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
 import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
 import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
+import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_SERVICE;
 import static datadog.trace.api.config.RumConfig.RUM_SESSION_REPLAY_SAMPLE_RATE;
 import static datadog.trace.api.config.RumConfig.RUM_SESSION_SAMPLE_RATE;
@@ -2702,16 +2701,14 @@ public class Config {
     log.debug("New instance: {}", this);
   }
 
-  private static RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
-    String applicationId = configProvider.getString(RUM_APPLICATION_ID);
-    String clientToken = configProvider.getString(RUM_CLIENT_TOKEN);
-    if (applicationId == null || clientToken == null) {
+  private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
+    if (this.rumEnabled) {
       return null;
     }
     try {
       return new RumInjectorConfig(
-          applicationId,
-          clientToken,
+          configProvider.getString(RUM_APPLICATION_ID),
+          configProvider.getString(RUM_CLIENT_TOKEN),
           configProvider.getString(RUM_SITE),
           configProvider.getString(RUM_SERVICE),
           configProvider.getString(RUM_ENVIRONMENT),
@@ -2721,9 +2718,9 @@ public class Config {
           configProvider.getBoolean(RUM_TRACK_RESOURCES),
           configProvider.getBoolean(RUM_TRACK_LONG_TASKS),
           configProvider.getEnum(RUM_DEFAULT_PRIVACY_LEVEL, PrivacyLevel.class, null),
-          configProvider.getFloat(RUM_SESSION_SAMPLE_RATE, DEFAULT_RUM_SESSION_SAMPLE_RATE),
-          configProvider.getFloat(
-              RUM_SESSION_REPLAY_SAMPLE_RATE, DEFAULT_RUM_SESSION_REPLAY_SAMPLE_RATE));
+          configProvider.getFloat(RUM_SESSION_SAMPLE_RATE),
+          configProvider.getFloat(RUM_SESSION_REPLAY_SAMPLE_RATE),
+          configProvider.getString(RUM_REMOTE_CONFIGURATION_ID));
     } catch (IllegalArgumentException e) {
       log.warn("Unable to configure RUM injection", e);
       return null;

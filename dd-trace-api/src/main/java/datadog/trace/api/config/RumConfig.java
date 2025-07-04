@@ -15,6 +15,7 @@ public final class RumConfig {
   public static final String RUM_DEFAULT_PRIVACY_LEVEL = "rum.default.privacy.level";
   public static final String RUM_SESSION_SAMPLE_RATE = "rum.session.sample.rate";
   public static final String RUM_SESSION_REPLAY_SAMPLE_RATE = "rum.session.replay.sample.rate";
+  public static final String RUM_REMOTE_CONFIGURATION_ID = "rum.remote.configuration.id";
 
   private RumConfig() {}
 }
