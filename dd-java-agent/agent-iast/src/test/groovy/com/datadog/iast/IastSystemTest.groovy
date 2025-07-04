@@ -60,6 +60,7 @@ class IastSystemTest extends DDSpecification {
     1 * ss.registerCallback(Events.get().requestStarted(), _)
     1 * ss.registerCallback(Events.get().requestEnded(), _)
     1 * ss.registerCallback(Events.get().requestHeader(), _)
+    1 * ss.registerCallback(Events.get().httpRoute(), _)
     1 * ss.registerCallback(Events.get().grpcServerRequestMessage(), _)
     0 * _
     TestLogCollector.drainCapturedLogs().any { it.message.contains('IAST is starting') }
