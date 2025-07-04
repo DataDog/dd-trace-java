@@ -1,4 +1,4 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_HOST;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PASSWORD;
@@ -7,11 +7,11 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 
-import com.datadog.crashtracking.dto.CrashLog;
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
+import datadog.crashtracking.dto.CrashLog;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
