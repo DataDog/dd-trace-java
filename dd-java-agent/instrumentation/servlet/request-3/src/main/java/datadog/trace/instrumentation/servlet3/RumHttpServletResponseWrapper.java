@@ -70,7 +70,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     super.resetBuffer();
   }
 
-  public void onInjected(Void ignored) {
+  public void onInjected() {
     try {
       setHeader("x-datadog-rum-injected", "1");
     } catch (Throwable ignored2) {

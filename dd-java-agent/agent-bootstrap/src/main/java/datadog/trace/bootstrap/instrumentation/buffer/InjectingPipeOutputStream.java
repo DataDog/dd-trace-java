@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.function.Consumer;
 
 /**
  * A circular buffer that holds n+1 bytes and with a lookbehind buffer of n bytes. The first time
@@ -17,7 +16,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   private final byte[] contentToInject;
   private boolean found = false;
   private int matchingPos = 0;
-  private final Consumer<Void> onContentInjected;
+  private final Runnable onContentInjected;
 
   /**
    * @param downstream the delegate output stream
@@ -29,7 +28,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       final OutputStream downstream,
       final byte[] marker,
       final byte[] contentToInject,
-      final Consumer<Void> onContentInjected) {
+      final Runnable onContentInjected) {
     super(downstream);
     this.marker = marker;
     this.lookbehind = new byte[marker.length + 1];
@@ -52,7 +51,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
         found = true;
         out.write(contentToInject);
         if (onContentInjected != null) {
-          onContentInjected.accept(null);
+          onContentInjected.run();
         }
         drain((pos + 1) % lookbehind.length, marker.length);
         return;
