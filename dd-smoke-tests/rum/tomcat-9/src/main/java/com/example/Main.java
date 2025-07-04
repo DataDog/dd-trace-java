@@ -23,9 +23,11 @@ public class Main {
     Context context = tomcat.addContext(contextPath, docBase);
 
     // Add servlet programmatically
-    context.addServletContainerInitializer((c, ctx) -> {
-      ctx.addServlet("helloServlet", new HelloServlet()).addMapping("/hello");
-    }, null);
+    context.addServletContainerInitializer(
+        (c, ctx) -> {
+          ctx.addServlet("helloServlet", new HelloServlet()).addMapping("/hello");
+        },
+        null);
 
     tomcat.start();
     tomcat.getServer().await();
