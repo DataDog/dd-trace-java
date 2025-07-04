@@ -24,7 +24,7 @@ class GitUtilsTest extends Specification {
 
   def "test commit SHA validity of full length (#sha): #expectedResult "() {
     when:
-    def result = GitUtils.isValidFullCommitSha(sha)
+    def result = GitUtils.isValidCommitShaFull(sha)
 
     then:
     result == expectedResult

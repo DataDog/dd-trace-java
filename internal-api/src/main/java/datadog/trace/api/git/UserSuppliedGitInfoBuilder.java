@@ -89,7 +89,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       }
 
       String commitSha = gitInfo.getCommit().getSha();
-      if (!GitUtils.isValidFullCommitSha(commitSha)) {
+      if (!GitUtils.isValidCommitShaFull(commitSha)) {
         log.error(
             "Git commit SHA could not be resolved or is invalid: "
                 + commitSha

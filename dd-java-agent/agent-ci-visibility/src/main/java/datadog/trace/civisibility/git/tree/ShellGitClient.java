@@ -278,7 +278,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getTags(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
     return executeCommand(
@@ -309,7 +309,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getSha(String reference)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(reference) && !GitUtils.isValidRef(reference)) {
+    if (GitUtils.isNotValidCommit(reference)) {
       return null;
     }
     return executeCommand(
@@ -334,7 +334,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getFullMessage(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -359,7 +359,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorName(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -384,7 +384,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -409,7 +409,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -434,7 +434,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterName(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -459,7 +459,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(
@@ -484,7 +484,7 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidCommitSha(commit) && !GitUtils.isValidRef(commit)) {
+    if (GitUtils.isNotValidCommit(commit)) {
       return null;
     }
     return executeCommand(

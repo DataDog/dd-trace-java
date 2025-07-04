@@ -244,7 +244,7 @@ public class GitUtils {
    *   <li>every character is a hexadecimal digit
    * </ul>
    */
-  public static boolean isValidFullCommitSha(final String commitSha) {
+  public static boolean isValidCommitShaFull(final String commitSha) {
     return isValidCommitSha(commitSha, FULL_SHA_LENGTH);
   }
 
@@ -291,5 +291,10 @@ public class GitUtils {
   /** Checks if the provided string is a valid system path for Git operations */
   public static boolean isValidPath(@Nonnull String path) {
     return PATH_PATTERN.matcher(path).matches();
+  }
+
+  /** Checks if the provided string is neither a valid commit SHA nor a valid Git reference */
+  public static boolean isNotValidCommit(@Nullable String commit) {
+    return !isValidCommitSha(commit) && !isValidRef(commit);
   }
 }
