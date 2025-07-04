@@ -80,4 +80,3 @@ elif [ -d "/sys/fs/cgroup/memory" ]; then # Assuming if memory cgroup v1 exists,
 else
   printf "cgroup memory paths not found. Neither cgroup v2 controller file nor cgroup v1 memory directory detected.\n"
 fi
-
