@@ -98,21 +98,26 @@ public final class JwtTraceTagger {
       }
       Object exp = payload.get("exp");
       if (exp != null) {
-        span.setTag("jwt.payload.exp", exp.toString());
+        String expStr;
+        if (exp instanceof Number) {
+          expStr = String.format("%.0f", ((Number) exp).doubleValue());
+        } else {
+          expStr = exp.toString();
+        }
+        System.out.println("DEBUG: Tagging jwt.payload.exp: " + expStr);
+        span.setTag("jwt.payload.exp", expStr);
       }
     }
 
-    // Tag signature presence
-    Object signature = decodedJwt.get("signature");
-    boolean signatureAvailable = false;
-    if (signature instanceof Map) {
-      Map<?, ?> signatureMap = (Map<?, ?>) signature;
-      Object available = signatureMap.get("available");
-      signatureAvailable = available != null && Boolean.TRUE.equals(available);
-    } else {
-      signatureAvailable = signature != null && !signature.toString().isEmpty();
+    // Tag signature claims
+    Object signatureObj = decodedJwt.get("signature");
+    if (signatureObj instanceof Map) {
+      Map<?, ?> signature = (Map<?, ?>) signatureObj;
+      Object available = signature.get("available");
+      if (available != null && Boolean.TRUE.equals(available)) {
+        span.setTag("jwt.signature.available", available.toString());
+      }
     }
-    span.setTag("jwt.signature.available", String.valueOf(signatureAvailable));
   }
 
   /**
