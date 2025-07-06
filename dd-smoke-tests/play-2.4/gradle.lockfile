@@ -97,7 +97,6 @@ io.netty:netty:3.10.6.Final=compileClasspath,runtimeClasspath,testCompileClasspa
 io.opentracing:opentracing-api:0.32.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opentracing:opentracing-noop:0.32.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opentracing:opentracing-util:0.32.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-io.sqreen:libsqreen:13.0.1=testRuntimeClasspath
 javax.activation:javax.activation-api:1.2.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 javax.inject:javax.inject:1=compileClasspath,play,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 javax.servlet:javax.servlet-api:3.1.0=testCompileClasspath,testRuntimeClasspath
