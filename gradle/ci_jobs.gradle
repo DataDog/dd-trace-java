@@ -92,7 +92,7 @@ if (rootProject.hasProperty("gitBaseRef")) {
   rootProject.changedFiles = rootProject.changedFiles.findAll { !ignoredFiles.contains(it) }
 
   final globalEffectFiles = fileTree(rootProject.projectDir) {
-    include '.circleci/**'
+    include '.gitlab/**'
     include 'build.gradle'
     include 'gradle/**'
   }
@@ -188,3 +188,8 @@ testAggregate("base", [":"], [
   ":dd-java-agent:agent-profiling",
   ":dd-java-agent:agent-debugger"
 ])
+
+
+tasks.register('runMuzzle') {
+  dependsOn subprojects.findAll { p -> p.activePartition && p.plugins.hasPlugin('muzzle') }.collect { p -> p.path + ":muzzle" }
+}

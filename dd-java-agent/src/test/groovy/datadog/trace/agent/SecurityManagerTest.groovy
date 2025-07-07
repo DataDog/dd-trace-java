@@ -1,16 +1,16 @@
 package datadog.trace.agent
 
+import datadog.environment.JavaVirtualMachine
 import spock.lang.Specification
 import spock.lang.Timeout
 import spock.lang.IgnoreIf
-import datadog.trace.api.Platform
 
 import jvmbootstraptest.SecurityManagerCheck
 import jvmbootstraptest.TestSecurityManager
 
 @Timeout(30)
 @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-  Platform.isJavaVersionAtLeast(24)
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
 })
 class SecurityManagerTest extends Specification {
   def "no env access"() {

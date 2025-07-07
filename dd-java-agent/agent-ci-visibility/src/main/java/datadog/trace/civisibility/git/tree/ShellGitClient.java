@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
+import datadog.trace.api.git.GitUtils;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
@@ -149,13 +150,13 @@ public class ShellGitClient implements GitClient {
                   .trim();
 
           // refetch data from the server for the given period of time
-          if (remoteCommitReference != null) {
+          if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
             String headSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since=='%s'", latestCommitsSince),
+                String.format("--shallow-since='%s'", latestCommitsSince),
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -166,7 +167,7 @@ public class ShellGitClient implements GitClient {
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since=='%s'", latestCommitsSince),
+                String.format("--shallow-since='%s'", latestCommitsSince),
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -231,6 +232,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getRemoteUrl(String remoteName)
       throws IOException, TimeoutException, InterruptedException {
+    if (!GitUtils.isValidRef(remoteName)) {
+      return null;
+    }
     return executeCommand(
         Command.GET_REPOSITORY,
         () ->
@@ -274,6 +278,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getTags(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
     return executeCommand(
         Command.OTHER,
         () -> {
@@ -302,6 +309,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getSha(String reference)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(reference)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -324,6 +334,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getFullMessage(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -346,6 +359,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorName(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -368,6 +384,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -390,6 +409,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -412,6 +434,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterName(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -434,6 +459,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -456,6 +484,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -601,6 +632,10 @@ public class ShellGitClient implements GitClient {
   public String getBaseCommitSha(
       @Nullable String baseBranch, @Nullable String settingsDefaultBranch)
       throws IOException, TimeoutException, InterruptedException {
+    if ((baseBranch != null && !GitUtils.isValidRef(baseBranch))
+        || (settingsDefaultBranch != null && !GitUtils.isValidRef(settingsDefaultBranch))) {
+      return null;
+    }
     return executeCommand(
         Command.BASE_COMMIT_SHA,
         () -> {
@@ -956,10 +991,10 @@ public class ShellGitClient implements GitClient {
   @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
-    if (Strings.isBlank(baseCommit)) {
+    if (Strings.isBlank(baseCommit) || !GitUtils.isValidCommitSha(baseCommit)) {
       LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
-    } else if (Strings.isNotBlank(targetCommit)) {
+    } else if (Strings.isNotBlank(targetCommit) && GitUtils.isValidCommitSha(targetCommit)) {
       return executeCommand(
           Command.DIFF,
           () ->
@@ -1041,7 +1076,7 @@ public class ShellGitClient implements GitClient {
     @Override
     public GitClient create(@Nullable String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      if (repoRoot != null) {
+      if (repoRoot != null && GitUtils.isValidPath(repoRoot)) {
         ShellGitClient client =
             new ShellGitClient(
                 metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
