@@ -87,9 +87,6 @@ public abstract class InitializationTelemetry {
   static final class BootstrapProxy extends InitializationTelemetry {
     private final Object bootstrapInitTelemetry;
     private volatile MethodHandle bmh_onAbortString;
-    private volatile MethodHandle bmh_setInjectResult;
-    private volatile MethodHandle bmh_setInjectResultReason;
-    private volatile MethodHandle bmh_setInjectResultClass;
     private volatile MethodHandle bmh_onErrorString;
     private volatile MethodHandle bmh_onErrorThrowable;
     private volatile MethodHandle bmh_onFatalErrorThrowable;

@@ -53,6 +53,12 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
+  public abstract void setInjectResult(String result);
+
+  public abstract void setInjectResultReason(String reason);
+
+  public abstract void setInjectResultClass(String resultClass);
+
   public abstract void markIncomplete();
 
   public abstract void finish();
@@ -76,6 +82,15 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {}
+
+    @Override
+    public void setInjectResult(String result) {}
+
+    @Override
+    public void setInjectResultReason(String reason) {}
+
+    @Override
+    public void setInjectResultClass(String resultClass) {}
 
     @Override
     public void markIncomplete() {}
@@ -108,25 +123,52 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
+    public void setInjectResult(String result) {
+      initMetaInfo("result", result);
+    }
+
+    @Override
+    public void setInjectResultReason(String resultReason) {
+      initMetaInfo("resultReason", resultReason);
+    }
+
+    @Override
+    public void setInjectResultClass(String resultClass) {
+      initMetaInfo("resultClass", resultClass);
+    }
+
+    @Override
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
       markIncomplete();
+      setInjectResult("abort");
+      setInjectResultReason(reasonCode);
+      setInjectResultClass("internal_error");
     }
 
     @Override
     public void onError(Throwable t) {
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
+      setInjectResult("error");
+      setInjectResultReason(t.getMessage());
+      setInjectResultClass("internal_error");
     }
 
     @Override
     public void onFatalError(Throwable t) {
       onError(t);
       markIncomplete();
+      setInjectResult("error");
+      setInjectResultReason(t.getMessage());
+      setInjectResultClass("internal_error");
     }
 
     @Override
     public void onError(String reasonCode) {
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
+      setInjectResult("error");
+      setInjectResultReason(reasonCode);
+      setInjectResultClass("internal_error");
     }
 
     private void onPoint(String name, String tag) {
