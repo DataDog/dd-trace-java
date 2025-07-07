@@ -2044,7 +2044,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void mixingIntAndLongWhenHoisting() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2063,7 +2063,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void mixingIntAndCharWhenHoisting() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2082,7 +2082,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void mixingIntAndRefTypeWhenHoisting() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2101,7 +2101,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void sameSlotAndTypeDifferentName() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
@@ -2125,7 +2125,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   public void sameSlotAndNameOneReturn() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";

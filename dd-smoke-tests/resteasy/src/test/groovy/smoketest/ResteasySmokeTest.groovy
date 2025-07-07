@@ -1,7 +1,7 @@
 package smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.smoketest.AbstractIastServerSmokeTest
-import datadog.trace.api.Platform
 import datadog.trace.api.config.IastConfig
 import okhttp3.Request
 import spock.lang.IgnoreIf
@@ -23,7 +23,7 @@ class ResteasySmokeTest extends AbstractIastServerSmokeTest {
       withSystemProperty(IastConfig.IAST_DETECTION_MODE, 'FULL'),
       withSystemProperty(IastConfig.IAST_DEBUG_ENABLED, true)
     ])
-    if (Platform.isJavaVersionAtLeast(17)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(17)) {
       command.addAll(["--add-opens", "java.base/java.lang=ALL-UNNAMED"])
     }
     command.addAll(["-jar", jarPath, Integer.toString(httpPort)])

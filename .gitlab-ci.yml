@@ -324,7 +324,7 @@ test_published_artifacts:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
+    - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -344,7 +344,7 @@ test_published_artifacts:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh --destination ./check_reports --move
+    - .gitlab/collect_reports.sh --destination ./check_reports --move
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -392,20 +392,19 @@ muzzle:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
-  parallel: 8
+  parallel:
+    matrix:
+      - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
   variables:
     CACHE_TYPE: inst
   script:
     - export SKIP_BUILDSCAN="true"
-    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
-    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
-    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew $(cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs) $GRADLE_ARGS
+    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
+    - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -424,7 +423,7 @@ muzzle-dep-report:
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
   after_script:
     - *cgroup_info
-    - .circleci/collect_muzzle_deps.sh
+    - .gitlab/collect_muzzle_deps.sh
   artifacts:
     when: always
     paths:
@@ -487,10 +486,10 @@ muzzle-dep-report:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
-    - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
-    - .circleci/collect_results.sh
-    - .circleci/upload_ciapp.sh $CACHE_TYPE $testJvm
+    - .gitlab/collect_reports.sh
+    - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
+    - .gitlab/collect_results.sh
+    - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
     - gitlab_section_end "collect-reports"
     - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
     - echo -e "${TEXT_BOLD}${TEXT_YELLOW}See test results in Datadog:${TEXT_CLEAR} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}%20%40ci.job.name%3A%22${URL_ENCODED_JOB_NAME}%22"
