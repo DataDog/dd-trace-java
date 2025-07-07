@@ -5,6 +5,7 @@ import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SAMPLING_PRIORITY;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecuritySampler;
@@ -751,6 +752,7 @@ public class GatewayBridge {
       if (!collectedEvents.isEmpty()) {
         // Set asm keep in case that root span was not available when events are detected
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(SAMPLING_PRIORITY, ctx.getKeepType());
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         traceSeg.setTagTop("appsec.event", true);
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
