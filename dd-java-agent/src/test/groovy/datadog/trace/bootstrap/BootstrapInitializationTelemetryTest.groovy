@@ -38,7 +38,31 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","resultReason":"foo","resultClass":"internal_error"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+  }
+
+  def "test fatal error"() {
+    when:
+    initTelemetry.initMetaInfo("runtime_name", "java")
+    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+
+    initTelemetry.onFatalError(new Exception("foo"))
+    initTelemetry.finish()
+
+    then:
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","resultReason":"foo","resultClass":"internal_error"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+  }
+
+  def "test abort"() {
+    when:
+    initTelemetry.initMetaInfo("runtime_name", "java")
+    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+
+    initTelemetry.onAbort("foo")
+    initTelemetry.finish()
+
+    then:
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","resultReason":"foo","resultClass":"internal_error"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
   }
 
   def "trivial completion check"() {

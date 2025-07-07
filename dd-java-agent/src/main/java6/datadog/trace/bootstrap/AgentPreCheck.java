@@ -59,6 +59,10 @@ public class AgentPreCheck {
             + "\"points\":[{"
             + "\"name\":\"library_entrypoint.abort\","
             + "\"tags\":[\"reason:incompatible_runtime\"]"
+            + "\"result:error\","
+            + "\"result_class:incompatible_runtime\","
+            + "\"result_reason:incompatible runtime\""
+            + "]"
             + "}]"
             + "}";
 
