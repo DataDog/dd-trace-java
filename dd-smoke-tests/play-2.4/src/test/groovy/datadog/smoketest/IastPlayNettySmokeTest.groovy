@@ -71,6 +71,9 @@ class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
       client.newCall(req as Request).execute()
     }
 
+    then: 'check has route dispatched'
+    hasMeta('http.route')
+
     then: 'check first get mapping'
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.path == 'controllers.IastController$$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA1' }
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.path == 'controllers.IastController$$anonfun$multipleVulns$1'  && vul.evidence.value == 'SHA-1' }

@@ -45,6 +45,7 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
+    DECORATE.dispatchRoute(span, req);
 
     return scope;
   }

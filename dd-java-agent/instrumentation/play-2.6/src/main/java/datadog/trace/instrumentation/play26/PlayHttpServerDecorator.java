@@ -152,7 +152,6 @@ public class PlayHttpServerDecorator
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
-        dispatchRoute(span, path);
       }
     }
     return span;
@@ -162,30 +161,51 @@ public class PlayHttpServerDecorator
    * Play does not set the http.route in the local root span so we need to store it in the context
    * for API security
    */
-  private void dispatchRoute(final AgentSpan span, final CharSequence route) {
-    try {
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return;
-      }
-      // Send event to AppSec provider
-      final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp != null) {
-        final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
-        if (cb != null) {
-          cb.accept(ctx, URIUtils.decode(route.toString()));
+  public void dispatchRoute(final AgentSpan span, final Request request) {
+    if (request != null) {
+      // more about routes here:
+      // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
+      Option<HandlerDef> defOption = Option.empty();
+      if (TYPED_KEY_GET_UNDERLYING != null) { // Should always be non-null but just to make sure
+        try {
+          defOption =
+              request
+                  .attrs()
+                  .get(
+                      (play.api.libs.typedmap.TypedKey<HandlerDef>)
+                          TYPED_KEY_GET_UNDERLYING.invokeExact(Router.Attrs.HANDLER_DEF));
+        } catch (final Throwable ignored) {
         }
       }
-      // Send event to IAST provider
-      final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
-      if (cbpIast != null) {
-        final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
-        if (cb != null) {
-          cb.accept(ctx, URIUtils.decode(route.toString()));
+      if (!defOption.isEmpty()) {
+        CharSequence path =
+            PATH_CACHE.computeIfAbsent(
+                defOption.get().path(), p -> addMissingSlash(p, request.path()));
+        try {
+          final RequestContext ctx = span.getRequestContext();
+          if (ctx == null) {
+            return;
+          }
+          // Send event to IAST provider
+          final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+          if (cbpIast != null) {
+            final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
+            if (cb != null) {
+              cb.accept(ctx, URIUtils.decode(path.toString()));
+            }
+          }
+          // Send event to AppSec provider
+          final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+          if (cbp != null) {
+            final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
+            if (cb != null) {
+              cb.accept(ctx, URIUtils.decode(path.toString()));
+            }
+          }
+        } catch (final Throwable t) {
+          LOG.debug("Failed to dispatch route", t);
         }
       }
-    } catch (final Throwable t) {
-      LOG.debug("Failed to dispatch route", t);
     }
   }
 
@@ -215,6 +235,7 @@ public class PlayHttpServerDecorator
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
+    LOG.info("[TEST] onError called with throwable: {}", throwable.getMessage());
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }

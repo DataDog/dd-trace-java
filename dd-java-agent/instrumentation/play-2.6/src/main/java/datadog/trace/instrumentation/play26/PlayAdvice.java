@@ -46,6 +46,7 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = req.addAttr(HasPlayRequestSpan.KEY, HasPlayRequestSpan.INSTANCE);
+    DECORATE.dispatchRoute(span, req);
 
     return scope;
   }

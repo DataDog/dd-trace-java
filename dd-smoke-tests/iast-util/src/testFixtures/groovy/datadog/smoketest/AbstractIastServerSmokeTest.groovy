@@ -111,6 +111,17 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  protected void hasMeta(final String name) {
+    final found = []
+    try {
+      waitForSpan(pollingConditions()) { span ->
+        return span.meta.containsKey(name)
+      }
+    } catch (SpockTimeoutError toe) {
+      throw new AssertionError("No matching metric with name $name found. Metrics found: ${new JsonBuilder(found).toPrettyString()}")
+    }
+  }
+
   protected void hasVulnerability(@ClosureParams(value = SimpleType, options = ['datadog.smoketest.model.Vulnerability'])
     final Closure<Boolean> matcher) {
     final found = []
