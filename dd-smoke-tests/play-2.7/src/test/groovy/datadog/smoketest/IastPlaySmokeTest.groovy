@@ -53,7 +53,6 @@ abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
 
   void 'Test that all the vulnerabilities are detected'() {
     given:
-    // prepare a list of exactly three GET requests with path and query param
     def requests = []
     for (int i = 1; i <= 3; i++) {
       requests.add(new Request.Builder()
@@ -78,11 +77,24 @@ abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
 
     then: 'check first get mapping'
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'MD2'}
     hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'RIPEMD128'}
-  }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'RIPEMD128'}
+
+    then: 'check first post mapping'
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD5'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'RIPEMD128'}
+
+    then: 'check second get mapping'
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA-1' }
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD2'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD5'}
+    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'RIPEMD128'}}
 
   // Ensure to clean up server and not only the shell script that starts it
   def cleanupSpec() {
