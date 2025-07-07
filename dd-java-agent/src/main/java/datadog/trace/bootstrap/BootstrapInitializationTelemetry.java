@@ -143,7 +143,7 @@ public abstract class BootstrapInitializationTelemetry {
       markIncomplete();
       setInjectResult("abort");
       setInjectResultReason(reasonCode);
-      setInjectResultClass("internal_error");
+      setInjectResultClass(mapResultClass(reasonCode));
     }
 
     @Override
@@ -158,9 +158,6 @@ public abstract class BootstrapInitializationTelemetry {
     public void onFatalError(Throwable t) {
       onError(t);
       markIncomplete();
-      setInjectResult("error");
-      setInjectResultReason(t.getMessage());
-      setInjectResultClass("internal_error");
     }
 
     @Override
@@ -168,7 +165,23 @@ public abstract class BootstrapInitializationTelemetry {
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
       setInjectResult("error");
       setInjectResultReason(reasonCode);
-      setInjectResultClass("internal_error");
+      setInjectResultClass(mapResultClass(reasonCode));
+    }
+
+    private String mapResultClass(String reasonCode) {
+      if (reasonCode == null) {
+        return "success";
+      }
+      switch (reasonCode) {
+        case "already_initialized":
+          return "already_instrumented";
+        case "other-java-agents":
+          return "already_instrumented";
+        case "jdk_tool":
+          return "incompatible_runtime";
+        default:
+          return "unknown";
+      }
     }
 
     private void onPoint(String name, String tag) {
@@ -195,7 +208,6 @@ public abstract class BootstrapInitializationTelemetry {
           }
         }
         writer.endObject();
-
         writer.name("points").beginArray();
         synchronized (this.points) {
           for (int i = 0; i + 1 < this.points.size(); i = i + 2) {
