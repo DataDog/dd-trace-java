@@ -726,7 +726,7 @@ public class Agent {
   }
 
   private static void startCrashTracking() {
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (isJavaVersionAtLeast(9)) {
       // it is safe to initialize crashtracking early
       // since it can take 100ms+ to initialize the native library we will defer the initialization
       // ... unless we request early start with the debug config flag

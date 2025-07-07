@@ -7,11 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.datadoghq.profiler.Platform;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -141,7 +142,7 @@ public class CrashtrackingSmokeTest {
 
   @Test
   void testAutoInjection() throws Exception {
-    assumeTrue(Platform.isLinux()); // we support only linux ATM
+    assumeTrue(OperatingSystem.isLinux()); // we support only linux ATM
 
     ProcessBuilder pb =
         new ProcessBuilder(

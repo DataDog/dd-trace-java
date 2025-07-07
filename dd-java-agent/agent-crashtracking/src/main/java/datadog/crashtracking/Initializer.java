@@ -7,8 +7,8 @@ import static java.util.Locale.ROOT;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
+import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
-import datadog.trace.api.Platform;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.TempLocationManager;
 import java.io.BufferedWriter;
@@ -108,12 +108,12 @@ public final class Initializer {
   }
 
   static InputStream getCrashUploaderTemplate() {
-    String name = Platform.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
+    String name = OperatingSystem.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
     return CrashUploader.class.getResourceAsStream(name);
   }
 
   static InputStream getOomeNotifierTemplate() {
-    String name = Platform.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
+    String name = OperatingSystem.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
     return OOMENotifier.class.getResourceAsStream(name);
   }
 
@@ -339,7 +339,7 @@ public final class Initializer {
   }
 
   private static String getScriptFileName(String scriptName) {
-    return scriptName + "." + (Platform.isWindows() ? "bat" : "sh");
+    return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
   }
 
   private static void logInitializationError(String msg, Throwable t) {
