@@ -1,12 +1,11 @@
-package datadog.trace.instrumentation.servlet3;
+package datadog.trace.instrumentation.servlet5;
 
 import datadog.trace.api.rum.RumInjector;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.Charset;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private final RumInjector rumInjector;
@@ -27,7 +26,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     if (outputStream == null) {
       String encoding = getCharacterEncoding();
       if (encoding == null) {
-        encoding = Charset.defaultCharset().name();
+        encoding = "UTF-8";
       }
       outputStream =
           new WrappedServletOutputStream(
