@@ -5,6 +5,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
@@ -18,6 +19,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
@@ -37,8 +39,8 @@ import com.datadog.ddwaf.WafDiagnostics;
 import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import com.datadog.ddwaf.exception.UnclassifiedWafException;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
@@ -61,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,15 +95,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       new WAFInitializationResultReporter();
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
 
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Object> ADAPTER = new SafeMapAdapter();
 
   private boolean hasUserWafConfig;
   private boolean defaultConfigActivated;
   private final Set<String> usedDDWafConfigKeys = new HashSet<>();
-  private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
+  private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
 
@@ -131,6 +131,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
     long capabilities =
         CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_DD_MULTICONFIG
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
             | CAPABILITY_ASM_EXCLUSION_DATA
@@ -142,7 +143,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT;
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -185,7 +187,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         }
       } else {
         Map<String, Object> contentMap =
-            ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+            (Map<String, Object>)
+                ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
         try {
           handleWafUpdateResultReport(configKey.toString(), contentMap);
         } catch (AppSecModule.AppSecModuleActivationException e) {
@@ -211,7 +214,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
       if (defaultConfigActivated) { // if we get any config, remove the default one
-        log.debug("Removing default config");
+        log.debug("Removing default config ASM_DD/default");
         try {
           wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
         } catch (UnclassifiedWafException e) {
@@ -425,7 +428,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, Object> ret =
+          (Map<String, Object>) ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
@@ -442,7 +446,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, Object> ret =
+          (Map<String, Object>) ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -471,6 +476,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.removeCapabilities(
         CAPABILITY_ASM_ACTIVATION
             | CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_DD_MULTICONFIG
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
             | CAPABILITY_ASM_EXCLUSION_DATA
@@ -488,7 +494,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT);
+            | CAPABILITY_ASM_HEADER_FINGERPRINT
+            | CAPABILITY_ASM_TRACE_TAGGING_RULES);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
@@ -557,5 +564,60 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       wafConfig.obfuscatorValueRegex = WafConfig.DEFAULT_VALUE_REGEX;
     }
     return wafConfig;
+  }
+
+  private static class SafeMapAdapter extends JsonAdapter<Object> {
+    @Override
+    public Object fromJson(JsonReader reader) throws IOException {
+      switch (reader.peek()) {
+        case BEGIN_OBJECT:
+          Map<String, Object> map = new LinkedHashMap<>();
+          reader.beginObject();
+          while (reader.hasNext()) {
+            map.put(reader.nextName(), fromJson(reader));
+          }
+          reader.endObject();
+          return map;
+
+        case BEGIN_ARRAY:
+          List<Object> list = new ArrayList<>();
+          reader.beginArray();
+          while (reader.hasNext()) {
+            list.add(fromJson(reader));
+          }
+          reader.endArray();
+          return list;
+
+        case STRING:
+          return reader.nextString();
+        case NUMBER:
+          String numberStr = reader.nextString();
+          try {
+            if (numberStr.contains(".")) {
+              return Double.parseDouble(numberStr);
+            } else {
+              return Long.parseLong(numberStr);
+            }
+          } catch (NumberFormatException e) {
+            // Fallback to string if parsing fails
+            return numberStr;
+          }
+
+        case BOOLEAN:
+          return reader.nextBoolean();
+
+        case NULL:
+          reader.nextNull();
+          return null;
+
+        default:
+          throw new IllegalStateException("Unexpected token: " + reader.peek());
+      }
+    }
+
+    @Override
+    public void toJson(JsonWriter writer, Object value) throws IOException {
+      throw new UnsupportedOperationException("Serialization not supported");
+    }
   }
 }
