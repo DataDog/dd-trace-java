@@ -1042,7 +1042,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
         } catch (Throwable e) {
           String interceptorName = interceptor.getClass().getName();
-          rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
+          rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
       }
       trace = new ArrayList<>(interceptedTrace.size());
