@@ -1,7 +1,7 @@
 package datadog.smoketest.rum.tomcat11
 
+import datadog.environment.JavaVirtualMachine
 import datadog.smoketest.rum.AbstractRumServerSmokeTest
-import datadog.trace.api.Platform
 
 class Tomcat11RumSmokeTest extends AbstractRumServerSmokeTest {
   @Override
@@ -12,7 +12,7 @@ class Tomcat11RumSmokeTest extends AbstractRumServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll(defaultRumProperties)
-    if (Platform.isJavaVersionAtLeast(17)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'])
     }
     command.addAll(['-jar', jarPath, Integer.toString(httpPort)])
