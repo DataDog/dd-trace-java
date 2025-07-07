@@ -108,7 +108,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, String> derivatives;
+  private volatile Map<String, Object> derivatives;
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -645,25 +645,266 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return stackTraces;
   }
 
-  public void reportDerivatives(Map<String, String> data) {
+  /**
+   * Attempts to parse a string value as a number. Returns the parsed number if successful, null
+   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
+   */
+  private static Number convertToNumericAttribute(String value) {
+    if (value == null || value.isEmpty()) {
+      return null;
+    }
+    try {
+      // Check if it contains a decimal point to determine if it's a double
+      if (value.contains(".")) {
+        return Double.parseDouble(value);
+      } else {
+        // Try to parse as integer first
+        return Long.parseLong(value);
+      }
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
+    // Store raw derivatives
     if (derivatives == null) {
-      derivatives = data;
-    } else {
-      derivatives.putAll(data);
+      derivatives = new HashMap<>();
     }
+
+    // Process each attribute according to the specification
+    for (Map.Entry<String, Object> entry : data.entrySet()) {
+      String attributeKey = entry.getKey();
+      Object attributeConfig = entry.getValue();
+
+      if (attributeConfig instanceof Map) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = (Map<String, Object>) attributeConfig;
+
+        // Check if it's a literal value schema
+        if (config.containsKey("value")) {
+          Object literalValue = config.get("value");
+          if (literalValue != null) {
+            // Preserve the original type - don't convert to string
+            derivatives.put(attributeKey, literalValue);
+            log.debug(
+                "Added literal attribute: {} = {} (type: {})",
+                attributeKey,
+                literalValue,
+                literalValue.getClass().getSimpleName());
+          }
+        }
+        // Check if it's a request data schema
+        else if (config.containsKey("address")) {
+          String address = (String) config.get("address");
+          @SuppressWarnings("unchecked")
+          List<String> keyPath = (List<String>) config.get("key_path");
+          @SuppressWarnings("unchecked")
+          List<String> transformers = (List<String>) config.get("transformers");
+
+          Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+          if (extractedValue != null) {
+            // For extracted values, convert to string as they come from request data
+            derivatives.put(attributeKey, extractedValue.toString());
+            log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+          }
+        }
+      } else {
+        // Handle plain string/numeric values
+        derivatives.put(attributeKey, attributeConfig);
+        log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+      }
+    }
+  }
+
+  /**
+   * Extracts a value from request data based on address, key path, and transformers.
+   *
+   * @param address The address to extract from (e.g., "server.request.headers")
+   * @param keyPath Optional key path to navigate the data structure
+   * @param transformers Optional list of transformers to apply
+   * @return The extracted value, or null if not found
+   */
+  private Object extractValueFromRequestData(
+      String address, List<String> keyPath, List<String> transformers) {
+    // Get the data from the address
+    Object data = getDataForAddress(address);
+    if (data == null) {
+      log.debug("No data found for address: {}", address);
+      return null;
+    }
+
+    // Navigate through the key path
+    Object currentValue = data;
+    if (keyPath != null && !keyPath.isEmpty()) {
+      currentValue = navigateKeyPath(currentValue, keyPath);
+      if (currentValue == null) {
+        log.debug("Could not navigate key path {} for address {}", keyPath, address);
+        return null;
+      }
+    }
+
+    // Apply transformers if specified
+    if (transformers != null && !transformers.isEmpty()) {
+      currentValue = applyTransformers(currentValue, transformers);
+    }
+
+    return currentValue;
+  }
+
+  /** Gets data for a specific address from the request context. */
+  private Object getDataForAddress(String address) {
+    // Map common addresses to our data structures
+    switch (address) {
+      case "server.request.headers":
+        return requestHeaders;
+      case "server.response.headers":
+        return responseHeaders;
+      case "server.request.cookies":
+        return collectedCookies;
+      case "server.request.uri.raw":
+        return savedRawURI;
+      case "server.request.method":
+        return method;
+      case "server.request.scheme":
+        return scheme;
+      case "server.request.route":
+        return route;
+      case "server.response.status":
+        return responseStatus;
+      case "server.request.body":
+        return getStoredRequestBody();
+      case "usr.id":
+        return userId;
+      case "usr.login":
+        return userLogin;
+      case "usr.session_id":
+        return sessionId;
+      default:
+        log.debug("Unknown address: {}", address);
+        return null;
+    }
+  }
+
+  /** Navigates through a data structure using a key path. */
+  private Object navigateKeyPath(Object data, List<String> keyPath) {
+    Object current = data;
+
+    for (String key : keyPath) {
+      if (current instanceof Map) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) current;
+        current = map.get(key);
+      } else if (current instanceof List) {
+        try {
+          int index = Integer.parseInt(key);
+          @SuppressWarnings("unchecked")
+          List<Object> list = (List<Object>) current;
+          if (index >= 0 && index < list.size()) {
+            current = list.get(index);
+          } else {
+            return null;
+          }
+        } catch (NumberFormatException e) {
+          log.debug("Invalid list index: {}", key);
+          return null;
+        }
+      } else {
+        log.debug("Cannot navigate key {} in data type: {}", key, current.getClass());
+        return null;
+      }
+
+      if (current == null) {
+        return null;
+      }
+    }
+
+    return current;
+  }
+
+  /** Applies transformers to a value. */
+  private Object applyTransformers(Object value, List<String> transformers) {
+    Object current = value;
+
+    for (String transformer : transformers) {
+      switch (transformer) {
+        case "lowercase":
+          if (current instanceof String) {
+            current = ((String) current).toLowerCase();
+          }
+          break;
+        case "uppercase":
+          if (current instanceof String) {
+            current = ((String) current).toUpperCase();
+          }
+          break;
+        case "trim":
+          if (current instanceof String) {
+            current = ((String) current).trim();
+          }
+          break;
+        case "length":
+          if (current instanceof String) {
+            current = ((String) current).length();
+          } else if (current instanceof List) {
+            current = ((List<?>) current).size();
+          } else if (current instanceof Map) {
+            current = ((Map<?, ?>) current).size();
+          }
+          break;
+        default:
+          log.debug("Unknown transformer: {}", transformer);
+          break;
+      }
+    }
+
+    return current;
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
     log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
-    if (traceSegment == null || derivatives == null) {
+    if (traceSegment == null) {
       return false;
     }
-    derivatives.forEach(traceSegment::setTagTop);
-    log.debug("Committed derivatives: {} for {}", derivatives, traceSegment);
+
+    // Process and commit derivatives directly
+    if (derivatives != null && !derivatives.isEmpty()) {
+      for (Map.Entry<String, Object> entry : derivatives.entrySet()) {
+        String key = entry.getKey();
+        Object value = entry.getValue();
+
+        // Handle different value types
+        if (value instanceof Number) {
+          traceSegment.setTagTop(key, (Number) value);
+          log.debug("Added numeric attribute: {} = {}", key, value);
+        } else if (value instanceof String) {
+          // Try to parse as numeric, otherwise use as string
+          Number parsedNumber = convertToNumericAttribute((String) value);
+          if (parsedNumber != null) {
+            traceSegment.setTagTop(key, parsedNumber);
+            log.debug("Added parsed numeric attribute: {} = {}", key, value);
+          } else {
+            traceSegment.setTagTop(key, value);
+            log.debug("Added string attribute: {} = {}", key, value);
+          }
+        } else if (value instanceof Boolean) {
+          traceSegment.setTagTop(key, value);
+          log.debug("Added boolean attribute: {} = {}", key, value);
+        } else {
+          // Convert other types to string
+          traceSegment.setTagTop(key, value.toString());
+          log.debug("Added converted attribute: {} = {}", key, value);
+        }
+      }
+    }
+
+    // Clear all attribute maps
     derivatives = null;
+
+    log.debug("Committed derivatives successfully");
     return true;
   }
 
