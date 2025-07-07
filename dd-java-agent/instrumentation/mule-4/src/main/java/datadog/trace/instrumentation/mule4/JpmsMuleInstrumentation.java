@@ -3,10 +3,10 @@ package datadog.trace.instrumentation.mule4;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.Platform;
 
 @AutoService(InstrumenterModule.class)
 public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
@@ -17,7 +17,7 @@ public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && Platform.isJavaVersionAtLeast(9);
+    return super.isEnabled() && JavaVirtualMachine.isJavaVersionAtLeast(9);
   }
 
   @Override

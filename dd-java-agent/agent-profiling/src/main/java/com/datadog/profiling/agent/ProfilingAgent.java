@@ -1,5 +1,7 @@
 package com.datadog.profiling.agent;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
@@ -177,9 +179,9 @@ public class ProfilingAgent {
   }
 
   private static boolean isStartForceFirstSafe() {
-    return Platform.isJavaVersionAtLeast(14)
-        || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8));
+    return isJavaVersionAtLeast(14)
+        || (isJavaVersion(13) && isJavaVersionAtLeast(13, 0, 4))
+        || (isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 8));
   }
 
   public static void shutdown() {

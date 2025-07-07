@@ -160,8 +160,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.2";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.12";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.4";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.13";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -195,7 +195,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE = true;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT = 100; // milliseconds
-  static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED = false;
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL = 1;
   static final boolean DEFAULT_SYMBOL_DATABASE_ENABLED = true;
   static final boolean DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD = false;
   static final int DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD = 100; // nb of classes

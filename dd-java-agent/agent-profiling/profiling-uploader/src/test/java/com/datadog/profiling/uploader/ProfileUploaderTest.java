@@ -40,9 +40,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import datadog.common.version.VersionInfo;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Platform;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -568,7 +568,7 @@ public class ProfileUploaderTest {
 
     // J9 has 'almost' implemented JFR, but not really
     // we need to skip this part for J9
-    if (!Platform.isJ9()
+    if (!JavaVirtualMachine.isJ9()
         && Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"))) {
       verify(ioLogger)
           .error(

@@ -1,6 +1,6 @@
 package com.datadog.profiling.ddprof;
 
-import static datadog.trace.api.Platform.isJ9;
+import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
@@ -54,7 +54,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFA
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
@@ -151,20 +151,20 @@ public class DatadogProfilerConfig {
 
   private static boolean isJmethodIDSafe() {
     // see https://bugs.openjdk.org/browse/JDK-8313816
-    if (Platform.isJavaVersionAtLeast(22)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
       // any version after 22 should be safe
       return true;
     }
-    switch (Platform.getLangVersion()) {
+    switch (JavaVirtualMachine.getLangVersion()) {
       case "8":
         // Java 8 is not affected by the jmethodID issue
         return true;
       case "11":
-        return Platform.isJavaVersionAtLeast(11, 0, 23);
+        return JavaVirtualMachine.isJavaVersionAtLeast(11, 0, 23);
       case "17":
-        return Platform.isJavaVersionAtLeast(17, 0, 11);
+        return JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 11);
       case "21":
-        return Platform.isJavaVersionAtLeast(21, 0, 3);
+        return JavaVirtualMachine.isJavaVersionAtLeast(21, 0, 3);
       default:
         // any other non-LTS version should be considered unsafe
         return false;
@@ -173,7 +173,7 @@ public class DatadogProfilerConfig {
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
     // JVMTI Allocation Sampler is available since Java 11
-    if (Platform.isJavaVersionAtLeast(11)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
       boolean enableDdprofAlloc =
           getBoolean(

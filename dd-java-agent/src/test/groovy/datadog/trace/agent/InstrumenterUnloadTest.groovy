@@ -21,8 +21,8 @@ class InstrumenterUnloadTest extends Specification {
       , [
         "-verbose:class",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["DD_API_KEY": API_KEY]
       , new PrintStream(testOutput))
 

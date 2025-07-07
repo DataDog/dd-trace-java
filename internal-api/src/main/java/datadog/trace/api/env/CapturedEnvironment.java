@@ -1,10 +1,9 @@
 package datadog.trace.api.env;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.GeneralConfig;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -18,28 +17,10 @@ public class CapturedEnvironment {
     public String mainClass;
     public File jarFile;
 
-    @SuppressForbidden
     public ProcessInfo() {
-      // Besides "sun.java.command" property is not an standard, all main JDKs has set this
-      // property.
-      // Tested on:
-      // - OracleJDK, OpenJDK, AdoptOpenJDK, IBM JDK, Azul Zulu JDK, Amazon Coretto JDK
-      final String command = System.getProperty("sun.java.command");
-      if (command == null || command.isEmpty()) {
-        return;
-      }
-
-      final String[] split = command.trim().split(" ");
-      if (split.length == 0 || split[0].isEmpty()) {
-        return;
-      }
-
-      final String candidate = split[0];
-      if (candidate.toLowerCase(Locale.ROOT).endsWith(".jar")) {
-        jarFile = new File(candidate);
-      } else {
-        mainClass = candidate;
-      }
+      String jarName = JavaVirtualMachine.getJarFile();
+      jarFile = jarName == null ? null : new File(jarName);
+      mainClass = JavaVirtualMachine.getMainClass();
     }
 
     /**

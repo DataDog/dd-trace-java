@@ -4,7 +4,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.profiling.controller.ControllerContext;
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
@@ -20,7 +20,7 @@ public class DatadogProfilerControllerTest {
 
   @Test
   public void testCreateContinuousRecording() throws Exception {
-    Assume.assumeTrue(Platform.isLinux());
+    Assume.assumeTrue(OperatingSystem.isLinux());
     Properties props = new Properties();
     props.put(PROFILING_AUXILIARY_TYPE, "ddprof");
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
