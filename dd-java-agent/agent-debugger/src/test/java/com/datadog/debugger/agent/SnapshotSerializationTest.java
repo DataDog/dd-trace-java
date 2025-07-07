@@ -104,7 +104,7 @@ public class SnapshotSerializationTest {
 
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
-  @DisabledIf("datadog.trace.api.Platform#isJ9")
+  @DisabledIf("datadog.environment.JavaVirtualMachine#isJ9")
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();

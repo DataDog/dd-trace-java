@@ -1,6 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
@@ -57,7 +57,7 @@ public class SmapEntryFactory {
 
   public static void registerEvents() {
     // Make sure the periodic event is registered only once
-    if (REGISTERED.compareAndSet(false, true) && Platform.isLinux()) {
+    if (REGISTERED.compareAndSet(false, true) && OperatingSystem.isLinux()) {
       // Only one of these should ever be enabled at the same time
       JfrHelper.addPeriodicEvent(SmapEntryEvent.class, SmapEntryEvent::emit);
       JfrHelper.addPeriodicEvent(AggregatedSmapEntryEvent.class, AggregatedSmapEntryEvent::emit);

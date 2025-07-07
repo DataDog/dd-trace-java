@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.sink.Snapshot;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -44,7 +44,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   @Test
   @DisplayName("testSimpleSingleFrameException")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testSimpleSingleFrameException() throws Exception {
     appUrl = startAppAndAndGetUrl();
@@ -74,7 +74,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   @Test
   @DisplayName("testNoSubsequentCaptureAfterFirst")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testNoSubsequentCaptureAfterFirst() throws Exception {
     appUrl = startAppAndAndGetUrl();
@@ -107,7 +107,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   @Test
   @DisplayName("test3CapturedFrames")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void test3CapturedFrames() throws Exception {
     appUrl = startAppAndAndGetUrl();
@@ -163,7 +163,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   @Test
   @DisplayName("test5CapturedFrames")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void test5CapturedFrames() throws Exception {
     additionalJvmArgs.add("-Ddd.exception.replay.capture.max.frames=5");
@@ -240,7 +240,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   @Test
   @DisplayName("test3CapturedRecursiveFrames")
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void test3CapturedRecursiveFrames() throws Exception {
     appUrl = startAppAndAndGetUrl();
@@ -284,7 +284,9 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
 
   @Test
   @DisplayName("testLambdaHiddenFrames")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "HotSpot specific test")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "HotSpot specific test")
   void testLambdaHiddenFrames() throws Exception {
     additionalJvmArgs.add("-XX:+UnlockDiagnosticVMOptions");
     additionalJvmArgs.add("-XX:+ShowHiddenFrames");
@@ -325,7 +327,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
   }
 
   private void assertFullMethodCaptureArgs(CapturedContext context) {
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }

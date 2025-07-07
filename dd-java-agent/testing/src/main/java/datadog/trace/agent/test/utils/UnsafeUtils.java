@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.utils;
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;

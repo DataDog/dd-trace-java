@@ -58,15 +58,11 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   public static class StatusHeaderSendJsonAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before() {
-      CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class);
-    }
+    static void before(
+        @Advice.Argument(0) final JsonNode json,
+        @ActiveRequestContext final RequestContext reqCtx) {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
-        @Advice.Argument(0) final JsonNode json, @ActiveRequestContext RequestContext reqCtx) {
-      final int depth = CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
-      if (depth > 0) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
         return;
       }
 
@@ -101,5 +97,10 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
         throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
       }
     }
+  }
+
+  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  static void after() {
+    CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
   }
 }
