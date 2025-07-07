@@ -5,7 +5,6 @@ import datadog.trace.instrumentation.servlet5.HtmlRumServlet
 import datadog.trace.instrumentation.servlet5.TestServlet5
 import datadog.trace.instrumentation.servlet5.XmlRumServlet
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler
-import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
 
 class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNamingConventions.ServerV0 {
