@@ -1,11 +1,11 @@
 package datadog.trace.agent.tooling;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.bytebuddy.DDClassFileTransformer;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlinePoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDOutlineTypeStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
-import datadog.trace.api.Platform;
 import net.bytebuddy.agent.builder.AgentBuilder.ClassFileBufferStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
@@ -24,7 +24,7 @@ public class AgentStrategies {
   private static final Logger log = LoggerFactory.getLogger(AgentStrategies.class);
 
   private static TransformerDecorator loadTransformerDecorator() {
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         return (TransformerDecorator)
             Instrumenter.class

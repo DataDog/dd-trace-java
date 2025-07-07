@@ -1,7 +1,7 @@
 package datadog.trace.agent
 
+import datadog.environment.JavaVirtualMachine
 import datadog.test.SimpleAgentMock
-import datadog.trace.api.Platform
 import jvmbootstraptest.InitializationTelemetryCheck
 import spock.lang.IgnoreIf
 import spock.lang.Specification
@@ -9,7 +9,7 @@ import spock.lang.Timeout
 
 @Timeout(30)
 @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-  Platform.isJavaVersionAtLeast(24)
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
 })
 class InitializationTelemetryTest extends Specification {
   def "block agent start-up"() {
