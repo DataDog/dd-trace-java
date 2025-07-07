@@ -4,25 +4,25 @@
 
 The project leverages different types of test:
 
-1. The most common ones are **unit tests**.  
+1. The most common ones are **unit tests**.
 They are intended to test a single isolated feature, and rely on [JUnit 5 framework](https://junit.org/junit5/docs/current/user-guide/) or [Spock 2 framework](https://spockframework.org/spock/docs/).
 JUnit framework is recommended for most unit tests for its simplicity and performance reasons.
 Spock framework provides an alternative for more complex test scenarios, or tests that requires Groovy Script to access data outside their scope limitation (eg private fields).
 
-2. A variant of unit tests are **instrumented tests**.  
+2. A variant of unit tests are **instrumented tests**.
 Their purpose is similar to the unit tests but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running. They extend the Spock specification `datadog.trace.agent.test.AgentTestRunner` which allows to test produced traces and metrics.
 
-3. The third type of tests are **Muzzle checks**.  
+3. The third type of tests are **Muzzle checks**.
 Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
 
-3. The fourth type of tests are **integration tests**.  
+3. The fourth type of tests are **integration tests**.
 They test features that requires a more complex environment setup.
 In order to build such enviroments, integration tests use Testcontainers to setup the services needed to run the tests.
 
-4. The fifth type of test are **smoke tests**.  
-They are dedicated to test the java agent (`:dd-java-agent`) behavior against demo applications to prevent any regression. All smoke tests are located into the `:dd-smoke-tests` module. 
+4. The fifth type of test are **smoke tests**.
+They are dedicated to test the java agent (`:dd-java-agent`) behavior against demo applications to prevent any regression. All smoke tests are located into the `:dd-smoke-tests` module.
 
-5. The last type of test are **system tests**.  
+5. The last type of test are **system tests**.
 They are intended to test behavior consistency between all the client libraries, and relies on [their on GitHub repository](https://github.com/DataDog/system-tests).
 
 > [!TIP]
@@ -43,10 +43,12 @@ This mechanism exists to make sure either java agent state or static data are re
 If a test runs unreliably, or doen't have a fully deterministic behavior, this will lead into recurrent unexpected errors in continuous integration.
 In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
 
-> [!TIP]
-> In case your pull request checks failed due to some unexpected flaky tests, you can retry the continous integration pilepeline on CircleCI using the `Rerun workflow from failed` button:
+If your pull request fails CI due to apparently unrelated problems, follow these steps:
 
-![Rerun workflow from failed](how_to_test/rerun-workflow-from-failed.png)
+1. check logs in gitlab. There could be some useful info, like clear evidence that test failed due to infrastructure problems
+2. try to run the failed test locally. Usually in the gitlab logs there will be a gradle command that can be executed locally
+3. simply restart the job couple of times, some of tests are flaky
+4. ask for help in the dd-trace-java chat channel
 
 ## Running Tests
 
@@ -74,12 +76,7 @@ To run tests on a different JVM than the one used for doing the build, you need 
 The system tests are setup to run on continous integration as pull request check.
 
 If you would like to run them locally, you would have to grab [a local copy of the system tests](https://github.com/DataDog/system-tests), and run them from there.
-You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests. 
-
-If you would like to run another version of the system tests on continuous integration, or update them to the latest version, you would need to use [the update pinned system tests script](../.circleci/update_pinned_system_tests.sh) as your pull request won't use the latest `main` version from the system test repository, but a pinned version. 
-
-> [!NOTE]
-> The system tests version used for continous integration is defined using `default_system_tests_commit` in [CircleCI configuration](../.circleci/config.continue.yml.j2).
+You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests.
 
 ### The APM test agent
 
@@ -90,6 +87,6 @@ Trace Check results are returned within the `Get APM Test Agent Trace Check Resu
 Check [trace invariant checks](https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks) for more informations.
 
 The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
-ands information on trace checks being performed. 
-Logs can be viewed in CircleCI within the Test-Agent container step for all instrumentation test suites, ie: `z_test_8_inst` job.
+ands information on trace checks being performed.
+Logs can be viewed in CI within the Test-Agent container step for all instrumentation test suites, ie: `z_test_8_inst` job.
 Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).
