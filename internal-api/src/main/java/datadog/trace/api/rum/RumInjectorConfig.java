@@ -186,6 +186,7 @@ public class RumInjectorConfig {
       if (this.remoteConfigurationId != null) {
         writer.name("remoteConfigurationId").value(this.remoteConfigurationId);
       }
+      writer.endObject();
       return writer.toString();
     } catch (Exception e) {
       throw new IllegalStateException("Fail to generate config payload", e);
