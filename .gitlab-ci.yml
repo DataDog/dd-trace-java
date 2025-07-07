@@ -392,15 +392,14 @@ muzzle:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
-  parallel: 8
+  parallel:
+    matrix:
+      - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
   variables:
     CACHE_TYPE: inst
   script:
     - export SKIP_BUILDSCAN="true"
-    - ./gradlew writeMuzzleTasksToFile $GRADLE_ARGS
-    - sort workspace/build/muzzleTasks > sortedMuzzleTasks
-    - split --number=l/$NORMALIZED_NODE_TOTAL --suffix-length=1 --numeric-suffixes sortedMuzzleTasks muzzleSplit
-    - ./gradlew $(cat muzzleSplit${NORMALIZED_NODE_INDEX} | xargs) $GRADLE_ARGS
+    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
