@@ -25,6 +25,7 @@ public abstract class InitializationTelemetry {
   public static final InitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
   }
+
   /**
    * Indicates that an abort condition occurred during the bootstrapping process. Abort conditions
    * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
@@ -67,6 +68,7 @@ public abstract class InitializationTelemetry {
     static final NoOp INSTANCE = new NoOp();
 
     NoOp() {}
+
     @Override
     public void onAbort(String reasonCode) {}
 
@@ -99,6 +101,7 @@ public abstract class InitializationTelemetry {
     BootstrapProxy(final Object bootstrapInitTelemetry) {
       this.bootstrapInitTelemetry = bootstrapInitTelemetry;
     }
+
     @Override
     public void onAbort(String reasonCode) {
       MethodHandle bmh_onAbortString = this.bmh_onAbortString;
