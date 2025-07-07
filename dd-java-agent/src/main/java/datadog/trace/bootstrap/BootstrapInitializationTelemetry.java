@@ -31,21 +31,6 @@ public abstract class BootstrapInitializationTelemetry {
   public abstract void initMetaInfo(String attr, String value);
 
   /**
-   * Sets the injection result. 
-   */
-  public abstract void setInjectResult(String result);
-
-  /**
-   * Sets the injection result reason - a customer-facing reason for the injection result
-   */
-  public abstract void setInjectResultReason(String reason);
-
-  /**
-   * Sets the injection result class - a standardized classification type for results across components
-   */
-  public abstract void setInjectResultClass(String resultClass);
-
-  /**
    * Indicates that an abort condition occurred during the bootstrapping process Abort conditions
    * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
    */
@@ -79,15 +64,6 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void initMetaInfo(String attr, String value) {}
-
-    @Override
-    public void setInjectResult(String result) {}
-
-    @Override
-    public void setInjectResultReason(String reason) {}
-
-    @Override
-    public void setInjectResultClass(String resultClass) {}
 
     @Override
     public void onAbort(String reasonCode) {}
@@ -132,52 +108,25 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void setInjectResult(String result) {
-      initMetaInfo("inject_result", result);
-    }
-
-    @Override
-    public void setInjectResultReason(String reason) {
-      initMetaInfo("inject_result_reason", reason);
-    }
-
-    @Override
-    public void setInjectResultClass(String resultClass) {
-      initMetaInfo("inject_result_class", resultClass);
-    }
-
-    @Override
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
-      setInjectResult("abort");
-      setInjectResultReason("Abort condition occurred: " + reasonCode);
-      setInjectResultClass("abort");
       markIncomplete();
     }
 
     @Override
     public void onError(Throwable t) {
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
-      setInjectResult("error");
-      setInjectResultReason("Exception occurred: " + t.getMessage());
-      setInjectResultClass("exception");
     }
 
     @Override
     public void onFatalError(Throwable t) {
       onError(t);
-      setInjectResult("error");
-      setInjectResultReason("Exception occurred: " + t.getMessage());
-      setInjectResultClass("fatal error");
       markIncomplete();
     }
 
     @Override
     public void onError(String reasonCode) {
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
-      setInjectResult("error");
-      setInjectResultReason("Error occurred: " + reasonCode);
-      setInjectResultClass("error");
     }
 
     private void onPoint(String name, String tag) {

@@ -8,7 +8,7 @@ import java.lang.invoke.MethodType;
  * Thread safe wrapper around BootstrapInitializationTelemetry used inside the Datadog ClassLoader.
  *
  * <p>Right now, this is needed because of the build separation between the two portions of the
- * bootstrap. We should consider adjusting the build to allow Agent et al to reference
+ * bootstrap. We should consider adjusting the build to allow Agent et al. to reference
  * BootstrapInitializationTelemetry, then we could remove this proxy.
  */
 public abstract class InitializationTelemetry {
@@ -25,22 +25,6 @@ public abstract class InitializationTelemetry {
   public static final InitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
   }
-
-  /**
-   * Sets the injection result. 
-   */
-  public abstract void setInjectResult(String result);
-
-  /**
-   * Sets the injection result reason - a customer-facing reason for the injection result
-   */
-  public abstract void setInjectResultReason(String reason);
-
-  /**
-   * Sets the injection result class - a standardized classification type for results across components
-   */
-  public abstract void setInjectResultClass(String resultClass);
-
   /**
    * Indicates that an abort condition occurred during the bootstrapping process. Abort conditions
    * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
@@ -63,7 +47,7 @@ public abstract class InitializationTelemetry {
   public abstract void onFatalError(Throwable t);
 
   /**
-   * Indicates that an exception conditional occurred during the bootstrapping process. By default
+   * Indicates that an exception conditional occurred during the bootstrapping process. By default,
    * the exceptional condition is assumed to NOT have fully stopped the initialization of the
    * tracer.
    *
@@ -83,16 +67,6 @@ public abstract class InitializationTelemetry {
     static final NoOp INSTANCE = new NoOp();
 
     NoOp() {}
-
-    @Override
-    public void setInjectResult(String result) {}
-
-    @Override
-    public void setInjectResultReason(String reason) {}
-
-    @Override
-    public void setInjectResultClass(String resultClass) {}
-
     @Override
     public void onAbort(String reasonCode) {}
 
@@ -128,55 +102,6 @@ public abstract class InitializationTelemetry {
     BootstrapProxy(final Object bootstrapInitTelemetry) {
       this.bootstrapInitTelemetry = bootstrapInitTelemetry;
     }
-
-    @Override
-    public void setInjectResult(String result) {
-      MethodHandle bmh_setInjectResult = this.bmh_setInjectResult;
-      if (bmh_setInjectResult == null) {
-        bmh_setInjectResult = findBoundHandle("setInjectResult", String.class);
-        this.bmh_setInjectResult = bmh_setInjectResult;
-      }
-      if (bmh_setInjectResult != null) {
-        try {
-          bmh_setInjectResult.invokeExact(result);
-        } catch (Throwable t) {
-          // ignore
-        }
-      }
-    }
-
-    @Override
-    public void setInjectResultReason(String reason) {
-      MethodHandle bmh_setInjectResultReason = this.bmh_setInjectResultReason;
-      if (bmh_setInjectResultReason == null) {
-        bmh_setInjectResultReason = findBoundHandle("setInjectResultReason", String.class);
-        this.bmh_setInjectResultReason = bmh_setInjectResultReason;
-      }
-      if (bmh_setInjectResultReason != null) {
-        try {
-          bmh_setInjectResultReason.invokeExact(reason);
-        } catch (Throwable t) {
-          // ignore
-        }
-      }
-    }
-
-    @Override
-    public void setInjectResultClass(String resultClass) {
-      MethodHandle bmh_setInjectResultClass = this.bmh_setInjectResultClass;
-      if (bmh_setInjectResultClass == null) {
-        bmh_setInjectResultClass = findBoundHandle("setInjectResultClass", String.class);
-        this.bmh_setInjectResultClass = bmh_setInjectResultClass;
-      }
-      if (bmh_setInjectResultClass != null) {
-        try {
-          bmh_setInjectResultClass.invokeExact(resultClass);
-        } catch (Throwable t) {
-          // ignore
-        }
-      }
-    }
-
     @Override
     public void onAbort(String reasonCode) {
       MethodHandle bmh_onAbortString = this.bmh_onAbortString;
