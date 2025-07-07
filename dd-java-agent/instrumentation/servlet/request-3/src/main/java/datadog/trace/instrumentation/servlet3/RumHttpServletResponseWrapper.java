@@ -8,12 +8,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
+  private final RumInjector rumInjector;
   private ServletOutputStream outputStream;
   private PrintWriter printWriter;
   private boolean shouldInject;
 
   public RumHttpServletResponseWrapper(HttpServletResponse response) {
     super(response);
+    this.rumInjector = RumInjector.get();
   }
 
   @Override
@@ -29,8 +31,8 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       outputStream =
           new WrappedServletOutputStream(
               super.getOutputStream(),
-              RumInjector.getMarker(encoding),
-              RumInjector.getSnippet(encoding),
+              rumInjector.getMarker(encoding),
+              rumInjector.getSnippet(encoding),
               this::onInjected);
     }
     return outputStream;

@@ -45,7 +45,7 @@ public class Servlet3Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
     HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
-    if (RumInjector.isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
+    if (RumInjector.get().isEnabled() && httpServletRequest.getAttribute(DD_RUM_INJECTED) == null) {
       httpServletRequest.setAttribute(DD_RUM_INJECTED, Boolean.TRUE);
       httpServletResponse = new RumHttpServletResponseWrapper(httpServletResponse);
       response = httpServletResponse;

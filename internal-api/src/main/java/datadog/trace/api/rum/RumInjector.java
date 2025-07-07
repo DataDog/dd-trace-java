@@ -4,23 +4,11 @@ import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 public final class RumInjector {
-  private static volatile boolean initialized = false;
-  private static volatile boolean enabled;
-  private static volatile String snippet;
-
+  private static final RumInjector INSTANCE = new RumInjector(Config.get());
   private static final String MARKER = "</head>";
-  private static final DDCache<String, byte[]> SNIPPET_CACHE = DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, byte[]> MARKER_CACHE = DDCaches.newFixedSizeCache(16);
-  private static final Function<String, byte[]> SNIPPET_ADDER =
-      charset -> {
-        try {
-          return snippet.getBytes(charset);
-        } catch (Throwable t) {
-          return null;
-        }
-      };
   private static final Function<String, byte[]> MARKER_ADDER =
       charset -> {
         try {
@@ -30,44 +18,76 @@ public final class RumInjector {
         }
       };
 
+  private final boolean enabled;
+  private final String snippet;
+
+  private final DDCache<String, byte[]> snippetCache;
+  private final DDCache<String, byte[]> markerCache;
+  private final Function<String, byte[]> snippetAdder;
+
+  RumInjector(Config config) {
+    boolean rumEnabled = config.isRumEnabled();
+    RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
+    // If both RUM is enabled and injector config is valid
+    if (rumEnabled && injectorConfig != null) {
+      this.enabled = true;
+      this.snippet = injectorConfig.getSnippet();
+      this.snippetCache = DDCaches.newFixedSizeCache(16);
+      this.markerCache = DDCaches.newFixedSizeCache(16);
+      this.snippetAdder =
+          charset -> {
+            try {
+              return snippet.getBytes(charset);
+            } catch (Throwable t) {
+              return null;
+            }
+          };
+    } else {
+      this.enabled = false;
+      this.snippet = null;
+      this.snippetCache = null;
+      this.markerCache = null;
+      this.snippetAdder = null;
+    }
+  }
+
+  public static RumInjector get() {
+    return INSTANCE;
+  }
+
   /**
-   * Check whether RUM injection is enabled and ready to inject.
+   * Checks whether RUM injection is enabled and ready to inject.
    *
    * @return {@code true} if enabled, {@code otherwise}.
    */
-  public static boolean isEnabled() {
-    if (!initialized) {
-      Config config = Config.get();
-      boolean rumEnabled = config.isRumEnabled();
-      RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
-      if (rumEnabled && injectorConfig != null) {
-        enabled = true;
-        snippet = injectorConfig.getSnippet();
-      } else {
-        enabled = false;
-        snippet = null;
-      }
-      initialized = true;
-    }
-    return enabled;
+  public boolean isEnabled() {
+    return this.enabled;
   }
 
   /**
-   * Get the HTML snippet to inject RUM SDK
+   * Gets the HTML snippet to inject RUM SDK
    *
-   * @return The HTML snippet to inject, {@code null} if RUM injection is disabled to inject.
+   * @return The HTML snippet to inject, {@code null} if RUM injection is disabled.
    */
-  public static byte[] getSnippet(String encoding) {
-    if (!isEnabled()) {
+  @Nullable
+  public byte[] getSnippet(String encoding) {
+    if (!this.enabled) {
       return null;
     }
-    return SNIPPET_CACHE.computeIfAbsent(encoding, SNIPPET_ADDER);
+    return this.snippetCache.computeIfAbsent(encoding, this.snippetAdder);
   }
 
-  public static byte[] getMarker(String encoding) {
-    if (!isEnabled()) {
+  /**
+   * Gets the marker bytes to inject RUM SDK after.
+   *
+   * @param encoding The encoding to get the marker bytes from.
+   * @return The marker bytes, {@code null} if RUM injection is disabled.
+   */
+  @Nullable
+  public byte[] getMarker(String encoding) {
+    if (!this.enabled) {
       return null;
     }
-    return MARKER_CACHE.computeIfAbsent(encoding, MARKER_ADDER);
+    return this.markerCache.computeIfAbsent(encoding, MARKER_ADDER);
   }
 }
