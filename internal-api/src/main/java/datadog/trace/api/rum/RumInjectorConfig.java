@@ -1,7 +1,6 @@
 package datadog.trace.api.rum;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SITE;
-import static java.util.Locale.ROOT;
 
 import datadog.json.JsonWriter;
 import java.util.HashMap;
@@ -194,12 +193,18 @@ public class RumInjectorConfig {
   }
 
   public enum PrivacyLevel {
-    ALLOW,
-    MASK,
-    MASK_USER_INPUT;
+    ALLOW("allow"),
+    MASK("mask"),
+    MASK_USER_INPUT("mask-user-input");
+
+    private final String json;
+
+    PrivacyLevel(String json) {
+      this.json = json;
+    }
 
     public String toJson() {
-      return toString().toLowerCase(ROOT);
+      return this.json;
     }
   }
 }
