@@ -188,3 +188,8 @@ testAggregate("base", [":"], [
   ":dd-java-agent:agent-profiling",
   ":dd-java-agent:agent-debugger"
 ])
+
+
+tasks.register('runMuzzle') {
+  dependsOn subprojects.findAll { p -> p.activePartition && p.plugins.hasPlugin('muzzle') }.collect { p -> p.path + ":muzzle" }
+}

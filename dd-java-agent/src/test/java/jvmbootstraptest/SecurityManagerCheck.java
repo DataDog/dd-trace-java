@@ -3,6 +3,7 @@ package jvmbootstraptest;
 import datadog.trace.agent.test.IntegrationTestUtils;
 import java.io.File;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public final class SecurityManagerCheck {
@@ -41,12 +42,13 @@ public final class SecurityManagerCheck {
     };
   }
 
-  public static final String[] jvmArgs(Class<? extends TestSecurityManager> securityManagerClass) {
-    return new String[] {"-Djava.security.manager=" + securityManagerClass.getName()};
+  public static final List<String> jvmArgs(
+      Class<? extends TestSecurityManager> securityManagerClass) {
+    return Collections.singletonList("-Djava.security.manager=" + securityManagerClass.getName());
   }
 
-  public static final String[] mainArgs() {
-    return new String[] {};
+  public static final List<String> mainArgs() {
+    return Collections.emptyList();
   }
 
   public static final Map<String, String> envVars() {

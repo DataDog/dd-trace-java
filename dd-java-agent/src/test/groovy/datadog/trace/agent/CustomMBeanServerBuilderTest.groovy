@@ -21,8 +21,8 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.profiling.enabled=true",
         "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -38,8 +38,8 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -55,8 +55,8 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Djavax.management.builder.initial=jvmbootstraptest.MissingMBeanServerBuilder"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -72,8 +72,8 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddd.instrumentation.telemetry.enabled=false",
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customjmxbuilder=true"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -90,8 +90,8 @@ class CustomMBeanServerBuilderTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=$DEFAULT_LOG_LEVEL",
         "-Ddd.app.customjmxbuilder=false",
         "-Djavax.management.builder.initial=jvmbootstraptest.CustomMBeanServerBuilder"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }

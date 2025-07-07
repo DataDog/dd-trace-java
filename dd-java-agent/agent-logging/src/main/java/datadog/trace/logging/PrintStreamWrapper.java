@@ -1,6 +1,6 @@
 package datadog.trace.logging;
 
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -8,7 +8,7 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 public class PrintStreamWrapper extends PrintStream {
-  private static final int LINE_SEPARATOR_LENGTH = Platform.isWindows() ? 2 : 1;
+  private static final int LINE_SEPARATOR_LENGTH = OperatingSystem.isWindows() ? 2 : 1;
   private volatile boolean captureOutput = false;
   private volatile int currentSize = 0;
   private PrintStream capturingStream = null;
