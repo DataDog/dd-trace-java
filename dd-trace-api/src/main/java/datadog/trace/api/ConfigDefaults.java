@@ -241,6 +241,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final boolean DEFAULT_RUM_ENABLED = false;
+  public static final String DEFAULT_RUM_SITE = DEFAULT_SITE;
   static final int DEFAULT_RUM_MAJOR_VERSION = 6;
 
   static final boolean DEFAULT_SSI_INJECTION_FORCE = false;

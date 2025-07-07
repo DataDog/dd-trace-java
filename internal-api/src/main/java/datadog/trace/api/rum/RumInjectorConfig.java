@@ -1,5 +1,6 @@
 package datadog.trace.api.rum;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SITE;
 import static java.util.Locale.ROOT;
 
 import datadog.json.JsonWriter;
@@ -8,7 +9,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class RumInjectorConfig {
-  private static final String DEFAULT_SITE = "datadoghq.com";
   private static final String GOV_CLOUD_SITE = "ddog-gov.com";
   private static final Map<String, String> REGIONS = new HashMap<>();
 
@@ -76,7 +76,7 @@ public class RumInjectorConfig {
     }
     this.clientToken = clientToken;
     if (site == null || site.isEmpty()) {
-      this.site = DEFAULT_SITE;
+      this.site = DEFAULT_RUM_SITE;
     } else if (validateSite(site)) {
       this.site = site;
     } else {
