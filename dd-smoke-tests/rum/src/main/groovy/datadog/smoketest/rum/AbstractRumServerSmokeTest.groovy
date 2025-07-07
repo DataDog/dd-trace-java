@@ -10,7 +10,8 @@ class AbstractRumServerSmokeTest extends AbstractServerSmokeTest {
   protected String[] defaultRumProperties = [
     "-Ddd.rum.enabled=true",
     "-Ddd.rum.application.id=appid",
-    "-Ddd.rum.client.token=token"
+    "-Ddd.rum.client.token=token",
+    "-Ddd.rum.remote.configuration.id=12345",
   ]
 
   void 'test RUM SDK injection on html'() {

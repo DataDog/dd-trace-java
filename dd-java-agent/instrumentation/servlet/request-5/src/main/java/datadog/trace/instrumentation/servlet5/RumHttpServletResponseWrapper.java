@@ -6,12 +6,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   private final RumInjector rumInjector;
   private ServletOutputStream outputStream;
   private PrintWriter printWriter;
-  private boolean shouldInject;
+  private boolean shouldInject = false;
 
   public RumHttpServletResponseWrapper(HttpServletResponse response) {
     super(response);
@@ -26,7 +27,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
     if (outputStream == null) {
       String encoding = getCharacterEncoding();
       if (encoding == null) {
-        encoding = "UTF-8";
+        encoding = Charset.defaultCharset().name();
       }
       outputStream =
           new WrappedServletOutputStream(
@@ -79,8 +80,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   @Override
   public void setContentType(String type) {
-    if (type != null && type.contains("html")) {
-      shouldInject = true;
-    }
+    shouldInject = type != null && type.contains("text/html");
   }
 }
