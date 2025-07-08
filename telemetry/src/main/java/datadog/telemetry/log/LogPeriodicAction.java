@@ -36,6 +36,7 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
           new LogMessage()
               .message(rawLogMsg.message)
               .tracerTime(rawLogMsg.timestamp)
+              .tags(rawLogMsg.tags)
               .count(rawLogMsg.count);
 
       if (rawLogMsg.logLevel != null) {

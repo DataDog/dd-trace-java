@@ -26,6 +26,7 @@ class CircleCIInfo implements CIProviderInfo {
   public static final String CIRCLECI_GIT_BRANCH = "CIRCLE_BRANCH";
   public static final String CIRCLECI_GIT_TAG = "CIRCLE_TAG";
   public static final String CIRCLECI_JOB_NAME = "CIRCLE_JOB";
+  public static final String CIRCLECI_PR_NUMBER = "CIRCLE_PR_NUMBER";
 
   private final CiEnvironment environment;
 
@@ -60,7 +61,7 @@ class CircleCIInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(null, null, null, environment.get(CIRCLECI_PR_NUMBER));
   }
 
   private String buildPipelineUrl(final String pipelineId) {

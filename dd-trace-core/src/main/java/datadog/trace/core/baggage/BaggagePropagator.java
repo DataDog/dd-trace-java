@@ -32,7 +32,7 @@ public class BaggagePropagator implements Propagator {
   public BaggagePropagator(Config config) {
     this(
         config.isBaggageInject(),
-        config.isBaggageInject(),
+        config.isBaggageExtract(),
         config.getTraceBaggageMaxItems(),
         config.getTraceBaggageMaxBytes());
   }

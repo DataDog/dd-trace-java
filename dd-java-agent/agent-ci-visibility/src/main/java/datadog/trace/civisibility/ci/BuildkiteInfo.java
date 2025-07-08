@@ -37,6 +37,9 @@ class BuildkiteInfo implements CIProviderInfo {
   public static final String BUILDKITE_GIT_AUTHOR_EMAIL = "BUILDKITE_BUILD_AUTHOR_EMAIL";
   public static final String BUILDKITE_AGENT_ID = "BUILDKITE_AGENT_ID";
   private static final String BUILDKITE_CI_NODE_LABEL_PREFIX = "BUILDKITE_AGENT_META_DATA_";
+  private static final String BUILDKITE_PULL_REQUEST_NUMBER = "BUILDKITE_PULL_REQUEST";
+  private static final String BUILDKITE_PULL_REQUEST_BASE_BRANCH =
+      "BUILDKITE_PULL_REQUEST_BASE_BRANCH";
 
   private final CiEnvironment environment;
 
@@ -78,7 +81,19 @@ class BuildkiteInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
+    if (isPullRequest()) {
+      return new PullRequestInfo(
+          normalizeBranch(environment.get(BUILDKITE_PULL_REQUEST_BASE_BRANCH)),
+          null,
+          null,
+          environment.get(BUILDKITE_PULL_REQUEST_NUMBER));
+    }
     return PullRequestInfo.EMPTY;
+  }
+
+  private boolean isPullRequest() {
+    String pullRequest = environment.get(BUILDKITE_PULL_REQUEST_NUMBER);
+    return pullRequest != null && !"false".equals(pullRequest);
   }
 
   private String buildCiNodeLabels() {

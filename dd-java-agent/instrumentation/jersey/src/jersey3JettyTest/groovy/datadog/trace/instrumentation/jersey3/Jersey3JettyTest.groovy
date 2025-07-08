@@ -9,6 +9,11 @@ import jakarta.ws.rs.ext.ExceptionMapper
 class Jersey3JettyTest extends HttpServerTest<JettyServer> {
 
   @Override
+  boolean testResponseBodyJson() {
+    return true
+  }
+
+  @Override
   HttpServer server() {
     new JettyServer()
   }

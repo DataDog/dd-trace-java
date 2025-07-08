@@ -1,15 +1,19 @@
 package com.datadog.appsec.event.data;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.util.MethodHandles;
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -26,7 +30,7 @@ public final class ObjectIntrospection {
   static {
     // Method AccessibleObject.trySetAccessible introduced in Java 9
     Method method = null;
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         method = Field.class.getMethod("trySetAccessible");
       } catch (NoSuchMethodException e) {
@@ -178,6 +182,19 @@ public final class ObjectIntrospection {
       return obj.toString();
     }
 
+    // Jackson databind nodes (via reflection)
+    Class<?> clazz = obj.getClass();
+    if (clazz.getName().startsWith("com.fasterxml.jackson.databind.node.")) {
+      try {
+        return doConversionJacksonNode(
+            new JacksonContext(clazz.getClassLoader()), obj, depth, state);
+      } catch (Throwable e) {
+        // in case of failure let default conversion run
+        log.debug("Error handling jackson node {}", clazz, e);
+        return null;
+      }
+    }
+
     // maps
     if (obj instanceof Map) {
       Map<Object, Object> newMap = new HashMap<>((int) Math.ceil(((Map) obj).size() / .75));
@@ -195,24 +212,45 @@ public final class ObjectIntrospection {
 
     // iterables
     if (obj instanceof Iterable) {
-      List<Object> newList;
-      if (obj instanceof List) {
-        newList = new ArrayList<>(((List<?>) obj).size());
-      } else {
-        newList = new ArrayList<>();
-      }
-      for (Object o : ((Iterable<?>) obj)) {
-        if (state.elemsLeft <= 0) {
-          state.listMapTooLarge = true;
-          break;
+      final Iterator<?> it = ((Iterable<?>) obj).iterator();
+      final boolean isMap = it.hasNext() && it.next() instanceof Map.Entry;
+      // some json libraries implement objects as Iterable<Map.Entry>
+      if (isMap) {
+        Map<Object, Object> newMap;
+        if (obj instanceof Collection) {
+          newMap = new HashMap<>(((Collection<?>) obj).size());
+        } else {
+          newMap = new HashMap<>();
         }
-        newList.add(guardedConversion(o, depth + 1, state));
+        for (Map.Entry<?, ?> e : ((Iterable<Map.Entry<?, ?>>) obj)) {
+          Object key = e.getKey();
+          Object newKey = keyConversion(e.getKey(), state);
+          if (newKey == null && key != null) {
+            // probably we're out of elements anyway
+            continue;
+          }
+          newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
+        }
+        return newMap;
+      } else {
+        List<Object> newList;
+        if (obj instanceof Collection) {
+          newList = new ArrayList<>(((Collection<?>) obj).size());
+        } else {
+          newList = new ArrayList<>();
+        }
+        for (Object o : ((Iterable<?>) obj)) {
+          if (state.elemsLeft <= 0) {
+            state.listMapTooLarge = true;
+            break;
+          }
+          newList.add(guardedConversion(o, depth + 1, state));
+        }
+        return newList;
       }
-      return newList;
     }
 
     // arrays
-    Class<?> clazz = obj.getClass();
     if (clazz.isArray()) {
       int length = Array.getLength(obj);
       List<Object> newList = new ArrayList<>(length);
@@ -304,5 +342,140 @@ public final class ObjectIntrospection {
       return str.substring(0, MAX_STRING_LENGTH);
     }
     return str;
+  }
+
+  /**
+   * Converts Jackson databind JsonNode objects to WAF-compatible data structures using reflection.
+   *
+   * <p>Jackson databind objects ({@link com.fasterxml.jackson.databind.JsonNode}) implement
+   * iterable interfaces which interferes with the standard object introspection logic. This method
+   * bypasses that by using reflection to directly access JsonNode internals and convert them to
+   * appropriate data types.
+   *
+   * <p>Supported JsonNode types and their conversions:
+   *
+   * <ul>
+   *   <li>{@code OBJECT} - Converted to {@link HashMap} with string keys and recursively converted
+   *       values
+   *   <li>{@code ARRAY} - Converted to {@link ArrayList} with recursively converted elements
+   *   <li>{@code STRING} - Extracted as {@link String}, subject to length truncation
+   *   <li>{@code NUMBER} - Extracted as the appropriate {@link Number} subtype (Integer, Long,
+   *       Double, etc.)
+   *   <li>{@code BOOLEAN} - Extracted as {@link Boolean}
+   *   <li>{@code NULL}, {@code MISSING}, {@code BINARY}, {@code POJO} - Converted to {@code null}
+   * </ul>
+   *
+   * <p>The method applies the same truncation limits as the main conversion logic:
+   */
+  private static Object doConversionJacksonNode(
+      final JacksonContext ctx, final Object node, final int depth, final State state)
+      throws Throwable {
+    if (node == null) {
+      return null;
+    }
+    state.elemsLeft--;
+    if (state.elemsLeft <= 0) {
+      state.listMapTooLarge = true;
+      return null;
+    }
+    if (depth > MAX_DEPTH) {
+      state.objectTooDeep = true;
+      return null;
+    }
+    final String type = ctx.getNodeType(node);
+    if (type == null) {
+      return null;
+    }
+    switch (type) {
+      case "OBJECT":
+        final Map<Object, Object> newMap = new HashMap<>(ctx.getSize(node));
+        for (Iterator<String> names = ctx.getFieldNames(node); names.hasNext(); ) {
+          final String key = names.next();
+          final Object newKey = keyConversion(key, state);
+          if (newKey == null && key != null) {
+            // probably we're out of elements anyway
+            continue;
+          }
+          final Object value = ctx.getField(node, key);
+          newMap.put(newKey, doConversionJacksonNode(ctx, value, depth + 1, state));
+        }
+        return newMap;
+      case "ARRAY":
+        final List<Object> newList = new ArrayList<>(ctx.getSize(node));
+        for (Object o : ((Iterable<?>) node)) {
+          if (state.elemsLeft <= 0) {
+            state.listMapTooLarge = true;
+            break;
+          }
+          newList.add(doConversionJacksonNode(ctx, o, depth + 1, state));
+        }
+        return newList;
+      case "BOOLEAN":
+        return ctx.getBooleanValue(node);
+      case "NUMBER":
+        return ctx.getNumberValue(node);
+      case "STRING":
+        return checkStringLength(ctx.getTextValue(node), state);
+      default:
+        // return null for the rest
+        return null;
+    }
+  }
+
+  /**
+   * Context class used to cache method resolutions while converting a top level json node class.
+   */
+  private static class JacksonContext {
+    private final MethodHandles handles;
+    private final Class<?> jsonNode;
+    private MethodHandle nodeType;
+    private MethodHandle size;
+    private MethodHandle fieldNames;
+    private MethodHandle fieldValue;
+    private MethodHandle textValue;
+    private MethodHandle booleanValue;
+    private MethodHandle numberValue;
+
+    private JacksonContext(final ClassLoader cl) throws ClassNotFoundException {
+      handles = new MethodHandles(cl);
+      jsonNode = cl.loadClass("com.fasterxml.jackson.databind.JsonNode");
+    }
+
+    private String getNodeType(final Object node) throws Throwable {
+      nodeType = nodeType == null ? handles.method(jsonNode, "getNodeType") : nodeType;
+      final Enum<?> type = (Enum<?>) nodeType.invoke(node);
+      return type == null ? null : type.name();
+    }
+
+    private int getSize(final Object node) throws Throwable {
+      size = size == null ? handles.method(jsonNode, "size") : size;
+      return (int) size.invoke(node);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Iterator<String> getFieldNames(final Object node) throws Throwable {
+      fieldNames = fieldNames == null ? handles.method(jsonNode, "fieldNames") : fieldNames;
+      return (Iterator<String>) fieldNames.invoke(node);
+    }
+
+    private Object getField(final Object node, final String name) throws Throwable {
+      fieldValue = fieldValue == null ? handles.method(jsonNode, "get", String.class) : fieldValue;
+      return fieldValue.invoke(node, name);
+    }
+
+    private String getTextValue(final Object node) throws Throwable {
+      textValue = textValue == null ? handles.method(jsonNode, "textValue") : textValue;
+      return (String) textValue.invoke(node);
+    }
+
+    private Number getNumberValue(final Object node) throws Throwable {
+      numberValue = numberValue == null ? handles.method(jsonNode, "numberValue") : numberValue;
+      return (Number) numberValue.invoke(node);
+    }
+
+    private Boolean getBooleanValue(final Object node) throws Throwable {
+      booleanValue = booleanValue == null ? handles.method(jsonNode, "booleanValue") : booleanValue;
+      return (Boolean) booleanValue.invoke(node);
+    }
   }
 }

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
@@ -110,7 +111,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TYPE_TAG, "kafka");
 
           final long payloadSize =
-              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
+              traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()

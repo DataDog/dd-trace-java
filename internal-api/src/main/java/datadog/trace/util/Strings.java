@@ -195,6 +195,17 @@ public final class Strings {
   }
 
   /**
+   * Checks that a string is blank, i.e. doest not contain characters or is null
+   *
+   * @param s The string to be checked
+   * @return {@code true} if string is blank (string is {@code null}, empty, or contains only
+   *     whitespace characters), {@code false} otherwise
+   */
+  public static boolean isBlank(String s) {
+    return !isNotBlank(s);
+  }
+
+  /**
    * Generates a random string of the given length from lowercase characters a-z
    *
    * @param length length of the string
@@ -219,5 +230,14 @@ public final class Strings {
       bytes[i * 2 + 1] = HEX_DIGITS[v & 0x0F];
     }
     return new String(bytes, US_ASCII);
+  }
+
+  public static String[] concat(String[] arr, String... extra) {
+    if (arr.length == 0) return extra;
+    if (extra.length == 0) return arr;
+    String[] result = new String[arr.length + extra.length];
+    System.arraycopy(arr, 0, result, 0, arr.length);
+    System.arraycopy(extra, 0, result, arr.length, extra.length);
+    return result;
   }
 }

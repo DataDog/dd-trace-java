@@ -1,8 +1,6 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketServer
 import jakarta.servlet.Servlet
-import jakarta.servlet.ServletException
-import jakarta.servlet.http.HttpServletRequest
 import jakarta.websocket.CloseReason
 import jakarta.websocket.Endpoint
 import jakarta.websocket.EndpointConfig
@@ -72,17 +70,7 @@ class JettyServer implements WebsocketServer {
     handler
   }
 
-  static errorHandler = new ErrorHandler() {
-    @Override
-    protected void writeErrorPage(HttpServletRequest request, Writer writer, int code,
-      String message, boolean showStacks) throws IOException {
-      Throwable th = (Throwable) request.getAttribute("jakarta.servlet.error.exception")
-      message = th == null ? message : th instanceof ServletException ? th.getRootCause().message : th.message
-      if (message) {
-        writer.write(message)
-      }
-    }
-  }
+  static errorHandler = new ErrorHandler()
 
   @Override
   void serverSendText(String[] messages) {

@@ -12,7 +12,7 @@ public class LogManagerSetter {
     if (System.getProperty("dd.app.customlogmanager") != null) {
       System.out.println("dd.app.customlogmanager != null");
 
-      if (Boolean.valueOf(System.getProperty("dd.app.customlogmanager"))) {
+      if (Boolean.parseBoolean(System.getProperty("dd.app.customlogmanager"))) {
         System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
         customAssert(
             LogManager.getLogManager().getClass(),

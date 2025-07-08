@@ -1,6 +1,6 @@
 package datadog.telemetry
 
-import datadog.trace.api.Platform
+import datadog.environment.OperatingSystem
 import org.junit.Assume
 import spock.lang.Specification
 
@@ -38,7 +38,7 @@ class HostInfoTest extends Specification {
     HostInfo.getHostname() == 'uname -n'.execute().text.trim()
     HostInfo.getOsName() == 'uname -s'.execute().text.trim()
     HostInfo.getKernelName() == 'uname -s'.execute().text.trim()
-    if (Platform.isMac()) {
+    if (OperatingSystem.isMacOs()) {
       // uname -r will return X.Y.Z version, while JVM will report just X.Y
       'uname -r'.execute().text.trim().startsWith(HostInfo.getKernelRelease())
 

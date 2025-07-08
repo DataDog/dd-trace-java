@@ -77,8 +77,10 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   @Override
   void stopServer(MuleTestContainer container) {
-    container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
-    container.stop()
+    if (container != null) {
+      container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
+      container.stop()
+    }
   }
 
   def "test mule client remote request"() {

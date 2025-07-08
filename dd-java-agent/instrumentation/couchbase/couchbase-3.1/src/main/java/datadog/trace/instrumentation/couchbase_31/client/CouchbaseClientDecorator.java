@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.couchbase_31.client;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.naming.SpanNaming;

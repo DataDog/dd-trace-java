@@ -14,6 +14,7 @@ import javax.annotation.Nonnull;
 
 class BitriseInfo implements CIProviderInfo {
 
+  // https://devcenter.bitrise.io/en/references/available-environment-variables.html
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
   public static final String BITRISE_PIPELINE_ID = "BITRISE_BUILD_SLUG";
@@ -31,6 +32,8 @@ class BitriseInfo implements CIProviderInfo {
   public static final String BITRISE_GIT_AUTHOR_EMAIL = "GIT_CLONE_COMMIT_AUTHOR_EMAIL";
   public static final String BITRISE_GIT_COMMITER_NAME = "GIT_CLONE_COMMIT_COMMITER_NAME";
   public static final String BITRISE_GIT_COMMITER_EMAIL = "GIT_CLONE_COMMIT_COMMITER_EMAIL";
+  public static final String BITRISE_GIT_BRANCH_DEST = "BITRISEIO_GIT_BRANCH_DEST";
+  public static final String BITRISE_PR_NUMBER = "BITRISE_PULL_REQUEST";
 
   private final CiEnvironment environment;
 
@@ -70,7 +73,11 @@ class BitriseInfo implements CIProviderInfo {
   @Nonnull
   @Override
   public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
+    return new PullRequestInfo(
+        normalizeBranch(environment.get(BITRISE_GIT_BRANCH_DEST)),
+        null,
+        null,
+        environment.get(BITRISE_PR_NUMBER));
   }
 
   private String buildGitCommit() {

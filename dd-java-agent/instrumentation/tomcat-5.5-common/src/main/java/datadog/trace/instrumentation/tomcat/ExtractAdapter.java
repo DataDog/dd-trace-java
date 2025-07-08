@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.tomcat;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
 

@@ -133,6 +133,7 @@ public class Tags {
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
+  public static final String PULL_REQUEST_NUMBER = "pr.number";
 
   public static final String RUNTIME_NAME = "runtime.name";
   public static final String RUNTIME_VENDOR = "runtime.vendor";

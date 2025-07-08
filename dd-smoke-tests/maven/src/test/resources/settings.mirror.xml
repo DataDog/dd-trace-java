@@ -1,0 +1,9 @@
+<settings>
+  <mirrors>
+    <mirror>
+      <id>env-proxy</id>
+      <mirrorOf>*</mirrorOf>
+      <url>${env.MAVEN_REPOSITORY_PROXY}</url>
+    </mirror>
+  </mirrors>
+</settings>

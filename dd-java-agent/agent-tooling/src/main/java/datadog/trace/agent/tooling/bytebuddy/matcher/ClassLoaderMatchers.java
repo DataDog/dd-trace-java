@@ -44,6 +44,7 @@ public final class ClassLoaderMatchers {
       case "jdk.internal.reflect.DelegatingClassLoader":
       case "clojure.lang.DynamicClassLoader":
       case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
+      case "com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory$RootStubClassLoader":
       case "sun.misc.Launcher$ExtClassLoader":
       case "datadog.trace.bootstrap.DatadogClassLoader":
         return true;

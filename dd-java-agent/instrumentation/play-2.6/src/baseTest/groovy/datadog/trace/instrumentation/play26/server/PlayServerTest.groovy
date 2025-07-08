@@ -97,6 +97,11 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testResponseBodyJson() {
+    true
+  }
+
+  @Override
   String testPathParam() {
     '/path/?/param'
   }

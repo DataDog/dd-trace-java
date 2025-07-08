@@ -1,13 +1,11 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
-import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.util.Strings
-import java.nio.file.Files
-import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -21,6 +19,9 @@ import org.gradle.wrapper.WrapperConfiguration
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
@@ -43,14 +44,14 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
-    Platform.isJ9()
+    JavaVirtualMachine.isJ9()
   })
   def "test legacy #projectName, v#gradleVersion"() {
     runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
 
     where:
     gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.0"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
     "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
     "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
     "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
@@ -98,7 +99,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "5.1"                 | "test-succeed-junit-4-class-ordering" | [
+    "7.6.4"               | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
@@ -239,11 +240,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private runGradle(String gradleVersion, List<String> arguments, boolean successExpected) {
+    def buildEnv = ["GRADLE_VERSION": gradleVersion]
+
+    def mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY")
+    if (mavenRepositoryProxy != null) {
+      buildEnv += ["MAVEN_REPOSITORY_PROXY": System.getenv("MAVEN_REPOSITORY_PROXY")]
+    }
+
     GradleRunner gradleRunner = GradleRunner.create()
       .withTestKitDir(testKitFolder.toFile())
       .withProjectDir(projectFolder.toFile())
       .withGradleVersion(gradleVersion)
       .withArguments(arguments)
+      .withEnvironment(buildEnv)
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"

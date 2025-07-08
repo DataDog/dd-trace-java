@@ -2,13 +2,12 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
+import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,8 +38,6 @@ public abstract class BaseDecorator {
             }
           },
           Functions.PrefixJoin.of("."));
-
-  private static final DDCache<String, String> HOSTNAME_CACHE = DDCaches.newFixedSizeCache(64);
 
   protected final boolean traceAnalyticsEnabled;
   protected final Double traceAnalyticsSampleRate;
@@ -199,12 +196,5 @@ public abstract class BaseDecorator {
   public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
     return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
-  }
-
-  private static String hostName(InetAddress remoteAddress, String ip) {
-    if (null != ip) {
-      return HOSTNAME_CACHE.computeIfAbsent(ip, _ip -> remoteAddress.getHostName());
-    }
-    return remoteAddress.getHostName();
   }
 }

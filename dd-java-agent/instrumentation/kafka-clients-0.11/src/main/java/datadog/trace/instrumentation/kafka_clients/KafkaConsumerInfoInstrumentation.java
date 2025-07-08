@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.kafka_clients;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_POLL;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -205,13 +205,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {
-      boolean dataStreamsEnabled;
-      if (activeSpan() != null) {
-        dataStreamsEnabled = activeSpan().traceConfig().isDataStreamsEnabled();
-      } else {
-        dataStreamsEnabled = Config.get().isDataStreamsEnabled();
-      }
-      if (dataStreamsEnabled) {
+      if (traceConfig().isDataStreamsEnabled()) {
         final AgentSpan span = startSpan(KAFKA_POLL);
         return activateSpan(span);
       }

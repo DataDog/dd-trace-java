@@ -143,7 +143,7 @@ object PlayRoutersScala {
       case POST(p"/body-json") => Action.async(parser) { request =>
         controller(BODY_JSON) {
           val body: JsValue = request.body.asJson.getOrElse(JsNull)
-          Results.Ok(Json.stringify(body))
+          Results.Ok(body)
         }
       }
     }

@@ -13,8 +13,8 @@ class AgentLoadedIntoBootstrapTest extends Specification {
   def "Agent loads in when separate jvm is launched"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
-      , "" as String[]
-      , "" as String[]
+      , []
+      , []
       , [:]
       , true) == 0
   }
@@ -28,8 +28,8 @@ class AgentLoadedIntoBootstrapTest extends Specification {
 
     expect:
     IntegrationTestUtils.runOnSeparateJvm(mainClassName
-      , "" as String[]
-      , "" as String[]
+      , []
+      , []
       , [:]
       , pathToJar as String
       , true) == 0

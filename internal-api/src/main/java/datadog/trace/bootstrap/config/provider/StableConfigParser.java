@@ -7,6 +7,7 @@ import datadog.yaml.YamlParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ public class StableConfigParser {
 
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
+  static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
   private static final String UNDEFINED_VALUE = "";
 
   /**
@@ -39,7 +41,19 @@ public class StableConfigParser {
    */
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
-      String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+      Path path = Paths.get(filePath);
+
+      // If file is over size limit, drop
+      if (Files.size(path) > MAX_FILE_SIZE_BYTES) {
+        log.warn(
+            "Configuration file {} exceeds max size {} bytes; dropping.",
+            filePath,
+            MAX_FILE_SIZE_BYTES);
+        return StableConfigSource.StableConfig.EMPTY;
+      }
+
+      String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+
       String processedContent = processTemplate(content);
       Object parsedYaml = YamlParser.parse(processedContent);
       StableConfig data = new StableConfig(parsedYaml);

@@ -5,7 +5,6 @@ import static java.util.Set.of;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

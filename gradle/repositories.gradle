@@ -1,5 +1,8 @@
 repositories {
   mavenLocal()
+  if (project.rootProject.name != "dd-trace-java" && project.rootProject.name != "buildSrc") {
+    logger.lifecycle("Using maven repository proxy: " + project.rootProject.findProperty("mavenRepositoryProxy"))
+  }
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
@@ -15,7 +18,8 @@ repositories {
     mavenContent {
       snapshotsOnly()
     }
-    url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    // see https://central.sonatype.org/publish/publish-portal-snapshots/#consuming-via-gradle
+    url 'https://central.sonatype.com/repository/maven-snapshots/'
   }
   ivy {
     artifactPattern 'https://sqreen-ci-java.s3.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'

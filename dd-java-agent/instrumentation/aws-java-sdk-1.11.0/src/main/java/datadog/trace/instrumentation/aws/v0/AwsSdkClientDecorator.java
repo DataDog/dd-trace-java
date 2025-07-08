@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
@@ -94,8 +95,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
 
-    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName)
-        && span.traceConfig().isDataStreamsEnabled()) {
+    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName) && traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
     }
 
@@ -192,7 +192,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
 
     // DSM
-    if (span.traceConfig().isDataStreamsEnabled()) {
+    if (traceConfig().isDataStreamsEnabled()) {
       if (null != streamArn && "AmazonKinesis".equals(awsServiceName)) {
         switch (awsOperation.getSimpleName()) {
           case PUT_RECORD_OPERATION_NAME:
@@ -242,7 +242,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public AgentSpan onServiceResponse(
       final AgentSpan span, final String awsService, final Response response) {
     if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
-        && span.traceConfig().isDataStreamsEnabled()) {
+        && traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 

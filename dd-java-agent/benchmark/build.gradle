@@ -1,5 +1,5 @@
 plugins {
-  id "me.champeau.jmh"
+  id 'me.champeau.jmh'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

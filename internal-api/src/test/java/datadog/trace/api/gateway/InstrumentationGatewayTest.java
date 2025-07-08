@@ -190,6 +190,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestBodyProcessed(), callback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.responseBody(), callback);
+    assertThat(cbp.getCallback(events.responseBody()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerMethod(), callback);
     assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -223,6 +226,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), callback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
+    ss.registerCallback(events.httpRoute(), callback);
+    cbp.getCallback(events.httpRoute()).accept(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -260,6 +265,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestBodyProcessed(), throwback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.responseBody(), throwback);
+    assertThat(cbp.getCallback(events.responseBody()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerMethod(), throwback);
     assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -293,6 +301,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.execCmd()).apply(null, null);
     ss.registerCallback(events.shellCmd(), throwback);
     cbp.getCallback(events.shellCmd()).apply(null, null);
+    ss.registerCallback(events.httpRoute(), throwback);
+    cbp.getCallback(events.httpRoute()).accept(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

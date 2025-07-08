@@ -3,14 +3,16 @@ package datadog.appsec.benchmark;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.datadog.appsec.config.AppSecConfig;
-import com.datadog.appsec.config.AppSecConfigDeserializer;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.ddwaf.Waf;
+import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -18,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import okio.Okio;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -38,45 +41,49 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
 public class WafBenchmark {
+  private static final JsonAdapter<Map<String, Object>> ADAPTER =
+      new Moshi.Builder()
+          .build()
+          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   static {
     BenchmarkUtil.disableLogging();
     BenchmarkUtil.initializeWaf();
   }
 
-  WafHandle ctx;
+  WafBuilder wafBuilder;
+  WafHandle wafHandle;
+  WafContext wafContext;
   Map<String, Object> wafData = new HashMap<>();
   Waf.Limits limits = new Waf.Limits(50, 500, 1000, 5000000, 5000000);
 
   @Benchmark
   public void withMetrics() throws Exception {
-    WafMetrics metricsCollector = ctx.createMetrics();
-    WafContext add = ctx.openContext();
+    WafMetrics metricsCollector = new WafMetrics();
+    wafContext = new WafContext(wafHandle);
     try {
-      add.run(wafData, limits, metricsCollector);
+      wafContext.run(wafData, limits, metricsCollector);
     } finally {
-      add.close();
+      wafContext.close();
     }
   }
 
   @Benchmark
   public void withoutMetrics() throws Exception {
-    WafContext add = ctx.openContext();
+    wafContext = new WafContext(wafHandle);
     try {
-      add.run(wafData, limits, null);
+      wafContext.run(wafData, limits, null);
     } finally {
-      add.close();
+      wafContext.close();
     }
   }
 
   @Setup(Level.Trial)
   public void setUp() throws AbstractWafException, IOException {
+    wafBuilder = new WafBuilder();
     InputStream stream = getClass().getClassLoader().getResourceAsStream("test_multi_config.json");
-    Map<String, AppSecConfig> cfg =
-        Collections.singletonMap("waf", AppSecConfigDeserializer.INSTANCE.deserialize(stream));
-    AppSecConfig waf = cfg.get("waf");
-    ctx = Waf.createHandle("waf", waf.getRawConfig());
-
+    wafBuilder.addOrUpdateConfig("waf", ADAPTER.fromJson(Okio.buffer(Okio.source(stream))));
+    wafHandle = wafBuilder.buildWafHandleInstance();
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
         KnownAddresses.REQUEST_URI_RAW.getKey(), "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
@@ -112,6 +119,14 @@ public class WafBenchmark {
 
   @TearDown(Level.Trial)
   public void teardown() {
-    ctx.close();
+    if (wafHandle != null && wafHandle.isOnline()) {
+      wafHandle.close();
+    }
+    if (wafContext != null && wafContext.isOnline()) {
+      wafContext.close();
+    }
+    if (wafBuilder != null && wafBuilder.isOnline()) {
+      wafBuilder.close();
+    }
   }
 }

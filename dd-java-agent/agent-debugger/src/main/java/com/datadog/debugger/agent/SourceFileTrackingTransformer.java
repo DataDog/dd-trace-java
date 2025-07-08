@@ -75,12 +75,22 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
     if (sourceFile == null) {
       return;
     }
+    if (!isExtensionAllowed(sourceFile)) {
+      return;
+    }
     String simpleClassName = stripPackagePath(className);
     String simpleSourceFile = removeExtension(sourceFile);
     if (simpleClassName.equals(simpleSourceFile)) {
       return;
     }
     finder.register(sourceFile, className);
+  }
+
+  private boolean isExtensionAllowed(String sourceFile) {
+    return sourceFile.endsWith(".java")
+        || sourceFile.endsWith(".kt")
+        || sourceFile.endsWith(".scala")
+        || sourceFile.endsWith(".groovy");
   }
 
   private static class SourceFileItem {

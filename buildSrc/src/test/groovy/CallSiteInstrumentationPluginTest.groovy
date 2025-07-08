@@ -10,7 +10,7 @@ class CallSiteInstrumentationPluginTest extends Specification {
     plugins {
       id 'java'
       id 'call-site-instrumentation'
-      id("com.diffplug.spotless") version "6.13.0"
+      id 'com.diffplug.spotless' version '6.13.0'
     }
     
     sourceCompatibility = JavaVersion.VERSION_1_8

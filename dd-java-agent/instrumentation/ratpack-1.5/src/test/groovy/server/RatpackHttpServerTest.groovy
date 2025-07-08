@@ -78,6 +78,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  boolean testResponseBodyJson() {
+    true
+  }
+
+  @Override
   String testPathParam() {
     true
   }

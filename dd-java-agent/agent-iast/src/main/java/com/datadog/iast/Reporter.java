@@ -140,7 +140,7 @@ public class Reporter {
   private AgentSpan startNewSpan() {
     final AgentSpanContext tagContext =
         new TagContext()
-            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE));
+            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE, true));
     final AgentSpan span =
         tracer()
             .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)

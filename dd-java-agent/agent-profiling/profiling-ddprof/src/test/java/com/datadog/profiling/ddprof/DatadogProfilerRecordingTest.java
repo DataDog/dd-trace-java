@@ -1,8 +1,10 @@
 package com.datadog.profiling.ddprof;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
@@ -20,7 +22,7 @@ class DatadogProfilerRecordingTest {
 
   @BeforeEach
   void setup() throws Exception {
-    Assume.assumeTrue(Platform.isLinux());
+    Assume.assumeTrue(OperatingSystem.isLinux());
     Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     Assume.assumeFalse(profiler.isActive());

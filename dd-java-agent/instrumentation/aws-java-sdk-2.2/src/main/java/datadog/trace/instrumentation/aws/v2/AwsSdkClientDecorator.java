@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -131,7 +132,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
-    if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+    if ("s3".equalsIgnoreCase(awsServiceName) && traceConfig().isDataStreamsEnabled()) {
       request
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
@@ -169,7 +170,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
     kinesisStreamArn.ifPresent(
         streamArn -> {
-          if (span.traceConfig().isDataStreamsEnabled()) {
+          if (traceConfig().isDataStreamsEnabled()) {
             attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
           }
           int streamNameStart = streamArn.indexOf(":stream/");
@@ -182,7 +183,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
 
     // DSM
-    if (span.traceConfig().isDataStreamsEnabled()) {
+    if (traceConfig().isDataStreamsEnabled()) {
       if (kinesisStreamArn.isPresent()
           && "kinesis".equalsIgnoreCase(awsServiceName)
           && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
@@ -324,7 +325,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
       final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
       final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
-      if (span.traceConfig().isDataStreamsEnabled()
+      if (traceConfig().isDataStreamsEnabled()
           && "kinesis".equalsIgnoreCase(awsServiceName)
           && "GetRecords".equals(awsOperationName)) {
         // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L350
@@ -373,7 +374,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
 
-      if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+      if ("s3".equalsIgnoreCase(awsServiceName) && traceConfig().isDataStreamsEnabled()) {
         long responseSize = getResponseContentLength(httpResponse);
         span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 

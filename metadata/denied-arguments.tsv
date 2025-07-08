@@ -14,6 +14,20 @@ apache_cassandra_sstableupgrade org.apache.cassandra.tools.StandaloneUpgrader   
 apache_cassandra_sstableutil    org.apache.cassandra.tools.StandaloneSSTableUtil    Skip Apache Cassandra sstableutil
 apache_cassandra_sstableverify  org.apache.cassandra.tools.StandaloneVerifier       Skip Apache Cassandra sstableverify
 
+# Oracle Database JVM based tools
+oracle_dbca                     oracle.assistants.dbca.driver.DBConfigurator            Skip Oracle Database Configuration Assistant
+oracle_dbua                     oracle.assistants.dbua.driver.StartDBUA                 Skip Oracle Database Upgrade Assistant
+oracle_emca                     oracle.sysman.assistants.emca.sdkimpl.EMConfigAssistant Skip Oracle Enterprise Manager Configuration Assistant
+oracle_invctl                   oracle.install.common.endpoints.cli.CliExecutor         Skip Oracle Inventory Control
+oracle_netca                    oracle.net.ca.NetCA                                     Skip Oracle Net Configuration Assistant
+oracle_rconfig                  oracle.sysman.assistants.rconfig.RConfig                Skip Oracle RAC Converter
+oracle_roohctl                  oracle.assistants.roohctl.RoohCtl                       Skip Oracle Read-Only Oracle Home Control
+oracle_srvctl                   oracle.ops.opsctl.OPSCTLDriver                          Skip Oracle Server Control Utility
+oracle_diagsetup                oracle.diagfw.adr.diagsetup.DiagSetup                   Skip Oracle Setup Diagnostic Tool
+oracle_ldifmigrator             oracle.ldap.util.LDIFMigration                          Skip Oracle LDIF Migration Tool
+oracle_trcasst                  oracle.net.trcasst.Jtrcasst                             Skip Oracle Trace Assistant
+oracle_trcsess                  oracle.ss.tools.trcsess.TrcSess                         Skip Oracle Session Tracer
+
 # Apache Lucene
 apache_lucene8_luke             org.apache.lucene.luke.app.desktop.LukeMain         Skip Lucene 8 Luke
 apache_lucene9_luke             org.apache.lucene.luke                              Skip Apache Netbeans

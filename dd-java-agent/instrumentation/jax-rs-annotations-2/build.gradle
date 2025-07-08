@@ -10,6 +10,12 @@ muzzle {
     module = "javax.ws.rs-api"
     versions = "[,]"
   }
+  pass {
+    group = "javax.ws.rs"
+    module = "javax.ws.rs-api"
+    name = 'javax-message-body-writer'
+    versions = "[,]"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"

@@ -237,7 +237,7 @@ public final class PercentEscaper {
   private static int nextEscapeIndex(CharSequence csq, int index, int end, boolean[] unsafeOctets) {
     for (; index < end; index++) {
       char c = csq.charAt(index);
-      if (c <= unsafeOctets.length && unsafeOctets[c]) {
+      if (c < unsafeOctets.length && unsafeOctets[c]) {
         break;
       }
     }

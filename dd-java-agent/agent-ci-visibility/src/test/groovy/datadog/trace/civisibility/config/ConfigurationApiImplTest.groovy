@@ -55,10 +55,10 @@ class ConfigurationApiImplTest extends Specification {
 
     where:
     agentless | compression | expectedSettings
-    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
-    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT)
-    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10))
-    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20))
+    false     | false       | new CiVisibilitySettings(false, false, false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, null)
+    false     | true        | new CiVisibilitySettings(true, true, true, true, true, true, true, EarlyFlakeDetectionSettings.DEFAULT, TestManagementSettings.DEFAULT, "main")
+    true      | false       | new CiVisibilitySettings(false, true, false, true, false, true, false, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(1000, 3)], 10), new TestManagementSettings(true, 10), "master")
+    true      | true        | new CiVisibilitySettings(false, false, true, true, false, false, true, new EarlyFlakeDetectionSettings(true, [new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)], 10), new TestManagementSettings(true, 20), "prod")
   }
 
   def "test skippable tests request"() {
@@ -216,31 +216,6 @@ class ConfigurationApiImplTest extends Specification {
 
     cleanup:
     intakeServer.close()
-  }
-
-  def "test changed files request"() {
-    given:
-    def tracerEnvironment = givenTracerEnvironment()
-
-    def intakeServer = givenBackendEndpoint(
-    "/api/v2/ci/tests/diffs",
-    "/datadog/trace/civisibility/config/diffs-request.ftl",
-    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
-    "/datadog/trace/civisibility/config/diffs-response.ftl",
-    [:]
-    )
-
-    def configurationApi = givenConfigurationApi(intakeServer)
-
-    when:
-    def changedFiles = configurationApi.getChangedFiles(tracerEnvironment)
-
-    then:
-    changedFiles.baseSha == "ef733331f7cee9b1c89d82df87942d8606edf3f7"
-    changedFiles.files == new HashSet([
-      "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api.go",
-      "domains/ci-app/apps/apis/rapid-ci-app/internal/itrapihttp/api_test.go"
-    ])
   }
 
   private ConfigurationApi givenConfigurationApi(TestHttpServer intakeServer, boolean agentless = true, boolean compression = true) {

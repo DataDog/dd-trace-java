@@ -184,6 +184,50 @@ apm_configuration_rules:
     Files.delete(filePath)
   }
 
+  def "test file over max size"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    if (filePath == null) {
+      throw new AssertionError("Failed to create test file")
+    }
+
+    // Create a file with valid contents, but bigger than MAX_FILE_SIZE_BYTES
+    String baseYaml = """
+config_id: 12345
+apm_configuration_default:
+    KEY_ONE: "value_one"
+apm_configuration_rules:
+"""
+    String builderYaml = """
+  - selectors:
+    - origin: language
+      matches: ["Java"]
+      operator: equals
+    configuration:
+      KEY_TWO: "value_two"
+"""
+    String bigYaml = baseYaml
+    while(bigYaml.size() < StableConfigParser.MAX_FILE_SIZE_BYTES) {
+      bigYaml += builderYaml
+    }
+
+    try {
+      Files.write(filePath, bigYaml.getBytes())
+    } catch (IOException e) {
+      throw new AssertionError("Failed to write to file: ${e.message}")
+    }
+
+    StableConfigSource.StableConfig cfg
+    try {
+      cfg = StableConfigParser.parse(filePath.toString())
+    } catch (Exception e) {
+      throw new AssertionError("Failed to parse the file: ${e.message}")
+    }
+
+    then:
+    cfg == StableConfigSource.StableConfig.EMPTY
+  }
+
   def "test processTemplate valid cases"() {
     when:
     if (envKey != null) {

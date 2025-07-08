@@ -6,7 +6,7 @@ plugins {
 
 shadowJar {
     // Define the main class for the application.
-    mainClassName = 'App'
+    mainClass = 'App'
 }
 
 def latestJdk = 17
