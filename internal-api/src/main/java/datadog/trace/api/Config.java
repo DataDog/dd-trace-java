@@ -121,6 +121,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
@@ -465,6 +467,21 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
+import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
+import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
+import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
+import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
+import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
+import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
+import static datadog.trace.api.config.RumConfig.RUM_SERVICE;
+import static datadog.trace.api.config.RumConfig.RUM_SESSION_REPLAY_SAMPLE_RATE;
+import static datadog.trace.api.config.RumConfig.RUM_SESSION_SAMPLE_RATE;
+import static datadog.trace.api.config.RumConfig.RUM_SITE;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_LONG_TASKS;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_RESOURCES;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_USER_INTERACTION;
+import static datadog.trace.api.config.RumConfig.RUM_VERSION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ADD_SPAN_POINTERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
@@ -624,6 +641,8 @@ import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.rum.RumInjectorConfig;
+import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -1196,6 +1215,9 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final int stackTraceLengthLimit;
+
+  private final boolean rumEnabled;
+  private final RumInjectorConfig rumInjectorConfig;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2683,7 +2705,36 @@ public class Config {
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
+    this.rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
+    this.rumInjectorConfig = parseRumConfig(configProvider);
+
     log.debug("New instance: {}", this);
+  }
+
+  private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
+    if (!this.rumEnabled) {
+      return null;
+    }
+    try {
+      return new RumInjectorConfig(
+          configProvider.getString(RUM_APPLICATION_ID),
+          configProvider.getString(RUM_CLIENT_TOKEN),
+          configProvider.getString(RUM_SITE),
+          configProvider.getString(RUM_SERVICE),
+          configProvider.getString(RUM_ENVIRONMENT),
+          configProvider.getInteger(RUM_MAJOR_VERSION, DEFAULT_RUM_MAJOR_VERSION),
+          configProvider.getString(RUM_VERSION),
+          configProvider.getBoolean(RUM_TRACK_USER_INTERACTION),
+          configProvider.getBoolean(RUM_TRACK_RESOURCES),
+          configProvider.getBoolean(RUM_TRACK_LONG_TASKS),
+          configProvider.getEnum(RUM_DEFAULT_PRIVACY_LEVEL, PrivacyLevel.class, null),
+          configProvider.getFloat(RUM_SESSION_SAMPLE_RATE),
+          configProvider.getFloat(RUM_SESSION_REPLAY_SAMPLE_RATE),
+          configProvider.getString(RUM_REMOTE_CONFIGURATION_ID));
+    } catch (IllegalArgumentException e) {
+      log.warn("Unable to configure RUM injection", e);
+      return null;
+    }
   }
 
   /**
@@ -4922,6 +4973,14 @@ public class Config {
     return cloudPayloadTaggingMaxTags;
   }
 
+  public boolean isRumEnabled() {
+    return this.rumEnabled;
+  }
+
+  public RumInjectorConfig getRumInjectorConfig() {
+    return this.rumInjectorConfig;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -5602,6 +5661,10 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
+        + ", rumEnabled="
+        + rumEnabled
+        + ", rumInjectorConfig="
+        + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + '}';
   }
 }

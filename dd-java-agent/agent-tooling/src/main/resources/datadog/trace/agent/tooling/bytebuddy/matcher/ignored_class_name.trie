@@ -350,6 +350,7 @@
 0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
 0 org.springframework.web.context.support.XmlWebApplicationContext
+1 org.springframework.web.filter.CompositeFilter$VirtualFilterChain
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
 0 org.springframework.web.socket.*
