@@ -23,8 +23,8 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /*
  * Benchmark                                       Mode  Cnt   Score   Error  Units
- * InjectingPipeOutputStreamBenchmark.withPipe     avgt    2  16.802          us/op
- * InjectingPipeOutputStreamBenchmark.withoutPipe  avgt    2  13.001          us/op
+ * InjectingPipeOutputStreamBenchmark.withPipe     avgt    2  15.515          us/op
+ * InjectingPipeOutputStreamBenchmark.withoutPipe  avgt    2  12.861          us/op
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 30, timeUnit = SECONDS)

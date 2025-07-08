@@ -31,7 +31,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       final Runnable onContentInjected) {
     super(downstream);
     this.marker = marker;
-    this.lookbehind = new byte[marker.length + 1];
+    this.lookbehind = new byte[marker.length];
     this.pos = 0;
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
@@ -58,13 +58,11 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
     if (marker[matchingPos++] == b) {
       if (matchingPos == marker.length) {
         found = true;
-        out.write(lookbehind[pos]);
-        pos = (pos + 1) % lookbehind.length;
         out.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        drain(lookbehind.length - 1);
+        drain();
       }
     } else {
       matchingPos = 0;
@@ -77,12 +75,15 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       out.write(b, off, len);
       return;
     }
-    if (len > marker.length * 2) {
+    if (len > marker.length * 2 - 2) {
+      // if the content is large enough, we can bulk write everything but the N trail and tail.
+      // This because the buffer can already contain some byte from a previous single write.
+      // Also we need to fill the buffer with the tail since we don't know about the next write.
       int idx = arrayContains(b, marker);
       if (idx >= 0) {
         // we have a full match. just write everything
         found = true;
-        drain(lookbehind.length);
+        drain();
         out.write(b, off, idx);
         out.write(contentToInject);
         if (onContentInjected != null) {
@@ -92,15 +93,14 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
-        for (int i = off; i < off + marker.length; i++) {
+        for (int i = off; i < off + marker.length - 1; i++) {
           write(b[i]);
         }
-        drain(lookbehind.length);
-        out.write(b, off + marker.length, len - marker.length * 2);
-        for (int i = len - marker.length; i < len; i++) {
+        drain();
+        out.write(b, off + marker.length - 1, len - marker.length * 2 + 2);
+        for (int i = len - marker.length + 1; i < len; i++) {
           write(b[i]);
         }
-        drain(lookbehind.length);
       }
     } else {
       // use slow path because the length to write is small and within the lookbehind buffer size
@@ -128,9 +128,9 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
     return -1;
   }
 
-  private void drain(int len) throws IOException {
+  private void drain() throws IOException {
     if (bufferFilled) {
-      for (int i = 0; i < len; i++) {
+      for (int i = 0; i < lookbehind.length; i++) {
         out.write(lookbehind[(pos + i) % lookbehind.length]);
       }
     } else {
@@ -144,7 +144,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   @Override
   public void close() throws IOException {
     if (!found) {
-      drain(lookbehind.length);
+      drain();
     }
     super.close();
   }
