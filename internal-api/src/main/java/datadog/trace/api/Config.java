@@ -60,6 +60,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
@@ -281,6 +282,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
@@ -1048,6 +1050,7 @@ public class Config {
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
+  private final boolean debuggerSourceFileTrackingEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -2385,6 +2388,9 @@ public class Config {
         configProvider.getInteger(
             DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
             DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
+    debuggerSourceFileTrackingEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
@@ -3986,6 +3992,10 @@ public class Config {
 
   public boolean isDistributedDebuggerEnabled() {
     return distributedDebuggerEnabled;
+  }
+
+  public boolean isDebuggerSourceFileTrackingEnabled() {
+    return debuggerSourceFileTrackingEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
