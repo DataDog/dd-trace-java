@@ -118,7 +118,7 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         return span.meta.containsKey(name)
       }
     } catch (SpockTimeoutError toe) {
-      throw new AssertionError("No matching metric with name $name found. Metrics found: ${new JsonBuilder(found).toPrettyString()}")
+      throw new AssertionError("No matching meta with name $name found")
     }
   }
 
