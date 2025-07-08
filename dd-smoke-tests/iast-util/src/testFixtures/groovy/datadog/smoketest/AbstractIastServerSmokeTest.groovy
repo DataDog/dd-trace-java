@@ -112,7 +112,6 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
   }
 
   protected void hasMeta(final String name) {
-    final found = []
     try {
       waitForSpan(pollingConditions()) { span ->
         return span.meta.containsKey(name)
