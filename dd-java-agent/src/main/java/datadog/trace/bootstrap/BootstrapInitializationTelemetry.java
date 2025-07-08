@@ -53,11 +53,6 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
-  /**
-   * Indicates that the bootstrapping process completed successfully
-   */
-  public abstract void onSuccess();
-
   public abstract void setInjectResult(String result);
 
   public abstract void setInjectResultReason(String reason);
@@ -102,9 +97,6 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {}
-
-    @Override
-    public void onSuccess() {}
   }
 
   public static final class JsonBased extends BootstrapInitializationTelemetry {
@@ -115,6 +107,7 @@ public abstract class BootstrapInitializationTelemetry {
 
     // one way false to true
     private volatile boolean incomplete = false;
+    private volatile boolean error = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
@@ -156,6 +149,7 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {
+      error = true;
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
       setInjectResult("error");
       setInjectResultReason(t.getMessage());
@@ -170,6 +164,7 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(String reasonCode) {
+      error = true;
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
       setInjectResult("error");
       setInjectResultReason(reasonCode);
@@ -206,6 +201,11 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {
+      if (!this.incomplete && !this.error) {
+        setInjectResult("success");
+        setInjectResultReason("Successfully configured ddtrace package");
+        setInjectResultClass("success");
+      }
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
@@ -238,14 +238,6 @@ public abstract class BootstrapInitializationTelemetry {
         // Since this is the reporting mechanism, there's little recourse here
         // Decided to simply ignore - arguably might want to write to stderr
       }
-    }
-
-    @Override
-    public void onSuccess() {
-      onPoint("library_entrypoint.success", "reason:success");
-      setInjectResult("success");
-      setInjectResultReason("Successfully configured ddtrace package");
-      setInjectResultClass("success");
     }
   }
 

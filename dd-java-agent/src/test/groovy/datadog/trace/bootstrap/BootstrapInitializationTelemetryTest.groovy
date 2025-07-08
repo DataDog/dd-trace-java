@@ -65,6 +65,17 @@ class BootstrapInitializationTelemetryTest extends Specification {
     capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","resultReason":"jdk_tool","resultClass":"incorrect_installation"},"points":[{"name":"library_entrypoint.abort","tags":["reason:jdk_tool"]}]}'
   }
 
+  def "test success"() {
+    when:
+    initTelemetry.initMetaInfo("runtime_name", "java")
+    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+
+    initTelemetry.finish()
+
+    then:
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"success","resultReason":"Successfully configured ddtrace package","resultClass":"success"},"points":[{"name":"library_entrypoint.complete"}]}'
+  }
+
   def "test abort unknown"() {
     when:
     initTelemetry.initMetaInfo("runtime_name", "java")
