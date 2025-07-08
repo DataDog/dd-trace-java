@@ -1740,6 +1740,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     !handlerRan
+
+    when:
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
 
