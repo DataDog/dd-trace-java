@@ -17,6 +17,7 @@ public class RumInjectorConfig {
     REGIONS.put("us5.datadoghq.com", "us5");
     REGIONS.put("datadoghq.eu", "eu1");
     REGIONS.put("ap1.datadoghq.com", "ap1");
+    REGIONS.put("ap2.datadoghq.com", "ap2");
   }
 
   /** RUM application ID */
@@ -30,7 +31,7 @@ public class RumInjectorConfig {
   /** The environment of the service (e.g., `prod`, `staging` or `dev). */
   @Nullable public final String env;
   /** SDK major version. */
-  public int majorVersion;
+  public final int majorVersion;
   /** The version of the service (e.g., `0.1.0`, `a8dj92`, `2024-30`). */
   @Nullable public final String version;
   /** Enables or disables the automatic collection of users actions (e.g., clicks). */
@@ -50,6 +51,8 @@ public class RumInjectorConfig {
   @Nullable public final Float sessionReplaySampleRate;
   /** The remote configuration identifier. */
   @Nullable public final String remoteConfigurationId;
+  /** The JSON representation of injector config to use in the injected SDK snippet. */
+  public final String jsonPayload;
 
   public RumInjectorConfig(
       String applicationId,
@@ -108,6 +111,7 @@ public class RumInjectorConfig {
       throw new IllegalArgumentException(
           "Either remote configuration id or both session and session replay sample rates must be set");
     }
+    this.jsonPayload = jsonPayload();
   }
 
   private static boolean validateSite(String site) {
@@ -130,7 +134,7 @@ public class RumInjectorConfig {
         + "','DD_RUM')\n"
         + "window.DD_RUM.onReady(function() {\n"
         + "  window.DD_RUM.init("
-        + jsonPayload()
+        + this.jsonPayload
         + ");\n"
         + "});\n"
         + "</script>\n";

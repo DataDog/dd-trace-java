@@ -7,7 +7,7 @@ import static org.mockito.Mockito.mock
 import static org.mockito.Mockito.when
 
 class RumInjectorTest extends DDSpecification {
-  public static final String UTF8 = "UTF-8"
+  static final String UTF8 = "UTF-8"
 
   void 'disabled injector'(){
     setup:

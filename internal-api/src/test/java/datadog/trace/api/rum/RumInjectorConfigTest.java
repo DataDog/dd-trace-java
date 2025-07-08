@@ -58,7 +58,7 @@ class RumInjectorConfigTest {
       },
       delimiterString = "|",
       nullValues = "null")
-  void testSnippet(
+  void testValidConfig(
       String applicationId,
       String clientToken,
       String site,
