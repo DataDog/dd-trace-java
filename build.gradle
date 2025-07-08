@@ -117,10 +117,6 @@ nexusPublishing {
   }
 }
 
-wrapper {
-  distributionType = Wrapper.DistributionType.ALL
-}
-
 def writeMainVersionFileTask = tasks.register('writeMainVersionFile') {
   def versionFile = file("${rootProject.buildDir}/main.version")
   inputs.property "version", scmVersion.version
