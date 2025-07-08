@@ -58,7 +58,6 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -325,19 +324,20 @@ public class Agent {
       }
     }
 
+    boolean retryProfilerStart = false;
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
         // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
         // multiple times
         // If early profiling is enabled then this call will start profiling.
         // If early profiling is disabled then later call will do this.
-        startProfilingAgent(true, inst);
+        retryProfilerStart = startProfilingAgent(true, true, inst);
       } else {
         log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
         // deadlock.
         // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
-        PROFILER_INIT_AFTER_JMX = () -> startProfilingAgent(false, inst);
+        PROFILER_INIT_AFTER_JMX = () -> startProfilingAgent(false, true, inst);
       }
     }
 
@@ -433,7 +433,7 @@ public class Agent {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
         registerLogManagerCallback(new StartProfilingAgentCallback(inst));
       } else {
-        startProfilingAgent(false, inst);
+        startProfilingAgent(false, retryProfilerStart, inst);
         // only enable instrumentation based profilers when we know JFR is ready
         InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
@@ -652,7 +652,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startProfilingAgent(false, inst);
+      startProfilingAgent(false, true, inst);
       // only enable instrumentation based profilers when we know JFR is ready
       InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
@@ -1215,48 +1215,51 @@ public class Agent {
     return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
-  private static void startProfilingAgent(final boolean isStartingFirst, Instrumentation inst) {
-    StaticEventLogger.begin("ProfilingAgent");
-
+  private static boolean startProfilingAgent(
+      final boolean earlyStart, final boolean firstAttempt, Instrumentation inst) {
     if (isAwsLambdaRuntime()) {
-      log.info("Profiling not supported in AWS Lambda runtimes");
-      return;
+      if (firstAttempt) {
+        log.info("Profiling not supported in AWS Lambda runtimes");
+      }
+      return false;
     }
 
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-    try {
-      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
-      final Class<?> profilingAgentClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod(
-              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
+    boolean requestRetry = false;
+
+    if (firstAttempt) {
+      StaticEventLogger.begin("ProfilingAgent");
+      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+      try {
+        Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+        final Class<?> profilingAgentClass =
+            AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+        final Method profilingInstallerMethod =
+            profilingAgentClass.getMethod("run", Boolean.TYPE, Instrumentation.class);
+        requestRetry = (boolean) profilingInstallerMethod.invoke(null, earlyStart, inst);
+      } catch (final Throwable ex) {
+        log.error(SEND_TELEMETRY, "Throwable thrown while starting profiling agent", ex);
+      } finally {
+        Thread.currentThread().setContextClassLoader(contextLoader);
+      }
+      StaticEventLogger.end("ProfilingAgent");
+    }
+    if (!earlyStart) {
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
        */
-      if (!isStartingFirst) {
-        log.debug("Scheduling scope event factory registration");
-        WithGlobalTracer.registerOrExecute(
-            new WithGlobalTracer.Callback() {
-              @Override
-              public void withTracer(TracerAPI tracer) {
-                log.debug("Initializing profiler tracer integrations");
-                tracer.getProfilingContext().onStart();
-              }
-            });
-      }
-    } catch (final Throwable t) {
-      log.error(
-          SEND_TELEMETRY,
-          "Throwable thrown while starting profiling agent "
-              + Arrays.toString(t.getCause().getStackTrace()));
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
+      initProfilerContext();
     }
+    return requestRetry;
+  }
 
-    StaticEventLogger.end("ProfilingAgent");
+  private static void initProfilerContext() {
+    log.debug("Scheduling profiler context initialization");
+    WithGlobalTracer.registerOrExecute(
+        tracer -> {
+          log.debug("Initializing profiler context integration");
+          tracer.getProfilingContext().onStart();
+        });
   }
 
   private static boolean isAwsLambdaRuntime() {

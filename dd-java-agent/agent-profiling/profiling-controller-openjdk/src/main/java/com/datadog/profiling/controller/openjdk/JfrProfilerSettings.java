@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk;
 
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent;
 import datadog.environment.JavaVirtualMachine;
@@ -14,16 +15,18 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
   private static final String EXCEPTION_HISTO_REPORT_LIMIT_KEY = "Exception Histo Report Limit";
   private static final String EXCEPTION_HISTO_SIZE_LIMIT_KEY = "Exception Histo Size Limit";
   private final String jfrImplementation;
+  private final boolean isDdprofActive;
 
   public JfrProfilerSettings(
       ConfigProvider configProvider,
-      String ddprofUnavailableReason,
+      ControllerContext.Snapshot context,
       boolean hasJfrStackDepthApplied) {
-    super(configProvider, ddprofUnavailableReason, hasJfrStackDepthApplied);
+    super(configProvider, context.getDatadogProfilerUnavailableReason(), hasJfrStackDepthApplied);
     this.jfrImplementation =
         Platform.isNativeImage()
             ? "native-image"
             : (JavaVirtualMachine.isOracleJDK8() ? "oracle" : "openjdk");
+    this.isDdprofActive = context.isDatadogProfilerEnabled();
   }
 
   public void publish() {
@@ -56,8 +59,16 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       new ProfilerSettingEvent(PERF_EVENTS_PARANOID_KEY, perfEventsParanoid).commit();
       new ProfilerSettingEvent(NATIVE_STACKS_KEY, String.valueOf(hasNativeStacks)).commit();
       new ProfilerSettingEvent(JFR_IMPLEMENTATION_KEY, jfrImplementation).commit();
-      if (hasJfrStackDepthApplied) {
-        new ProfilerSettingEvent(STACK_DEPTH_KEY, String.valueOf(stackDepth)).commit();
+      new ProfilerSettingEvent(
+              "JFR " + STACK_DEPTH_KEY,
+              String.valueOf(hasJfrStackDepthApplied ? requestedStackDepth : jfrStackDepth))
+          .commit();
+      if (isDdprofActive) {
+        // emit this setting only if datadog profiler is also active
+        new ProfilerSettingEvent(
+                "ddprof " + STACK_DEPTH_KEY,
+                String.valueOf(hasJfrStackDepthApplied ? requestedStackDepth : jfrStackDepth))
+            .commit();
       }
       new ProfilerSettingEvent(SELINUX_STATUS_KEY, seLinuxStatus).commit();
       if (ddprofUnavailableReason != null) {
