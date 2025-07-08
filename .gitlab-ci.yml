@@ -149,6 +149,7 @@ default:
         - .gradle/caches
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
+      unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - '$CI_SERVER_VERSION-base'
         - '$CI_SERVER_VERSION-lib'
@@ -158,6 +159,7 @@ default:
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
       policy: $BUILD_CACHE_POLICY
+      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
     - mkdir -p .gradle
