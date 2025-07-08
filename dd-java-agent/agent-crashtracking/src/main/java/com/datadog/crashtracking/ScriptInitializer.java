@@ -5,7 +5,7 @@ import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import datadog.trace.util.PidHelper;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -36,12 +36,12 @@ public final class ScriptInitializer {
   }
 
   static InputStream getCrashUploaderTemplate() {
-    String name = Platform.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
+    String name = OperatingSystem.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
     return CrashUploader.class.getResourceAsStream(name);
   }
 
   static InputStream getOomeNotifierTemplate() {
-    String name = Platform.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
+    String name = OperatingSystem.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
     return OOMENotifier.class.getResourceAsStream(name);
   }
 

@@ -2,8 +2,9 @@ package datadog.smoketest
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.civisibility.CiVisibilitySmokeTest
+import datadog.trace.util.ComparableVersion
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -84,49 +85,49 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
   }
 
   protected void givenGradleVersionIsCompatibleWithCurrentJvm(String gradleVersion) {
-    Assumptions.assumeTrue(isSupported(gradleVersion),
+    Assumptions.assumeTrue(isSupported(new ComparableVersion(gradleVersion)),
       "Current JVM " + Jvm.current.javaVersion + " does not support Gradle version " + gradleVersion)
   }
 
-  private static boolean isSupported(String gradleVersion) {
+  private static boolean isSupported(ComparableVersion gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
     if (Jvm.current.isJavaVersionCompatible(24)) {
-      return gradleVersion >= "8.14"
+      return gradleVersion.compareTo(new ComparableVersion("8.14")) >= 0
     } else if (Jvm.current.java21Compatible) {
-      return gradleVersion >= "8.4"
+      return gradleVersion.compareTo(new ComparableVersion("8.4")) >= 0
     } else if (Jvm.current.java20) {
-      return gradleVersion >= "8.1"
+      return gradleVersion.compareTo(new ComparableVersion("8.1")) >= 0
     } else if (Jvm.current.java19) {
-      return gradleVersion >= "7.6"
+      return gradleVersion.compareTo(new ComparableVersion("7.6")) >= 0
     } else if (Jvm.current.java18) {
-      return gradleVersion >= "7.5"
+      return gradleVersion.compareTo(new ComparableVersion("7.5")) >= 0
     } else if (Jvm.current.java17) {
-      return gradleVersion >= "7.3"
+      return gradleVersion.compareTo(new ComparableVersion("7.3")) >= 0
     } else if (Jvm.current.java16) {
-      return gradleVersion >= "7.0"
+      return gradleVersion.compareTo(new ComparableVersion("7.0")) >= 0
     } else if (Jvm.current.java15) {
-      return gradleVersion >= "6.7"
+      return gradleVersion.compareTo(new ComparableVersion("6.7")) >= 0
     } else if (Jvm.current.java14) {
-      return gradleVersion >= "6.3"
+      return gradleVersion.compareTo(new ComparableVersion("6.3")) >= 0
     } else if (Jvm.current.java13) {
-      return gradleVersion >= "6.0"
+      return gradleVersion.compareTo(new ComparableVersion("6.0")) >= 0
     } else if (Jvm.current.java12) {
-      return gradleVersion >= "5.4"
+      return gradleVersion.compareTo(new ComparableVersion("5.4")) >= 0
     } else if (Jvm.current.java11) {
-      return gradleVersion >= "5.0"
+      return gradleVersion.compareTo(new ComparableVersion("5.0")) >= 0
     } else if (Jvm.current.java10) {
-      return gradleVersion >= "4.7"
+      return gradleVersion.compareTo(new ComparableVersion("4.7")) >= 0
     } else if (Jvm.current.java9) {
-      return gradleVersion >= "4.3"
+      return gradleVersion.compareTo(new ComparableVersion("4.3")) >= 0
     } else if (Jvm.current.java8) {
-      return gradleVersion >= "2.0"
+      return gradleVersion.compareTo(new ComparableVersion("2.0")) >= 0
     }
     return false
   }
 
   protected void givenConfigurationCacheIsCompatibleWithCurrentPlatform(boolean configurationCacheEnabled) {
     if (configurationCacheEnabled) {
-      Assumptions.assumeFalse(Platform.isIbm8(), "Configuration cache is not compatible with IBM 8")
+      Assumptions.assumeFalse(JavaVirtualMachine.isIbm8(), "Configuration cache is not compatible with IBM 8")
     }
   }
 

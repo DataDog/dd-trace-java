@@ -143,20 +143,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (isMetricsEnabled()) {
-      sink.register(this);
-      thread.start();
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new ReportTask(),
-              this,
-              reportingInterval,
-              reportingInterval,
-              reportingIntervalTimeUnit);
-      log.debug("started metrics aggregator");
-    } else {
-      log.debug("metrics not supported by trace agent");
-    }
+    sink.register(this);
+    thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+    log.debug("started metrics aggregator");
   }
 
   private boolean isMetricsEnabled() {
