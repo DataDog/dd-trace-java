@@ -15,13 +15,18 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   private static final MethodHandle IS_READY_MH = getMh("isReady");
   private static final MethodHandle SET_WRITELISTENER_MH = getMh("setWriteListener");
 
-  private static final MethodHandle getMh(final String name) {
+  private static MethodHandle getMh(final String name) {
     try {
       return new MethodHandles(ServletOutputStream.class.getClassLoader())
           .method(ServletOutputStream.class, name);
     } catch (Throwable ignored) {
       return null;
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
   }
 
   public WrappedServletOutputStream(
@@ -62,8 +67,9 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     try {
       return (boolean) IS_READY_MH.invoke(delegate);
     } catch (Throwable e) {
-      // how to sneaky throw?
-      throw new RuntimeException(e);
+      sneakyThrow(e);
+      // will never return a value but added for the compiler
+      return false;
     }
   }
 
@@ -74,8 +80,7 @@ public class WrappedServletOutputStream extends ServletOutputStream {
     try {
       SET_WRITELISTENER_MH.invoke(delegate, writeListener);
     } catch (Throwable e) {
-      // how to sneaky throw?
-      throw new RuntimeException(e);
+      sneakyThrow(e);
     }
   }
 }

@@ -74,7 +74,8 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   public void onInjected() {
     try {
       setHeader("x-datadog-rum-injected", "1");
-    } catch (Throwable ignored2) {
+    } catch (Throwable ignored) {
+      // suppress exception if arisen setting this header by us.
     }
   }
 

@@ -9,7 +9,7 @@ import javax.annotation.Nullable;
 public final class RumInjector {
   private static final RumInjector INSTANCE = new RumInjector(Config.get());
   private static final String MARKER = "</head>";
-  private static final Function<String, byte[]> MARKER_ADDER =
+  private static final Function<String, byte[]> MARKER_BYTES =
       charset -> {
         try {
           return MARKER.getBytes(charset);
@@ -23,7 +23,7 @@ public final class RumInjector {
 
   private final DDCache<String, byte[]> snippetCache;
   private final DDCache<String, byte[]> markerCache;
-  private final Function<String, byte[]> snippetAdder;
+  private final Function<String, byte[]> snippetBytes;
 
   RumInjector(Config config) {
     boolean rumEnabled = config.isRumEnabled();
@@ -34,7 +34,7 @@ public final class RumInjector {
       this.snippet = injectorConfig.getSnippet();
       this.snippetCache = DDCaches.newFixedSizeCache(16);
       this.markerCache = DDCaches.newFixedSizeCache(16);
-      this.snippetAdder =
+      this.snippetBytes =
           charset -> {
             try {
               return snippet.getBytes(charset);
@@ -47,7 +47,7 @@ public final class RumInjector {
       this.snippet = null;
       this.snippetCache = null;
       this.markerCache = null;
-      this.snippetAdder = null;
+      this.snippetBytes = null;
     }
   }
 
@@ -74,7 +74,7 @@ public final class RumInjector {
     if (!this.enabled) {
       return null;
     }
-    return this.snippetCache.computeIfAbsent(encoding, this.snippetAdder);
+    return this.snippetCache.computeIfAbsent(encoding, this.snippetBytes);
   }
 
   /**
@@ -88,6 +88,6 @@ public final class RumInjector {
     if (!this.enabled) {
       return null;
     }
-    return this.markerCache.computeIfAbsent(encoding, MARKER_ADDER);
+    return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 }
