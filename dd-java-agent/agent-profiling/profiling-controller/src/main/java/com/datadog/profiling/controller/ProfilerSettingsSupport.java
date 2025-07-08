@@ -2,6 +2,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
@@ -108,7 +109,8 @@ public abstract class ProfilerSettingsSupport {
 
   protected final ProfilerActivationSetting profilerActivationSetting;
 
-  protected final int stackDepth;
+  protected final int jfrStackDepth;
+  protected final int requestedStackDepth;
   protected final boolean hasJfrStackDepthApplied;
 
   protected ProfilerSettingsSupport(
@@ -170,11 +172,10 @@ public abstract class ProfilerSettingsSupport {
                     configProvider.getString(
                         "profiling.async.cstack",
                         ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
-    stackDepth =
+    requestedStackDepth =
         configProvider.getInteger(
-            ProfilingConfig.PROFILING_STACKDEPTH,
-            ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT,
-            ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
+            ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
+    jfrStackDepth = getStackDepth();
 
     seLinuxStatus = getSELinuxStatus();
     this.ddprofUnavailableReason = ddprofUnavailableReason;
@@ -189,6 +190,30 @@ public abstract class ProfilerSettingsSupport {
     logger.debug(
         SEND_TELEMETRY,
         "Profiler settings: " + this); // telemetry receiver does not recognize formatting
+  }
+
+  private static int getStackDepth() {
+    String value =
+        JavaVirtualMachine.getVmOptions().stream()
+            .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
+            .findFirst()
+            .orElse(null);
+    if (value != null) {
+      int start = value.indexOf("stackdepth=");
+      if (start != -1) {
+        start += "stackdepth=".length();
+        int end = value.indexOf(',', start);
+        if (end == -1) {
+          end = value.length();
+        }
+        try {
+          return Integer.parseInt(value.substring(start, end));
+        } catch (NumberFormatException e) {
+          logger.debug(SEND_TELEMETRY, "Failed to parse stack depth from JFR options: " + value, e);
+        }
+      }
+    }
+    return 64; // default stack depth if not set in JFR options
   }
 
   private static String getServiceInjection(ConfigProvider configProvider) {
@@ -284,7 +309,8 @@ public abstract class ProfilerSettingsSupport {
         + ", serviceInjection='" + serviceInjection + '\''
         + ", ddprofUnavailableReason='" + ddprofUnavailableReason + '\''
         + ", profilerActivationSetting=" + profilerActivationSetting
-        + ", stackDepth=" + stackDepth
+        + ", jfrStackDepth=" + jfrStackDepth
+        + ", requestedStackDepth=" + requestedStackDepth
         + ", hasJfrStackDepthApplied=" + hasJfrStackDepthApplied
         + '}';
     // spotless:on

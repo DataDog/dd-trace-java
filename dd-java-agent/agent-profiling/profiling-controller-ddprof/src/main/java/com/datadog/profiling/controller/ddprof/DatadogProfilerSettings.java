@@ -27,7 +27,9 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
     datadogProfiler.recordSetting(PERF_EVENTS_PARANOID_KEY, perfEventsParanoid);
     datadogProfiler.recordSetting(NATIVE_STACKS_KEY, String.valueOf(hasNativeStacks));
     datadogProfiler.recordSetting(JFR_IMPLEMENTATION_KEY, "ddprof");
-    datadogProfiler.recordSetting(STACK_DEPTH_KEY, String.valueOf(stackDepth));
+    datadogProfiler.recordSetting(
+        "ddprof " + STACK_DEPTH_KEY,
+        String.valueOf(requestedStackDepth)); // ddprof-java will accept the requested stack depth
     datadogProfiler.recordSetting(SELINUX_STATUS_KEY, seLinuxStatus);
     if (serviceInstrumentationType != null) {
       datadogProfiler.recordSetting(SERVICE_INSTRUMENTATION_TYPE, serviceInstrumentationType);

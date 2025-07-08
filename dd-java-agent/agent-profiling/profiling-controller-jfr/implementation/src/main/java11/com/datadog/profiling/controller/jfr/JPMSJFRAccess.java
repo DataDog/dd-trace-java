@@ -51,8 +51,7 @@ public class JPMSJFRAccess extends JFRAccess {
 
     jvmClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.JVM");
     repositoryClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.Repository");
-    safePathClass =
-        JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
+    safePathClass = safePathClass();
     Object jvm = getJvm();
     setStackDepthMH = getJvmMethodHandle(jvm, "setStackDepth", int.class);
     setRepositoryBaseMH = setRepositoryBaseMethodHandle();
@@ -60,9 +59,22 @@ public class JPMSJFRAccess extends JFRAccess {
     getTimeConversionFactorMH = getJvmMethodHandle(jvm, "getTimeConversionFactor");
   }
 
-  private Object getJvm()
-      throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-    return jvmClass.getMethod("getJVM").invoke(null);
+  private static Class<?> safePathClass() {
+    try {
+      return JFRAccess.class
+          .getClassLoader()
+          .loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
+    } catch (ClassNotFoundException e) {
+      return Path.class; // no SafePath with SecurityManager gone
+    }
+  }
+
+  private Object getJvm() {
+    try {
+      return jvmClass.getMethod("getJVM").invoke(null);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+    }
+    return null;
   }
 
   private MethodHandle getJvmMethodHandle(Object jvm, String method, Class... args)
@@ -97,6 +109,11 @@ public class JPMSJFRAccess extends JFRAccess {
   }
 
   private static void patchModuleAccess(Instrumentation inst) {
+    if (inst == null) {
+      // used in testing; we don't have instrumentation and will patch the module access in the test
+      // task
+      return;
+    }
     Module unnamedModule = JFRAccess.class.getClassLoader().getUnnamedModule();
     Module targetModule = Event.class.getModule();
 
@@ -126,7 +143,10 @@ public class JPMSJFRAccess extends JFRAccess {
   @Override
   public boolean setBaseLocation(String location) {
     try {
-      Object safePath = safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
+      Object safePath =
+          Path.class.isAssignableFrom(safePathClass)
+              ? Paths.get(location)
+              : safePathClass.getConstructor(Path.class).newInstance(Paths.get(location));
       setRepositoryBaseMH.invoke(safePath);
       return true;
     } catch (Throwable throwable) {
