@@ -730,10 +730,13 @@ public class Agent {
       // it is safe to initialize crashtracking early
       // since it can take 100ms+ to initialize the native library we will defer the initialization
       // ... unless we request early start with the debug config flag
-      if (ConfigProvider.getInstance()
-          .getBoolean(
-              CrashTrackingConfig.CRASH_TRACKING_START_EARLY,
-              CrashTrackingConfig.CRASH_TRACKING_START_EARLY_DEFAULT)) {
+      boolean forceEarlyStart = CrashTrackingConfig.CRASH_TRACKING_START_EARLY_DEFAULT;
+      String forceEarlyStartStr =
+          ddGetProperty("dd." + CrashTrackingConfig.CRASH_TRACKING_START_EARLY);
+      if (forceEarlyStartStr != null) {
+        forceEarlyStart = Boolean.parseBoolean(forceEarlyStartStr);
+      }
+      if (forceEarlyStart) {
         initializeCrashTrackingDefault();
       } else {
         AgentTaskScheduler.INSTANCE.execute(Agent::initializeCrashTrackingDefault);
