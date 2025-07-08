@@ -20,10 +20,10 @@ def isTestingInstrumentation(Project project) {
 }
 
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
-  maxParallelUsages = 2
+  maxParallelUsages = 3
 }
 
-// Force timeout after 9 minutes (CircleCI defaults will fail after 10 minutes without output)
+// Force timeout after 9 minutes (The timeout is configurable per job, default job timeout is 1h)
 def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 testing {
@@ -69,7 +69,6 @@ tasks.withType(Test).configureEach {
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes([])
     setIncludes(["**/*ForkedTest*"])
-    jvmArgs += ["-Xms256M", "-Xmx256M"]
     forkEvery 1
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
@@ -122,6 +121,16 @@ if (!project.property("activePartition")) {
   project.afterEvaluate {
     tasks.withType(Test).configureEach {
       enabled = false
+    }
+  }
+}
+
+tasks.withType(Test) {
+  // https://docs.gradle.com/develocity/flaky-test-detection/
+  // https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
+  develocity.testRetry {
+    if (System.getenv().containsKey("CI")) {
+      maxRetries = 3
     }
   }
 }

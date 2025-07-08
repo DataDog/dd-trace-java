@@ -8,7 +8,6 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.diff.Diff;
-import datadog.trace.civisibility.diff.FileDiff;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
@@ -106,6 +105,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .env(config.getEnv())
         .repositoryUrl(gitInfo.getRepositoryURL())
         .branch(gitInfo.getBranch())
+        .tag(gitInfo.getTag())
         .sha(gitInfo.getCommit().getSha())
         .commitMessage(gitInfo.getCommit().getFullMessage())
         .osPlatform(wellKnownTags.getOsPlatform().toString())
@@ -214,7 +214,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
                 getTestManagementTestsByModule(
                     tracerEnvironment, testManagementSettings.isEnabled()));
     Future<Diff> pullRequestDiffFuture =
-        executor.submit(() -> getPullRequestDiff(tracerEnvironment, impactedTestsEnabled));
+        executor.submit(
+            () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
     Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
@@ -403,8 +404,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   }
 
   @Nonnull
-  private Diff getPullRequestDiff(
-      TracerEnvironment tracerEnvironment, boolean impactedTestsDetectionEnabled) {
+  private Diff getPullRequestDiff(boolean impactedTestsDetectionEnabled, String defaultBranch) {
     if (!impactedTestsDetectionEnabled) {
       return LineDiff.EMPTY;
     }
@@ -413,47 +413,23 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       if (repositoryRoot != null) {
         // ensure repo is not shallow before attempting to get git diff
         gitRepoUnshallow.unshallow();
-        Diff diff =
-            gitClient.getGitDiff(
-                pullRequestInfo.getPullRequestBaseBranchSha(),
-                pullRequestInfo.getGitCommitHeadSha());
+
+        String baseCommitSha = pullRequestInfo.getPullRequestBaseBranchSha();
+        if (baseCommitSha == null) {
+          baseCommitSha =
+              gitClient.getBaseCommitSha(pullRequestInfo.getPullRequestBaseBranch(), defaultBranch);
+        }
+
+        Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getGitCommitHeadSha());
         if (diff != null) {
           return diff;
         }
       }
-
     } catch (InterruptedException e) {
       LOGGER.error("Interrupted while getting git diff for PR: {}", pullRequestInfo, e);
       Thread.currentThread().interrupt();
-
     } catch (Exception e) {
       LOGGER.error("Could not get git diff for PR: {}", pullRequestInfo, e);
-    }
-
-    if (config.isCiVisibilityImpactedTestsBackendRequestEnabled()) {
-      try {
-        ChangedFiles changedFiles = configurationApi.getChangedFiles(tracerEnvironment);
-
-        // attempting to use base SHA returned by the backend to calculate git diff
-        if (repositoryRoot != null) {
-          // ensure repo is not shallow before attempting to get git diff
-          gitRepoUnshallow.unshallow();
-          Diff diff = gitClient.getGitDiff(changedFiles.getBaseSha(), tracerEnvironment.getSha());
-          if (diff != null) {
-            return diff;
-          }
-        }
-
-        // falling back to file-level granularity
-        return new FileDiff(changedFiles.getFiles());
-
-      } catch (InterruptedException e) {
-        LOGGER.error("Interrupted while getting git diff for: {}", tracerEnvironment, e);
-        Thread.currentThread().interrupt();
-
-      } catch (Exception e) {
-        LOGGER.error("Could not get git diff for: {}", tracerEnvironment, e);
-      }
     }
 
     return LineDiff.EMPTY;

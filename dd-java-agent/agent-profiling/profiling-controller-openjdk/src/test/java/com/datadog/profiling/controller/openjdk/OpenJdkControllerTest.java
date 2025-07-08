@@ -12,14 +12,16 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRI
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import jdk.jfr.Recording;
-import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,6 +30,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class OpenJdkControllerTest {
 
   private static final String TEST_NAME = "recording name";
+
+  @BeforeAll
+  static void setupSpec() {
+    assumeFalse(JavaVirtualMachine.isJ9());
+  }
 
   @Test
   public void testCreateContinuousRecording() throws Exception {
@@ -194,7 +201,7 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testNativeProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    Assumptions.assumeFalse(isNativeMethodSampleAvailable());
+    assumeFalse(isNativeMethodSampleAvailable());
     Properties props = getConfigProperties();
 
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);

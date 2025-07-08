@@ -1,4 +1,5 @@
 import com.zaxxer.hikari.pool.ProxyLeakTask
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import jdk.jfr.Recording
@@ -7,10 +8,14 @@ import org.openjdk.jmc.common.item.IAttribute
 import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.common.unit.UnitLookup
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
+import spock.lang.Requires
 import spock.lang.Shared
 
 import java.nio.file.Files
 
+@Requires({
+  !JavaVirtualMachine.isJ9()
+})
 class KnownExcludesForkedTest extends AgentTestRunner {
   private static final IAttribute<String> TYPE =
   Attribute.attr("type", "type", "Exception type", UnitLookup.PLAIN_TEXT)

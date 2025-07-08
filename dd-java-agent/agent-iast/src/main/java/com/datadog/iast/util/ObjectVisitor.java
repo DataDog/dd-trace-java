@@ -3,7 +3,7 @@ package com.datadog.iast.util;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -198,7 +198,7 @@ public class ObjectVisitor {
   @Nullable
   private static Method fetchTrySetAccessibleMethod() {
     Method method = null;
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         method = Field.class.getMethod("trySetAccessible");
       } catch (NoSuchMethodException e) {

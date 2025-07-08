@@ -1,17 +1,18 @@
 package datadog.trace.bootstrap.config.provider;
 
-import datadog.cli.CLIHelper;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.ConfigurationMap;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Rule;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.Selector;
-import datadog.trace.bootstrap.config.provider.stableconfigyaml.StableConfigYaml;
+import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
+import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
+import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
 import datadog.yaml.YamlParser;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +20,10 @@ import org.slf4j.LoggerFactory;
 public class StableConfigParser {
   private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
 
-  private static final Set<String> VM_ARGS = new HashSet<>(CLIHelper.getVmArgs());
+  private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
+  private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
+  static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
+  private static final String UNDEFINED_VALUE = "";
 
   /**
    * Parses a configuration file and returns a stable configuration object.
@@ -37,11 +41,26 @@ public class StableConfigParser {
    */
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
-      StableConfigYaml data = YamlParser.parse(filePath, StableConfigYaml.class);
+      Path path = Paths.get(filePath);
 
-      String configId = data.getConfig_id();
-      ConfigurationMap configMap = data.getApm_configuration_default();
-      List<Rule> rules = data.getApm_configuration_rules();
+      // If file is over size limit, drop
+      if (Files.size(path) > MAX_FILE_SIZE_BYTES) {
+        log.warn(
+            "Configuration file {} exceeds max size {} bytes; dropping.",
+            filePath,
+            MAX_FILE_SIZE_BYTES);
+        return StableConfigSource.StableConfig.EMPTY;
+      }
+
+      String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+
+      String processedContent = processTemplate(content);
+      Object parsedYaml = YamlParser.parse(processedContent);
+      StableConfig data = new StableConfig(parsedYaml);
+
+      String configId = data.getConfigId();
+      Map<String, Object> configMap = data.getApmConfigurationDefault();
+      List<Rule> rules = data.getApmConfigurationRules();
 
       if (!rules.isEmpty()) {
         for (Rule rule : rules) {
@@ -49,14 +68,15 @@ public class StableConfigParser {
           if (doesRuleMatch(rule)) {
             // Merge configs found in apm_configuration_rules with those found in
             // apm_configuration_default
-            configMap.putAll(rule.getConfiguration());
-            return createStableConfig(configId, configMap);
+            Map<String, Object> mergedConfigMap = new LinkedHashMap<>(configMap);
+            mergedConfigMap.putAll(rule.getConfiguration());
+            return new StableConfigSource.StableConfig(configId, mergedConfigMap);
           }
         }
       }
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
-        return createStableConfig(configId, configMap);
+        return new StableConfigSource.StableConfig(configId, configMap);
       }
 
       // If there's a configId but no configMap, use configId but return an empty map
@@ -65,8 +85,7 @@ public class StableConfigParser {
       }
 
     } catch (IOException e) {
-      log.debug(
-          "Stable configuration file either not found or not readable at filepath {}", filePath);
+      log.debug("Failed to read the stable configuration file: {}", filePath, e);
     }
     return StableConfigSource.StableConfig.EMPTY;
   }
@@ -83,12 +102,6 @@ public class StableConfigParser {
       }
     }
     return true; // Return true if all selectors match
-  }
-
-  /** Creates a StableConfig object from the provided configId and configMap. */
-  private static StableConfigSource.StableConfig createStableConfig(
-      String configId, ConfigurationMap configMap) {
-    return new StableConfigSource.StableConfig(configId, new HashMap<>(configMap));
   }
 
   private static boolean validOperatorForLanguageOrigin(String operator) {
@@ -166,14 +179,100 @@ public class StableConfigParser {
             return false;
         }
       case "process_arguments":
-        // For now, always return true if `key` exists in the JVM Args
         // TODO: flesh out the meaning of each operator for process_arguments
-        return VM_ARGS.contains(key);
+        if (!key.startsWith("-D")) {
+          log.warn(
+              "Ignoring unsupported process_arguments entry in selector match, '{}'. Only system properties specified with the '-D' prefix are supported.",
+              key);
+          return false;
+        }
+        // Cut the -D prefix
+        return System.getProperty(key.substring(2)) != null;
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
       default:
         return false;
+    }
+  }
+
+  static String processTemplate(String content) throws IOException {
+    // Do nothing if there are no variables to process
+    int openIndex = content.indexOf("{{");
+    if (openIndex == -1) {
+      return content;
+    }
+
+    StringBuilder result = new StringBuilder(content.length());
+
+    // Add everything before the opening braces
+    result.append(content, 0, openIndex);
+
+    while (true) {
+
+      // Find the closing braces
+      int closeIndex = content.indexOf("}}", openIndex);
+      if (closeIndex == -1) {
+        throw new IOException("Unterminated template in config");
+      }
+
+      // Extract the template variable
+      String templateVar = content.substring(openIndex + 2, closeIndex).trim();
+
+      // Process the template variable and get its value
+      String value = processTemplateVar(templateVar);
+
+      // Add the processed value
+      result.append(value);
+
+      // Continue with the next template variable
+      openIndex = content.indexOf("{{", closeIndex);
+      if (openIndex == -1) {
+        // Stop and add everything left after the final closing braces
+        result.append(content, closeIndex + 2, content.length());
+        break;
+      } else {
+        // Add everything between the last braces and the next
+        result.append(content, closeIndex + 2, openIndex);
+      }
+    }
+
+    return result.toString();
+  }
+
+  private static String processTemplateVar(String templateVar) throws IOException {
+    if (templateVar.startsWith(ENVIRONMENT_VARIABLES_PREFIX) && templateVar.endsWith("']")) {
+      String envVar =
+          templateVar
+              .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
+              .trim();
+      if (envVar.isEmpty()) {
+        throw new IOException("Empty environment variable name in template");
+      }
+      String value = System.getenv(envVar.toUpperCase());
+      if (value == null || value.isEmpty()) {
+        return UNDEFINED_VALUE;
+      }
+      return value;
+    } else if (templateVar.startsWith(PROCESS_ARGUMENTS_PREFIX) && templateVar.endsWith("']")) {
+      String processArg =
+          templateVar.substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2).trim();
+      if (processArg.isEmpty()) {
+        throw new IOException("Empty process argument in template");
+      }
+      if (!processArg.startsWith("-D")) {
+        log.warn(
+            "Ignoring unsupported process_arguments entry in template variable, '{}'. Only system properties specified with the '-D' prefix are supported.",
+            processArg);
+        return UNDEFINED_VALUE;
+      }
+      String value = System.getProperty(processArg.substring(2));
+      if (value == null || value.isEmpty()) {
+        return UNDEFINED_VALUE;
+      }
+      return value;
+    } else {
+      return UNDEFINED_VALUE;
     }
   }
 }

@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +33,14 @@ public final class AttributeKeys {
 
   public static final AttributeKey<Boolean> BLOCKED_RESPONSE_KEY =
       new AttributeKey<>("datadog.server.blocked_response");
+
+  public static final AttributeKey<String> CHANNEL_ID = attributeKey("io.netty.channel.id");
+
+  public static final AttributeKey<HandlerContext.Sender> WEBSOCKET_SENDER_HANDLER_CONTEXT =
+      attributeKey("datadog.server.websocket.sender.handler_context");
+
+  public static final AttributeKey<HandlerContext.Receiver> WEBSOCKET_RECEIVER_HANDLER_CONTEXT =
+      attributeKey("datadog.server.websocket.receiver.handler_context");
 
   /**
    * Generate an attribute key or reuse the one existing in the global app map. This implementation

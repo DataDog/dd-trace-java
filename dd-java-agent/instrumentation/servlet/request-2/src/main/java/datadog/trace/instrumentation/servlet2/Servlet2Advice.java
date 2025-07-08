@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.servlet2;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -11,9 +13,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.instrumentation.servlet.ServletBlockingHelper;
 import java.security.Principal;
 import javax.servlet.ServletRequest;
@@ -30,7 +30,7 @@ public class Servlet2Advice {
       @Advice.This final Object servlet,
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
       @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC) final ServletResponse response,
-      @Advice.Local("agentScope") AgentScope scope) {
+      @Advice.Local("contextScope") ContextScope scope) {
 
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
     if (invalidRequest) {
@@ -52,11 +52,11 @@ public class Servlet2Advice {
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
     }
 
-    final AgentSpanContext.Extracted extractedContext = DECORATE.extract(httpServletRequest);
-    final AgentSpan span = DECORATE.startSpan(httpServletRequest, extractedContext);
-    scope = activateSpan(span);
+    final Context context = DECORATE.extractContext(httpServletRequest);
+    final AgentSpan span = DECORATE.startSpan(httpServletRequest, context);
+    scope = context.with(span).attach();
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, context);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(
@@ -82,7 +82,7 @@ public class Servlet2Advice {
   public static void stopSpan(
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response,
-      @Advice.Local("agentScope") final AgentScope scope,
+      @Advice.Local("contextScope") final ContextScope scope,
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -98,7 +98,7 @@ public class Servlet2Advice {
     if (scope == null) {
       return;
     }
-    final AgentSpan span = scope.span();
+    final AgentSpan span = spanFromContext(scope.context());
 
     if (response instanceof HttpServletResponse) {
       DECORATE.onResponse(

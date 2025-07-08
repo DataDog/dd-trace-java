@@ -24,7 +24,7 @@ buildscript {
   }
 }
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id 'com.gradleup.shadow'
 }
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -53,6 +53,9 @@ subprojects { Project subProj ->
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
   subProj.afterEvaluate {
+    if (!plugins.hasPlugin("java")) {
+      return
+    }
     String jdkCompile = null
     if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
       def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
@@ -60,7 +63,7 @@ subprojects { Project subProj ->
       jdkCompile = "main_${name}Implementation"
     }
     configurations.muzzleBootstrap {
-      exclude group: 'org.yaml', module : 'snakeyaml' // we vendor this in the agent jar
+      exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
     }
     dependencies {
       // Apply common dependencies for instrumentation.
@@ -122,10 +125,12 @@ subprojects { Project subProj ->
   }
 
   def path = subProj.getPath()
-  // don't include the redis RequestImpl stub
-  if (!path.equals(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')) {
-    parent_project.dependencies {
-      implementation project(path)
+  subProj.plugins.withId("java") {
+    if (!path.equals(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')) {
+      // don't include the redis RequestImpl stub
+      parent_project.dependencies {
+        implementation project(path)
+      }
     }
   }
 }
@@ -137,7 +142,7 @@ dependencies {
   implementation project(':dd-java-agent:agent-builder')
 }
 
-if (project.gradle.startParameter.taskNames.any {it.endsWith("generateMuzzleReport")}) {
+if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
   apply plugin: 'muzzle'
   task("muzzleInstrumentationReport") {
     dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })

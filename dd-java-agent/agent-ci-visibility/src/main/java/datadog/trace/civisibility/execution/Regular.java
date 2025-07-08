@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import javax.annotation.Nullable;
 
@@ -12,17 +13,20 @@ public class Regular implements TestExecutionPolicy {
   private Regular() {}
 
   @Override
+  public void registerExecution(TestStatus status, long durationMillis) {}
+
+  @Override
+  public boolean wasLastExecution() {
+    return true;
+  }
+
+  @Override
   public boolean applicable() {
     return false;
   }
 
   @Override
   public boolean suppressFailures() {
-    return false;
-  }
-
-  @Override
-  public boolean retry(boolean successful, long durationMillis) {
     return false;
   }
 

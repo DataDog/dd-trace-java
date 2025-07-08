@@ -17,7 +17,6 @@ import static utils.TestHelper.setFieldInConfig;
 import com.datadog.debugger.agent.ClassesToRetransformFinder;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ConfigurationUpdater;
-import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -99,7 +98,10 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    DebuggerAgent.startExceptionReplay();
+    DebuggerContext.ProductConfigUpdater mockProductConfigUpdater =
+        mock(DebuggerContext.ProductConfigUpdater.class);
+    when(mockProductConfigUpdater.isExceptionReplayEnabled()).thenReturn(true);
+    DebuggerContext.initProductConfigUpdater(mockProductConfigUpdater);
     setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
     setFieldInConfig(Config.get(), "dynamicInstrumentationClassFileDumpEnabled", true);
   }
@@ -206,7 +208,7 @@ public class ExceptionProbeInstrumentationTest {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();
@@ -224,7 +226,8 @@ public class ExceptionProbeInstrumentationTest {
     callMethodFiboException(testClass); // generate snapshots
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
-    assertEquals(10, listener.snapshots.size());
+    // limited by Config::getDebuggerExceptionMaxCapturedFrames
+    assertEquals(3, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
     assertEquals(
@@ -234,8 +237,6 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot2 = listener.snapshots.get(2);
     assertEquals("3", getValue(snapshot2.getCaptures().getReturn().getArguments().get("n")));
-    Snapshot snapshot9 = listener.snapshots.get(9);
-    assertEquals("10", getValue(snapshot9.getCaptures().getReturn().getArguments().get("n")));
     // sampling happens only once ont he first snapshot then forced for coordinated sampling
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
@@ -382,7 +383,7 @@ public class ExceptionProbeInstrumentationTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100);
+            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;

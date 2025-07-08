@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.relocate.api.IOLogger;
@@ -48,7 +48,7 @@ public class JfrCliHelperTest {
   public void testInvokeOn() throws Exception {
     // J9 may have 'jfr' command present but it requires additional setup
     // Currently we don't support J9 JFR so we can safely skip this test
-    Assumptions.assumeFalse(Platform.isJ9());
+    Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
     final RecordingData recording = mockRecordingData();
 
     JfrCliHelper.invokeOn(recording, ioLogger);

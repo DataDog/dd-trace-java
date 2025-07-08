@@ -79,7 +79,7 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext) ex
 
   def bodyJson = controller(ServerEndpoint.BODY_JSON) { request =>
     val body: JsValue = request.body.asJson.getOrElse(JsNull)
-    Results.Ok(Json.stringify(body))
+    Results.Ok(body)
   }
 
   def bodyXml = controller(ServerEndpoint.BODY_XML) { request =>

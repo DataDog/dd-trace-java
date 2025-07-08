@@ -18,14 +18,25 @@ function check-jvm() {
     fi
 }
 
-echo "ℹ️ Checking required JVM:"
+function check-jvm-from-path() {
+    local EXPECTED_JAVA_VERSION=$1
+    if java -version 2>&1 | grep version | grep -q -v "version \"$EXPECTED_JAVA_VERSION"; then
+        echo "❌ The java command from path is not $EXPECTED_JAVA_VERSION. Please set JAVA_HOME environment varible to a JDK $EXPECTED_JAVA_VERSION." >&2
+        exit 1
+    fi
+}
+
+echo "ℹ️ Checking required JVMs:"
 if [ -e "$JAVA_HOME" ]; then
     check-jvm "JAVA_HOME" "1.8"
+elif command -v java &> /dev/null; then
+    check-jvm-from-path "1.8"
 fi
 check-jvm "JAVA_8_HOME" "1.8"
 check-jvm "JAVA_11_HOME" "11"
 check-jvm "JAVA_17_HOME" "17"
 check-jvm "JAVA_21_HOME" "21"
+check-jvm "JAVA_24_HOME" "24"
 check-jvm "JAVA_GRAALVM17_HOME" "17"
 
 

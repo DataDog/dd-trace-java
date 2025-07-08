@@ -54,8 +54,6 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
   public static final String CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED =
       "civisibility.impacted.tests.detection.enabled";
-  public static final String CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED =
-      "civisibility.impacted.tests.backend.request.enabled";
   public static final String CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED =
       "civisibility.known.tests.request.enabled";
   public static final String CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES =
@@ -84,6 +82,11 @@ public final class CiVisibilityConfig {
   public static final String TEST_MANAGEMENT_ENABLED = "test.management.enabled";
   public static final String TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES =
       "test.management.attempt.to.fix.retries";
+
+  /* Git PR info */
+  public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";
+  public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull.request.base.branch.sha";
+  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =

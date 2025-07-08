@@ -48,7 +48,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       @Nonnull String kind,
       String spanName,
       @Nonnull String mlApp,
-      String sessionID,
+      String sessionId,
       @Nonnull String serviceName) {
 
     if (null == spanName || spanName.isEmpty()) {
@@ -65,8 +65,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     this.span.setTag(SPAN_KIND, kind);
     this.spanKind = kind;
     this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    if (sessionID != null && !sessionID.isEmpty()) {
-      this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionID);
+    if (sessionId != null && !sessionId.isEmpty()) {
+      this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
 
     AgentSpanContext parent = LLMObsState.getLLMObsParentContext();

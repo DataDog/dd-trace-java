@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -168,7 +169,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
-    log.debug("Setting up OpenLineage configuration");
+    log.debug("Setting up OpenLineage configuration with trace id {}", traceId);
     if (openLineageSparkListener != null) {
       openLineageSparkConf.set("spark.openlineage.transport.type", "composite");
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
@@ -273,17 +274,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
     builder.asChildOf(context);
 
-    builder.withSpanId(context.getChildRootSpanId());
-
-    log.debug(
-        "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
-        context,
-        context.getTraceId(),
-        context.getChildRootSpanId());
+    log.debug("Captured Openlineage context: {}, with trace_id: {}", context, context.getTraceId());
 
     builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
     builder.withTag("openlineage_parent_job_name", context.getParentJobName());
     builder.withTag("openlineage_parent_run_id", context.getParentRunId());
+    builder.withTag("openlineage_root_parent_job_namespace", context.getRootParentJobNamespace());
+    builder.withTag("openlineage_root_parent_job_name", context.getRootParentJobName());
+    builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
   }
 
   @Override
@@ -498,7 +496,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    lastJobFailed = false;
     if (jobEnd.jobResult() instanceof JobFailed) {
       JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
       Exception exception = jobFailed.exception();
@@ -510,9 +507,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpan.setErrorMessage(errorMessage);
       jobSpan.setTag(DDTags.ERROR_STACK, errorStackTrace);
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
-      lastJobFailed = true;
-      lastJobFailedMessage = errorMessage;
-      lastJobFailedStackTrace = errorStackTrace;
+
+      // Only propagate the error to the application if it is not a cancellation
+      if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
+        lastJobFailed = true;
+        lastJobFailedMessage = errorMessage;
+        lastJobFailedStackTrace = errorStackTrace;
+      }
+    } else {
+      lastJobFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
@@ -1295,7 +1298,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
-    if (!span.traceConfig().isDataStreamsEnabled()
+    if (!traceConfig().isDataStreamsEnabled()
         || progress == null
         || progress.description() == null) {
       return;

@@ -3,12 +3,9 @@ package com.datadog.appsec.ddwaf;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toMap;
 
 import com.datadog.appsec.AppSecModule;
-import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
-import com.datadog.appsec.config.CurrentAppSecConfig;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
@@ -18,14 +15,12 @@ import com.datadog.appsec.gateway.GatewayContext;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
-import com.datadog.ddwaf.RuleSetInfo;
 import com.datadog.ddwaf.Waf;
-import com.datadog.ddwaf.WafConfig;
+import com.datadog.ddwaf.WafBuilder;
 import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import com.datadog.ddwaf.exception.AbstractWafException;
-import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import com.datadog.ddwaf.exception.TimeoutWafException;
 import com.datadog.ddwaf.exception.UnclassifiedWafException;
 import com.squareup.moshi.JsonAdapter;
@@ -40,12 +35,10 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.api.telemetry.WafTruncatedType;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.RandomUtils;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
 import datadog.trace.util.stacktrace.StackUtils;
@@ -66,7 +59,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -90,6 +82,9 @@ public class WAFModule implements AppSecModule {
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
+  private boolean init = true;
+  private String rulesetVersion;
+  private WafBuilder wafBuilder;
 
   private static class ActionInfo {
     final String type;
@@ -104,15 +99,10 @@ public class WAFModule implements AppSecModule {
   private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
-    final Map<String /* id */, ActionInfo> actionInfoMap;
 
-    private CtxAndAddresses(
-        Collection<Address<?>> addressesOfInterest,
-        WafHandle ctx,
-        Map<String, ActionInfo> actionInfoMap) {
+    private CtxAndAddresses(Collection<Address<?>> addressesOfInterest, WafHandle ctx) {
       this.addressesOfInterest = addressesOfInterest;
       this.ctx = ctx;
-      this.actionInfoMap = actionInfoMap;
     }
   }
 
@@ -151,12 +141,7 @@ public class WAFModule implements AppSecModule {
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
-  private final WAFInitializationResultReporter initReporter =
-      new WAFInitializationResultReporter();
-  private final WAFStatsReporter statsReporter = new WAFStatsReporter();
   private final RateLimiter rateLimiter;
-
-  private String currentRulesVersion;
 
   public WAFModule() {
     this(null);
@@ -169,127 +154,65 @@ public class WAFModule implements AppSecModule {
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
       throws AppSecModuleActivationException {
-
-    Optional<Object> initialConfig =
-        appSecConfigService.addSubConfigListener("waf", this::applyConfig);
+    appSecConfigService.addSubConfigListener("waf", (key, reconf) -> applyConfig(reconf));
 
     ProductActivation appSecEnabledConfig = Config.get().getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_ENABLED) {
-      if (!initialConfig.isPresent()) {
-        throw new AppSecModuleActivationException("No initial config for WAF");
-      }
-
       try {
-        applyConfig(initialConfig.get(), AppSecModuleConfigurer.Reconfiguration.NOOP);
+        applyConfig(AppSecModuleConfigurer.Reconfiguration.NOOP);
       } catch (ClassCastException e) {
-        throw new AppSecModuleActivationException("Config expected to be CurrentAppSecConfig", e);
+        throw new AppSecModuleActivationException("Config expected to be a map", e);
+      } catch (AbstractWafException e) {
+        throw new AppSecModuleActivationException("Could not apply config", e);
       }
     }
+  }
 
-    appSecConfigService.addTraceSegmentPostProcessor(initReporter);
-    if (wafMetricsEnabled) {
-      appSecConfigService.addTraceSegmentPostProcessor(statsReporter);
-    }
+  @Override
+  public void setWafBuilder(WafBuilder wafBuilder) {
+    this.wafBuilder = wafBuilder;
   }
 
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
-  private void applyConfig(Object config_, AppSecModuleConfigurer.Reconfiguration reconf)
-      throws AppSecModuleActivationException {
-    log.debug("Configuring WAF");
-
-    CurrentAppSecConfig config = (CurrentAppSecConfig) config_;
-
-    CtxAndAddresses curCtxAndAddresses = this.ctxAndAddresses.get();
-
-    if (!WafInitialization.ONLINE) {
-      throw new AppSecModuleActivationException(
-          "In-app WAF initialization failed. See previous log entries");
-    }
-
-    if (curCtxAndAddresses == null) {
-      config.dirtyStatus.markAllDirty();
-    }
-
+  private void applyConfig(AppSecModuleConfigurer.Reconfiguration reconf)
+      throws AppSecModuleActivationException, AbstractWafException {
     boolean success = false;
+    if (init) {
+      log.debug("Initializing WAF");
+    } else {
+      log.debug("Updating WAF");
+    }
     try {
-      // ddwaf_init/update
-      success = initializeNewWafCtx(reconf, config, curCtxAndAddresses);
+      initOrUpdateWafHandle(reconf);
+      success = true;
     } catch (Exception e) {
-      throw new AppSecModuleActivationException("Could not initialize/update waf", e);
+      throw new AppSecModuleActivationException("Could not initialize waf handle", e);
     } finally {
-      if (curCtxAndAddresses == null) {
-        WafMetricCollector.get().wafInit(Waf.LIB_VERSION, currentRulesVersion, success);
+      if (init) {
+        WafMetricCollector.get().wafInit(Waf.LIB_VERSION, rulesetVersion, success);
+        init = false;
       } else {
-        WafMetricCollector.get().wafUpdates(currentRulesVersion, success);
+        WafMetricCollector.get().wafUpdates(rulesetVersion, success);
       }
     }
   }
 
-  private boolean initializeNewWafCtx(
-      AppSecModuleConfigurer.Reconfiguration reconf,
-      CurrentAppSecConfig config,
-      CtxAndAddresses prevContextAndAddresses)
-      throws AppSecModuleActivationException, IOException {
-    CtxAndAddresses newContextAndAddresses;
-    RuleSetInfo initReport = null;
-
-    AppSecConfig ruleConfig = config.getMergedUpdateConfig();
-    WafHandle newWafCtx = null;
+  private void initOrUpdateWafHandle(AppSecModuleConfigurer.Reconfiguration reconf)
+      throws AppSecModuleActivationException {
+    CtxAndAddresses prevContextAndAddresses = this.ctxAndAddresses.get();
+    WafHandle newHandle;
     try {
-      String uniqueId = RandomUtils.randomUUID().toString();
-
-      if (prevContextAndAddresses == null) {
-        WafConfig pwConfig = createWafConfig();
-        newWafCtx = Waf.createHandle(uniqueId, pwConfig, ruleConfig.getRawConfig());
-      } else {
-        newWafCtx = prevContextAndAddresses.ctx.update(uniqueId, ruleConfig.getRawConfig());
-      }
-
-      initReport = newWafCtx.getRuleSetInfo();
-      Collection<Address<?>> addresses = getUsedAddresses(newWafCtx);
-
-      // Update current rules' version if you need
-      if (initReport != null && initReport.rulesetVersion != null) {
-        currentRulesVersion = initReport.rulesetVersion;
-      }
-
-      if (initReport != null) {
-        log.info(
-            "Created {} WAF context with rules ({} OK, {} BAD), version {}",
-            prevContextAndAddresses == null ? "new" : "updated",
-            initReport.getNumRulesOK(),
-            initReport.getNumRulesError(),
-            initReport.rulesetVersion);
-      } else {
-        log.warn(
-            "Created {} WAF context without rules",
-            prevContextAndAddresses == null ? "new" : "updated");
-      }
-
-      Map<String, ActionInfo> actionInfoMap =
-          calculateEffectiveActions(prevContextAndAddresses, ruleConfig);
-
-      newContextAndAddresses = new CtxAndAddresses(addresses, newWafCtx, actionInfoMap);
-      if (initReport != null) {
-        this.statsReporter.rulesVersion = initReport.rulesetVersion;
-      }
-    } catch (InvalidRuleSetException irse) {
-      initReport = irse.ruleSetInfo;
-      throw new AppSecModuleActivationException("Error creating WAF rules", irse);
-    } catch (RuntimeException | AbstractWafException e) {
-      if (newWafCtx != null) {
-        newWafCtx.close();
-      }
-      throw new AppSecModuleActivationException("Error creating WAF rules", e);
-    } finally {
-      if (initReport != null) {
-        this.initReporter.setReportForPublication(initReport);
-      }
+      newHandle = wafBuilder.buildWafHandleInstance();
+    } catch (AbstractWafException e) {
+      throw new AppSecModuleActivationException(
+          "Could not initialize waf handle, no rules were added!", e);
     }
 
+    Collection<Address<?>> addresses = getUsedAddresses(newHandle);
+    CtxAndAddresses newContextAndAddresses = new CtxAndAddresses(addresses, newHandle);
     if (!this.ctxAndAddresses.compareAndSet(prevContextAndAddresses, newContextAndAddresses)) {
-      newWafCtx.close();
+      newHandle.close();
       throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
@@ -298,52 +221,6 @@ public class WAFModule implements AppSecModule {
     }
 
     reconf.reloadSubscriptions();
-    return true;
-  }
-
-  private Map<String, ActionInfo> calculateEffectiveActions(
-      CtxAndAddresses prevContextAndAddresses, AppSecConfig ruleConfig) {
-    Map<String, ActionInfo> actionInfoMap;
-    List<Map<String, Object>> actions =
-        (List<Map<String, Object>>) ruleConfig.getRawConfig().get("actions");
-    if (actions == null) {
-      if (prevContextAndAddresses == null) {
-        // brand-new context; no actions provided: use default ones
-        actionInfoMap = DEFAULT_ACTIONS;
-      } else {
-        // in update, no changed actions; keep the old one
-        actionInfoMap = prevContextAndAddresses.actionInfoMap;
-      }
-    } else {
-      // actions were updated
-      actionInfoMap = new HashMap<>(DEFAULT_ACTIONS);
-      actionInfoMap.putAll(
-          ((List<Map<String, Object>>)
-                  ruleConfig.getRawConfig().getOrDefault("actions", Collections.emptyList()))
-              .stream()
-                  .collect(
-                      toMap(
-                          m -> (String) m.get("id"),
-                          m ->
-                              new ActionInfo(
-                                  (String) m.get("type"),
-                                  (Map<String, Object>) m.get("parameters")))));
-    }
-    return actionInfoMap;
-  }
-
-  private WafConfig createWafConfig() {
-    WafConfig pwConfig = new WafConfig();
-    Config config = Config.get();
-    String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
-    if (keyRegexp != null) {
-      pwConfig.obfuscatorKeyRegex = keyRegexp;
-    }
-    String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
-    if (valueRegexp != null) {
-      pwConfig.obfuscatorValueRegex = valueRegexp;
-    }
-    return pwConfig;
   }
 
   private static RateLimiter getRateLimiter(Monitoring monitoring) {
@@ -359,6 +236,11 @@ public class WAFModule implements AppSecModule {
               appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
     }
     return rateLimiter;
+  }
+
+  @Override
+  public void setRuleVersion(String rulesetVersion) {
+    this.rulesetVersion = rulesetVersion;
   }
 
   @Override
@@ -384,8 +266,13 @@ public class WAFModule implements AppSecModule {
     return singletonList(new WAFDataCallback());
   }
 
-  private static Collection<Address<?>> getUsedAddresses(WafHandle ctx) {
-    String[] usedAddresses = ctx.getUsedAddresses();
+  @Override
+  public boolean isWafBuilderSet() {
+    return wafBuilder != null;
+  }
+
+  private static Collection<Address<?>> getUsedAddresses(WafHandle wafHandle) {
+    String[] usedAddresses = wafHandle.getKnownAddresses();
     Set<Address<?>> addressList = new HashSet<>(usedAddresses.length);
     for (String addrKey : usedAddresses) {
       Address<?> address = KnownAddresses.forName(addrKey);
@@ -413,7 +300,6 @@ public class WAFModule implements AppSecModule {
         log.debug("Skipped; the WAF is not configured");
         return;
       }
-
       if (reqCtx.isWafContextClosed()) {
         log.debug("Skipped; the WAF context is closed");
         if (gwCtx.isRasp) {
@@ -440,7 +326,6 @@ public class WAFModule implements AppSecModule {
           WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
         } else {
           reqCtx.increaseWafTimeouts();
-          WafMetricCollector.get().wafRequestTimeout();
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         }
         return;
@@ -448,12 +333,10 @@ public class WAFModule implements AppSecModule {
         if (!reqCtx.isWafContextClosed()) {
           log.error("Error calling WAF", e);
         }
-        // TODO this is wrong and will be fixed in another PR
-        WafMetricCollector.get().wafRequestError();
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
-        incrementErrorCodeMetric(gwCtx, e.code);
+        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } finally {
         if (log.isDebugEnabled()) {
@@ -467,17 +350,10 @@ public class WAFModule implements AppSecModule {
             final long listMapTooLarge = wafMetrics.getTruncatedListMapTooLargeCount();
             final long objectTooDeep = wafMetrics.getTruncatedObjectTooDeepCount();
 
-            if (stringTooLong > 0) {
+            if (stringTooLong > 0 || listMapTooLarge > 0 || objectTooDeep > 0) {
+              reqCtx.setWafTruncated();
               WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.STRING_TOO_LONG, stringTooLong);
-            }
-            if (listMapTooLarge > 0) {
-              WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.LIST_MAP_TOO_LARGE, listMapTooLarge);
-            }
-            if (objectTooDeep > 0) {
-              WafMetricCollector.get()
-                  .wafInputTruncated(WafTruncatedType.OBJECT_TOO_DEEP, objectTooDeep);
+                  .wafInputTruncated(stringTooLong > 0, listMapTooLarge > 0, objectTooDeep > 0);
             }
           }
         }
@@ -491,6 +367,7 @@ public class WAFModule implements AppSecModule {
         }
 
         if (gwCtx.isRasp) {
+          reqCtx.setRaspMatched(true);
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
@@ -501,10 +378,12 @@ public class WAFModule implements AppSecModule {
           ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
 
           if ("block_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
+            Flow.Action.RequestBlockingAction rba =
+                createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
             flow.setAction(rba);
           } else if ("redirect_request".equals(actionInfo.type)) {
-            Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
+            Flow.Action.RequestBlockingAction rba =
+                createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
             flow.setAction(rba);
           } else if ("generate_stack".equals(actionInfo.type)) {
             if (Config.get().isAppSecStackTraceEnabled()) {
@@ -516,7 +395,9 @@ public class WAFModule implements AppSecModule {
             }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
-            WafMetricCollector.get().wafRequestBlockFailure();
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRequestBlockFailure();
+            }
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
@@ -543,12 +424,16 @@ public class WAFModule implements AppSecModule {
             reqCtx.reportEvents(events);
           } else {
             log.debug("Rate limited WAF events");
-            WafMetricCollector.get().wafRequestRateLimited();
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRateLimited();
+            }
           }
         }
 
         if (flow.isBlocking()) {
-          reqCtx.setBlocked();
+          if (!gwCtx.isRasp) {
+            reqCtx.setWafBlocked();
+          }
         }
       }
 
@@ -557,7 +442,8 @@ public class WAFModule implements AppSecModule {
       }
     }
 
-    private Flow.Action.RequestBlockingAction createBlockRequestAction(ActionInfo actionInfo) {
+    private Flow.Action.RequestBlockingAction createBlockRequestAction(
+        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -578,12 +464,15 @@ public class WAFModule implements AppSecModule {
         return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
+        if (!isRasp) {
+          reqCtx.setWafRequestBlockFailure();
+        }
         return null;
       }
     }
 
-    private Flow.Action.RequestBlockingAction createRedirectRequestAction(ActionInfo actionInfo) {
+    private Flow.Action.RequestBlockingAction createRedirectRequestAction(
+        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -604,7 +493,9 @@ public class WAFModule implements AppSecModule {
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
-        WafMetricCollector.get().wafRequestBlockFailure();
+        if (!isRasp) {
+          reqCtx.setWafRequestBlockFailure();
+        }
         return null;
       }
     }
@@ -623,7 +514,6 @@ public class WAFModule implements AppSecModule {
         CtxAndAddresses ctxAndAddr,
         GatewayContext gwCtx)
         throws AbstractWafException {
-
       WafContext wafContext =
           reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
       WafMetrics metrics;
@@ -649,19 +539,21 @@ public class WAFModule implements AppSecModule {
     }
   }
 
-  private static void incrementErrorCodeMetric(GatewayContext gwCtx, int code) {
+  private static void incrementErrorCodeMetric(
+      AppSecRequestContext reqCtx, GatewayContext gwCtx, int code) {
     if (gwCtx.isRasp) {
       WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
     } else {
       WafMetricCollector.get().wafErrorCode(code);
+      reqCtx.setWafErrors();
     }
   }
 
   private Waf.ResultWithData runWafTransient(
-      WafContext wafContext, WafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
+      WafContext wafContext, WafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
       throws AbstractWafException {
     return wafContext.runEphemeral(
-        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
+        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
   }
 
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {

@@ -7,8 +7,8 @@ buildscript {
 plugins {
   id 'application'
   id 'java'
-  id "com.diffplug.spotless" version "6.13.0"
-  id "com.github.johnrengelman.shadow" version "7.1.2"
+  id 'com.diffplug.spotless' version '6.13.0'
+  id 'com.gradleup.shadow' version '8.3.6'
   id 'com.google.protobuf' version '0.9.3'
 }
 

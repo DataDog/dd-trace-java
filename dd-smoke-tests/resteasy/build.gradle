@@ -1,5 +1,5 @@
 plugins {
-  id "com.github.johnrengelman.shadow"
+  id 'com.gradleup.shadow'
   id 'java-test-fixtures'
 }
 
@@ -16,6 +16,7 @@ dependencies {
   implementation group: 'org.jboss.resteasy', name: 'resteasy-undertow', version:'3.1.0.Final'
   implementation group: 'org.jboss.resteasy', name: 'resteasy-cdi', version:'3.1.0.Final'
   implementation group: 'org.jboss.weld.servlet', name: 'weld-servlet', version: '2.4.8.Final'
+  implementation group: 'org.jboss.resteasy', name: 'resteasy-jackson2-provider', version: '3.1.0.Final'
 
   implementation group: 'javax.el', name: 'javax.el-api', version:'3.0.0'
 
@@ -24,6 +25,7 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+  testImplementation project(':dd-smoke-tests:appsec')
 }
 
 tasks.withType(Test).configureEach {

@@ -77,7 +77,7 @@ class PlayController(implicit ec: ExecutionContext) extends Controller {
 
   def bodyJson = controller(ServerEndpoint.BODY_JSON) { request =>
     val body: JsValue = request.body.asJson.getOrElse(JsNull)
-    Results.Ok(Json.stringify(body))
+    Results.Ok(body)
   }
 
   private def controller(endpoint: ServerEndpoint)(block: Request[AnyContent] => Result) : Action[AnyContent] = {

@@ -1,6 +1,6 @@
 plugins {
   id 'application'
-  id 'com.github.johnrengelman.shadow'
+  id 'com.gradleup.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'JDK 8 Concurrent Integration Tests'
 
 application {
-  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+  mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 dependencies {

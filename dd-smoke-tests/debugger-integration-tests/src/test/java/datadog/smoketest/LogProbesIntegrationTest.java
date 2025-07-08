@@ -22,7 +22,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -79,8 +79,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "java.lang.String",
               "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
           assertNotNull(snapshot.getCaptures().getReturn().getLocals());
-          // @return is the only locals
-          assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+          // @return is the only locals but ex is safely hoisted in the method
+          assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
           assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
           snapshotReceived.set(true);
         });
@@ -251,15 +251,46 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   }
 
   @Test
+  @DisplayName("testLineProbe")
+  void testLineProbe() throws Exception {
+    final String METHOD_NAME = "fullMethod";
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(LINE_PROBE_ID1)
+            .where("DebuggerTestApplication.java", 88)
+            .captureSnapshot(true)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
+          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(88);
+          assertFullMethodCaptureArgs(capturedContext);
+          assertNull(capturedContext.getLocals());
+          assertNull(capturedContext.getCapturedThrowable());
+          snapshotReceived.set(true);
+        });
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    processRequests(() -> snapshotReceived.get() && statusResult.get());
+  }
+
+  @Test
   @DisplayName("testSamplingSnapshotDefault")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefault() throws Exception {
     doSamplingSnapshot(null, MethodLocation.EXIT);
   }
 
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtEntry")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefaultWithConditionAtEntry() throws Exception {
     doSamplingSnapshot(
         new ProbeCondition(DSL.when(DSL.eq(value(1), value(1))), "1 == 1"), MethodLocation.ENTRY);
@@ -267,7 +298,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtExit")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingSnapshotDefaultWithConditionAtExit() throws Exception {
     doSamplingSnapshot(
         new ProbeCondition(DSL.when(DSL.eq(value(1), value(1))), "1 == 1"), MethodLocation.EXIT);
@@ -296,7 +329,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingLogDefault")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingLogDefault() throws Exception {
     batchSize = 100;
     final int LOOP_COUNT = 1000;
@@ -320,7 +355,9 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Test
   @DisplayName("testSamplingLogCustom")
-  @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testSamplingLogCustom() throws Exception {
     final int LOOP_COUNT = 1000;
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
@@ -433,7 +470,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   }
 
   private void assertFullMethodCaptureArgs(CapturedContext context) {
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // skip for J9/OpenJ9 as we cannot get local variable debug info.
       return;
     }

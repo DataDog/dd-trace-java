@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.netty40.client;
 
-import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
@@ -14,7 +13,6 @@ import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.ChannelHandler;
@@ -89,8 +87,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
-        DataStreamsContext dsmContext = DataStreamsContext.fromTags(CLIENT_PATHWAY_EDGE_TAGS);
-        defaultPropagator().inject(span.with(dsmContext), request.headers(), SETTER);
+        DECORATE.injectContext(current(), request.headers(), SETTER);
       }
 
       ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);

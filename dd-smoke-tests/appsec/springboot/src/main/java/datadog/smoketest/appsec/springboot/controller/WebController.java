@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
@@ -8,6 +9,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import org.apache.commons.httpclient.HttpClient;
@@ -16,7 +18,9 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -208,6 +212,40 @@ public class WebController {
   @GetMapping("/api_security/sampling/{status_code}")
   public ResponseEntity<String> apiSecuritySampling(@PathVariable("status_code") int statusCode) {
     return ResponseEntity.status(statusCode).body("EXECUTED");
+  }
+
+  @PostMapping(value = "/api_security/jackson", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<JsonNode> apiSecurityJackson(@RequestBody final JsonNode body) {
+    return ResponseEntity.status(200).body(body);
+  }
+
+  @GetMapping("/custom-headers")
+  public ResponseEntity<String> customHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("X-Test-Header-1", "value1");
+    headers.add("X-Test-Header-2", "value2");
+    headers.add("X-Test-Header-3", "value3");
+    headers.add("X-Test-Header-4", "value4");
+    headers.add("X-Test-Header-5", "value5");
+    return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @GetMapping("/exceedResponseHeaders")
+  public ResponseEntity<String> exceedResponseHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    for (int i = 1; i <= 50; i++) {
+      headers.add("X-Test-Header-" + i, "value" + i);
+    }
+    headers.add("content-language", "en-US");
+    return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @PostMapping("/api_security/response")
+  public ResponseEntity<Map<String, Object>> apiSecurityResponse(
+      @RequestBody Map<String, Object> body) {
+    // This endpoint is used to test API security response handling
+    // It simply returns the body received in the request
+    return ResponseEntity.ok(body);
   }
 
   private void withProcess(final Operation<Process> op) {

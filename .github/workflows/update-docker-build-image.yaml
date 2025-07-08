@@ -50,17 +50,14 @@ jobs:
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "::notice::Using Docker build image tag: ${TAG}"
-      - name: Update the Docker build image in CircleCI config
-        run: |
-          sed -i 's|DOCKER_IMAGE_VERSION=.*|DOCKER_IMAGE_VERSION="${{ steps.define-tag.outputs.tag }}"|' .circleci/render_config.py
       - name: Update the Docker build image in GitLab CI config
         run: |
-          sed -i 's|image: ghcr.io/datadog/dd-trace-java-docker-build:.*|image: ghcr.io/datadog/dd-trace-java-docker-build:${{ steps.define-tag.outputs.tag }}-base|' .gitlab-ci.yml
+          sed -i '' -E 's|(BUILDER_IMAGE_VERSION_PREFIX:)[^#]*([#].*)|\1 "${{ steps.define-tag.outputs.tag }}-" \2|' .gitlab-ci.yml
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
-          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add .circleci/render_config.py --add .gitlab-ci.yml --message "feat(ci): Update Docker build image"
+          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add .gitlab-ci.yml --message "feat(ci): Update Docker build image"
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}

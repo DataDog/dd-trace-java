@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
+import datadog.context.ContextScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import scala.Function1;
@@ -22,13 +25,14 @@ public class DatadogAsyncHandlerWrapper
 
   @Override
   public Future<HttpResponse> apply(final HttpRequest request) {
-    final AgentScope scope = DatadogWrapperHelper.createSpan(request);
-    Future<HttpResponse> futureResponse = null;
+    final ContextScope scope = DatadogWrapperHelper.createSpan(request);
+    AgentSpan span = fromContext(scope.context());
+    Future<HttpResponse> futureResponse;
     try {
       futureResponse = userHandler.apply(request);
     } catch (final Throwable t) {
       scope.close();
-      DatadogWrapperHelper.finishSpan(scope.span(), t);
+      DatadogWrapperHelper.finishSpan(span, t);
       throw t;
     }
     final Future<HttpResponse> wrapped =
@@ -36,14 +40,14 @@ public class DatadogAsyncHandlerWrapper
             new AbstractFunction1<HttpResponse, HttpResponse>() {
               @Override
               public HttpResponse apply(final HttpResponse response) {
-                DatadogWrapperHelper.finishSpan(scope.span(), response);
+                DatadogWrapperHelper.finishSpan(span, response);
                 return response;
               }
             },
             new AbstractFunction1<Throwable, Throwable>() {
               @Override
               public Throwable apply(final Throwable t) {
-                DatadogWrapperHelper.finishSpan(scope.span(), t);
+                DatadogWrapperHelper.finishSpan(span, t);
                 return t;
               }
             },

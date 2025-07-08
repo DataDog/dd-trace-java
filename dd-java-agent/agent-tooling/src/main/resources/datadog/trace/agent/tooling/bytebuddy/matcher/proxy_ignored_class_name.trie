@@ -1,0 +1,41 @@
+# Generates 'ProxyIgnoredClassNameTrie.java'
+
+# This file lists classes that are considered as proxy hence ignored.
+# The trie will be matched starting from the first '$' char included.
+# Use 0 to allow transformation of packages or classes beneath ignored packages
+# Use 1 to ignore.
+# End lines with '*' to match any trailing char if needed.
+
+# 0 = global allows
+# 1 = system-level ignores
+
+# --------- ALLOW SHORTCUTS -----------
+
+# lambda factory generated classes are not proxies
+0 $$Lambda$*
+
+# -------- SYSTEM-LEVEL IGNORES --------
+
+1 $$weld*
+1 $JaxbAccessor*
+1 $__sisu*
+1 $$EnhancerByGuice$$*
+1 $$EnhancerByProxool$$*
+1 $$$view*
+# jboss mdb proxies
+1 $$$endpoint*
+1 $$_Weld*
+1 $$_jvst*
+1 $$SpringCGLIB$$*
+# Jackson afterburner
+1 $Access4JacksonDeserializer*
+1 $Access4JacksonSerializer*
+1 $Creator4JacksonDeserializer*
+# Hibernate
+1 $HibernateInstantiator$*
+1 $HibernateProxy$*
+1 $HibernateAccessOptimizer$*
+# Quarkus generated jaxrs stubs
+1 $$QuarkusRestClientInterface
+# CDI stubs
+1 $$CDIWrapper*

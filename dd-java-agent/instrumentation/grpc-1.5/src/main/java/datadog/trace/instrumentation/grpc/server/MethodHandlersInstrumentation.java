@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.grpc.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
-import static datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo.entry;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -36,7 +37,7 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && !Platform.isGraalVM();
+    return super.isEnabled() && !JavaVirtualMachine.isGraalVM();
   }
 
   @Override
@@ -68,7 +69,10 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
           }
           for (Method method : superClass.getDeclaredMethods()) {
             try {
-              entry(serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()));
+              marker();
+              captureCodeOrigin(
+                  serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()),
+                  true);
             } catch (Throwable e) {
               // service method not overridden on the impl.  skipping instrumentation.
             }

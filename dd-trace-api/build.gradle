@@ -52,6 +52,7 @@ excludedClassesCoverage += [
   'datadog.trace.context.NoopTraceScope',
   'datadog.trace.payloadtags.PayloadTagsData',
   'datadog.trace.payloadtags.PayloadTagsData.PathAndValue',
+  'datadog.trace.api.llmobs.LLMObsTags',
 ]
 
 description = 'dd-trace-api'

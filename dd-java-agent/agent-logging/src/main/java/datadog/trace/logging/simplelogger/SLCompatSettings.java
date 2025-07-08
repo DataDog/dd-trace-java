@@ -3,6 +3,7 @@ package datadog.trace.logging.simplelogger;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogReporter;
 import datadog.trace.logging.PrintStreamWrapper;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -169,6 +170,7 @@ public class SLCompatSettings {
     }
   }
 
+  @SuppressForbidden
   static PrintStream getPrintStream(String logFile) {
     PrintStreamWrapper printStreamWrapper;
     switch (logFile.toLowerCase(Locale.ROOT)) {

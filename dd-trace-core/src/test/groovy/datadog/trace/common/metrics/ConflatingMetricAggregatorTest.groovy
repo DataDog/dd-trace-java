@@ -23,7 +23,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
   static final int HTTP_OK = 200
 
   @Shared
-  long reportingInterval = 10
+  long reportingInterval = 1
   @Shared
   int queueSize = 256
 
@@ -106,9 +106,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)])
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then:
+    latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
@@ -135,9 +136,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       new SimpleSpan("service", "operation", "resource", "type", measured, topLevel, false, 0, 100, HTTP_OK)
     ])
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then:
+    latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
       value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
@@ -177,9 +179,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       aggregator.publish(trace)
     }
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "metrics should be conflated"
+    latchTriggered
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
     1 * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
@@ -216,9 +219,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       ])
     }
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "the first aggregate should be dropped but the rest reported"
+    latchTriggered
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 11; ++i) {
       1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
@@ -252,9 +256,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       ])
     }
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "all aggregates should be reported"
+    latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
       1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
@@ -271,9 +276,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       ])
     }
     aggregator.report()
-    latch.await(2, SECONDS)
+    latchTriggered = latch.await(2, SECONDS)
 
     then: "aggregate not updated in cycle is not reported"
+    latchTriggered
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
       1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
@@ -307,16 +313,17 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       ])
     }
     aggregator.report()
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "all aggregates should be reported"
+    latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
       1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
-    1 * writer.finishBucket()
+    1 * writer.finishBucket() >> { latch.countDown() }
 
     when:
     reportAndWaitUntilEmpty(aggregator)
@@ -349,9 +356,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
       ])
     }
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "all aggregates should be reported"
+    latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
       1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
@@ -421,9 +429,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
       ])
     }
-    latch.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then: "writer should be reset if reporting fails"
+    latchTriggered
     1 * writer.startBucket(_, _, _) >> {
       throw new IllegalArgumentException("something went wrong")
     }
@@ -449,6 +458,40 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     notThrown(TimeoutException)
     !flushed
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should start even if the agent is not available"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> false
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, 10, queueSize, 200, MILLISECONDS)
+    final spans = [
+      new SimpleSpan("service" , "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
+    ]
+    aggregator.start()
+
+    when:
+    aggregator.publish(spans)
+    Thread.sleep(1_000)
+
+    then:
+    0 * writer._
+    when:
+    features.supportsMetrics() >> true
+    aggregator.publish(spans)
+    Thread.sleep(1_000)
+
+    then:
+    (1.._) * writer._
+
+    cleanup:
+    aggregator.close()
   }
 
   def "force flush should wait for aggregator to start"() {
@@ -480,6 +523,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     notThrown(TimeoutException)
     flushed
+
+    cleanup:
+    aggregator.close()
   }
 
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {

@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.Agent;
 import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,6 +40,7 @@ public final class AgentCLI {
   }
 
   /** Prints all known integrations in alphabetical order. */
+  @SuppressForbidden
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
     for (InstrumenterModule module : InstrumenterIndex.readIndex().modules()) {
@@ -55,6 +57,7 @@ public final class AgentCLI {
    * @param count how many traces to send, negative means send forever
    * @param interval the interval (in seconds) to wait for each trace
    */
+  @SuppressForbidden
   public static void sendSampleTraces(final int count, final double interval) throws Exception {
     Agent.startDatadogTracer(InitializationTelemetry.noOpInstance());
 
@@ -93,6 +96,7 @@ public final class AgentCLI {
     OOMENotifier.sendOomeEvent(taglist);
   }
 
+  @SuppressForbidden
   public static void scanDependencies(final String[] args) throws Exception {
     Class depClass =
         Class.forName(

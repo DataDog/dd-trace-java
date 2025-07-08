@@ -3,9 +3,11 @@ package datadog.trace.common.writer.ddagent
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.Config
 import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -19,10 +21,13 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.jupiter.api.Assertions.assertEquals
 import static org.junit.jupiter.api.Assertions.assertFalse
+import static org.junit.jupiter.api.Assertions.assertNotNull
+import static org.junit.jupiter.api.Assertions.assertTrue
 import static org.msgpack.core.MessageFormat.FLOAT32
 import static org.msgpack.core.MessageFormat.FLOAT64
 import static org.msgpack.core.MessageFormat.INT16
@@ -170,6 +175,46 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     verifier.verifyTracesConsumed()
   }
 
+  void 'test process tags serialization'() {
+    setup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    assertNotNull(ProcessTags.tagsForSerialization)
+    def spans = (1..2).collect {
+      new TraceGenerator.PojoSpan(
+      'service',
+      'operation',
+      'resource',
+      DDTraceId.ONE,
+      it,
+      -1L,
+      123L,
+      456L,
+      0,
+      [:],
+      [:],
+      'type',
+      false,
+      0,
+      0,
+      'origin')
+    }
+
+    def traces = [spans]
+    TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
+
+    when:
+    packer.format(spans, traceMapper)
+    packer.flush()
+
+    then:
+    verifier.verifyTracesConsumed()
+    cleanup:
+    ProcessTags.empty()
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
@@ -194,6 +239,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       if (expectedTraces.isEmpty() && messageCount == 0) {
         return
       }
+      boolean hasProcessTags = false
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer)
         payload.writeTo(this)
@@ -301,6 +347,11 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
               } else if (DDTags.ORIGIN_KEY.equals(entry.getKey())) {
                 assertEquals(expectedSpan.getOrigin(), entry.getValue())
+              } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
+                assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
+                assertEquals(0, k)
+                assertEquals(ProcessTags.tagsForSerialization.toString(), entry.getValue())
+                hasProcessTags = true
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {
@@ -328,6 +379,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       } catch (IOException e) {
         Assertions.fail(e.getMessage())
       } finally {
+        assert hasProcessTags == Config.get().isExperimentalPropagateProcessTagsEnabled()
         mapper.reset()
         captured.position(0)
         captured.limit(captured.capacity())

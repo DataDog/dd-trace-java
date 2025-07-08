@@ -27,6 +27,9 @@ import okhttp3.Request;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
@@ -44,9 +47,13 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     return TagsHelper.sanitize("SpringBootTestApplication");
   }
 
-  @Test
+  @ParameterizedTest(name = "Process tags enabled ''{0}''")
+  @ValueSource(booleans = {true, false})
   @DisplayName("testTracer")
-  void testTracer() throws Exception {
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
+  void testTracer(boolean processTagsEnabled) throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -56,17 +63,29 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                 "(HttpServletRequest, HttpServletResponse)")
             .captureSnapshot(true)
             .build();
-    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe);
+    JsonSnapshotSerializer.IntakeRequest request = doTestTracer(logProbe, processTagsEnabled);
     Snapshot snapshot = request.getDebugger().getSnapshot();
     assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     assertTrue(Pattern.matches("[0-9a-f]+", request.getTraceId()));
     assertTrue(Pattern.matches("\\d+", request.getSpanId()));
     assertFalse(
         logHasErrors(logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
+    if (processTagsEnabled) {
+      assertNotNull(request.getProcessTags());
+      assertTrue(
+          request
+              .getProcessTags()
+              .contains("entrypoint.name:" + TagsHelper.sanitize(DEBUGGER_TEST_APP_CLASS)));
+    } else {
+      assertNull(request.getProcessTags());
+    }
   }
 
   @Test
   @DisplayName("testTracerDynamicLog")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerDynamicLog() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -89,6 +108,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerSameMethod")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerSameMethod() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -108,6 +130,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerLineSnapshotProbe")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerLineSnapshotProbe() throws Exception {
     LogProbe logProbe =
         LogProbe.builder()
@@ -127,6 +152,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   @DisplayName("testTracerLineDynamicLogProbe")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   void testTracerLineDynamicLogProbe() throws Exception {
     final String LOG_TEMPLATE = "processWithArg {argInt}";
     LogProbe logProbe =
@@ -146,9 +174,18 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   private JsonSnapshotSerializer.IntakeRequest doTestTracer(LogProbe logProbe) throws Exception {
+    return doTestTracer(logProbe, false);
+  }
+
+  private JsonSnapshotSerializer.IntakeRequest doTestTracer(
+      LogProbe logProbe, boolean enableProcessTags) throws Exception {
     setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
-    targetProcess = createProcessBuilder(logFilePath, "--server.port=" + httpPort).start();
+    ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
+    if (enableProcessTags) {
+      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "true");
+    }
+    targetProcess = processBuilder.start();
     // assert in logs app started
     waitForSpecificLogLine(
         logFilePath,

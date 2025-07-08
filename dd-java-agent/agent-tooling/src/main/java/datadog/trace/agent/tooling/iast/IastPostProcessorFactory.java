@@ -21,6 +21,7 @@ import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nonnull;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.annotation.AnnotationDescription;
@@ -64,8 +65,8 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
 
   @Override
   public @Nonnull Advice.PostProcessor make(
-      @Nonnull final MethodDescription.InDefinedShape advice, final boolean exit) {
-    for (final AnnotationDescription annotation : advice.getDeclaredAnnotations()) {
+      List<? extends AnnotationDescription> annotations, TypeDescription returnType, boolean exit) {
+    for (final AnnotationDescription annotation : annotations) {
       final TypeDescription typeDescr = annotation.getAnnotationType();
       final PackageDescription pkgDescr = typeDescr.getPackage();
       if (pkgDescr != null && IAST_ANNOTATIONS_PKG.equals(pkgDescr.getName())) {

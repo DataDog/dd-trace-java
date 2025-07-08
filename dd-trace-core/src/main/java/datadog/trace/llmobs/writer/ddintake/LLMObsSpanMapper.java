@@ -75,7 +75,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_CALL_ARGUMENTS =
       "arguments".getBytes(StandardCharsets.UTF_8);
 
-  // TODO is there a better place for this?
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
 
   private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
@@ -246,7 +245,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String tagKey = tag.getKey();
         if (tagKey.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
           writable.writeString(tagKey.substring(LLMOBS_METRIC_PREFIX.length()), null);
-          writable.writeDouble((double) tag.getValue());
+          writable.writeObject(tag.getValue(), null);
         }
       }
 
@@ -314,7 +313,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   writable.writeUTF8(LLM_TOOL_CALL_TYPE);
                   writable.writeString(toolCall.getType(), null);
                   writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
-                  writable.writeString(toolCall.getToolID(), null);
+                  writable.writeString(toolCall.getToolId(), null);
                   if (hasArguments) {
                     writable.writeUTF8(LLM_TOOL_CALL_ARGUMENTS);
                     writable.startMap(arguments.size());

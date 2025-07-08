@@ -1,6 +1,8 @@
 package datadog.trace.api.git;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
+import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -87,7 +89,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       }
 
       String commitSha = gitInfo.getCommit().getSha();
-      if (!GitUtils.isValidCommitSha(commitSha)) {
+      if (!GitUtils.isValidCommitShaFull(commitSha)) {
         log.error(
             "Git commit SHA could not be resolved or is invalid: "
                 + commitSha
@@ -105,5 +107,15 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
   @Override
   public int order() {
     return 0;
+  }
+
+  @Override
+  public GitProviderExpected providerAsExpected() {
+    return GitProviderExpected.USER_SUPPLIED;
+  }
+
+  @Override
+  public GitProviderDiscrepant providerAsDiscrepant() {
+    return GitProviderDiscrepant.USER_SUPPLIED;
   }
 }

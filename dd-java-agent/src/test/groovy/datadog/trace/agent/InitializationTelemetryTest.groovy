@@ -1,11 +1,16 @@
 package datadog.trace.agent
 
+import datadog.environment.JavaVirtualMachine
+import datadog.test.SimpleAgentMock
+import jvmbootstraptest.InitializationTelemetryCheck
+import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Timeout
 
-import jvmbootstraptest.InitializationTelemetryCheck
-
 @Timeout(30)
+@IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
+})
 class InitializationTelemetryTest extends Specification {
   def "block agent start-up"() {
     // In this case, the SecurityManager blocks loading of the Premain Class,
@@ -28,6 +33,26 @@ class InitializationTelemetryTest extends Specification {
     result.telemetryJson.contains('library_entrypoint.complete')
   }
 
+  def "test initial telemetry forwarder trace muted"() {
+    when:
+    def agent = new SimpleAgentMock().start()
+    def result = InitializationTelemetryCheck.runTestJvm(null, agent.port)
+
+    then:
+    result.exitCode == 0
+    result.telemetryJson.contains('library_entrypoint.complete')
+
+    // Check that we have only one span related to sub-process execution,
+    // and it is not initial telemetry forwarder.
+    agent.spans.size() == 1
+    def span = agent.spans.get(0)
+    span.name == 'command_execution'
+    span.resource == 'echo'
+
+    cleanup:
+    agent.close()
+  }
+
   def "incomplete agent start-up"() {
     // In this case, the SecurityManager blocks a custom permission that is checked by bytebuddy causing
     // agent initialization to fail.  However, we should catch the exception allowing the application
@@ -45,7 +70,7 @@ class InitializationTelemetryTest extends Specification {
     // In this case, the SecurityManager blocks access to the forwarder environment variable,
     // so the tracer is unable to report initialization telemetry
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderEnvVar, true)
+    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderEnvVar)
 
     then:
     result.exitCode == 0
@@ -57,7 +82,7 @@ class InitializationTelemetryTest extends Specification {
     // In this case, the SecurityManager blocks access to process execution, so the tracer is
     // unable to invoke the forwarder executable
     when:
-    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderExecution, true)
+    def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderExecution)
 
     then:
     result.exitCode == 0

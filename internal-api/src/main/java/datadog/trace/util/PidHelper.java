@@ -1,18 +1,18 @@
 package datadog.trace.util;
 
-import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +34,10 @@ public final class PidHelper {
     return PID_AS_LONG;
   }
 
+  @SuppressWarnings("unchecked")
   private static String findPid() {
     String pid = "";
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         pid =
             Strings.trim(
@@ -64,50 +65,90 @@ public final class PidHelper {
     return pid;
   }
 
-  public static Set<String> getJavaPids() {
-    // Attempt to use jvmstat directly, fall through to jps process fork strategy
-    Set<String> directlyObtainedPids = JPSUtils.getVMPids();
-    if (directlyObtainedPids != null) {
-      return directlyObtainedPids;
-    }
-    // there is no supported Java API to achieve this
-    // one could use sun.jvmstat.monitor.MonitoredHost but it is an internal API and can go away at
-    // any time -
-    //  also, no guarantee it will work with all JVMs
-    ProcessBuilder pb = new ProcessBuilder("jps");
-    try (TraceScope ignored = AgentTracer.get().muteTracing()) {
-      Process p = pb.start();
-      // start draining the subcommand's pipes asynchronously to avoid flooding them
-      CompletableFuture<Set<String>> collecting =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try (BufferedReader br =
-                    new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                  return br.lines()
-                      .filter(l -> !l.contains("jps"))
-                      .map(
-                          l -> {
-                            int idx = l.indexOf(' ');
-                            return l.substring(0, idx);
-                          })
-                      .collect(java.util.stream.Collectors.toSet());
-                } catch (IOException e) {
-                  log.debug("Unable to list java processes via 'jps'", e);
-                  return Collections.emptySet();
-                }
-              });
-      if (p.waitFor(1200, TimeUnit.MILLISECONDS)) {
-        if (p.exitValue() == 0) {
-          return collecting.get();
-        } else {
-          log.debug("Execution of 'jps' failed with exit code {}", p.exitValue());
-        }
+  private static String getTempDir() {
+    if (!JavaVirtualMachine.isJ9()) {
+      // See
+      // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha#remarks
+      // and
+      // the JDK OS-specific implementations of os::get_temp_directory(), i.e.
+      // https://github.com/openjdk/jdk/blob/f50bd0d9ec65a6b9596805d0131aaefc1bb913f3/src/hotspot/os/bsd/os_bsd.cpp#L886-L904
+      if (OperatingSystem.isLinux()) {
+        return "/tmp";
+      } else if (OperatingSystem.isWindows()) {
+        return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
+            .filter(String::isEmpty)
+            .findFirst()
+            .orElse("C:\\Windows");
+      } else if (OperatingSystem.isMacOs()) {
+        return System.getenv("TMPDIR");
       } else {
-        p.destroyForcibly();
-        log.debug("Execution of 'jps' timed out");
+        return System.getProperty("java.io.tmpdir");
       }
-    } catch (Exception e) {
-      log.debug("Unable to list java processes via 'jps'", e);
+    } else {
+      try {
+        https: // github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/IPC.java#L351
+        return (String)
+            Class.forName("openj9.internal.tools.attach.target.IPC")
+                .getDeclaredMethod("getTmpDir")
+                .invoke(null);
+      } catch (Throwable t) {
+        // Fall back to constants based on J9 source code, may not have perfect coverage
+        String tmpDir = System.getProperty("java.io.tmpdir");
+        if (tmpDir != null && !tmpDir.isEmpty()) {
+          return tmpDir;
+        } else if (OperatingSystem.isWindows()) {
+          return "C:\\Documents";
+        } else {
+          return "/tmp";
+        }
+      }
+    }
+  }
+
+  private static Path getJavaProcessesDir() {
+    if (JavaVirtualMachine.isJ9()) {
+      // J9 uses a different temporary directory AND subdirectory for storing jps / attach-related
+      // info
+      // https://github.com/eclipse-openj9/openj9/blob/196082df056a990756a5571bfac29585fbbfbb42/jcl/src/java.base/share/classes/openj9/internal/tools/attach/target/CommonDirectory.java#L94
+      return Paths.get(getTempDir(), ".com_ibm_tools_attach");
+    } else {
+      // Emulating the hotspot way to enumerate the JVM processes using the perfdata file
+      // https://github.com/openjdk/jdk/blob/d7cb933b89839b692f5562aeeb92076cd25a99f6/src/hotspot/share/runtime/perfMemory.cpp#L244
+      return Paths.get(getTempDir(), "hsperfdata_" + System.getProperty("user.name"));
+    }
+  }
+
+  public static Set<String> getJavaPids() {
+    try (Stream<Path> stream = Files.list(getJavaProcessesDir())) {
+      return stream
+          .map(Path::getFileName)
+          .map(Path::toString)
+          .filter(
+              (name) -> {
+                // On J9, additional metadata files are present alongside files named $PID.
+                // Additionally, the contents of the ps dir are files with process ID files for
+                // Hotspot,
+                // but they are directories for J9.
+                // This also makes sense as defensive programming.
+                if (name.isEmpty()) {
+                  return false;
+                }
+                char c = name.charAt(0);
+                if (c < '0' || c > '9') {
+                  // Short-circuit - let's not parse as long something that is definitely not a long
+                  // number
+                  return false;
+                }
+                long pid = -1;
+                try {
+                  pid = Long.parseLong(name);
+                } catch (NumberFormatException ignored) {
+                }
+                return pid != -1;
+              })
+          .collect(Collectors.toSet());
+    } catch (IOException e) {
+      log.debug("Unable to obtain Java PIDs", e);
     }
     return Collections.emptySet();
   }

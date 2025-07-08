@@ -126,6 +126,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   "datadog.trace.api.civisibility.events.TestDescriptor",
   "datadog.trace.api.civisibility.events.TestSuiteDescriptor",
+  "datadog.trace.api.civisibility.execution.TestStatus",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric.IndexHolder",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
@@ -139,6 +140,7 @@ excludedClassesCoverage += [
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
+  "datadog.trace.api.git.GitInfoProvider.ShaDiscrepancy",
   // POJO
   "datadog.trace.api.git.PersonInfo",
   // POJO
@@ -203,6 +205,8 @@ excludedClassesCoverage += [
   'datadog.trace.api.telemetry.LogCollector.RawLogMessage',
   "datadog.trace.api.telemetry.MetricCollector.DistributionSeriesPoint",
   "datadog.trace.api.telemetry.MetricCollector",
+  //Enum
+  "datadog.trace.api.telemetry.WafTruncatedType",
   // stubs
   'datadog.trace.api.profiling.Timing.NoOp',
   'datadog.trace.api.profiling.Timer.NoOp',
@@ -225,7 +229,10 @@ excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.ClassloaderConfigurationOverrides.Lazy',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
-  'datadog.trace.util.stacktrace.StackWalkerFactory'
+  'datadog.trace.util.stacktrace.StackWalkerFactory',
+  // Tested using forked process
+  'datadog.trace.api.env.CapturedEnvironment',
+  'datadog.trace.api.env.CapturedEnvironment.ProcessInfo'
 ]
 excludedClassesInstructionCoverage = [
   'datadog.trace.bootstrap.config.provider.EnvironmentConfigSource',
@@ -240,15 +247,15 @@ dependencies {
   api project(':dd-trace-api')
   api libs.slf4j
   api project(':components:context')
+  api project(':components:environment')
   api project(':components:yaml')
-  api project(':components:cli')
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.2.2"
 
-  testImplementation("org.yaml:snakeyaml:2.4")
+  testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
   testImplementation libs.bundles.junit5

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,7 +41,10 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
           // Name the parent span based on the matching pattern
           // Let the parent span resource name be set with the attribute set in findMapping.
           SpringWebHttpServerDecorator.DECORATE.onRequest(
-              (AgentSpan) parentSpan, wrappedRequest, wrappedRequest, null);
+              (AgentSpan) parentSpan,
+              wrappedRequest,
+              wrappedRequest,
+              (AgentSpanContext.Extracted) null);
         }
       } catch (final Exception ignored) {
         // mapping.getHandler() threw exception.  Ignore

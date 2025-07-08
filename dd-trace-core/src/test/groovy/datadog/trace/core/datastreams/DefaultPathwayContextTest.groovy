@@ -3,12 +3,14 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -17,6 +19,7 @@ import java.util.function.Consumer
 
 import static datadog.context.Context.root
 import static datadog.trace.api.TracePropagationStyle.DATADOG
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG
 import static datadog.trace.api.datastreams.DataStreamsContext.create
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags
@@ -428,6 +431,23 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     firstBaseHash != secondBaseHash
   }
 
+  def "Process Tags used in hash calculation"() {
+    when:
+    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    ProcessTags.reset()
+    ProcessTags.addTag("000", "first")
+    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    then:
+    firstBaseHash != secondBaseHash
+    assert ProcessTags.getTagsForSerialization().startsWithAny("000:first,")
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
+  }
+
   def "Check context extractor decorator behavior"() {
     given:
     def sink = Mock(Sink)
@@ -438,12 +458,14 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def payloadWriter = Mock(DatastreamsPayloadWriter)
 
     def globalTraceConfig = Mock(TraceConfig) {
-      isDataStreamsEnabled() >> { return globalDsmEnabled }
+      isDataStreamsEnabled() >> { return dynamicConfigEnabled }
     }
 
-    def localTraceConfig = Mock(TraceConfig) {
-      isDataStreamsEnabled() >> { return localDsmEnabled }
+    def tracerApi = Mock(AgentTracer.TracerAPI) {
+      captureTraceConfig() >> globalTraceConfig
     }
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    AgentTracer.forceRegister(tracerApi)
 
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
@@ -451,39 +473,32 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
     def encoded = context.encode()
-    Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
+    Map<String, String> carrier = [
+      (PROPAGATION_KEY_BASE64): encoded,
+      "someotherkey": "someothervalue"
+    ]
     def contextVisitor = new Base64MapContextVisitor()
 
-    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, localTraceConfig, DATADOG)
-    def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
     def propagator = dataStreams.propagator()
 
     when:
-    def extractedContext = propagator.extract(baseContext, carrier, contextVisitor)
+    def extractedContext = propagator.extract(root(), carrier, contextVisitor)
     def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
-    extractedSpan != null
-
-    when:
-    def extracted = extractedSpan.context()
-
-    then:
-    extracted != null
-
-    if (shouldExtractPathwayContext) {
+    !dynamicConfigEnabled || extractedSpan != null
+    if (dynamicConfigEnabled) {
+      def extracted = extractedSpan.context()
+      assert extracted != null
       assert extracted.pathwayContext != null
       assert extracted.pathwayContext.isStarted()
-    } else {
-      assert extracted.pathwayContext == null
     }
 
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
+
     where:
-    localDsmEnabled | globalDsmEnabled | shouldExtractPathwayContext
-    true            | true             | true
-    true            | false            | true
-    false           | true             | false
-    false           | false            | false
+    dynamicConfigEnabled << [true, false]
   }
 
   def "Check context extractor decorator behavior when trace data is null"() {

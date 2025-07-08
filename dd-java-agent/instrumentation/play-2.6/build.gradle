@@ -7,6 +7,8 @@ def scalaVersion = '2.11'
 def playVersion = '2.6.0'
 
 muzzle {
+  extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
+
   pass {
     name = 'play26Plus'
     group = 'com.typesafe.play'
@@ -62,8 +64,8 @@ repositories {
   }
 }
 
-addTestSuiteForDir('baseTest', 'baseTest')
-addTestSuiteForDir('latestDepTest', 'latestDepTest')
+addTestSuite('baseTest')
+addTestSuite('latestDepTest')
 
 sourceSets {
   main_play27 {

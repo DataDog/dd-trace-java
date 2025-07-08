@@ -241,6 +241,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } else {
       span.setResourceName(DB_QUERY);
     }
+    span.context().setIntegrationName(component);
     return span.setTag(Tags.COMPONENT, component);
   }
 
@@ -285,6 +286,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
+      span.setTag("_dd.dbm_trace_injected", true);
     } catch (Throwable e) {
       log.debug(
           "Failed to set extra DBM data in application_name for trace {}. "
@@ -293,8 +295,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           span.getTraceId().toHexString(),
           e);
       DECORATE.onError(span, e);
-    } finally {
-      span.setTag("_dd.dbm_trace_injected", true);
     }
   }
 

@@ -34,7 +34,6 @@ import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class OpenTracing32Test extends AgentTestRunner {
 
@@ -118,6 +117,7 @@ class OpenTracing32Test extends AgentTestRunner {
             }
             defaultTags(addReference != null)
           }
+          assert span.context().integrationName == "opentracing"
         }
       }
     }

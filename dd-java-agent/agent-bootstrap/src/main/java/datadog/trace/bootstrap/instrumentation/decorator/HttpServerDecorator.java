@@ -1,13 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.context.Context.root;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
+import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -35,7 +38,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -43,6 +45,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,18 +62,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
-  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
-
-  static {
-    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
-    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
-    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
-  }
-
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-  private static final boolean SHOULD_SET_404_RESOURCE_NAME =
+  protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
       Config.get().isRuleEnabled("URLAsResourceNameRule")
           && Config.get().isRuleEnabled("Status404Rule")
           && Config.get().isRuleEnabled("Status404Decorator");
@@ -124,6 +118,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
+  /** Deprecated. Use {@link #extractContext(REQUEST_CARRIER)} instead. */
   public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
@@ -132,7 +127,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return extractContextAndGetSpanContext(carrier, getter);
   }
 
-  /** Deprecated. Use {@link #startSpan(String, Object, AgentSpanContext.Extracted)} instead. */
+  /**
+   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentations is complete
+   */
+  public Context extractContext(REQUEST_CARRIER carrier) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return root();
+    }
+    return Propagators.defaultPropagator().extract(root(), carrier, getter);
+  }
+
+  /** Deprecated. Use {@link #startSpan(Object, Context)} instead. */
   @Deprecated
   public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
     return startSpan("http-server", carrier, context);
@@ -150,16 +156,33 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null != carrier && null != getter) {
-      tracer().getDataStreamsMonitoring().setCheckpoint(span, fromTags(SERVER_PATHWAY_EDGE_TAGS));
+      tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     }
     return span;
+  }
+
+  public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
+    return startSpan("http-server", carrier, getExtractedSpanContext(context));
+  }
+
+  public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   public AgentSpan onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final AgentSpanContext.Extracted context) {
+      final Context context) {
+    return onRequest(span, connection, request, getExtractedSpanContext(context));
+  }
+
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      @Nullable final AgentSpanContext.Extracted context) {
     Config config = Config.get();
     boolean clientIpResolverEnabled =
         config.isClientIpEnabled()
@@ -619,14 +642,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     private final AgentSpan span;
     private final Map<String, String> headerTags;
+    private final String wildcardHeaderPrefix;
 
     public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
       this.span = span;
       this.headerTags = headerTags;
+      this.wildcardHeaderPrefix = this.headerTags.get("*");
     }
 
     @Override
     public boolean accept(String key, String value) {
+      if (wildcardHeaderPrefix != null) {
+        span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
+      }
       String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);

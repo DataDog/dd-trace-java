@@ -2,13 +2,14 @@ package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.cli.CLIHelper;
+import datadog.trace.bootstrap.environment.EnvironmentVariables;
+import datadog.trace.bootstrap.environment.JavaVirtualMachine;
+import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -44,8 +45,9 @@ import java.util.jar.JarFile;
  * </ul>
  */
 public final class AgentBootstrap {
-  static final String LIB_INJECTION_ENABLED_FLAG = "DD_INJECTION_ENABLED";
-  static final String LIB_INJECTION_FORCE_FLAG = "DD_INJECT_FORCE";
+  static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
+  static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
+  static final String LIB_INSTRUMENTATION_SOURCE_SYS_PROP = "dd.instrumentation.source";
 
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
@@ -58,6 +60,7 @@ public final class AgentBootstrap {
     agentmain(agentArgs, inst);
   }
 
+  @SuppressForbidden
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     BootstrapInitializationTelemetry initTelemetry;
 
@@ -88,7 +91,7 @@ public final class AgentBootstrap {
   }
 
   private static BootstrapInitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
+    String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
       return BootstrapInitializationTelemetry.noOpInstance();
     }
@@ -98,7 +101,7 @@ public final class AgentBootstrap {
     initTelemetry.initMetaInfo("runtime_name", "jvm");
     initTelemetry.initMetaInfo("language_name", "jvm");
 
-    String javaVersion = SystemUtils.tryGetProperty("java.version");
+    String javaVersion = SystemProperties.get("java.version");
     if (javaVersion != null) {
       initTelemetry.initMetaInfo("runtime_version", javaVersion);
       initTelemetry.initMetaInfo("language_version", javaVersion);
@@ -124,10 +127,6 @@ public final class AgentBootstrap {
       // since tracer is presumably initialized elsewhere, still considering this complete
       return;
     }
-    if (lessThanJava8()) {
-      initTelemetry.onAbort("incompatible_runtime");
-      return;
-    }
     if (isJdkTool()) {
       initTelemetry.onAbort("jdk_tool");
       return;
@@ -135,6 +134,12 @@ public final class AgentBootstrap {
     if (shouldAbortDueToOtherJavaAgents()) {
       initTelemetry.onAbort("other-java-agents");
       return;
+    }
+
+    if (getConfig(LIB_INJECTION_ENABLED_ENV_VAR)) {
+      recordInstrumentationSource("ssi");
+    } else {
+      recordInstrumentationSource("cmd_line");
     }
 
     final URL agentJarURL = installAgentJar(inst);
@@ -155,18 +160,29 @@ public final class AgentBootstrap {
 
   static boolean getConfig(String configName) {
     switch (configName) {
-      case LIB_INJECTION_ENABLED_FLAG:
-        return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
-      case LIB_INJECTION_FORCE_FLAG:
-        String libInjectionForceFlag = System.getenv(LIB_INJECTION_FORCE_FLAG);
-        return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
+      case LIB_INJECTION_ENABLED_ENV_VAR:
+        return System.getenv(LIB_INJECTION_ENABLED_ENV_VAR) != null;
+      case LIB_INJECTION_FORCE_SYS_PROP:
+        {
+          String envVarName =
+              LIB_INJECTION_FORCE_SYS_PROP.replace('.', '_').replace('-', '_').toUpperCase();
+          String injectionForceFlag = EnvironmentVariables.get(envVarName);
+          if (injectionForceFlag == null) {
+            injectionForceFlag = SystemProperties.get(LIB_INJECTION_FORCE_SYS_PROP);
+          }
+          return "true".equalsIgnoreCase(injectionForceFlag) || "1".equals(injectionForceFlag);
+        }
       default:
         return false;
     }
   }
 
+  private static void recordInstrumentationSource(String source) {
+    SystemProperties.set(LIB_INSTRUMENTATION_SOURCE_SYS_PROP, source);
+  }
+
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
-    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<>());
     Throwable t = ex;
     while (t != null && stack.add(t) && stack.size() <= MAX_EXCEPTION_CHAIN_LENGTH) {
       // cannot do an instanceof check since most of the agent's code is loaded by an isolated CL
@@ -178,6 +194,7 @@ public final class AgentBootstrap {
     return false;
   }
 
+  @SuppressForbidden
   private static boolean alreadyInitialized() {
     if (initialized) {
       System.err.println(
@@ -188,37 +205,8 @@ public final class AgentBootstrap {
     return false;
   }
 
-  private static boolean lessThanJava8() {
-    try {
-      return lessThanJava8(System.getProperty("java.version"), System.err);
-    } catch (SecurityException e) {
-      // Hypothetically, we could version sniff the supported version level
-      // For now, just skip the check and let the JVM handle things instead
-      return false;
-    }
-  }
-
-  // Reachable for testing
-  static boolean lessThanJava8(String version, PrintStream output) {
-    if (parseJavaMajorVersion(version) < 8) {
-      String agentRawVersion = AgentJar.tryGetAgentVersion();
-      String agentVersion = agentRawVersion == null ? "This version" : "Version " + agentRawVersion;
-
-      output.println(
-          "Warning: "
-              + agentVersion
-              + " of dd-java-agent is not compatible with Java "
-              + version
-              + " and will not be installed.");
-      output.println(
-          "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
-      return true;
-    }
-    return false;
-  }
-
   private static boolean isJdkTool() {
-    String moduleMain = SystemUtils.tryGetProperty("jdk.module.main");
+    String moduleMain = SystemProperties.get("jdk.module.main");
     if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
       switch (moduleMain) {
         case "java.base": // keytool
@@ -257,67 +245,54 @@ public final class AgentBootstrap {
     return false;
   }
 
-  // Reachable for testing
-  static int parseJavaMajorVersion(String version) {
-    int major = 0;
-    if (null == version || version.isEmpty()) {
-      return major;
-    }
-    int start = 0;
-    if (version.charAt(0) == '1'
-        && version.length() >= 3
-        && version.charAt(1) == '.'
-        && Character.isDigit(version.charAt(2))) {
-      start = 2;
-    }
-    // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
-    for (int i = start; i < version.length(); i++) {
-      char c = version.charAt(i);
-      if (Character.isDigit(c)) {
-        major *= 10;
-        major += Character.digit(c, 10);
-      } else {
-        break;
-      }
-    }
-    return major;
-  }
-
+  @SuppressForbidden
   static boolean shouldAbortDueToOtherJavaAgents() {
-    // Simply considering having multiple agents
-    if (getConfig(LIB_INJECTION_ENABLED_FLAG)
-        && !getConfig(LIB_INJECTION_FORCE_FLAG)
-        && getAgentFilesFromVMArguments().size() > 1) {
-      // Formatting agent file list, Java 7 style
-      StringBuilder agentFiles = new StringBuilder();
-      boolean first = true;
-      for (File agentFile : getAgentFilesFromVMArguments()) {
-        if (first) {
-          first = false;
-        } else {
-          agentFiles.append(", ");
-        }
-        agentFiles.append('"');
-        agentFiles.append(agentFile.getAbsolutePath());
-        agentFiles.append('"');
-      }
-      System.err.println(
-          "Info: multiple JVM agents detected, found "
-              + agentFiles
-              + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
-              + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
-      return true;
+    // We don't abort if either
+    // * We are not using SSI
+    // * Injection is forced
+    // * There is only one agent
+    if (!getConfig(LIB_INJECTION_ENABLED_ENV_VAR)
+        || getConfig(LIB_INJECTION_FORCE_SYS_PROP)
+        || getAgentFilesFromVMArguments().size() <= 1) {
+      return false;
     }
-    return false;
+
+    // If there are 2 agents and one of them is for patching log4j, it's fine
+    if (getAgentFilesFromVMArguments().size() == 2) {
+      for (File agentFile : getAgentFilesFromVMArguments()) {
+        if (agentFile.getName().toLowerCase().contains("log4j")) {
+          return false;
+        }
+      }
+    }
+
+    // Simply considering having multiple agents
+    // Formatting agent file list, Java 7 style
+    StringBuilder agentFiles = new StringBuilder();
+    boolean first = true;
+    for (File agentFile : getAgentFilesFromVMArguments()) {
+      if (first) {
+        first = false;
+      } else {
+        agentFiles.append(", ");
+      }
+      agentFiles.append('"');
+      agentFiles.append(agentFile.getAbsolutePath());
+      agentFiles.append('"');
+    }
+    System.err.println(
+        "Info: multiple JVM agents detected, found "
+            + agentFiles
+            + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
+            + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
+    return true;
   }
 
   public static void main(final String[] args) {
-    if (lessThanJava8()) {
-      return;
-    }
     AgentJar.main(args);
   }
 
+  @SuppressForbidden
   private static synchronized URL installAgentJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     // First try Code Source
@@ -360,6 +335,7 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
+  @SuppressForbidden
   private static File getAgentFileFromJavaagentArg(List<File> agentFiles) {
     if (agentFiles.isEmpty()) {
       System.err.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
@@ -373,6 +349,7 @@ public final class AgentBootstrap {
     }
   }
 
+  @SuppressForbidden
   private static List<File> getAgentFilesFromVMArguments() {
     if (agentFiles == null) {
       agentFiles = new ArrayList<>();
@@ -381,7 +358,7 @@ public final class AgentBootstrap {
       // - On IBM-based JDKs since at least 1.7
       // This prevents custom log managers from working correctly
       // Use reflection to bypass the loading of the class~
-      for (final String argument : CLIHelper.getVmArgs()) {
+      for (final String argument : JavaVirtualMachine.getVmOptions()) {
         if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =

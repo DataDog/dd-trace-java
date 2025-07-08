@@ -32,6 +32,7 @@ class SourceFileTrackingTransformerTest {
         null,
         null,
         getClassFileBytes(MyTopLevelClass.class));
+    sourceFileTrackingTransformer.flush();
     changedClasses =
         finder.getAllLoadedChangedClasses(
             new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
@@ -48,6 +49,7 @@ class SourceFileTrackingTransformerTest {
     ConfigurationComparer comparer = createComparer("InnerHelper.java");
     sourceFileTrackingTransformer.transform(
         null, getInternalName(InnerHelper.class), null, null, getClassFileBytes(InnerHelper.class));
+    sourceFileTrackingTransformer.flush();
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(new Class[] {InnerHelper.class}, comparer);
     assertEquals(1, changedClasses.size());
@@ -64,6 +66,7 @@ class SourceFileTrackingTransformerTest {
         null,
         null,
         getClassFileBytes(InnerHelper.MySecondInner.class));
+    sourceFileTrackingTransformer.flush();
     changedClasses =
         finder.getAllLoadedChangedClasses(
             new Class[] {
@@ -74,6 +77,38 @@ class SourceFileTrackingTransformerTest {
     assertEquals(InnerHelper.class, changedClasses.get(0));
     assertEquals(InnerHelper.MyInner.class, changedClasses.get(1));
     assertEquals(InnerHelper.MySecondInner.class, changedClasses.get(2));
+  }
+
+  @Test
+  void transformNotAllowed() throws IllegalClassFormatException {
+    ClassesToRetransformFinder finder = new ClassesToRetransformFinder();
+    SourceFileTrackingTransformer sourceFileTrackingTransformer =
+        new SourceFileTrackingTransformer(finder);
+    ConfigurationComparer comparer = createComparer("TopLevelHelper.java");
+    byte[] classFileBytes = getClassFileBytes(TopLevelHelper.class);
+    replaceInByteArray(
+        classFileBytes, "TopLevelHelper.java".getBytes(), "TopLevelHelper.cloj".getBytes());
+    sourceFileTrackingTransformer.transform(null, "", null, null, classFileBytes);
+    sourceFileTrackingTransformer.flush();
+    List<Class<?>> changedClasses =
+        finder.getAllLoadedChangedClasses(new Class[] {InnerHelper.class}, comparer);
+    assertEquals(0, finder.getClassNamesBySourceFile().size());
+  }
+
+  private static void replaceInByteArray(byte[] buffer, byte[] oldBytes, byte[] newBytes) {
+    int oldIdx = 0;
+    for (int i = 0; i < buffer.length; i++) {
+      if (buffer[i] == oldBytes[oldIdx]) {
+        oldIdx++;
+        if (oldIdx == oldBytes.length) {
+          // Found the oldBytes, replace with newBytes
+          System.arraycopy(newBytes, 0, buffer, i - oldIdx + 1, newBytes.length);
+          oldIdx = 0; // Reset for next search
+        }
+      } else {
+        oldIdx = 0; // Reset if current byte does not match
+      }
+    }
   }
 
   private ConfigurationComparer createComparer(String sourceFile) {

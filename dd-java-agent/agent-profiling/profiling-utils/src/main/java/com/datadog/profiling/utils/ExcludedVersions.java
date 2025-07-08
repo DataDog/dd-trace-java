@@ -1,6 +1,8 @@
 package com.datadog.profiling.utils;
 
-import static datadog.trace.api.Platform.*;
+import static datadog.environment.JavaVirtualMachine.getRuntimeVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionBetween;
 
 public class ExcludedVersions {
 

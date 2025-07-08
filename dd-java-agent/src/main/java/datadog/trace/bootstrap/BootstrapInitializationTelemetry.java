@@ -1,11 +1,11 @@
 package datadog.trace.bootstrap;
 
 import datadog.json.JsonWriter;
-import java.io.IOException;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
@@ -179,7 +179,7 @@ public abstract class BootstrapInitializationTelemetry {
   }
 
   public interface JsonSender {
-    void send(byte[] payload) throws IOException;
+    void send(byte[] payload);
   }
 
   public static final class ForwarderJsonSender implements JsonSender {
@@ -190,19 +190,51 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void send(byte[] payload) throws IOException {
+    public void send(byte[] payload) {
+      ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, payload);
+      t.setDaemon(true);
+      t.start();
+    }
+  }
+
+  public static final class ForwarderJsonSenderThread extends Thread {
+    private final String forwarderPath;
+    private final byte[] payload;
+
+    public ForwarderJsonSenderThread(String forwarderPath, byte[] payload) {
+      super("dd-forwarder-json-sender");
+      this.forwarderPath = forwarderPath;
+      this.payload = payload;
+    }
+
+    @SuppressForbidden
+    @Override
+    public void run() {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
 
-      Process process = builder.start();
-      try (OutputStream out = process.getOutputStream()) {
-        out.write(payload);
+      // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
+      try (final Closeable ignored = muteTracing()) {
+        Process process = builder.start();
+        try (OutputStream out = process.getOutputStream()) {
+          out.write(payload);
+        }
+      } catch (Throwable e) {
+        // We don't have a log manager here, so just print.
+        System.err.println("Failed to send telemetry: " + e.getMessage());
       }
+    }
 
+    @SuppressForbidden
+    private Closeable muteTracing() {
       try {
-        process.waitFor(1, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        // just for hygiene, reset the interrupt status
-        Thread.currentThread().interrupt();
+        Class<?> agentTracerClass =
+            Class.forName("datadog.trace.bootstrap.instrumentation.api.AgentTracer");
+        Object tracerAPI = agentTracerClass.getMethod("get").invoke(null);
+        Object scope = tracerAPI.getClass().getMethod("muteTracing").invoke(tracerAPI);
+        return (Closeable) scope;
+      } catch (Throwable e) {
+        // Ignore all exceptions and fallback to No-Op Closable.
+        return () -> {};
       }
     }
   }
