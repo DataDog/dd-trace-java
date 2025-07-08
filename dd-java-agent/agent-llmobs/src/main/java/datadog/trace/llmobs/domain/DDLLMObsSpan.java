@@ -2,6 +2,7 @@ package datadog.trace.llmobs.domain;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -295,5 +296,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
     this.span.finish();
     this.scope.close();
     this.finished = true;
+  }
+
+  @Override
+  public DDTraceId getTraceId() {
+    return this.span.getTraceId();
+  }
+
+  @Override
+  public long getSpanId() {
+    return this.span.getSpanId();
   }
 }

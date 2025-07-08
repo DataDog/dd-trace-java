@@ -7,8 +7,11 @@ import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
+import datadog.trace.llmobs.domain.LLMObsEval;
 import datadog.trace.llmobs.domain.LLMObsInternal;
 import java.lang.instrument.Instrumentation;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +33,98 @@ public class LLMObsSystem {
 
     LLMObsInternal.setLLMObsSpanFactory(
         new LLMObsManualSpanFactory(config.getLlmObsMlApp(), config.getServiceName()));
+
+    String mlApp = config.getLlmObsMlApp();
+    LLMObsInternal.setLLMObsSpanFactory(
+        new LLMObsManualSpanFactory(mlApp, config.getServiceName()));
+
+    LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+  }
+
+  private static class LLMObsCustomEvalProcessor implements LLMObs.LLMObsEvalProcessor {
+    private final String defaultMLApp;
+    private final EvalProcessingWorker evalProcessingWorker;
+
+    public LLMObsCustomEvalProcessor(
+        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
+
+      this.defaultMLApp = defaultMLApp;
+      this.evalProcessingWorker =
+          new EvalProcessingWorker(1024, 100, TimeUnit.MILLISECONDS, sco, config);
+      this.evalProcessingWorker.start();
+    }
+
+    @Override
+    public void SubmitEvaluation(
+        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+      SubmitEvaluation(llmObsSpan, label, scoreValue, defaultMLApp, tags);
+    }
+
+    @Override
+    public void SubmitEvaluation(
+        LLMObsSpan llmObsSpan,
+        String label,
+        double scoreValue,
+        String mlApp,
+        Map<String, Object> tags) {
+      if (llmObsSpan == null) {
+        LOGGER.error("null llm obs span provided, eval not recorded");
+        return;
+      }
+
+      if (mlApp == null || mlApp.isEmpty()) {
+        mlApp = defaultMLApp;
+      }
+      String traceID = llmObsSpan.getTraceId().toHexString();
+      long spanID = llmObsSpan.getSpanId();
+      LLMObsEval.Score score =
+          new LLMObsEval.Score(
+              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
+      if (!this.evalProcessingWorker.addToQueue(score)) {
+        LOGGER.warn(
+            "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
+            mlApp,
+            traceID,
+            spanID,
+            label);
+      }
+    }
+
+    @Override
+    public void SubmitEvaluation(
+        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+      SubmitEvaluation(llmObsSpan, label, categoricalValue, defaultMLApp, tags);
+    }
+
+    @Override
+    public void SubmitEvaluation(
+        LLMObsSpan llmObsSpan,
+        String label,
+        String categoricalValue,
+        String mlApp,
+        Map<String, Object> tags) {
+      if (llmObsSpan == null) {
+        LOGGER.error("null llm obs span provided, eval not recorded");
+        return;
+      }
+
+      if (mlApp == null || mlApp.isEmpty()) {
+        mlApp = defaultMLApp;
+      }
+      String traceID = llmObsSpan.getTraceId().toHexString();
+      long spanID = llmObsSpan.getSpanId();
+      LLMObsEval.Categorical category =
+          new LLMObsEval.Categorical(
+              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
+      if (!this.evalProcessingWorker.addToQueue(category)) {
+        LOGGER.warn(
+            "queue full, failed to add categorical eval, ml_app={}, trace_id={}, span_id={}, label={}",
+            mlApp,
+            traceID,
+            spanID,
+            label);
+      }
+    }
   }
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {

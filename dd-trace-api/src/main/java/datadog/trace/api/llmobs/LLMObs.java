@@ -1,5 +1,6 @@
 package datadog.trace.api.llmobs;
 
+import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ public class LLMObs {
   protected LLMObs() {}
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
+  protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -44,6 +46,34 @@ public class LLMObs {
     return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionId);
   }
 
+  public static void SubmitEvaluation(
+      LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+    EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, tags);
+  }
+
+  public static void SubmitEvaluation(
+      LLMObsSpan llmObsSpan,
+      String label,
+      String categoricalValue,
+      String mlApp,
+      Map<String, Object> tags) {
+    EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, mlApp, tags);
+  }
+
+  public static void SubmitEvaluation(
+      LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+    EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, scoreValue, tags);
+  }
+
+  public static void SubmitEvaluation(
+      LLMObsSpan llmObsSpan,
+      String label,
+      double scoreValue,
+      String mlApp,
+      Map<String, Object> tags) {
+    EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, scoreValue, mlApp, tags);
+  }
+
   public interface LLMObsSpanFactory {
     LLMObsSpan startLLMSpan(
         String spanName,
@@ -60,6 +90,28 @@ public class LLMObs {
 
     LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId);
+  }
+
+  public interface LLMObsEvalProcessor {
+    void SubmitEvaluation(
+        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags);
+
+    void SubmitEvaluation(
+        LLMObsSpan llmObsSpan,
+        String label,
+        double scoreValue,
+        String mlApp,
+        Map<String, Object> tags);
+
+    void SubmitEvaluation(
+        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags);
+
+    void SubmitEvaluation(
+        LLMObsSpan llmObsSpan,
+        String label,
+        String categoricalValue,
+        String mlApp,
+        Map<String, Object> tags);
   }
 
   public static class ToolCall {
