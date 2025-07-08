@@ -96,6 +96,7 @@ public class PlayHttpServerDecorator
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        dispatchRoute(span, path);
       }
     }
     return span;
@@ -105,38 +106,30 @@ public class PlayHttpServerDecorator
    * Play does not set the http.route in the local root span so we need to store it in the context
    * for API security
    */
-  public void dispatchRoute(final AgentSpan span, final Request request) {
-    if (request != null) {
-      // more about routes here:
-      // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
-      final Option pathOption = request.tags().get("ROUTE_PATTERN");
-      if (!pathOption.isEmpty()) {
-        final String path = (String) pathOption.get();
-        try {
-          final RequestContext ctx = span.getRequestContext();
-          if (ctx == null) {
-            return;
-          }
-          // Send event to AppSec provider
-          final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-          if (cbp != null) {
-            final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
-            if (cb != null) {
-              cb.accept(ctx, path);
-            }
-          }
-          // Send event to IAST provider
-          final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
-          if (cbpIast != null) {
-            final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
-            if (cb != null) {
-              cb.accept(ctx, path);
-            }
-          }
-        } catch (final Throwable t) {
-          LOG.debug("Failed to dispatch route", t);
+  private void dispatchRoute(final AgentSpan span, final String route) {
+    try {
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+      // Send event to AppSec provider
+      final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+      if (cbp != null) {
+        final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
         }
       }
+      // Send event to IAST provider
+      final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+      if (cbpIast != null) {
+        final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
+        }
+      }
+    } catch (final Throwable t) {
+      LOG.debug("Failed to dispatch route", t);
     }
   }
 

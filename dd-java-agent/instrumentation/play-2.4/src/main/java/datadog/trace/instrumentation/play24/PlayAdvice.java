@@ -45,7 +45,8 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
-    DECORATE.dispatchRoute(span, req);
+    // Call onRequest on return after tags are populated.
+    DECORATE.onRequest(span, req, req, (AgentSpanContext.Extracted) null);
 
     return scope;
   }
@@ -63,9 +64,6 @@ public class PlayAdvice {
     }
 
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
-
-    // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(playControllerSpan, req, req, (AgentSpanContext.Extracted) null);
 
     if (throwable == null) {
       responseFuture.onComplete(
