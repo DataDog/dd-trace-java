@@ -82,5 +82,6 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   @Override
   public void setContentType(String type) {
     shouldInject = type != null && type.contains("text/html");
+    super.setContentType(type);
   }
 }

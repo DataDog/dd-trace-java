@@ -17,6 +17,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   private boolean found = false;
   private int matchingPos = 0;
   private final Runnable onContentInjected;
+  private final int bulkWriteThreshold;
 
   /**
    * @param downstream the delegate output stream
@@ -35,6 +36,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
     this.pos = 0;
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
+    this.bulkWriteThreshold = marker.length * 2 - 2;
   }
 
   @Override
@@ -75,7 +77,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       out.write(b, off, len);
       return;
     }
-    if (len > marker.length * 2 - 2) {
+    if (len > bulkWriteThreshold) {
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
@@ -97,7 +99,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
           write(b[i]);
         }
         drain();
-        out.write(b, off + marker.length - 1, len - marker.length * 2 + 2);
+        out.write(b, off + marker.length - 1, len - bulkWriteThreshold);
         for (int i = len - marker.length + 1; i < len; i++) {
           write(b[i]);
         }
