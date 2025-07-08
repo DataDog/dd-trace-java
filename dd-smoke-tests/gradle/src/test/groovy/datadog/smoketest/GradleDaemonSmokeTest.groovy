@@ -60,9 +60,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     "7.6.4"       | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
   }
 
-  @IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
-    JavaVirtualMachine.isJavaVersionAtLeast(24)
-  })
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
 
