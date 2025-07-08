@@ -131,6 +131,10 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
   }
 
+  def cleanup() {
+    TEST_WRITER.clear()
+  }
+
   def "test get hit"() {
     setup:
 
@@ -387,9 +391,9 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     assertTraces(1) {
       trace(4) {
         getParentSpan(it, 0)
-        getSpan(it, 1, "get", null, "hit")
+        getSpan(it, 1, "gets")
         getSpan(it, 2, "append")
-        getSpan(it, 3, "gets")
+        getSpan(it, 3, "get", null, "hit")
       }
     }
   }
@@ -408,9 +412,9 @@ abstract class SpymemcachedTest extends VersionedNamingTestBase {
     assertTraces(1) {
       trace(4) {
         getParentSpan(it, 0)
-        getSpan(it, 1, "get", null, "hit")
+        getSpan(it, 1, "gets")
         getSpan(it, 2, "prepend")
-        getSpan(it, 3, "gets")
+        getSpan(it, 3, "get", null, "hit")
       }
     }
   }
