@@ -485,6 +485,28 @@ class WafMetricCollectorTest extends DDSpecification {
     [stringTooLong, listMapTooLarge, objectTooDeep] << allBooleanCombinations(3)
   }
 
+  void 'test waf config error metrics'() {
+    given:
+    def collector = WafMetricCollector.get()
+
+    when:
+    collector.wafInit('waf_ver1', 'rules.1', true)
+    collector.addWafConfigError(5)
+    collector.addWafConfigError(3)
+    collector.prepareMetrics()
+
+    then:
+    def metrics = collector.drain()
+    def configErrorMetrics = metrics.findAll { it.metricName == 'waf.config_errors' }
+
+    final metric = configErrorMetrics[0]
+    metric.type == 'count'
+    metric.metricName == 'waf.config_errors'
+    metric.namespace == 'appsec'
+    metric.value == 8
+    metric.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.1'].toSet()
+  }
+
   /**
    * Helper method to generate all combinations of n boolean values.
    */

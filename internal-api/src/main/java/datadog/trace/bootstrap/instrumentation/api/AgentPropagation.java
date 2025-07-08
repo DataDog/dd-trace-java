@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.context.Context.root;
 import static datadog.context.propagation.Concern.named;
 import static datadog.context.propagation.Concern.withPriority;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
@@ -25,8 +27,8 @@ public final class AgentPropagation {
   @Deprecated
   public static <C> AgentSpanContext.Extracted extractContextAndGetSpanContext(
       final C carrier, final ContextVisitor<C> getter) {
-    Context extracted = Propagators.defaultPropagator().extract(Context.root(), carrier, getter);
-    AgentSpan extractedSpan = AgentSpan.fromContext(extracted);
+    Context extracted = Propagators.defaultPropagator().extract(root(), carrier, getter);
+    AgentSpan extractedSpan = fromContext(extracted);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 

@@ -54,6 +54,8 @@ public final class GeneralConfig {
 
   public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
   public static final String RUNTIME_ID_ENABLED = "runtime-id.enabled";
+  public static final String RUNTIME_METRICS_RUNTIME_ID_ENABLED =
+      "runtime.metrics.runtime-id.enabled";
 
   public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
@@ -102,6 +104,10 @@ public final class GeneralConfig {
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
+
+  public static final String SSI_INJECTION_ENABLED = "injection.enabled";
+  public static final String SSI_INJECTION_FORCE = "inject.force";
+  public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
 
   private GeneralConfig() {}
 }

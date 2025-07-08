@@ -107,10 +107,10 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final Context extractedContext = DECORATE.extractContext(request);
-      request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
-      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
-      scope = extractedContext.with(span).attach();
+      final Context context = DECORATE.extractContext(request);
+      request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, context);
+      final AgentSpan span = DECORATE.startSpan(request, context);
+      scope = context.with(span).attach();
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {
@@ -124,7 +124,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         }
       }
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request, extractedContext);
+      DECORATE.onRequest(span, request, request, context);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

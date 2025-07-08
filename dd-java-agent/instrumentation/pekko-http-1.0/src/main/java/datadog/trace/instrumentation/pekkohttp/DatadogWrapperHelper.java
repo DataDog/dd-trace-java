@@ -10,12 +10,12 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse;
 
 public class DatadogWrapperHelper {
   public static ContextScope createSpan(final HttpRequest request) {
-    final Context extractedContext = DECORATE.extractContext(request);
-    final AgentSpan span = DECORATE.startSpan(request, extractedContext);
+    final Context context = DECORATE.extractContext(request);
+    final AgentSpan span = DECORATE.startSpan(request, context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request, request, extractedContext);
+    DECORATE.onRequest(span, request, request, context);
 
-    return extractedContext.with(span).attach();
+    return context.with(span).attach();
   }
 
   public static void finishSpan(final AgentSpan span, final HttpResponse response) {

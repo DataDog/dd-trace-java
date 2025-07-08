@@ -7,6 +7,10 @@ SUMMARY_RESPONSE_CODE=$(echo "$SUMMARY_RESPONSE" | awk 'END {print $NF}')
 
 if [[ SUMMARY_RESPONSE_CODE -eq 200 ]]; then
   echo "APM Test Agent is running. (HTTP 200)"
+elif [[ -n "$CI_USE_TEST_AGENT" ]]; then
+  echo "APM Test Agent failed to start, had an error, or exited early."
+  cat summary_response.txt
+  exit 1
 else
   echo "APM Test Agent is not running and was not used for testing. No checks failed."
   exit 0

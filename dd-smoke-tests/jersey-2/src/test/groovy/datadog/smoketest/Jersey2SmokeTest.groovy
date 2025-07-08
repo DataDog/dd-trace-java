@@ -1,9 +1,9 @@
 package datadog.smoketest
 
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.IastConfig
-import datadog.trace.test.util.Predicates.IBM8
 import datadog.trace.test.util.Flaky
+import datadog.trace.test.util.Predicates.IBM8
 
 import static datadog.trace.api.iast.IastContext.Mode.GLOBAL
 
@@ -18,7 +18,7 @@ class Jersey2SmokeTest extends AbstractJerseySmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll(iastJvmOpts())
     command.add(withSystemProperty('integration.grizzly.enabled', true))
-    if (Platform.isJavaVersionAtLeast(17)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(17)) {
       command.addAll((String[]) ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'])
     }
     command.addAll(['-jar', jarPath, Integer.toString(httpPort)])

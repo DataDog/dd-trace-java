@@ -1,6 +1,6 @@
 package datadog.trace.api.iast
 
-import datadog.trace.api.Platform
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.IastConfig
 import datadog.trace.test.util.DDSpecification
 
@@ -15,9 +15,9 @@ class IastEnabledChecksTests extends DDSpecification {
 
     where:
     majorJavaVersion | expected
-    '8'              | Platform.isJavaVersionAtLeast(majorJavaVersion as int)
-    '9'              | Platform.isJavaVersionAtLeast(majorJavaVersion as int)
-    '17'             | Platform.isJavaVersionAtLeast(majorJavaVersion as int)
+    '8'              | JavaVirtualMachine.isJavaVersionAtLeast(majorJavaVersion as int)
+    '9'              | JavaVirtualMachine.isJavaVersionAtLeast(majorJavaVersion as int)
+    '17'             | JavaVirtualMachine.isJavaVersionAtLeast(majorJavaVersion as int)
     'abcd'           | false
   }
 
