@@ -198,11 +198,11 @@ pre-release-checks:
       allow_failure: false
   script:
     - |
-      SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-      SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
       # See https://central.sonatype.org/publish/publish-portal-api/
       # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$SONATYPE_USERNAME:$SONATYPE_PASSWORD" | base64)"
+      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
       if [ $? -ne 0 ]; then
         echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
         exit 1
