@@ -58,11 +58,23 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.initMetaInfo("runtime_name", "java")
     initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
 
+    initTelemetry.onAbort("jdk_tool")
+    initTelemetry.finish()
+
+    then:
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","resultReason":"jdk_tool","resultClass":"incorrect_installation"},"points":[{"name":"library_entrypoint.abort","tags":["reason:jdk_tool"]}]}'
+  }
+
+  def "test abort unknown"() {
+    when:
+    initTelemetry.initMetaInfo("runtime_name", "java")
+    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+
     initTelemetry.onAbort("foo")
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","resultReason":"foo","resultClass":"internal_error"},"points":[{"name":"library_entrypoint.abort","tags":["reason:foo"]}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","resultReason":"foo","resultClass":"unknown"},"points":[{"name":"library_entrypoint.abort","tags":["reason:foo"]}]}'
   }
 
   def "trivial completion check"() {

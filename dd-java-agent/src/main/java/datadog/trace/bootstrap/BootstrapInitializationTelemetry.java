@@ -53,6 +53,11 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
+  /**
+   * Indicates that the bootstrapping process completed successfully
+   */
+  public abstract void onSuccess();
+
   public abstract void setInjectResult(String result);
 
   public abstract void setInjectResultReason(String reason);
@@ -97,6 +102,9 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {}
+
+    @Override
+    public void onSuccess() {}
   }
 
   public static final class JsonBased extends BootstrapInitializationTelemetry {
@@ -174,11 +182,11 @@ public abstract class BootstrapInitializationTelemetry {
       }
       switch (reasonCode) {
         case "already_initialized":
-          return "already_instrumented";
+          return "already_initialized";
         case "other-java-agents":
           return "already_instrumented";
         case "jdk_tool":
-          return "incompatible_runtime";
+          return "incorrect_installation";
         default:
           return "unknown";
       }
@@ -208,6 +216,7 @@ public abstract class BootstrapInitializationTelemetry {
           }
         }
         writer.endObject();
+
         writer.name("points").beginArray();
         synchronized (this.points) {
           for (int i = 0; i + 1 < this.points.size(); i = i + 2) {
@@ -229,6 +238,14 @@ public abstract class BootstrapInitializationTelemetry {
         // Since this is the reporting mechanism, there's little recourse here
         // Decided to simply ignore - arguably might want to write to stderr
       }
+    }
+
+    @Override
+    public void onSuccess() {
+      onPoint("library_entrypoint.success", "reason:success");
+      setInjectResult("success");
+      setInjectResultReason("Successfully configured ddtrace package");
+      setInjectResultClass("success");
     }
   }
 
