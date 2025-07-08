@@ -191,5 +191,7 @@ testAggregate("base", [":"], [
 
 
 tasks.register('runMuzzle') {
-  dependsOn subprojects.findAll { p -> p.activePartition && p.plugins.hasPlugin('muzzle') }.collect { p -> p.path + ":muzzle" }
+  dependsOn subprojects.findAll { p ->
+    p.activePartition && p.plugins.hasPlugin('java') && p.plugins.hasPlugin('muzzle')
+  }.collect { p -> p.path + ":muzzle" }
 }
