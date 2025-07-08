@@ -424,7 +424,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestMavenVersion() {
-    OkHttpClient client = new OkHttpClient()
+    OkHttpClient client = new OkHttpClient.Builder()
+      .connectTimeout(10, TimeUnit.SECONDS)
+      .readTimeout(10, TimeUnit.SECONDS)
+      .writeTimeout(10, TimeUnit.SECONDS)
+      .build()
     Request request = new Request.Builder().url("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml").build()
     try (Response response = client.newCall(request).execute()) {
       if (response.successful) {
@@ -453,7 +457,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestMavenSurefireVersion() {
-    OkHttpClient client = new OkHttpClient()
+    OkHttpClient client = new OkHttpClient.Builder()
+      .connectTimeout(10, TimeUnit.SECONDS)
+      .readTimeout(10, TimeUnit.SECONDS)
+      .writeTimeout(10, TimeUnit.SECONDS)
+      .build()
     Request request =
     new Request.Builder()
     .url(
