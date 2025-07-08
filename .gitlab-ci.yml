@@ -186,7 +186,32 @@ default:
   after_script:
     - *cgroup_info
 
+# Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
+# on the central publisher protal, it invalidates the old one. This checks prevents going further.
+# See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
+pre-release-checks:
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: .pre
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+      allow_failure: false
+  script:
+    - |
+      SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+      SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+      # See https://central.sonatype.org/publish/publish-portal-api/
+      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
+      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$SONATYPE_USERNAME:$SONATYPE_PASSWORD" | base64)"
+      if [ $? -ne 0 ]; then
+        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
+        exit 1
+      fi
+
 build:
+  needs:
+    - job: pre-release-checks
+      optional: true
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
