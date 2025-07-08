@@ -75,7 +75,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_CALL_ARGUMENTS =
       "arguments".getBytes(StandardCharsets.UTF_8);
 
-  // TODO is there a better place for this?
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
 
   private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
