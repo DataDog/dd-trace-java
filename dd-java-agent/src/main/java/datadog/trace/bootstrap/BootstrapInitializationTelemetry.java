@@ -55,7 +55,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void setInjectResult(String result);
 
-  public abstract void setInjectResultReason(String reason);
+  public abstract void setInjectResultReason(String resultReason);
 
   public abstract void setInjectResultClass(String resultClass);
 
@@ -87,7 +87,7 @@ public abstract class BootstrapInitializationTelemetry {
     public void setInjectResult(String result) {}
 
     @Override
-    public void setInjectResultReason(String reason) {}
+    public void setInjectResultReason(String resultReason) {}
 
     @Override
     public void setInjectResultClass(String resultClass) {}
@@ -130,12 +130,12 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void setInjectResultReason(String resultReason) {
-      initMetaInfo("resultReason", resultReason);
+      initMetaInfo("result_reason", resultReason);
     }
 
     @Override
     public void setInjectResultClass(String resultClass) {
-      initMetaInfo("resultClass", resultClass);
+      initMetaInfo("result_class", resultClass);
     }
 
     @Override
@@ -177,11 +177,11 @@ public abstract class BootstrapInitializationTelemetry {
       }
       switch (reasonCode) {
         case "already_initialized":
-          return "already_initialized";
+          return "already_instrumented";
         case "other-java-agents":
           return "already_instrumented";
         case "jdk_tool":
-          return "incorrect_installation";
+          return "unsupported_binary";
         default:
           return "unknown";
       }
