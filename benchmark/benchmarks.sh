@@ -33,10 +33,6 @@ if [[ ! -f "${TRACER}" ]]; then
   cd "${SCRIPT_DIR}"
 fi
 
-# Cleanup previous reports
-rm -rf "${REPORTS_DIR}"
-mkdir -p "${REPORTS_DIR}"
-
 if [[ "$#" == '0' ]]; then
   for type in 'startup' 'load' 'dacapo'; do
     run_benchmarks "$type"

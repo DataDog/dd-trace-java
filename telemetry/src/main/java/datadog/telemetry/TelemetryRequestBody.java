@@ -2,6 +2,7 @@ package datadog.telemetry;
 
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
+import datadog.environment.JavaVirtualMachine;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -11,7 +12,6 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Platform;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
@@ -44,10 +44,10 @@ public class TelemetryRequestBody extends RequestBody {
   private static class CommonData {
     final Config config = Config.get();
     final String env = config.getEnv();
-    final String langVersion = Platform.getLangVersion();
-    final String runtimeName = Platform.getRuntimeVendor();
-    final String runtimePatches = Platform.getRuntimePatches();
-    final String runtimeVersion = Platform.getRuntimeVersion();
+    final String langVersion = JavaVirtualMachine.getLangVersion();
+    final String runtimeName = JavaVirtualMachine.getRuntimeVendor();
+    final String runtimePatches = JavaVirtualMachine.getRuntimePatches();
+    final String runtimeVersion = JavaVirtualMachine.getRuntimeVersion();
     final String serviceName = config.getServiceName();
     final String serviceVersion = config.getVersion();
     final String runtimeId = config.getRuntimeId();

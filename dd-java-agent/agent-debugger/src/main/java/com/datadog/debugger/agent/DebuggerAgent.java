@@ -89,6 +89,7 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation();
+      startCodeOriginForSpans();
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
@@ -323,6 +324,10 @@ public class DebuggerAgent {
 
   private static void setupSourceFileTracking(
       Instrumentation instrumentation, ClassesToRetransformFinder finder) {
+    if (!Config.get().isDebuggerSourceFileTrackingEnabled()) {
+      LOGGER.debug("Source file tracking is disabled");
+      return;
+    }
     SourceFileTrackingTransformer sourceFileTrackingTransformer =
         new SourceFileTrackingTransformer(finder);
     sourceFileTrackingTransformer.start();

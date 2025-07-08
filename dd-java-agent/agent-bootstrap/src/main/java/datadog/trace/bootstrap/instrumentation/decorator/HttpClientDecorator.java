@@ -26,21 +26,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedClientDecorator {
-  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
-
-  static {
-    CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
-    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    CLIENT_PATHWAY_EDGE_TAGS.put("direction", "out");
-    CLIENT_PATHWAY_EDGE_TAGS.put("type", "http");
-  }
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 

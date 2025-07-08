@@ -74,11 +74,11 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       ContextScope scope = null;
       try {
         if (span == null) {
-          final Context extractedContext = DECORATE.extractContext(exchange);
-          span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-          scope = extractedContext.with(span).attach();
+          final Context context = DECORATE.extractContext(exchange);
+          span = DECORATE.startSpan(exchange, context).setMeasured(true);
+          scope = context.with(span).attach();
           DECORATE.afterStart(span);
-          DECORATE.onRequest(span, exchange, exchange, extractedContext);
+          DECORATE.onRequest(span, exchange, exchange, context);
         }
         DECORATE.onError(span, throwable);
         // because we know that a http 400 will be thrown

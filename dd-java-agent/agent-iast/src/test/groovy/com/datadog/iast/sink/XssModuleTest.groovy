@@ -155,6 +155,45 @@ class XssModuleTest extends IastModuleImplTestBase {
     '/==>var<==' | VulnerabilityMarks.SQL_INJECTION_MARK| "/==>var<=="
   }
 
+  void 'class and method names are truncated when exceeding max length'() {
+    setup:
+    final param = mapTainted('/==>value<==', NOT_MARKED)
+    final clazz = 'c' * 600
+    final method = 'm' * 600
+
+    when:
+    module.onXss(param, clazz, method)
+
+    then:
+    1 * reporter.report(_, _) >> { args ->
+      final vuln = args[1] as Vulnerability
+      assertEvidence(vuln, '/==>value<==')
+      assert vuln.location.path.length() == 500
+      assert vuln.location.method.length() == 500
+      assert vuln.location.path == clazz.substring(0, 500)
+      assert vuln.location.method == method.substring(0, 500)
+    }
+  }
+
+  void 'file name is truncated when exceeding max length'() {
+    setup:
+    final param = mapTainted('/==>value<==', NOT_MARKED)
+    final file = 'f' * 600
+    final line = 42
+
+    when:
+    module.onXss(param as CharSequence, file, line)
+
+    then:
+    1 * reporter.report(_, _) >> { args ->
+      final vuln = args[1] as Vulnerability
+      assertEvidence(vuln, '/==>value<==')
+      assert vuln.location.path.length() == 500
+      assert vuln.location.line == line
+      assert vuln.location.path == file.substring(0, 500)
+    }
+  }
+
 
   private String mapTainted(final String value, final int mark) {
     final result = addFromTaintFormat(ctx.taintedObjects, value, mark)

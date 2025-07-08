@@ -14,5 +14,5 @@ dependencies {
 }
 
 application {
-  mainClassName = 'test.published.dependencies.App'
+  mainClass = 'test.published.dependencies.App'
 }

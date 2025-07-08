@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.internal.inject.ParamConverters.StringConstructor;
+import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import smoketest.config.AutoScanFeature;
 
@@ -28,6 +29,8 @@ public class MainApp {
 
     // enable auto scan @Contract and @Service
     config.register(AutoScanFeature.class);
+
+    config.register(JacksonFeature.class);
 
     LOGGER.info("Starting Server........");
 

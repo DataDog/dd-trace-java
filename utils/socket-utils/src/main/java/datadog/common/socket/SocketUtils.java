@@ -2,8 +2,8 @@ package datadog.common.socket;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_SOCKET_PATH;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.TracerConfig;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -16,7 +16,7 @@ public final class SocketUtils {
   @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
   public static String discoverApmSocket(final Config config) {
     String unixDomainSocket = config.getAgentUnixDomainSocket();
-    if (!Platform.isWindows()) {
+    if (!OperatingSystem.isWindows()) {
       if (unixDomainSocket == null
           && Config.get().isAgentConfiguredUsingDefault()
           && new File(DEFAULT_TRACE_AGENT_SOCKET_PATH).exists()) {

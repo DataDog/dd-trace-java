@@ -11,7 +11,6 @@ import javax.inject.Inject;
 import play.Configuration;
 import play.libs.ws.*;
 import play.mvc.*;
-import play.mvc.With;
 
 public class JController extends Controller {
 

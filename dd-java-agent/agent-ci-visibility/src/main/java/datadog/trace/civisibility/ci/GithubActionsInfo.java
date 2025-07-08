@@ -94,7 +94,7 @@ class GithubActionsInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     String baseRef = environment.get(GITHUB_BASE_REF);
-    if (!Strings.isNotBlank(baseRef)) {
+    if (Strings.isBlank(baseRef)) {
       return PullRequestInfo.EMPTY;
     }
 
@@ -123,11 +123,11 @@ class GithubActionsInfo implements CIProviderInfo {
         }
       }
 
-      return new PullRequestInfo(baseRef, baseSha, headSha);
+      return new PullRequestInfo(baseRef, baseSha, headSha, null);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
-      return new PullRequestInfo(baseRef, null, null);
+      return new PullRequestInfo(baseRef, null, null, null);
     }
   }
 

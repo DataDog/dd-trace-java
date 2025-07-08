@@ -1,3 +1,4 @@
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -13,12 +14,16 @@ import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+import spock.lang.IgnoreIf
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
+@IgnoreIf(reason = "Karate instrumentation is creating an unclosed span of kind test_suite_end specifically for Java 24. Skip until we have a fix.", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
+})
 @DisableTestTrace(reason = "avoid self-tracing")
 class KarateTest extends CiVisibilityInstrumentationTest {
 

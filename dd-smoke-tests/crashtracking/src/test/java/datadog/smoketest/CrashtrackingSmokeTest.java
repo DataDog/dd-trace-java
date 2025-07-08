@@ -8,7 +8,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -49,7 +50,7 @@ public class CrashtrackingSmokeTest {
   @BeforeAll
   static void setupAll() {
     // Only Hotspot based implementation are supported
-    assumeFalse(Platform.isJ9());
+    assumeFalse(JavaVirtualMachine.isJ9());
   }
 
   private Path tempDir;
@@ -127,7 +128,7 @@ public class CrashtrackingSmokeTest {
   }
 
   private static String getExtension() {
-    return Platform.isWindows() ? "bat" : "sh";
+    return OperatingSystem.isWindows() ? "bat" : "sh";
   }
 
   /*
