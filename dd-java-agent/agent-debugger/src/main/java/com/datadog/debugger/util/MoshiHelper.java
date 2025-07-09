@@ -17,6 +17,10 @@ import java.util.Map;
 public class MoshiHelper {
 
   public static Moshi createMoshiConfig() {
+    return createMoshiConfigBuilder().build();
+  }
+
+  public static Moshi.Builder createMoshiConfigBuilder() {
     ProbeCondition.ProbeConditionJsonAdapter probeConditionJsonAdapter =
         new ProbeCondition.ProbeConditionJsonAdapter();
     return new Moshi.Builder()
@@ -25,8 +29,7 @@ public class MoshiHelper {
         .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
         .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
         .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
-        .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter())
-        .build();
+        .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter());
   }
 
   public static Moshi createMoshiSnapshot() {
