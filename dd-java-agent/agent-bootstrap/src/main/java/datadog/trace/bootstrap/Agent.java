@@ -26,6 +26,7 @@ import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.LlmObsConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -42,6 +43,7 @@ import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -109,7 +111,9 @@ public class Agent {
     EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
-    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -156,6 +160,8 @@ public class Agent {
   private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean llmObsEnabled = false;
+  private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
@@ -290,6 +296,25 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
+
+    // setup writers when llmobs is enabled to accomodate apm and llmobs
+    if (llmObsEnabled) {
+      // for llm obs spans, use agent proxy by default, apm spans will use agent writer
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+          WriterConstants.MULTI_WRITER_TYPE
+              + ":"
+              + WriterConstants.DD_INTAKE_WRITER_TYPE
+              + ","
+              + WriterConstants.DD_AGENT_WRITER_TYPE);
+      if (llmObsAgentlessEnabled) {
+        // use API writer only
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+            WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
+    }
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -578,6 +603,7 @@ public class Agent {
 
       maybeStartAppSec(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -930,6 +956,24 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void maybeStartLLMObs(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (llmObsEnabled) {
+      StaticEventLogger.begin("LLM Observability");
+
+      try {
+        final Class<?> llmObsSysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.llmobs.LLMObsSystem");
+        final Method llmObsInstallerMethod =
+            llmObsSysClass.getMethod("start", Instrumentation.class, scoClass);
+        llmObsInstallerMethod.invoke(null, inst, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting LLM Observability subsystem", e);
+      }
+
+      StaticEventLogger.end("LLM Observability");
     }
   }
 
