@@ -207,6 +207,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
   static final int DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS = 60 * 60;
   static final boolean DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED = false;
+  static final boolean DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED = true;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -239,6 +240,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = true;
   static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
+
+  static final boolean DEFAULT_RUM_ENABLED = false;
+  public static final String DEFAULT_RUM_SITE = DEFAULT_SITE;
+  public static final int DEFAULT_RUM_MAJOR_VERSION = 6;
 
   static final boolean DEFAULT_SSI_INJECTION_FORCE = false;
   static final String DEFAULT_INSTRUMENTATION_SOURCE = "manual";
