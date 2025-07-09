@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.ddprof;
 
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import datadog.common.version.VersionInfo;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 public class DatadogProfilerSettings extends ProfilerSettingsSupport {
@@ -14,6 +15,7 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
   }
 
   public void publish() {
+    datadogProfiler.recordSetting(VERSION_KEY, VersionInfo.VERSION);
     datadogProfiler.recordSetting(UPLOAD_PERIOD_KEY, String.valueOf(uploadPeriod), "seconds");
     datadogProfiler.recordSetting(UPLOAD_TIMEOUT_KEY, String.valueOf(uploadTimeout), "seconds");
     datadogProfiler.recordSetting(UPLOAD_COMPRESSION_KEY, uploadCompression);
