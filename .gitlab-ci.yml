@@ -119,14 +119,11 @@ default:
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
-    # FIXME: Disabled until we find a way to not hit GitHub API rate limit
-    if false && [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-      if [[ -n "$GIT_BASE_REF" ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      else
-        echo "Failed to find base ref for PR" >&2
-      fi
+    export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+    if [[ -n "$GIT_BASE_REF" ]]; then
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
+    else
+      echo "Failed to find base ref for PR" >&2
     fi
 
 .gradle_build: &gradle_build
@@ -149,6 +146,7 @@ default:
         - .gradle/caches
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
+      unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - '$CI_SERVER_VERSION-base'
         - '$CI_SERVER_VERSION-lib'
@@ -158,8 +156,11 @@ default:
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
       policy: $BUILD_CACHE_POLICY
+      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    # Akka token added to SSM from https://account.akka.io/token
+    - export AKKA_REPO_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - |
@@ -167,6 +168,7 @@ default:
       cat << EOF > $GRADLE_USER_HOME/gradle.properties
       mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
       gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+      akkaRepositoryToken=$AKKA_REPO_TOKEN
       EOF
     - |
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
