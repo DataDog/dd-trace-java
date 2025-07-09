@@ -53,11 +53,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
-  public abstract void setInjectResult(String result);
-
-  public abstract void setInjectResultReason(String resultReason);
-
-  public abstract void setInjectResultClass(String resultClass);
+  public abstract void setMetadata(String result, String resultReason, String reasonCode);
 
   public abstract void markIncomplete();
 
@@ -84,13 +80,7 @@ public abstract class BootstrapInitializationTelemetry {
     public void onError(Throwable t) {}
 
     @Override
-    public void setInjectResult(String result) {}
-
-    @Override
-    public void setInjectResultReason(String resultReason) {}
-
-    @Override
-    public void setInjectResultClass(String resultClass) {}
+    public void setMetadata(String result, String resultReason, String reasonCode) {}
 
     @Override
     public void markIncomplete() {}
@@ -124,36 +114,17 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void setInjectResult(String result) {
-      initMetaInfo("result", result);
-    }
-
-    @Override
-    public void setInjectResultReason(String resultReason) {
-      initMetaInfo("result_reason", resultReason);
-    }
-
-    @Override
-    public void setInjectResultClass(String resultClass) {
-      initMetaInfo("result_class", resultClass);
-    }
-
-    @Override
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
       markIncomplete();
-      setInjectResult("abort");
-      setInjectResultReason(reasonCode);
-      setInjectResultClass(mapResultClass(reasonCode));
+      setMetadata("abort", reasonCode, mapResultClass(reasonCode));
     }
 
     @Override
     public void onError(Throwable t) {
       error = true;
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
-      setInjectResult("error");
-      setInjectResultReason(t.getMessage());
-      setInjectResultClass("internal_error");
+      setMetadata("error", t.getMessage(), "internal_error");
     }
 
     @Override
@@ -166,9 +137,14 @@ public abstract class BootstrapInitializationTelemetry {
     public void onError(String reasonCode) {
       error = true;
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
-      setInjectResult("error");
-      setInjectResultReason(reasonCode);
-      setInjectResultClass(mapResultClass(reasonCode));
+      setMetadata("error", reasonCode, mapResultClass(reasonCode));
+    }
+
+    @Override
+    public void setMetadata(String result, String resultReason, String resultClass) {
+      initMetaInfo("result", result);
+      initMetaInfo("result_reason", resultReason);
+      initMetaInfo("result_class", resultClass);
     }
 
     private String mapResultClass(String reasonCode) {
@@ -177,7 +153,6 @@ public abstract class BootstrapInitializationTelemetry {
       }
       switch (reasonCode) {
         case "already_initialized":
-          return "already_instrumented";
         case "other-java-agents":
           return "already_instrumented";
         case "jdk_tool":
@@ -202,9 +177,7 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void finish() {
       if (!this.incomplete && !this.error) {
-        setInjectResult("success");
-        setInjectResultReason("Successfully configured ddtrace package");
-        setInjectResultClass("success");
+        setMetadata("success", "Successfully configured ddtrace package", "success");
       }
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
