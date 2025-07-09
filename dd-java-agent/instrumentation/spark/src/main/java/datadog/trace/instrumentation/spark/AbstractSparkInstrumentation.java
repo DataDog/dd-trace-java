@@ -126,9 +126,10 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
           && listener != null
           && "io.openlineage.spark.agent.OpenLineageSparkListener"
               .equals(listener.getClass().getCanonicalName())) {
+//        log.debug("Detected OpenLineage listener, skipping adding it to ListenerBus");
         log.debug("Detected OpenLineage listener, skipping adding it to ListenerBus");
         InstanceStore.of(SparkListenerInterface.class).put("openLineageListener", listener);
-        return true;
+//        return true;
       }
       return false;
     }
