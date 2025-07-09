@@ -118,6 +118,10 @@ public class WriterFactory {
         builder.addTrack(TrackType.CITESTCOV, coverageApi);
       }
 
+      final RemoteApi llmobsApi =
+          createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.LLMOBS);
+      builder.addTrack(TrackType.LLMOBS, llmobsApi);
+
       remoteWriter = builder.build();
 
     } else { // configuredType == DDAgentWriter
@@ -173,7 +177,14 @@ public class WriterFactory {
       SharedCommunicationObjects commObjects,
       DDAgentFeaturesDiscovery featuresDiscovery,
       TrackType trackType) {
-    if (featuresDiscovery.supportsEvpProxy() && !config.isCiVisibilityAgentlessEnabled()) {
+    boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
+    boolean useProxyApi =
+        (evpProxySupported && TrackType.LLMOBS == trackType && !config.isLlmObsAgentlessEnabled())
+            || (evpProxySupported
+                && (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType)
+                && !config.isCiVisibilityAgentlessEnabled());
+
+    if (useProxyApi) {
       return DDEvpProxyApi.builder()
           .httpClient(commObjects.okHttpClient)
           .agentUrl(commObjects.agentUrl)
@@ -181,12 +192,19 @@ public class WriterFactory {
           .trackType(trackType)
           .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
           .build();
-
     } else {
       HttpUrl hostUrl = null;
+      String llmObsAgentlessUrl = config.getLlmObsAgentlessUrl();
+
       if (config.getCiVisibilityAgentlessUrl() != null) {
         hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
         log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
+      } else if (config.isLlmObsEnabled()
+          && config.isLlmObsAgentlessEnabled()
+          && llmObsAgentlessUrl != null
+          && !llmObsAgentlessUrl.isEmpty()) {
+        hostUrl = HttpUrl.get(llmObsAgentlessUrl);
+        log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
       return DDIntakeApi.builder()
           .hostUrl(hostUrl)
