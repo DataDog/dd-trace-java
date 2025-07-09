@@ -420,7 +420,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               gitClient.getBaseCommitSha(pullRequestInfo.getPullRequestBaseBranch(), defaultBranch);
         }
 
-        Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getGitCommitHeadSha());
+        Diff diff =
+            gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getGitCommitHead().getSha());
         if (diff != null) {
           return diff;
         }

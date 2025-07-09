@@ -134,6 +134,12 @@ public class NoOpGitClient implements GitClient {
 
   @Nullable
   @Override
+  public String getMergeBase(@Nullable String base, @Nullable String source) {
+    return null;
+  }
+
+  @Nullable
+  @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit) {
     return null;
   }

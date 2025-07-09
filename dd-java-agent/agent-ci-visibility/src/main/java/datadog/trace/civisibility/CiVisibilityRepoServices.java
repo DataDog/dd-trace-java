@@ -4,7 +4,9 @@ import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
@@ -63,21 +65,21 @@ public class CiVisibilityRepoServices {
   CiVisibilityRepoServices(CiVisibilityServices services, Path path) {
     CIProviderInfo ciProviderInfo = services.ciProviderInfoFactory.createCIProviderInfo(path);
     ciProvider = ciProviderInfo.getProvider();
-
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(services.config, services.environment, ciProviderInfo);
-
-    if (pullRequestInfo.isNotEmpty()) {
-      LOGGER.info("PR detected: {}", pullRequestInfo);
-    }
 
     repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
     moduleName = getModuleName(services.config, repoRoot, path);
-    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
+    PullRequestInfo pullRequestInfo =
+        buildPullRequestInfo(services.config, services.environment, ciProviderInfo, gitClient);
+
+    if (!pullRequestInfo.isEmpty()) {
+      LOGGER.info("PR detected: {}", pullRequestInfo);
+    }
+
+    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
     gitDataUploader =
         buildGitDataUploader(
@@ -110,38 +112,69 @@ public class CiVisibilityRepoServices {
   }
 
   @Nonnull
-  private static PullRequestInfo buildPullRequestInfo(
-      Config config, CiEnvironment environment, CIProviderInfo ciProviderInfo) {
-    PullRequestInfo info = buildUserPullRequestInfo(config, environment);
+  static PullRequestInfo buildPullRequestInfo(
+      Config config,
+      CiEnvironment environment,
+      CIProviderInfo ciProviderInfo,
+      GitClient gitClient) {
+    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
 
-    if (info.isComplete()) {
-      return info;
+    if (userInfo.isComplete()) {
+      return userInfo;
     }
 
     // complete with CI vars if user didn't provide all information
-    return PullRequestInfo.merge(info, ciProviderInfo.buildPullRequestInfo());
+    PullRequestInfo ciInfo = PullRequestInfo.merge(userInfo, ciProviderInfo.buildPullRequestInfo());
+    if (Strings.isNotBlank(ciInfo.getGitCommitHead().getSha())) {
+      // if head sha present, try to populate author, committer and message info through git client
+      try {
+        String headSha = ciInfo.getGitCommitHead().getSha();
+        PersonInfo authorInfo =
+            new PersonInfo(
+                gitClient.getAuthorName(headSha),
+                gitClient.getAuthorEmail(headSha),
+                gitClient.getAuthorDate(headSha));
+        PersonInfo committerInfo =
+            new PersonInfo(
+                gitClient.getCommitterName(headSha),
+                gitClient.getCommitterEmail(headSha),
+                gitClient.getCommitterDate(headSha));
+        CommitInfo commitInfo =
+            new CommitInfo(headSha, authorInfo, committerInfo, gitClient.getFullMessage(headSha));
+        return PullRequestInfo.merge(ciInfo, new PullRequestInfo(null, null, commitInfo, null));
+      } catch (Exception ignored) {
+      }
+    }
+    return ciInfo;
   }
 
   @Nonnull
   private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment) {
+      Config config, CiEnvironment environment, GitClient gitClient) {
     PullRequestInfo userInfo =
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
             config.getGitPullRequestBaseBranchSha(),
-            config.getGitCommitHeadSha(),
+            new CommitInfo(config.getGitCommitHeadSha()),
             null);
 
     if (userInfo.isComplete()) {
       return userInfo;
     }
 
-    // logs-backend specific vars
+    // ddci specific vars
+    String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
+    String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
+    String mergeBase = null;
+    try {
+      mergeBase = gitClient.getMergeBase(targetSha, sourceSha);
+    } catch (Exception ignored) {
+    }
     PullRequestInfo ddCiInfo =
         new PullRequestInfo(
             null,
-            environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
-            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA),
+            mergeBase,
+            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
             null);
 
     return PullRequestInfo.merge(userInfo, ddCiInfo);

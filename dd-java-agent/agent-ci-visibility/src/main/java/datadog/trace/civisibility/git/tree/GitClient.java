@@ -77,6 +77,10 @@ public interface GitClient {
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
+  String getMergeBase(@Nullable String base, @Nullable String source)
+      throws IOException, TimeoutException, InterruptedException;
+
+  @Nullable
   LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException;
 

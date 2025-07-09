@@ -958,20 +958,23 @@ public class ShellGitClient implements GitClient {
   }
 
   /**
-   * Returns the merge base between to branches
+   * Returns the merge base between two commits or references
    *
-   * @param baseBranch Base branch. Must be remote, i.e. "origin/master"
-   * @param sourceBranch Source branch
-   * @return Merge base between the two branches
+   * @param base Base commit SHA or reference (HEAD, branch name, etc)
+   * @param source Source commit SHA or reference (HEAD, branch name, etc)
+   * @return Merge base between the two references
    */
-  String getMergeBase(String baseBranch, String sourceBranch)
+  public String getMergeBase(@Nullable String base, @Nullable String source)
       throws IOException, InterruptedException, TimeoutException {
+    if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
+      return null;
+    }
     try {
       return commandExecutor
-          .executeCommand(IOUtils::readFully, "git", "merge-base", baseBranch, sourceBranch)
+          .executeCommand(IOUtils::readFully, "git", "merge-base", base, source)
           .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error calculating common ancestor for {} and {}", baseBranch, sourceBranch, e);
+      LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
     }
     return null;
   }

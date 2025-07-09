@@ -1,9 +1,14 @@
 package datadog.trace.civisibility
 
 import datadog.trace.api.Config
-import spock.lang.Specification
-
+import datadog.trace.api.git.CommitInfo
+import datadog.trace.api.git.PersonInfo
+import datadog.trace.civisibility.ci.CIProviderInfo
+import datadog.trace.civisibility.ci.PullRequestInfo
+import datadog.trace.civisibility.ci.env.CiEnvironment
+import datadog.trace.civisibility.git.tree.GitClient
 import java.nio.file.Paths
+import spock.lang.Specification
 
 class CiVisibilityRepoServicesTest extends Specification {
 
@@ -24,5 +29,43 @@ class CiVisibilityRepoServicesTest extends Specification {
     "parent-module"  | "child-module" | "service-name" | "parent-module"
     null             | "child-module" | "service-name" | "child-module"
     null             | ""             | "service-name" | "service-name"
+  }
+
+  def "test build PR info"() {
+    setup:
+    def expectedInfo = new PullRequestInfo(
+      "master",
+      "baseSha",
+      new CommitInfo(
+      "sourceSha",
+      new PersonInfo("john", "john@doe.com", "never"),
+      PersonInfo.NOOP,
+      "hello world!"
+      ),
+      "42"
+      )
+
+    def config = Stub(Config)
+    config.getGitPullRequestBaseBranch() >> expectedInfo.getPullRequestBaseBranch()
+
+    def environment = Stub(CiEnvironment)
+    environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA) >> "targetSha"
+    environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA) >> expectedInfo.getGitCommitHead().getSha()
+
+    def ciProviderInfo = Stub(CIProviderInfo)
+    ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
+
+    def gitClient = Stub(GitClient)
+    gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getPullRequestBaseBranchSha()
+    gitClient.getAuthorName("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getName()
+    gitClient.getAuthorEmail("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getEmail()
+    gitClient.getAuthorDate("sourceSha") >> expectedInfo.getGitCommitHead().getAuthor().getIso8601Date()
+    gitClient.getCommitterName("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getName()
+    gitClient.getCommitterEmail("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getEmail()
+    gitClient.getCommitterDate("sourceSha") >> expectedInfo.getGitCommitHead().getCommitter().getIso8601Date()
+    gitClient.getFullMessage("sourceSha") >> expectedInfo.getGitCommitHead().getFullMessage()
+
+    expect:
+    CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient) == expectedInfo
   }
 }
