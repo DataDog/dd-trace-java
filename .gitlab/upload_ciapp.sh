@@ -35,5 +35,13 @@ junit_upload() {
         ./results
 }
 
+# Upload code coverage results to Datadog
+coverage_upload() {
+    DD_API_KEY=$1 \
+        datadog-ci coverage upload .
+}
+
 # Upload test results to production environment like all other CI jobs
 junit_upload "$DATADOG_API_KEY_PROD"
+
+coverage_upload "$DATADOG_API_KEY_PROD"
