@@ -365,6 +365,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
       "-Dmaven.mainClass=org.apache.maven.cli.MavenCli".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
+      "-Dmaven.artifact.threads=10",
     ]
     if (runWithAgent) {
       if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {
