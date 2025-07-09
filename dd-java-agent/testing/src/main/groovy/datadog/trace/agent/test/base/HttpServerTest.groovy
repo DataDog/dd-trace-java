@@ -27,6 +27,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
@@ -167,6 +168,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
     // allow endpoint discover for the tests
     injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
+    if (testRumInjection()) {
+      injectSysConfig("rum.enabled", "true")
+      injectSysConfig("rum.application.id", "test")
+      injectSysConfig("rum.client.token", "secret")
+      injectSysConfig("rum.remote.configuration.id", "12345")
+    }
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -420,6 +427,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testEndpointDiscovery() {
+    false
+  }
+
+  boolean testRumInjection() {
     false
   }
 
@@ -2189,6 +2200,28 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
     }
     assertEndpointDiscovery(discovered)
+  }
+
+
+  /**
+   * This test should be done in a forked test class
+   * @return
+   */
+  def "test rum injection in head for mime #mime"() {
+    setup:
+    assumeTrue(testRumInjection())
+    def request = new Request.Builder().url(server.address().resolve("gimme-$mime").toURL())
+    .get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    assert response.code() == 200
+    assert response.body().string().contains(new String(RumInjector.get().getSnippet("UTF-8"), "UTF-8")) == expected
+    assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
+    where:
+    mime   | expected
+    "html" | true
+    "xml"  | false
   }
 
   // to be overridden for more specific asserts
