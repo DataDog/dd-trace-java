@@ -37,7 +37,8 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"success","result_class":"success","result_reason":"Successfully configured ddtrace package"},"points":[{"name":"library_entrypoint.complete"}]}'
+    capture.json() == json("success", "success", "Successfully configured ddtrace package", 
+                           [[name: "library_entrypoint.complete"]])
   }
 
   def "real example"() {
@@ -46,7 +47,10 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_class":"internal_error","result_reason":"foo"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+    capture.json() == json("error", "internal_error", "foo", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
   }
 
   def "test abort"() {
@@ -55,14 +59,15 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == expectedJson
+    capture.json() == json("abort", resultClass, reasonCode, 
+                           [[name: "library_entrypoint.abort", tags: ["reason:${reasonCode}"]]])
 
     where:
-    reasonCode            | resultClass              | expectedJson
-    "jdk_tool"            | "unsupported_binary"     | '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"unsupported_binary","result_reason":"jdk_tool"},"points":[{"name":"library_entrypoint.abort","tags":["reason:jdk_tool"]}]}'
-    "already_initialized" | "already_instrumented"   | '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"already_instrumented","result_reason":"already_initialized"},"points":[{"name":"library_entrypoint.abort","tags":["reason:already_initialized"]}]}'
-    "other-java-agents"   | "already_instrumented"   | '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"already_instrumented","result_reason":"other-java-agents"},"points":[{"name":"library_entrypoint.abort","tags":["reason:other-java-agents"]}]}'
-    "foo"                 | "unknown"                | '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"unknown","result_reason":"foo"},"points":[{"name":"library_entrypoint.abort","tags":["reason:foo"]}]}'
+    reasonCode            | resultClass
+    "jdk_tool"            | "unsupported_binary"
+    "already_initialized" | "already_instrumented"
+    "other-java-agents"   | "already_instrumented"
+    "foo"                 | "unknown"
   }
 
   def "trivial completion check"() {
@@ -89,7 +94,8 @@ class BootstrapInitializationTelemetryTest extends Specification {
 
     then:
     !capture.json().contains("library_entrypoint.complete")
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_class":"internal_error","result_reason":"foo"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]}]}'
+    capture.json() == json("error", "internal_error", "foo", 
+                           [[name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]]])
   }
 
   def "incomplete on abort"() {
@@ -99,6 +105,10 @@ class BootstrapInitializationTelemetryTest extends Specification {
 
     then:
     !capture.json().contains("library_entrypoint.complete")
+  }
+
+  private String json(String result, String resultClass, String resultReason, List points) {
+    return """{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"${result}","result_class":"${resultClass}","result_reason":"${resultReason}"},"points":${new groovy.json.JsonBuilder(points)}}"""
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
