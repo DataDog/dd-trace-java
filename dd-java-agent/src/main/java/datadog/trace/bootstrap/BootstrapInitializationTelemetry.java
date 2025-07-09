@@ -53,7 +53,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
-  public abstract void setMetadata(String result, String resultReason, String reasonCode);
+  public abstract void setMetadata(String result, String resultReason, String resultClass);
 
   public abstract void markIncomplete();
 
