@@ -33,7 +33,7 @@ if [[ -f $CACHE_PATH ]]; then
 fi
 
 # Happy path: if we're just one commit away from master, base ref is master.
-if [[ $(git log --pretty=oneline origin/master..HEAD | wc -l) -eq 1 ]]; then
+if [[ $(git rev-list --count origin/master..HEAD) -eq 1 ]]; then
   echo "We are just one commit away from master, base ref is master" >&2
   save_cache "master" "$CURRENT_HEAD_SHA"
   echo "master"
@@ -43,7 +43,7 @@ fi
 get_distance_from_merge_base() {
   local candidate_base="$1"
   merge_base_sha=$(git merge-base "$candidate_base" HEAD)
-  distance=$(git log --pretty=oneline "$merge_base_sha".."$CURRENT_HEAD_SHA" | wc -l)
+  distance=$(git rev-list --count "$merge_base_sha".."$CURRENT_HEAD_SHA")
   echo "Distance from $candidate_base is $distance" >&2
   echo "$distance"
 }
