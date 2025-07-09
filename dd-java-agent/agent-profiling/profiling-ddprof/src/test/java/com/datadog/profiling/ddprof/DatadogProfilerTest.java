@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
-import datadog.trace.api.Platform;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
@@ -38,7 +38,7 @@ class DatadogProfilerTest {
 
   @BeforeEach
   public void setup() {
-    Assumptions.assumeTrue(Platform.isLinux());
+    Assumptions.assumeTrue(OperatingSystem.isLinux());
   }
 
   @Test

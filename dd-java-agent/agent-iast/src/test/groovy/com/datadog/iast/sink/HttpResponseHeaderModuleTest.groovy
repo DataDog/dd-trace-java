@@ -85,7 +85,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     module.onHeader(header, value)
 
     then:
-    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span) >> false // do not report in this test
+    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span, _ as VulnerabilityType) >> false // do not report in this test
     activeSpanCount * tracer.activeSpan() >>  {
       return span
     }

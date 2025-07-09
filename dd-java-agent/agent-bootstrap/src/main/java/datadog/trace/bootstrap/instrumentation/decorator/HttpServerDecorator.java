@@ -57,6 +57,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
@@ -642,14 +643,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     private final AgentSpan span;
     private final Map<String, String> headerTags;
+    private final String wildcardHeaderPrefix;
 
     public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
       this.span = span;
       this.headerTags = headerTags;
+      this.wildcardHeaderPrefix = this.headerTags.get("*");
     }
 
     @Override
     public boolean accept(String key, String value) {
+      if (wildcardHeaderPrefix != null) {
+        span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
+      }
       String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
       if (mappedKey != null) {
         span.setTag(mappedKey, value);

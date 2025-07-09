@@ -6,7 +6,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import static java.nio.file.StandardOpenOption.CREATE
 
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 apply from: "$rootDir/gradle/java.gradle"
 

@@ -7,6 +7,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.TraceConfig
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -33,6 +34,17 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
+
+  static class MapCarrierVisitor
+  implements AgentPropagation.ContextVisitor<Map> {
+    @Override
+    void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
+      Map<String, String> headers = carrier.headers
+      headers?.each {
+        classifier.accept(it.key, it.value)
+      }
+    }
+  }
 
   boolean origAppSecActive
 
@@ -350,12 +362,45 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     null   | null           | false
   }
 
-  @Override
-  def newDecorator() {
-    return newDecorator(null)
+  def "test response headers with trace.header.tags"() {
+    setup:
+    def traceConfig = Mock(TraceConfig)
+    traceConfig.getResponseHeaderTags() >> headerTags
+
+    def tags = [:]
+
+    def responseSpan = Mock(AgentSpan)
+    responseSpan.traceConfig() >> traceConfig
+    responseSpan.setTag(_, _) >> { String k, String v ->
+      tags[k] = v
+      return responseSpan
+    }
+
+    def decorator = newDecorator(null, new MapCarrierVisitor())
+
+    when:
+    decorator.onResponse(responseSpan, resp)
+
+    then:
+    if (expectedTag){
+      expectedTag.each {
+        assert tags[it.key] == it.value
+      }
+    }
+
+    where:
+    headerTags                         | resp                                                                                             | expectedTag
+    [:]                                | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [:]
+    ["x-custom-header": "abc"]         | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [abc:"custom-value"]
+    ["*": "datadog.response.headers."] | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | ["datadog.response.headers.x-custom-header":"custom-value", "datadog.response.headers.content-type":"application/json"]
   }
 
-  def newDecorator(TracerAPI tracer) {
+  @Override
+  def newDecorator() {
+    return newDecorator(null, null)
+  }
+
+  def newDecorator(TracerAPI tracer, AgentPropagation.ContextVisitor<Map> contextVisitor) {
     if (!tracer) {
       tracer = AgentTracer.NOOP_TRACER
     }
@@ -383,7 +428,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected AgentPropagation.ContextVisitor<Map> responseGetter() {
-          return null
+          return contextVisitor
         }
 
         @Override
@@ -449,7 +494,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
       getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
-    def decorator = newDecorator(mTracer)
+    def decorator = newDecorator(mTracer, null)
 
     when:
     decorator.startSpan("test", headers, null)

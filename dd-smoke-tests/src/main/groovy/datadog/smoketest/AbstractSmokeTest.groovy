@@ -1,21 +1,21 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.Platform
-import datadog.trace.test.agent.decoder.DecodedSpan
-import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
+import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
+import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.util.Strings
 import groovy.json.JsonSlurper
-
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -199,7 +199,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       ret += "-Ddd.telemetry.heartbeat.interval=5"
     }
     // DQH - Nov 2024 - skipping for J9 which doesn't have full crash tracking support
-    if (testCrashTracking() && !Platform.isJ9()) {
+    if (testCrashTracking() && !JavaVirtualMachine.isJ9()) {
       def extension = getScriptExtension()
       ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
@@ -209,7 +209,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   static String getScriptExtension() {
-    return Platform.isWindows() ? "bat" : "sh"
+    return OperatingSystem.isWindows() ? "bat" : "sh"
   }
 
   def inferServiceName() {
@@ -218,7 +218,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   private static boolean isDdprofSafe() {
     // currently the J9 handling of jmethodIDs will cause frequent crashes
-    return !Platform.isJ9()
+    return !JavaVirtualMachine.isJ9()
   }
 
 

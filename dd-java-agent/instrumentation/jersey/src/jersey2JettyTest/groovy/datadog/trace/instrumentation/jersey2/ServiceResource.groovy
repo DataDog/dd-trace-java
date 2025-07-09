@@ -10,6 +10,7 @@ import javax.ws.rs.HeaderParam
 import javax.ws.rs.POST
 import javax.ws.rs.Path
 import javax.ws.rs.PathParam
+import javax.ws.rs.Produces
 import javax.ws.rs.QueryParam
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
@@ -87,10 +88,14 @@ class ServiceResource {
 
   @POST
   @Path("body-json")
+  @Produces(MediaType.APPLICATION_JSON)
   Response bodyJson(ClassToConvertBodyTo obj) {
-    controller(BODY_JSON) {
-      Response.status(BODY_JSON.status).entity("""{"a":"${obj.a}"}""" as String).build()
-    }
+    return controller(BODY_JSON, () -> {
+      Response response = Response.status(BODY_JSON.status)
+      .entity(obj)
+      .build()
+      return response
+    })
   }
 
   @GET

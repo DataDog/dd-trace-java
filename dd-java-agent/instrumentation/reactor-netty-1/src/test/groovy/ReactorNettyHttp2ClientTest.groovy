@@ -1,9 +1,4 @@
-import datadog.trace.api.Platform
-import spock.lang.IgnoreIf
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,10 +6,14 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.server.HttpServer
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 @IgnoreIf(reason = "TLS issues with OpenJ9", value = {
-  Platform.isJ9()
+  JavaVirtualMachine.isJ9()
 })
 class ReactorNettyHttp2ClientTest extends AgentTestRunner {
   @Shared

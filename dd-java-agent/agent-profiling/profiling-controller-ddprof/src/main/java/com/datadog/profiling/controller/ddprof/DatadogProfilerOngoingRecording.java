@@ -19,7 +19,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
@@ -42,7 +42,8 @@ public class DatadogProfilerOngoingRecording implements OngoingRecording {
       throw new UnsupportedEnvironmentException("Failed to start Datadog profiler");
     }
     log.debug("Recording {} started", recordingName);
-    this.configMemento = Platform.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
+    this.configMemento =
+        JavaVirtualMachine.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
   }
 
   @Override

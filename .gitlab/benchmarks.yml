@@ -27,9 +27,6 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
-    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-java
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
-
 benchmarks-startup:
   extends: .benchmarks
   script:
@@ -56,6 +53,7 @@ benchmarks-dacapo:
 
 benchmarks-post-results:
   extends: .benchmarks
+  tags: ["arch:amd64"]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/upload-results-to-s3.sh
@@ -77,6 +75,10 @@ check-big-regressions:
       artifacts: true
   when: on_success
   tags: ["arch:amd64"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
   # need to convert them
   script:

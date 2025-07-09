@@ -9,6 +9,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import org.apache.commons.httpclient.HttpClient;
@@ -237,6 +238,14 @@ public class WebController {
     }
     headers.add("content-language", "en-US");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @PostMapping("/api_security/response")
+  public ResponseEntity<Map<String, Object>> apiSecurityResponse(
+      @RequestBody Map<String, Object> body) {
+    // This endpoint is used to test API security response handling
+    // It simply returns the body received in the request
+    return ResponseEntity.ok(body);
   }
 
   private void withProcess(final Operation<Process> op) {
