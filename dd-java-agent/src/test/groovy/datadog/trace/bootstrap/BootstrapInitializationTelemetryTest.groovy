@@ -49,8 +49,6 @@ class BootstrapInitializationTelemetryTest extends Specification {
     capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_class":"internal_error","result_reason":"foo"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
   }
 
-
-
   def "test abort"() {
     when:
     initTelemetry.onAbort(reasonCode)
