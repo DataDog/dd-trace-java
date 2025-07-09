@@ -17,6 +17,11 @@ class HttpUrlConnectionErrorReportingTest extends HttpUrlConnectionTest implemen
   }
 
 
+  @Override
+  boolean hasExtraErrorInformation(){
+    true
+  }
+
   def "client error request with parent with error reporting"() {
     setup:
     def uri = server.address.resolve("/secured")
