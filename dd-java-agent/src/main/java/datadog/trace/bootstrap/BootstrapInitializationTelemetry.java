@@ -53,8 +53,6 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void onError(String reasonCode);
 
-  public abstract void setMetadata(String result, String resultReason, String resultClass);
-
   public abstract void markIncomplete();
 
   public abstract void finish();
@@ -78,9 +76,6 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {}
-
-    @Override
-    public void setMetadata(String result, String resultReason, String reasonCode) {}
 
     @Override
     public void markIncomplete() {}
@@ -117,14 +112,14 @@ public abstract class BootstrapInitializationTelemetry {
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
       markIncomplete();
-      setMetadata("abort", reasonCode, mapResultClass(reasonCode));
+      setMetadata("abort", mapResultClass(reasonCode), reasonCode);
     }
 
     @Override
     public void onError(Throwable t) {
       error = true;
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
-      setMetadata("error", t.getMessage(), "internal_error");
+      setMetadata("error", "internal_error", t.getMessage());
     }
 
     @Override
@@ -137,14 +132,13 @@ public abstract class BootstrapInitializationTelemetry {
     public void onError(String reasonCode) {
       error = true;
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
-      setMetadata("error", reasonCode, mapResultClass(reasonCode));
+      setMetadata("error", mapResultClass(reasonCode), reasonCode);
     }
 
-    @Override
-    public void setMetadata(String result, String resultReason, String resultClass) {
+    public void setMetadata(String result, String resultClass, String resultReason) {
       initMetaInfo("result", result);
-      initMetaInfo("result_reason", resultReason);
       initMetaInfo("result_class", resultClass);
+      initMetaInfo("result_reason", resultReason);
     }
 
     private String mapResultClass(String reasonCode) {
@@ -177,7 +171,7 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void finish() {
       if (!this.incomplete && !this.error) {
-        setMetadata("success", "Successfully configured ddtrace package", "success");
+        setMetadata("success", "success", "Successfully configured ddtrace package");
       }
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();

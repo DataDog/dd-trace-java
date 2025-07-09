@@ -38,7 +38,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_reason":"foo","result_class":"internal_error"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_class":"internal_error","result_reason":"foo"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
   }
 
   def "test fatal error"() {
@@ -50,7 +50,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_reason":"foo","result_class":"internal_error"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"error","result_class":"internal_error","result_reason":"foo"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]}]}'
   }
 
   def "test abort"() {
@@ -62,7 +62,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_reason":"jdk_tool","result_class":"unsupported_binary"},"points":[{"name":"library_entrypoint.abort","tags":["reason:jdk_tool"]}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"unsupported_binary","result_reason":"jdk_tool"},"points":[{"name":"library_entrypoint.abort","tags":["reason:jdk_tool"]}]}'
   }
 
   def "test success"() {
@@ -73,7 +73,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"success","result_reason":"Successfully configured ddtrace package","result_class":"success"},"points":[{"name":"library_entrypoint.complete"}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"success","result_class":"success","result_reason":"Successfully configured ddtrace package"},"points":[{"name":"library_entrypoint.complete"}]}'
   }
 
   def "test abort other-java-agents"() {
@@ -85,7 +85,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_reason":"other-java-agents","result_class":"already_instrumented"},"points":[{"name":"library_entrypoint.abort","tags":["reason:other-java-agents"]}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"already_instrumented","result_reason":"other-java-agents"},"points":[{"name":"library_entrypoint.abort","tags":["reason:other-java-agents"]}]}'
   }
 
   def "test abort unknown"() {
@@ -97,7 +97,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_reason":"foo","result_class":"unknown"},"points":[{"name":"library_entrypoint.abort","tags":["reason:foo"]}]}'
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"abort","result_class":"unknown","result_reason":"foo"},"points":[{"name":"library_entrypoint.abort","tags":["reason:foo"]}]}'
   }
 
   def "trivial completion check"() {
