@@ -168,7 +168,7 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
-      long aggregationHash = aggregationHashBuilder.addValue(String.valueOf(newHash));
+      long aggregationHash = aggregationHashBuilder.addValue(newHash);
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -332,6 +332,21 @@ public class DefaultPathwayContext implements PathwayContext {
 
     public long addValue(String val) {
       currentHash = FNV64Hash.generateHash(currentHash + val, FNV64Hash.Version.v1);
+      return currentHash;
+    }
+
+    public long addValue(long val) {
+      byte[] b = new byte[] {
+          (byte) val,
+          (byte) (val >> 8),
+          (byte) (val >> 16),
+          (byte) (val >> 24),
+          (byte) (val >> 32),
+          (byte) (val >> 40),
+          (byte) (val >> 48),
+          (byte) (val >> 56)};
+
+      currentHash = FNV64Hash.continueHash(currentHash, b, FNV64Hash.Version.v1);
       return currentHash;
     }
   }
