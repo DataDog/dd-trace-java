@@ -12,6 +12,7 @@ import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitRepoUnshallow;
+import datadog.trace.util.Strings;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
@@ -395,8 +396,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return Collections.emptyMap();
     }
     try {
-      return configurationApi.getTestManagementTestsByModule(tracerEnvironment);
-
+      if (Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getSha())) {
+        return configurationApi.getTestManagementTestsByModule(
+            tracerEnvironment,
+            pullRequestInfo.getGitCommitHead().getSha(),
+            pullRequestInfo.getGitCommitHead().getFullMessage());
+      } else {
+        return configurationApi.getTestManagementTestsByModule(
+            tracerEnvironment, tracerEnvironment.getSha(), tracerEnvironment.getCommitMessage());
+      }
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of test management tests", e);
       return Collections.emptyMap();

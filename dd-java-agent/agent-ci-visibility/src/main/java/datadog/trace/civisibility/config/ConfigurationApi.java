@@ -35,7 +35,7 @@ public interface ConfigurationApi {
 
         @Override
         public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-            TracerEnvironment tracerEnvironment) {
+            TracerEnvironment tracerEnvironment, String commitSha, String commitMessage) {
           return Collections.emptyMap();
         }
       };
@@ -52,5 +52,6 @@ public interface ConfigurationApi {
       throws IOException;
 
   Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment) throws IOException;
+      TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
+      throws IOException;
 }
