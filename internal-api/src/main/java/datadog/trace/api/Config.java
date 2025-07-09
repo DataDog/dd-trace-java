@@ -4376,7 +4376,7 @@ public class Config {
   public boolean isOptimizedMapEnabled() {
     return optimizedMapEnabled;
   }
-  
+
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
   }
