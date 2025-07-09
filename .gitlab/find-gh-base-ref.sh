@@ -42,6 +42,8 @@ fi
 
 get_distance_from_merge_base() {
   local candidate_base="$1"
+  local merge_base_sha
+  local distance
   merge_base_sha=$(git merge-base "$candidate_base" HEAD)
   distance=$(git rev-list --count "$merge_base_sha".."$CURRENT_HEAD_SHA")
   echo "Distance from $candidate_base is $distance" >&2
