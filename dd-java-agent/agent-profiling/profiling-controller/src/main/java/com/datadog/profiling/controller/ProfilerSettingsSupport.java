@@ -64,6 +64,7 @@ public abstract class ProfilerSettingsSupport {
     }
   }
 
+  protected static final String VERSION_KEY = "Java Agent Version";
   protected static final String JFR_IMPLEMENTATION_KEY = "JFR Implementation";
   protected static final String UPLOAD_PERIOD_KEY = "Upload Period";
   protected static final String UPLOAD_TIMEOUT_KEY = "Upload Timeout";

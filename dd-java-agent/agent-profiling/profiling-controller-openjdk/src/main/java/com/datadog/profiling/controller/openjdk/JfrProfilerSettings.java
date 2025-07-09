@@ -3,6 +3,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent;
+import datadog.common.version.VersionInfo;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -31,6 +32,7 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
 
   public void publish() {
     if (new ProfilerSettingEvent(null, null, null).isEnabled()) {
+      new ProfilerSettingEvent(VERSION_KEY, VersionInfo.VERSION).commit();
       new ProfilerSettingEvent(UPLOAD_PERIOD_KEY, String.valueOf(uploadPeriod), "seconds").commit();
       new ProfilerSettingEvent(UPLOAD_TIMEOUT_KEY, String.valueOf(uploadTimeout), "seconds")
           .commit();
