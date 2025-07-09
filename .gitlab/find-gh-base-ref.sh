@@ -2,6 +2,18 @@
 # Determines the base branch for the current PR (if we are running in a PR).
 set -euo pipefail
 
+if [[ -n "${CI_COMMIT_BRANCH:-}" ]]; then
+  echo "CI_COMMIT_BRANCH is set to $CI_COMMIT_BRANCH" >&2
+else
+  echo "CI_COMMIT_BRANCH is not set, skipping base ref detection" >&2
+  exit 1
+fi
+
+if [[ $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
+  echo "CI_COMMIT_BRANCH is a master or release branch, skipping base ref detection" >&2
+  exit 1
+fi
+
 CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
 if [[ -z "${CURRENT_HEAD_SHA:-}" ]]; then
   echo "Failed to determine current HEAD SHA" >&2
@@ -56,7 +68,15 @@ get_distance_from_merge_base() {
 # NOTE: GitHub API is more robust for this task, but we hit rate limits.
 BEST_CANDIDATES=(origin/master)
 BEST_DISTANCE=$(get_distance_from_merge_base origin/master)
-mapfile -t CANDIDATE_BASES < <(git branch -a --sort=committerdate --format='%(refname:short)' --list 'origin/release/v*' | tac)
+
+# If the current branch is not a project/ branch, project/ branches are candidates.
+# This accounts for the case when the project/ branch is being merged to master.
+if [[ ! "$CI_COMMIT_BRANCH" =~ ^project/.*$ ]]; then
+  mapfile -t CANDIDATE_BASES < <(git branch -a --sort=committerdate --format='%(refname:short)' --list 'origin/release/v*' --list 'origin/project/*' | tac)
+else
+  mapfile -t CANDIDATE_BASES < <(git branch -a --sort=committerdate --format='%(refname:short)' --list 'origin/release/v*' | tac)
+fi
+
 for candidate_base in "${CANDIDATE_BASES[@]}"; do
   distance=$(get_distance_from_merge_base "$candidate_base")
   if [[ $distance -lt $BEST_DISTANCE ]]; then

@@ -119,13 +119,11 @@ default:
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
-    if [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-      if [[ -n "$GIT_BASE_REF" ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      else
-        echo "Failed to find base ref for PR" >&2
-      fi
+    export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+    if [[ -n "$GIT_BASE_REF" ]]; then
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
+    else
+      echo "Failed to find base ref for PR" >&2
     fi
 
 .gradle_build: &gradle_build
