@@ -26,10 +26,9 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetryProxy.setAdaptee(initTelemetry)
 
     this.initTelemetry = initTelemetryProxy
-    this.capture = capture
-
     this.initTelemetry.initMetaInfo("runtime_name", "java")
     this.initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+    this.capture = capture
   }
 
   def "test success"() {

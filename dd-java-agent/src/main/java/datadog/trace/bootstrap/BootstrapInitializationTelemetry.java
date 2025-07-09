@@ -135,7 +135,7 @@ public abstract class BootstrapInitializationTelemetry {
       setMetadata("error", mapResultClass(reasonCode), reasonCode);
     }
 
-    public void setMetadata(String result, String resultClass, String resultReason) {
+    private void setMetadata(String result, String resultClass, String resultReason) {
       initMetaInfo("result", result);
       initMetaInfo("result_class", resultClass);
       initMetaInfo("result_reason", resultReason);
@@ -145,6 +145,7 @@ public abstract class BootstrapInitializationTelemetry {
       if (reasonCode == null) {
         return "success";
       }
+
       switch (reasonCode) {
         case "already_initialized":
         case "other-java-agents":
@@ -173,6 +174,7 @@ public abstract class BootstrapInitializationTelemetry {
       if (!this.incomplete && !this.error) {
         setMetadata("success", "success", "Successfully configured ddtrace package");
       }
+
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
