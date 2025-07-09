@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.InferredProxyContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -147,6 +148,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public AgentSpan startSpan(
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+
     AgentSpan span =
         tracer()
             .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
@@ -163,12 +165,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
+    if (Config.get().isTraceInferredProxyServicesEnabled()){
+      InferredProxyContext inferredContext = InferredProxyContext.fromContext(context);
+      if (Context.root() != inferredContext){
+        return startInferredProxySpan("http-server", carrier, inferredContext, context);
+      }
+    }
     return startSpan("http-server", carrier, getExtractedSpanContext(context));
   }
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+  }
+
+  public AgentSpan startInferredProxySpan(String instrumentationName, REQUEST_CARRIER carrier, InferredProxyContext inferredContext, Context context){
+//    AgentSpan span = tracer().startSpan(instrumentationName, )
+    return null;
   }
 
   public AgentSpan onRequest(

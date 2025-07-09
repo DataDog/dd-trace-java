@@ -15,6 +15,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public final class AgentPropagation {
   public static final Concern TRACING_CONCERN = named("tracing");
   public static final Concern BAGGAGE_CONCERN = named("baggage");
+  public static final Concern INFERRED_PROXY_CONCERN = named("inferred_proxy");
   public static final Concern XRAY_TRACING_CONCERN = named("tracing-xray");
 
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
