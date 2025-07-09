@@ -38,7 +38,7 @@ junit_upload() {
 # Upload code coverage results to Datadog
 coverage_upload() {
     DD_API_KEY=$1 \
-        datadog-ci coverage upload .
+        datadog-ci coverage upload --ignored-paths=./test-published-dependencies .
 }
 
 # Upload test results to production environment like all other CI jobs
