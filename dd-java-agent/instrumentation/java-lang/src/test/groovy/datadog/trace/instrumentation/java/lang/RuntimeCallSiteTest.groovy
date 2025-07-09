@@ -16,6 +16,7 @@ class RuntimeCallSiteTest extends AgentTestRunner {
 
   def 'test exec with command string'() {
     setup:
+    System.out.println(System.getProperty("java.version"))
     final runtime = Mock(Runtime)
     CommandInjectionModule iastModule = Mock(CommandInjectionModule)
     final command = 'ls'
