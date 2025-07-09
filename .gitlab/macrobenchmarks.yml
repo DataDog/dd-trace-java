@@ -62,6 +62,8 @@ baseline:
 
 only-tracing:
   extends: .macrobenchmarks
+  rules:
+    - when: on_success
   variables:
     BP_BENCHMARKS_CONFIGURATION: only-tracing
     TRACER_OPTS: -javaagent:/app/dd-java-agent.jar -Ddd.env=${BP_BENCHMARKS_CONFIGURATION} -Ddd.service=bp-java-petclinic
@@ -77,9 +79,10 @@ otel-latest:
 
 check-slo-breaches:
   stage: macrobenchmarks
-  when: always
+  interruptible: true
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  when: on_success
   needs:
     - job: baseline
       artifacts: true
@@ -87,15 +90,40 @@ check-slo-breaches:
       artifacts: true
     - job: otel-latest
       artifacts: true
-  artifacts:
-    name: "artifacts"
-    when: always
-    paths:
-      - platform/artifacts/
-    expire_in: 3 months
+    - job: benchmarks-startup
+      artifacts: true
+    - job: benchmarks-load
+      artifacts: true
+    - job: benchmarks-dacapo
+      artifacts: true
   script:
-    - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/"
+    # macrobenchmarks are located here, files are already in "converted" format
+    - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/" && mkdir -p "${ARTIFACTS_DIR}"
+
+    # Need to move the artifacts the benchmarks-* job
+    - |
+      export BENCHMARKS_ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${BENCHMARKS_ARTIFACTS_DIR}"
+      for benchmarkType in startup load; do
+          find "$BENCHMARKS_ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
+            relpath="${file#$BENCHMARKS_ARTIFACTS_DIR/$benchmarkType/}"
+            prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
+            prefix="${prefix#./}" # Remove any leading ./
+            prefix="${prefix//\//-}" # Replace / with -
+            case "$file" in
+              *benchmark-baseline.json) type="baseline" ;;
+              *benchmark-candidate.json) type="candidate" ;;
+            esac
+            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+          done
+      done
+    - ls -lah "$ARTIFACTS_DIR"
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
+  variables:
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
 notify-slo-breaches:
   extends: .notify-slo-breaches
