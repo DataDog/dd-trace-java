@@ -191,7 +191,7 @@ class JFRBasedProfilingIntegrationTest {
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay, zstd compression")
-  public void testContinuousRecording_jmethodid_cache(final TestInfo testInfo) throws Exception {
+  public void testContinuousRecording_zstd(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () ->
             testContinuousRecording(
@@ -461,7 +461,7 @@ class JFRBasedProfilingIntegrationTest {
             */
             final long ts = System.nanoTime();
             while (!checkLogLines(
-                logFilePath, line -> line.contains("Initializing profiler tracer integrations"))) {
+                logFilePath, line -> line.contains("Initializing profiler context integration"))) {
               Thread.sleep(500);
               // Wait at most 30 seconds
               if (System.nanoTime() - ts > 30_000_000_000L) {
@@ -584,15 +584,6 @@ class JFRBasedProfilingIntegrationTest {
         events.apply(ItemFilters.type("jdk.SystemProcess")).hasItems(),
         "jdk.SystemProcess events should not be collected");
 
-    assertTrue(
-        events
-            .apply(
-                ItemFilters.and(
-                    ItemFilters.type("datadog.ProfilerSetting"),
-                    ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Stack Depth"),
-                    ItemFilters.equals(
-                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
-            .hasItems());
     if (expectEndpointEvents) {
       // Check endpoint events
       final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
@@ -619,6 +610,8 @@ class JFRBasedProfilingIntegrationTest {
         }
       }
     }
+    assertEquals(asyncProfilerEnabled, hasAuxiliaryDdprof(events));
+    verifyStackDepthSetting(events, asyncProfilerEnabled);
     if (asyncProfilerEnabled) {
       verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
@@ -662,8 +655,45 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
-    // FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
-    // assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+    //     FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
+    //    assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+  }
+
+  private static void verifyStackDepthSetting(
+      IItemCollection events, boolean asyncProfilerEnabled) {
+    assertTrue(
+        events
+            .apply(
+                ItemFilters.and(
+                    ItemFilters.type("datadog.ProfilerSetting"),
+                    ItemFilters.equals(
+                        JdkAttributes.REC_SETTING_NAME,
+                        (asyncProfilerEnabled ? "ddprof" : "JFR") + " Stack Depth"),
+                    ItemFilters.equals(
+                        JdkAttributes.REC_SETTING_VALUE, String.valueOf(STACK_DEPTH_LIMIT))))
+            .hasItems());
+  }
+
+  private static boolean hasAuxiliaryDdprof(IItemCollection events) {
+    events =
+        events.apply(
+            ItemFilters.and(
+                ItemFilters.type("datadog.ProfilerSetting"),
+                ItemFilters.equals(JdkAttributes.REC_SETTING_NAME, "Auxiliary Profiler")));
+    if (!events.hasItems()) {
+      return false;
+    }
+    for (IItemIterable event : events) {
+      IMemberAccessor<String, IItem> valueAccessor =
+          JdkAttributes.REC_SETTING_VALUE.getAccessor(event.getType());
+      for (IItem item : event) {
+        String value = valueAccessor.getMember(item);
+        if ("ddprof".equals(value)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static void processExecutionSamples(
