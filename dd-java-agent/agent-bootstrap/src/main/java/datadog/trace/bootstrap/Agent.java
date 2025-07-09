@@ -40,7 +40,6 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -1052,10 +1051,15 @@ public class Agent {
   }
 
   private static boolean isCrashTrackingAutoconfigEnabled() {
-    return !ConfigProvider.getInstance()
-        .getBoolean(
-            CrashTrackingConfig.CRASH_TRACKING_DISABLE_AUTOCONFIG,
-            CrashTrackingConfig.CRASH_TRACKING_DISABLE_AUTOCONFIG_DEFAULT);
+    String enabledVal = ddGetProperty("dd." + CrashTrackingConfig.CRASH_TRACKING_ENABLE_AUTOCONFIG);
+    boolean enabled = CrashTrackingConfig.CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT;
+    if (enabledVal != null) {
+      enabled = Boolean.parseBoolean(enabledVal);
+    } else {
+      // If the property is not set, then we check if profiling is enabled
+      enabled = profilingEnabled;
+    }
+    return enabled;
   }
 
   private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
@@ -1067,7 +1071,7 @@ public class Agent {
     try {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
       // first try to use the JVMAccess using the native library; unless `checkNative` is false
-      boolean rslt =
+      Boolean rslt =
           checkNative && (boolean) clz.getMethod("initialize", boolean.class).invoke(null, false);
       if (!rslt) {
         if (delayed) {
@@ -1078,9 +1082,12 @@ public class Agent {
           // delayed initialization, so we need to reschedule it and mark as delayed but do not
           // re-check the native library
           CRASHTRACKER_INIT_AFTER_JMX = Agent::initializeDelayedCrashTrackingOnlyJmx;
+          rslt = null; // we will initialize it later
         }
       }
-      if (rslt) {
+      if (rslt == null) {
+        log.debug("Crashtracking initialization delayed until JMX is available");
+      } else if (rslt) {
         log.debug("Crashtracking initialized");
       } else {
         log.debug(

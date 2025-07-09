@@ -27,9 +27,9 @@ public final class CrashTrackingConfig {
   public static final String CRASH_TRACKING_START_EARLY = "crashtracking.debug.start-force-first";
   public static final boolean CRASH_TRACKING_START_EARLY_DEFAULT = false;
 
-  public static final String CRASH_TRACKING_DISABLE_AUTOCONFIG =
-      "crashtracking.debug.autoconfig.disable";
-  public static final boolean CRASH_TRACKING_DISABLE_AUTOCONFIG_DEFAULT = false;
+  public static final String CRASH_TRACKING_ENABLE_AUTOCONFIG =
+      "crashtracking.debug.autoconfig.enable";
+  public static final boolean CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT = false;
 
   private CrashTrackingConfig() {}
 }
