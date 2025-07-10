@@ -180,7 +180,8 @@ public class CrashtrackingSmokeTest {
     String onErrorArg =
         !Platform.isLinux()
             ? "-XX:OnError=" + onErrorValue
-            : ""; // on Linux we can automatically inject the arg
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    // inject the arg
     List<String> processArgs = new ArrayList<>();
     processArgs.add(javaPath());
     processArgs.add("-javaagent:" + agentShadowJar());
@@ -256,7 +257,8 @@ public class CrashtrackingSmokeTest {
     String onOOMEArg =
         !Platform.isLinux()
             ? "-XX:OnOutOfMemoryError=" + onErrorValue
-            : ""; // on Linux we can automatically inject the arg
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true"; // on Linux we can automatically
+    // inject the arg
 
     List<String> processArgs = new ArrayList<>();
     processArgs.add(javaPath());
