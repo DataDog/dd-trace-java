@@ -170,9 +170,9 @@ class GitClientTest extends Specification {
 
     then:
     message == "Adding Git information to test spans (#1242)\n\n" +
-      "* Initial basic GitInfo implementation.\r\n\r\n" +
-      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-      "* Changes based on the review."
+    "* Initial basic GitInfo implementation.\r\n\r\n" +
+    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+    "* Changes based on the review."
   }
 
   def "test get author name"() {

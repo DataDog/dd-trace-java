@@ -126,7 +126,8 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
-   * @param parentOnly If only the parent commit should be unshallowed or the full {@code latestCommitsSince}
+   * @param parentOnly If only the parent commit should be unshallowed or the full {@code
+   *     latestCommitsSince}
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
@@ -151,7 +152,8 @@ public class ShellGitClient implements GitClient {
                   .trim();
 
           // refetch data from the server for the given period of time
-          String depth = parentOnly ? "--deepen=1" : String.format("--shallow-since='%s'", latestCommitsSince);
+          String depth =
+              parentOnly ? "--deepen=1" : String.format("--shallow-since='%s'", latestCommitsSince);
           if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
             String headSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(

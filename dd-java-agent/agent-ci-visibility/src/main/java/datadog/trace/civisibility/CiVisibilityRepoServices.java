@@ -73,7 +73,8 @@ public class CiVisibilityRepoServices {
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
     PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+        buildPullRequestInfo(
+            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
