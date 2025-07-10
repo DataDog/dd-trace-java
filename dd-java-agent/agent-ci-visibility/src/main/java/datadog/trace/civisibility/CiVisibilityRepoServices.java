@@ -73,7 +73,7 @@ public class CiVisibilityRepoServices {
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
     PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(services.config, services.environment, ciProviderInfo, gitClient);
+        buildPullRequestInfo(services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
@@ -116,7 +116,8 @@ public class CiVisibilityRepoServices {
       Config config,
       CiEnvironment environment,
       CIProviderInfo ciProviderInfo,
-      GitClient gitClient) {
+      GitClient gitClient,
+      GitRepoUnshallow gitRepoUnshallow) {
     PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
 
     if (userInfo.isComplete()) {
@@ -126,8 +127,9 @@ public class CiVisibilityRepoServices {
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo = PullRequestInfo.merge(userInfo, ciProviderInfo.buildPullRequestInfo());
     if (Strings.isNotBlank(ciInfo.getGitCommitHead().getSha())) {
-      // if head sha present, try to populate author, committer and message info through git client
+      // if head sha present try to populate author, committer and message info through git client
       try {
+        gitRepoUnshallow.unshallow(true);
         String headSha = ciInfo.getGitCommitHead().getSha();
         PersonInfo authorInfo =
             new PersonInfo(

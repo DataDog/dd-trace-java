@@ -20,7 +20,7 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public void unshallow(@Nullable String remoteCommitReference) {
+  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly) {
     // no op
   }
 

@@ -16,7 +16,7 @@ public interface GitClient {
 
   boolean isShallow() throws IOException, TimeoutException, InterruptedException;
 
-  void unshallow(@Nullable String remoteCommitReference)
+  void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
