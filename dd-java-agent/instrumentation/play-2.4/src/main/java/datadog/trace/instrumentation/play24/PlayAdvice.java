@@ -45,6 +45,8 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
+
+    // Moved from OnMethodExit
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(span, req, req, (AgentSpanContext.Extracted) null);
 
