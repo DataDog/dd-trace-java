@@ -8,7 +8,7 @@ import datadog.environment.OperatingSystem;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
-import org.junit.Assume;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,7 +20,7 @@ public class DatadogProfilerControllerTest {
 
   @Test
   public void testCreateContinuousRecording() throws Exception {
-    Assume.assumeTrue(OperatingSystem.isLinux());
+    Assumptions.assumeTrue(OperatingSystem.isLinux());
     Properties props = new Properties();
     props.put(PROFILING_AUXILIARY_TYPE, "ddprof");
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
