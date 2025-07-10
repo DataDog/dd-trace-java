@@ -148,8 +148,9 @@ public abstract class BootstrapInitializationTelemetry {
 
       switch (reasonCode) {
         case "already_initialized":
-        case "other-java-agents":
           return "already_instrumented";
+        case "other-java-agents":
+          return "incorrect_installation";
         case "jdk_tool":
           return "unsupported_binary";
         default:
