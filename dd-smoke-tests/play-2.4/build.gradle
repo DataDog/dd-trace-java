@@ -64,6 +64,7 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':dd-smoke-tests:appsec')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 configurations.testImplementation {
