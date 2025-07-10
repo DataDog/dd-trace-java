@@ -10,8 +10,8 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.Instant;
-import org.junit.Assume;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,17 +21,17 @@ class DatadogProfilerRecordingTest {
   private DatadogProfilerRecording recording;
 
   @BeforeEach
-  void setup() throws Exception {
-    Assume.assumeTrue(OperatingSystem.isLinux());
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+  void setup() {
+    Assumptions.assumeTrue(OperatingSystem.isLinux());
+    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
-    Assume.assumeFalse(profiler.isActive());
+    Assumptions.assumeFalse(profiler.isActive());
     recording = (DatadogProfilerRecording) profiler.start();
-    Assume.assumeTrue(recording != null);
+    Assumptions.assumeTrue(recording != null);
   }
 
   @AfterEach
-  void shutdown() throws Exception {
+  void shutdown() {
     // Apparently, failed 'assume' does not prevent shutdown from running
     // Do a sanity check before invoking profiler methods
     if (profiler != null && recording != null) {
@@ -40,16 +40,16 @@ class DatadogProfilerRecordingTest {
   }
 
   @Test
-  void testClose() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+  void testClose() {
+    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
     assertTrue(Files.exists(recording.getRecordingFile()));
     recording.close();
     assertFalse(Files.exists(recording.getRecordingFile()));
   }
 
   @Test
-  void testStop() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+  void testStop() {
+    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
     RecordingData data = recording.stop();
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
@@ -57,7 +57,7 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testSnapshot() throws Exception {
-    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
+    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
     RecordingData data = recording.snapshot(Instant.now());
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
