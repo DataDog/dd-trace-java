@@ -30,6 +30,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
   static final String INFO_RESPONSE = loadJsonFile("agent-info.json")
   static final String INFO_STATE = Strings.sha256(INFO_RESPONSE)
+  static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE = loadJsonFile("agent-info-with-peer-tag-back-propagation.json")
+  static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE = Strings.sha256(INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE)
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
   static final String INFO_WITH_CLIENT_DROPPING_STATE = Strings.sha256(INFO_WITH_CLIENT_DROPPING_RESPONSE)
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
@@ -422,6 +424,46 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsEvpProxy()
     features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
     !features.supportsContentEncodingHeadersWithEvpProxy()
+  }
+
+  def "test parse /info response with peer tag back propagation"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+
+    when: "/info available with peer tag back propagation"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE) }
+    features.state() == INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE
+    features.supportsDropping()
+    features.peerTags().containsAll(
+      "_dd.base_service",
+      "active_record.db.vendor",
+      "amqp.destination",
+      "amqp.exchange",
+      "amqp.queue",
+      "grpc.host",
+      "hostname",
+      "http.host",
+      "http.server_name",
+      "streamname",
+      "tablename",
+      "topicname"
+      )
+    features.spanKindsToComputedStats().containsAll(
+      "client",
+      "consumer",
+      "producer",
+      "server"
+      )
   }
 
   def infoResponse(Request request, String json) {
