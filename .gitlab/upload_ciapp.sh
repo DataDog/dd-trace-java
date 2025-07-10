@@ -49,6 +49,6 @@ junit_upload_status=$?
 coverage_upload "$DATADOG_API_KEY_PROD"
 coverage_upload_status=$?
 
-if [[ $junit_status -ne 0 || $coverage_status -ne 0 ]]; then
+if [[ $junit_upload_status -ne 0 || $coverage_upload_status -ne 0 ]]; then
   exit 1
 fi
