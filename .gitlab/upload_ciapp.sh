@@ -38,6 +38,8 @@ junit_upload() {
 # Upload code coverage results to Datadog
 coverage_upload() {
     DD_API_KEY=$1 \
+    # automatically resolved repo URL is of Gitlab
+    DD_GIT_REPOSITORY_URL=git@github.com:DataDog/dd-trace-java.git \
         datadog-ci coverage upload --ignored-paths=./test-published-dependencies .
 }
 
