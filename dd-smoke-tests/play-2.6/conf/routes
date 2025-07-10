@@ -10,3 +10,8 @@ GET     /welcomes                           controllers.SController.doGet(id: Op
 # AppSec endpoints for testing
 GET     /api_security/sampling/:statusCode  controllers.AppSecController.apiSecuritySampling(statusCode: Int, test: String)
 POST    /api_security/response              controllers.AppSecController.apiResponse()
+
+# IAST Sampling endpoints
+GET  /iast/multiple_vulns/:id  controllers.IastController.multipleVulns(id: String)
+POST    /iast/multiple_vulns/:id    controllers.IastController.postMultipleVulns(id: String)
+GET     /iast/multiple_vulns-2/:id  controllers.IastController.multipleVulns2(id: String)
