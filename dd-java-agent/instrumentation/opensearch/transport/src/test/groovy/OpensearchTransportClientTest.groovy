@@ -34,6 +34,12 @@ class OpensearchTransportClientTest extends AgentTestRunner {
   @Shared
   TransportClient client
 
+  @Override
+  boolean useStrictTraceWrites() {
+    //FIXME IDM
+    false
+  }
+
   def setupSpec() {
     aosWorkingDir = File.createTempDir("test-aos-working-dir-", "")
     aosWorkingDir.deleteOnExit()

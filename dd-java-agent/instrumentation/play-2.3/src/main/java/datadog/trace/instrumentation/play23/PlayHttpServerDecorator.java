@@ -112,13 +112,21 @@ public class PlayHttpServerDecorator
       if (ctx == null) {
         return;
       }
+      // Send event to AppSec provider
       final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp == null) {
-        return;
+      if (cbp != null) {
+        final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
+        }
       }
-      final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
-      if (cb != null) {
-        cb.accept(ctx, route);
+      // Send event to IAST provider
+      final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+      if (cbpIast != null) {
+        final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
+        }
       }
     } catch (final Throwable t) {
       LOG.debug("Failed to dispatch route", t);

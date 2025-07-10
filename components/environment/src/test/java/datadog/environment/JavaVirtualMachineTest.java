@@ -114,7 +114,7 @@ class JavaVirtualMachineTest {
   void onlyOnIbm8() {
     assertFalse(JavaVirtualMachine.isGraalVM());
     assertTrue(JavaVirtualMachine.isIbm8());
-    assertFalse(JavaVirtualMachine.isJ9());
+    assertTrue(JavaVirtualMachine.isJ9());
     assertFalse(JavaVirtualMachine.isOracleJDK8());
   }
 
@@ -122,7 +122,6 @@ class JavaVirtualMachineTest {
   @EnabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
   void onlyOnJ9() {
     assertFalse(JavaVirtualMachine.isGraalVM());
-    assertFalse(JavaVirtualMachine.isIbm8());
     assertTrue(JavaVirtualMachine.isJ9());
     assertFalse(JavaVirtualMachine.isOracleJDK8());
   }

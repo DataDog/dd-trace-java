@@ -233,7 +233,7 @@ public interface OverheadController {
           Object methodTag = rootSpan.getTag(Tags.HTTP_METHOD);
           method = (methodTag == null) ? "" : methodTag.toString();
           Object routeTag = rootSpan.getTag(Tags.HTTP_ROUTE);
-          path = (routeTag == null) ? "" : routeTag.toString();
+          path = (routeTag == null) ? getHttpRouteFromRequestContext(span) : routeTag.toString();
         }
         if (!maybeSkipVulnerability(ctx, type, method, path)) {
           return operation.consumeQuota(ctx);
@@ -314,6 +314,19 @@ public interface OverheadController {
         }
       }
       return globalContext;
+    }
+
+    @Nullable
+    public String getHttpRouteFromRequestContext(@Nullable final AgentSpan span) {
+      String httpRoute = null;
+      final RequestContext requestContext = span != null ? span.getRequestContext() : null;
+      if (requestContext != null) {
+        IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
+        if (iastRequestContext != null) {
+          httpRoute = iastRequestContext.getRoute();
+        }
+      }
+      return httpRoute == null ? "" : httpRoute;
     }
 
     static int computeSamplingParameter(final float pct) {

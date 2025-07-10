@@ -30,7 +30,7 @@ public class SharedCommunicationObjects {
   public OkHttpClient okHttpClient;
   public HttpUrl agentUrl;
   public Monitoring monitoring;
-  private DDAgentFeaturesDiscovery featuresDiscovery;
+  private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
 
   public SharedCommunicationObjects() {
@@ -139,28 +139,34 @@ public class SharedCommunicationObjects {
   }
 
   public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
-    if (featuresDiscovery == null) {
-      createRemaining(config);
-      featuresDiscovery =
-          new DDAgentFeaturesDiscovery(
-              okHttpClient,
-              monitoring,
-              agentUrl,
-              config.isTraceAgentV05Enabled(),
-              config.isTracerMetricsEnabled());
+    DDAgentFeaturesDiscovery ret = featuresDiscovery;
+    if (ret == null) {
+      synchronized (this) {
+        if (featuresDiscovery == null) {
+          createRemaining(config);
+          ret =
+              new DDAgentFeaturesDiscovery(
+                  okHttpClient,
+                  monitoring,
+                  agentUrl,
+                  config.isTraceAgentV05Enabled(),
+                  config.isTracerMetricsEnabled());
 
-      if (paused) {
-        // defer remote discovery until remote I/O is allowed
-      } else {
-        if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-          featuresDiscovery.discover(); // safe to run on same thread
-        } else {
-          // avoid performing blocking I/O operation on application thread
-          AgentTaskScheduler.INSTANCE.execute(featuresDiscovery::discover);
+          if (paused) {
+            // defer remote discovery until remote I/O is allowed
+          } else {
+            if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+              ret.discover(); // safe to run on same thread
+            } else {
+              // avoid performing blocking I/O operation on application thread
+              AgentTaskScheduler.INSTANCE.execute(ret::discover);
+            }
+          }
+          featuresDiscovery = ret;
         }
       }
     }
-    return featuresDiscovery;
+    return ret;
   }
 
   private static final class FixedConfigUrlSupplier implements Supplier<String> {

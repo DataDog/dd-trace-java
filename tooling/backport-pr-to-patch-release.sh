@@ -21,9 +21,9 @@ if [ -z "$PATCH_RELEASE_NAME" ]; then
     echo "Patch release name is not provided: $0 <patch-release-name> <pr-number>"
     exit 1
 fi
-# Check patch release name does not start with "release/"
-if [[ "$PATCH_RELEASE_NAME" =~ ^release/.* ]]; then
-    echo "Patch release name should not be the same as the release branch name. Only include the release name without patch number. (e.g. v1.2.x)"
+# Check patch release name format:
+if [[ ! "$PATCH_RELEASE_NAME" =~ ^v[0-9]+\.[0-9]+\.x$ ]]; then
+    echo "Patch release name should be in the format v1.2.x"
     exit 1
 fi
 # Check PR number is provided
