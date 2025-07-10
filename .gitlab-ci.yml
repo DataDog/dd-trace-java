@@ -138,6 +138,8 @@ default:
     KUBERNETES_MEMORY_LIMIT: 8Gi
     CACHE_TYPE: lib #default
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
   cache:
     - key: '$CI_SERVER_VERSION-$CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
       paths:
