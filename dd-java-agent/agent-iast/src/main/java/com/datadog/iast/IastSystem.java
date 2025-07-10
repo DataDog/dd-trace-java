@@ -122,6 +122,7 @@ public class IastSystem {
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
     registerRequestEndedCallback(ss, addTelemetry, dependencies);
     registerHeadersCallback(ss);
+    registerHttpRouteCallback(ss);
     registerGrpcServerRequestMessageCallback(ss);
     maybeApplySecurityControls(instrumentation);
     LOGGER.debug("IAST started");
@@ -244,6 +245,10 @@ public class IastSystem {
         Events.get().requestHeader();
     final TriConsumer<RequestContext, String, String> handler = new RequestHeaderHandler();
     ss.registerCallback(event, handler);
+  }
+
+  private static void registerHttpRouteCallback(final SubscriptionService ss) {
+    ss.registerCallback(Events.get().httpRoute(), new HttpRouteHandler());
   }
 
   private static void registerGrpcServerRequestMessageCallback(final SubscriptionService ss) {

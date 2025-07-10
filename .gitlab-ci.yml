@@ -25,7 +25,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
@@ -119,14 +119,11 @@ default:
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
-    # FIXME: Disabled until we find a way to not hit GitHub API rate limit
-    if false && [[ ! $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
-      export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
-      if [[ -n "$GIT_BASE_REF" ]]; then
-        export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
-      else
-        echo "Failed to find base ref for PR" >&2
-      fi
+    export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
+    if [[ -n "$GIT_BASE_REF" ]]; then
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PgitBaseRef=origin/$GIT_BASE_REF"
+    else
+      echo "Failed to find base ref for PR" >&2
     fi
 
 .gradle_build: &gradle_build
@@ -149,6 +146,7 @@ default:
         - .gradle/caches
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
+      unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - '$CI_SERVER_VERSION-base'
         - '$CI_SERVER_VERSION-lib'
@@ -158,8 +156,11 @@ default:
         - .gradle/$GRADLE_VERSION/executionHistory
         - workspace
       policy: $BUILD_CACHE_POLICY
+      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    # Akka token added to SSM from https://account.akka.io/token
+    - export AKKA_REPO_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - |
@@ -167,6 +168,7 @@ default:
       cat << EOF > $GRADLE_USER_HOME/gradle.properties
       mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
       gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+      akkaRepositoryToken=$AKKA_REPO_TOKEN
       EOF
     - |
       # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
@@ -186,7 +188,32 @@ default:
   after_script:
     - *cgroup_info
 
+# Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
+# on the central publisher protal, it invalidates the old one. This checks prevents going further.
+# See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
+pre-release-checks:
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: .pre
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+      allow_failure: false
+  script:
+    - |
+      MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+      # See https://central.sonatype.org/publish/publish-portal-api/
+      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
+      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
+      if [ $? -ne 0 ]; then
+        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
+        exit 1
+      fi
+
 build:
+  needs:
+    - job: pre-release-checks
+      optional: true
   extends: .gradle_build
   variables:
     BUILD_CACHE_POLICY: push
@@ -324,7 +351,7 @@ test_published_artifacts:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
+    - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -344,7 +371,7 @@ test_published_artifacts:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh --destination ./check_reports --move
+    - .gitlab/collect_reports.sh --destination ./check_reports --move
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -404,7 +431,7 @@ muzzle:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
+    - .gitlab/collect_reports.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
@@ -423,7 +450,7 @@ muzzle-dep-report:
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
   after_script:
     - *cgroup_info
-    - .circleci/collect_muzzle_deps.sh
+    - .gitlab/collect_muzzle_deps.sh
   artifacts:
     when: always
     paths:
@@ -486,10 +513,10 @@ muzzle-dep-report:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .circleci/collect_reports.sh
-    - if [ "$PROFILE_TESTS" == "true" ]; then .circleci/collect_profiles.sh; fi
-    - .circleci/collect_results.sh
-    - .circleci/upload_ciapp.sh $CACHE_TYPE $testJvm
+    - .gitlab/collect_reports.sh
+    - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
+    - .gitlab/collect_results.sh
+    - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
     - gitlab_section_end "collect-reports"
     - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
     - echo -e "${TEXT_BOLD}${TEXT_YELLOW}See test results in Datadog:${TEXT_CLEAR} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}%20%40ci.job.name%3A%22${URL_ENCODED_JOB_NAME}%22"
@@ -741,8 +768,8 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
-# If the deploy_to_sonatype job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
-deploy_to_sonatype:
+# If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
+deploy_to_maven_central:
   extends: .gradle_build
   stage: publish
   needs: [ build ]
@@ -759,8 +786,8 @@ deploy_to_sonatype:
     - when: manual
       allow_failure: true
   script:
-    - export SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-    - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
@@ -778,11 +805,11 @@ deploy_artifacts_to_github:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
-  # Requires the deploy_to_sonatype job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
-    - job: deploy_to_sonatype
-      # The deploy_to_sonatype job is not run for release candidate versions
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
       optional: true
   script:
     - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
