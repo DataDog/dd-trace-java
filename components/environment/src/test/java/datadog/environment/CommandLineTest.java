@@ -7,7 +7,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.environment.CommandLineHelper.Result;
@@ -99,7 +99,7 @@ class CommandLineTest {
       }
     }
     if (useArgFile) {
-      assumeFalse(System.getProperty("java.home").matches(".*[-/]8[./].*"));
+      assumeTrue(JavaVirtualMachine.isJavaVersionAtLeast(9));
     }
   }
 

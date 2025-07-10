@@ -3,8 +3,8 @@ apply plugin: 'signing'
 
 /**
  * Proper publishing requires the following environment variables:
- * SONATYPE_USERNAME
- * SONATYPE_PASSWORD
+ * MAVEN_CENTRAL_USERNAME
+ * MAVEN_CENTRAL_PASSWORD
  * GPG_PRIVATE_KEY
  * GPG_PASSWORD
  */
@@ -81,8 +81,8 @@ gradle.taskGraph.whenReady { TaskExecutionGraph taskGraph ->
   if (taskGraph.hasTask(publish) || taskGraph.hasTask("publishToSonatype")) {
     assert project.findProperty("removeJarVersionNumbers") != true
     if (taskGraph.hasTask("publishToSonatype")) {
-      assert System.getenv("SONATYPE_USERNAME") != null
-      assert System.getenv("SONATYPE_PASSWORD") != null
+      assert System.getenv("MAVEN_CENTRAL_USERNAME") != null
+      assert System.getenv("MAVEN_CENTRAL_PASSWORD") != null
       if (isCI) {
         assert System.getenv("GPG_PRIVATE_KEY") != null
         assert System.getenv("GPG_PASSWORD") != null

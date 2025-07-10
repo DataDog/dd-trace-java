@@ -15,15 +15,27 @@ muzzle {
     versions = "[10.6.0,)"
     javaVersion = "11"
     extraDependency 'com.typesafe.akka:akka-stream_2.13:2.9.0'
-    extraRepository('akka', 'https://repo.akka.io/maven')
+
+    if (project.rootProject.hasProperty("akkaRepositoryToken")) {
+      extraRepository('akka', "https://repo.akka.io/${project.rootProject.property("akkaRepositoryToken")}/secure")
+    } else {
+      extraRepository('akka', 'https://repo.akka.io/maven')
+    }
+
     assertInverse = true
   }
 
 }
 
 repositories {
-  maven {
-    url "https://repo.akka.io/maven"
+  if (project.rootProject.hasProperty("akkaRepositoryToken")) {
+    maven {
+      url "https://repo.akka.io/${project.rootProject.property("akkaRepositoryToken")}/secure"
+    }
+  } else {
+    maven {
+      url "https://repo.akka.io/maven"
+    }
   }
 }
 

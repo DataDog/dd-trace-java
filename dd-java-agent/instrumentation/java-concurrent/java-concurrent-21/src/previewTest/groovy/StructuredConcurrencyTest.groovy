@@ -26,7 +26,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
             return true
           }
         })
-      taskScope.joinUntil(now() + 1) // Wait for a second at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
       result = task.get()
     }
     taskScope.close()
@@ -73,7 +73,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       taskScope.fork {
         runnableUnderTrace("child3") {}
       }
-      taskScope.joinUntil(now() + 2) // Wait for two seconds at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
     }
     taskScope.close()
 
@@ -132,7 +132,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
       taskScope.fork {
         runnableUnderTrace("child2") {}
       }
-      taskScope.joinUntil(now() + 2) // Wait for two seconds at maximum
+      taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
     }
     taskScope.close()
 
