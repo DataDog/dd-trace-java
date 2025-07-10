@@ -28,7 +28,7 @@ variables:
   GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
   PROFILE_TESTS:
