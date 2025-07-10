@@ -1,4 +1,4 @@
-name: Update Docker Build Image
+name: Update jmxfetch integrations submodule
 
 on:
   schedule:
@@ -11,29 +11,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
-        with:
-          submodules: 'recursive'
-          fetch-depth: 0
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
 
       - name: Update Submodule
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew :dd-java-agent:agent-jmxfetch:submodulesUpdate
+          git submodule update --remote -- dd-java-agent/agent-jmxfetch/integrations-core
       - name: Download ghcommit CLI
         run: |
           curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
