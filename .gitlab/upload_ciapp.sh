@@ -44,5 +44,11 @@ coverage_upload() {
 
 # Upload test results to production environment like all other CI jobs
 junit_upload "$DATADOG_API_KEY_PROD"
+junit_upload_status=$?
 
 coverage_upload "$DATADOG_API_KEY_PROD"
+coverage_upload_status=$?
+
+if [[ $junit_status -ne 0 || $coverage_status -ne 0 ]]; then
+  exit 1
+fi
