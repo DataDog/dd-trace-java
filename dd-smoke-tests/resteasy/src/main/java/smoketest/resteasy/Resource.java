@@ -6,9 +6,11 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -93,5 +95,19 @@ public class Resource {
   @GET
   public Response getCookie() throws SQLException {
     return Response.ok().cookie(new NewCookie("user-id", "7")).build();
+  }
+
+  @Path("/api_security/response")
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Response apiSecurityResponse(RequestBody input) {
+    return Response.ok(input).build();
+  }
+
+  @GET
+  @Path("/api_security/sampling/{i}")
+  public Response apiSecuritySamplingWithStatus(@PathParam("i") int i) {
+    return Response.status(i).header("content-type", "text/plain").entity("Hello!\n").build();
   }
 }

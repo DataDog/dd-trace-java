@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'JDK 8 Concurrent Integration Tests'
 
 application {
-  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+  mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 dependencies {

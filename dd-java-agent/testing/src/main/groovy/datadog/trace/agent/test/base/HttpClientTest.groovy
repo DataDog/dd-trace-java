@@ -6,6 +6,7 @@ import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.datastreams.DataStreamsContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
@@ -28,7 +29,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TA
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
@@ -36,7 +36,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
   protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
-  protected static final DSM_EDGE_TAGS = CLIENT_PATHWAY_EDGE_TAGS.collect { key, value ->
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpClient().sortedTags().collect { key, value ->
     return key + ":" + value
   }
 

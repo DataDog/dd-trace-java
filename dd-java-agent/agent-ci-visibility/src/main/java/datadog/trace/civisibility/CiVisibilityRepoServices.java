@@ -129,7 +129,8 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
             config.getGitPullRequestBaseBranchSha(),
-            config.getGitCommitHeadSha());
+            config.getGitCommitHeadSha(),
+            null);
 
     if (userInfo.isComplete()) {
       return userInfo;
@@ -140,7 +141,8 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             null,
             environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA),
-            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA));
+            environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA),
+            null);
 
     return PullRequestInfo.merge(userInfo, ddCiInfo);
   }

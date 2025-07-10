@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
@@ -34,13 +35,27 @@ public class LogCollector {
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
   }
 
-  public void addLogMessage(String logLevel, String message, Throwable throwable) {
+  public void addLogMessage(String logLevel, String message, @Nullable Throwable throwable) {
+    addLogMessage(logLevel, message, throwable, null);
+  }
+
+  /**
+   * Queue a log message to be sent on next telemetry flush.
+   *
+   * @param logLevel Log level (ERROR, WARN, DEBUG). Unknown log levels will be ignored.
+   * @param message Log message.
+   * @param throwable Optional throwable to attach a stacktrace.
+   * @param tags Optional tags to attach to the log. These are a comma-separated list, e.g.
+   *     tag1:value1,tag2:value2
+   */
+  public void addLogMessage(
+      String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
     if (rawLogMessages.size() >= maxCapacity) {
       // TODO: We could emit a metric for dropped logs.
       return;
     }
     RawLogMessage rawLogMessage =
-        new RawLogMessage(logLevel, message, throwable, System.currentTimeMillis() / 1000);
+        new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
     AtomicInteger count = rawLogMessages.computeIfAbsent(rawLogMessage, k -> new AtomicInteger());
     count.incrementAndGet();
   }
@@ -73,13 +88,16 @@ public class LogCollector {
     public final String message;
     public final String logLevel;
     public final Throwable throwable;
+    public final String tags;
     public final long timestamp;
     public int count;
 
-    public RawLogMessage(String logLevel, String message, Throwable throwable, long timestamp) {
+    public RawLogMessage(
+        String logLevel, String message, Throwable throwable, String tags, long timestamp) {
       this.logLevel = logLevel;
       this.message = message;
       this.throwable = throwable;
+      this.tags = tags;
       this.timestamp = timestamp;
     }
 

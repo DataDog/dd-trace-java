@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
@@ -107,12 +108,12 @@ public class TracingRequestHandler extends RequestHandler2 {
       }
     }
     if (span != null
-        && span.traceConfig().isDataStreamsEnabled()
+        && traceConfig().isDataStreamsEnabled()
         && "AmazonKinesis".equals(request.getServiceName())
         && "GetRecords".equals(requestAccess.getOperationNameFromType())) {
       String streamArn = requestAccess.getStreamARN(originalRequest);
       if (null != streamArn) {
-        List records =
+        List<?> records =
             GetterAccess.of(response.getAwsResponse()).getRecords(response.getAwsResponse());
         if (null != records) {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();

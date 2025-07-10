@@ -1,3 +1,4 @@
+import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -150,6 +151,17 @@ def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
   def javaTestLauncher = null as Provider<JavaLauncher>
+  if (testJvm == "stable") {
+    def javaVersions = System.getenv()
+      .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
+      .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+
+    if (javaVersions.isEmpty()) {
+      throw new GradleException("No valid JAVA_X_HOME environment variables found.")
+    }
+
+    testJvm = javaVersions.max().toString()
+  }
   if (testJvm) {
     def matcher = testJvm =~ /([a-zA-Z]*)([0-9]+)/
     if (!matcher.matches()) {
@@ -164,7 +176,7 @@ project.afterEvaluate {
     def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
-      def jvmSpec = new SpecificInstallationToolchainSpec(project.getObjects(), file(testJvmHomePath))
+      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {
@@ -307,16 +319,20 @@ def isJavaVersionAllowedForProperty(JavaVersion version, String propertyPrefix =
   def definedMin = project.hasProperty(minProp)
   def definedMax = project.hasProperty(maxProp)
   if (definedMin && project.getProperty(minProp).compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minProp=${minProp} is defined and greater than version=${version}")
     return false
   }
   //default to the general min if defined and specific one is was not defined
   if (!propertyPrefix.isEmpty() && !definedMin && project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests').compareTo(version) > 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o minJavaVersionForTests=${project.getProperty('minJavaVersionForTests')} is defined and greater than version=${version}")
     return false
   }
   if (definedMax && project.getProperty(maxProp).compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxProp=${project.getProperty(maxProp)} is defined and lower than version=${version}")
     return false
   }
   if (!propertyPrefix.isEmpty() && !definedMax && project.hasProperty('maxJavaVersionForTests') && project.getProperty('maxJavaVersionForTests').compareTo(version) < 0) {
+    logger.info("isJavaVersionAllowedForProperty is false b/o maxJavaVersionForTests=${project.getProperty('maxJavaVersionForTests')} is defined and lower than version=${version}")
     return false
   }
   return true

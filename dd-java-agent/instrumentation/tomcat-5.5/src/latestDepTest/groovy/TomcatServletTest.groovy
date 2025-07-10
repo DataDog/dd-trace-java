@@ -1,9 +1,8 @@
-import datadog.trace.api.ProcessTags
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
-
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.api.ProcessTags
+import datadog.trace.instrumentation.servlet5.HtmlRumServlet
 import datadog.trace.instrumentation.servlet5.TestServlet5
+import datadog.trace.instrumentation.servlet5.XmlRumServlet
 import jakarta.servlet.Filter
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
@@ -23,6 +22,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static org.junit.Assume.assumeTrue
 
@@ -290,6 +290,20 @@ class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
   @Override
   boolean testProcessTags() {
     true
+  }
+}
+
+class TomcatRumInjectionForkedTest extends TomcatServletTest {
+  @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    addServlet(context, "/gimme-html", HtmlRumServlet)
+    addServlet(context, "/gimme-xml", XmlRumServlet)
   }
 }
 

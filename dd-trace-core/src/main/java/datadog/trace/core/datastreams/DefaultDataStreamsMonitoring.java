@@ -91,7 +91,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             V01_DATASTREAMS_ENDPOINT,
             false,
             true,
-            Collections.<String, String>emptyMap()),
+            Collections.emptyMap()),
         sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
         traceConfigSupplier,
@@ -135,12 +135,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     schemaSamplers = new ConcurrentHashMap<>();
 
     this.propagator =
-        new DataStreamsPropagator(
-            this,
-            this.traceConfigSupplier,
-            this.timeSource,
-            this.hashOfKnownTags,
-            serviceNameOverride);
+        new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
   }
 
   @Override

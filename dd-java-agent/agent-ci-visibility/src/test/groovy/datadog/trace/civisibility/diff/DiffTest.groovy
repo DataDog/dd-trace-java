@@ -19,9 +19,6 @@ class DiffTest extends Specification {
 
     where:
     diff << [
-      new FileDiff(Collections.emptySet()),
-      new FileDiff(Collections.singleton("path")),
-      new FileDiff(new HashSet<>(["path-a", "path-b"])),
       new LineDiff([:]),
       new LineDiff(["path": lines(10)]),
       new LineDiff(["path": lines(10, 11, 13)]),

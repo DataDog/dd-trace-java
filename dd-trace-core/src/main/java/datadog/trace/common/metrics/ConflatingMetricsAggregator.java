@@ -143,20 +143,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (isMetricsEnabled()) {
-      sink.register(this);
-      thread.start();
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new ReportTask(),
-              this,
-              reportingInterval,
-              reportingInterval,
-              reportingIntervalTimeUnit);
-      log.debug("started metrics aggregator");
-    } else {
-      log.debug("metrics not supported by trace agent");
-    }
+    sink.register(this);
+    thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+    log.debug("started metrics aggregator");
   }
 
   private boolean isMetricsEnabled() {
@@ -329,11 +325,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
-      if (null != cancellation) {
-        cancellation.cancel();
-      }
-      this.thread.interrupt();
       this.pending.clear();
       this.batchPool.clear();
       this.inbox.clear();
