@@ -150,9 +150,6 @@ default:
         - .gradle/notifications
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
-      fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
-        - 'base'
-        - 'lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
@@ -284,8 +281,6 @@ populate_dep_cache:
         CACHE_TYPE: "base"
       - GRADLE_TARGET: ":profilingTest"
         CACHE_TYPE: "profiling"
-#      FIXME: Gitlab doesn't support s3 based caches >5GB. Fixed in Gitlab 17.5
-#      See: https://gitlab.com/gitlab-org/gitlab-runner/-/issues/26921#note_2132307223
       - GRADLE_TARGET: ":instrumentationTest"
         CACHE_TYPE: "inst"
       - GRADLE_TARGET: ":instrumentationLatestDepTest"
