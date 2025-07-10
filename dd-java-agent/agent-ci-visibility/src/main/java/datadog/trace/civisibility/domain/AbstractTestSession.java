@@ -73,7 +73,7 @@ public abstract class AbstractTestSession {
     AgentSpanContext traceContext =
         new TagContext(
             CIConstants.CIAPP_TEST_ORIGIN,
-            Collections.emptyMap(),
+            null,
             null,
             null,
             PrioritySampling.UNSET,

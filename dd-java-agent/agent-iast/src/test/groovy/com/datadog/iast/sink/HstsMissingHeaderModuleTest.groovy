@@ -7,6 +7,7 @@ import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.overhead.Operation
 import com.datadog.iast.overhead.OverheadController
+import datadog.trace.api.TagMap
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.internal.TraceSegment
@@ -45,10 +46,10 @@ class HstsMissingHeaderModuleTest extends IastModuleImplTestBase {
     final handler = new RequestEndedHandler(dependencies)
     ctx.xForwardedProto = 'https'
     ctx.contentType = "text/html"
-    span.getTags() >> [
+    span.getTags() >> TagMap.fromMap([
       'http.url': 'https://localhost/a',
       'http.status_code': 200i
-    ]
+    ])
 
     when:
     def flow = handler.apply(reqCtx, span)

@@ -3,6 +3,7 @@ package datadog.trace.core.datastreams
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.TagMap
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
@@ -479,6 +480,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     ]
     def contextVisitor = new Base64MapContextVisitor()
 
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, (TagMap)null, null, null, localTraceConfig, DATADOG)
+    def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
     def propagator = dataStreams.propagator()
 
     when:
@@ -564,7 +567,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, null, DATADOG)
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, (TagMap)null, null, null, null, DATADOG)
     def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
     def propagator = dataStreams.propagator()
 

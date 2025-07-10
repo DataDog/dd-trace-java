@@ -10,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.config.TracerConfig;
@@ -98,7 +99,7 @@ public class DDSpanContext
    * rather read and accessed in a serial fashion on thread after thread. The synchronization can
    * then be wrapped around bulk operations to minimize the costly atomic operations.
    */
-  private final Map<String, Object> unsafeTags;
+  private final TagMap unsafeTags;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -341,7 +342,8 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = new HashMap<>(capacity);
+    this.unsafeTags = TagMap.create(capacity);
+
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
@@ -757,16 +759,73 @@ public class DDSpanContext
     }
   }
 
-  void setAllTags(final Map<String, ?> map) {
-    if (map == null || map.isEmpty()) {
+  void setAllTags(final TagMap map) {
+    setAllTags(map, true);
+  }
+
+  void setAllTags(final TagMap map, boolean needsIntercept) {
+    if (map == null) {
+      return;
+    }
+
+    synchronized (unsafeTags) {
+      if (needsIntercept) {
+        // forEach out-performs the iterator of TagMap
+        // Taking advantage of ability to pass through other context arguments
+        // to avoid using a capturing lambda
+        map.forEach(
+            this,
+            traceCollector.getTracer().getTagInterceptor(),
+            (ctx, tagInterceptor, tagEntry) -> {
+              String tag = tagEntry.tag();
+              Object value = tagEntry.objectValue();
+
+              if (!tagInterceptor.interceptTag(ctx, tag, value)) {
+                ctx.unsafeTags.set(tagEntry);
+              }
+            });
+      } else {
+        unsafeTags.putAll(map);
+      }
+    }
+  }
+
+  void setAllTags(final TagMap.Ledger ledger) {
+    if (ledger == null) {
       return;
     }
 
     TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
-      for (final Map.Entry<String, ?> tag : map.entrySet()) {
-        if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
-          unsafeSetTag(tag.getKey(), tag.getValue());
+      for (final TagMap.EntryChange entryChange : ledger) {
+        if (entryChange.isRemoval()) {
+          unsafeTags.remove(entryChange.tag());
+        } else {
+          TagMap.Entry entry = (TagMap.Entry) entryChange;
+
+          String tag = entry.tag();
+          Object value = entry.objectValue();
+
+          if (!tagInterceptor.interceptTag(this, tag, value)) {
+            unsafeTags.set(entry);
+          }
+        }
+      }
+    }
+  }
+
+  void setAllTags(final Map<String, ?> map) {
+    if (map == null) {
+      return;
+    } else if (map instanceof TagMap) {
+      setAllTags((TagMap) map);
+    } else if (!map.isEmpty()) {
+      TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
+      synchronized (unsafeTags) {
+        for (final Map.Entry<String, ?> tag : map.entrySet()) {
+          if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+            unsafeSetTag(tag.getKey(), tag.getValue());
+          }
         }
       }
     }
@@ -803,12 +862,14 @@ public class DDSpanContext
    * @return the value associated with the tag
    */
   public Object unsafeGetTag(final String tag) {
-    return unsafeTags.get(tag);
+    return unsafeTags.getObject(tag);
   }
 
-  public Map<String, Object> getTags() {
+  @Deprecated
+  public TagMap getTags() {
     synchronized (unsafeTags) {
-      Map<String, Object> tags = new HashMap<>(unsafeTags);
+      TagMap tags = unsafeTags.copy();
+
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
@@ -823,7 +884,7 @@ public class DDSpanContext
       if (value != null) {
         tags.put(Tags.HTTP_URL, value.toString());
       }
-      return Collections.unmodifiableMap(tags);
+      return tags.freeze();
     }
   }
 
@@ -855,11 +916,11 @@ public class DDSpanContext
       final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
       // Tags
-      Map<String, Object> tags =
-          TagsPostProcessorFactory.instance().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.instance().processTags(unsafeTags, this, links);
+
       String linksTag = DDSpanLink.toTag(links);
       if (linksTag != null) {
-        tags.put(SPAN_LINKS, linksTag);
+        unsafeTags.put(SPAN_LINKS, linksTag);
       }
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
@@ -874,7 +935,7 @@ public class DDSpanContext
           new Metadata(
               threadId,
               threadName,
-              tags,
+              unsafeTags,
               baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
