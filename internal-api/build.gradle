@@ -2,22 +2,11 @@ plugins {
   id 'me.champeau.jmh'
 }
 
-ext {
-  // need access to sun.misc.SharedSecrets
-  skipSettingCompilerRelease = true
-}
-
-// sun.misc.SharedSecrets is gone in later versions
-compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
-tasks.compileTestJava.configure {
+tasks.withType(JavaCompile).configureEach {
+  // need access to sun.misc.SharedSecrets
   setJavaVersion(it, 8)
 }
 

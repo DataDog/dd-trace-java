@@ -1,9 +1,6 @@
 // Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
-
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
 }
 
 apply from: "$rootDir/gradle/java.gradle"
