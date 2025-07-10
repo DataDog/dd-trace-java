@@ -84,6 +84,7 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
+  static final boolean DEFAULT_TRACE_INFERRED_PROXY_SERVICES_ENABLED = false;
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
