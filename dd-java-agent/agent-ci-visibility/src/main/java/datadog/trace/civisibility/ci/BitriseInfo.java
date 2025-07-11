@@ -76,7 +76,7 @@ class BitriseInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(BITRISE_GIT_BRANCH_DEST)),
         null,
-        null,
+        CommitInfo.NOOP,
         environment.get(BITRISE_PR_NUMBER));
   }
 
