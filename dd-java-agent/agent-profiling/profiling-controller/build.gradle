@@ -19,6 +19,7 @@ excludedClassesCoverage += [
 dependencies {
   api libs.slf4j
   api project(':internal-api')
+  api project(':components:environment')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
 
   testImplementation libs.bundles.junit5

@@ -17,6 +17,7 @@ apply plugin: 'idea'
 dependencies {
   api libs.slf4j
   api project(':internal-api')
+  api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }

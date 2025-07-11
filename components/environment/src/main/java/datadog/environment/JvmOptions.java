@@ -53,29 +53,31 @@ class JvmOptions {
           break;
         }
       }
-      // Create list of VM options
-      List<String> vmOptions = new ArrayList<>(asList(PROCFS_CMDLINE).subList(1, index + 1));
-      ListIterator<String> iterator = vmOptions.listIterator();
-      while (iterator.hasNext()) {
-        String vmOption = iterator.next();
-        if (vmOption.startsWith("@")) {
-          iterator.remove();
-          for (String argument : getArgumentsFromFile(vmOption)) {
-            iterator.add(argument);
+      if (index < PROCFS_CMDLINE.length) {
+        // Create list of VM options
+        List<String> vmOptions = new ArrayList<>(asList(PROCFS_CMDLINE).subList(1, index + 1));
+        ListIterator<String> iterator = vmOptions.listIterator();
+        while (iterator.hasNext()) {
+          String vmOption = iterator.next();
+          if (vmOption.startsWith("@")) {
+            iterator.remove();
+            for (String argument : getArgumentsFromFile(vmOption)) {
+              iterator.add(argument);
+            }
           }
         }
+        // Insert JDK_JAVA_OPTIONS at the start if present and supported
+        List<String> jdkJavaOptions = getJdkJavaOptions();
+        if (!jdkJavaOptions.isEmpty()) {
+          vmOptions.addAll(0, jdkJavaOptions);
+        }
+        // Insert JAVA_TOOL_OPTIONS at the start if present
+        List<String> javaToolOptions = getJavaToolOptions();
+        if (!javaToolOptions.isEmpty()) {
+          vmOptions.addAll(0, javaToolOptions);
+        }
+        return vmOptions;
       }
-      // Insert JDK_JAVA_OPTIONS at the start if present and supported
-      List<String> jdkJavaOptions = getJdkJavaOptions();
-      if (!jdkJavaOptions.isEmpty()) {
-        vmOptions.addAll(0, jdkJavaOptions);
-      }
-      // Insert JAVA_TOOL_OPTIONS at the start if present
-      List<String> javaToolOptions = getJavaToolOptions();
-      if (!javaToolOptions.isEmpty()) {
-        vmOptions.addAll(0, javaToolOptions);
-      }
-      return vmOptions;
     }
 
     // Try Oracle-based
