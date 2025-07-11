@@ -30,7 +30,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
   BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|stable)$/
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -60,6 +60,7 @@ workflow:
       - "11"
       - "17"
       - "21"
+      - "25"
       - "stable"
       - "semeru11"
       - "oracle8"
@@ -603,7 +604,7 @@ test_inst_latest:
     CACHE_TYPE: "latestDep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "stable"]
+      - testJvm: ["8", "17", "21", "25", "stable"]
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -655,7 +656,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|stable|semeru8)$/
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|stable|semeru8)$/
   parallel:
     matrix: *test_matrix
 
