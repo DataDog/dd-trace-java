@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.OperatingSystem;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
@@ -41,7 +43,8 @@ class DatadogProfilerTest {
 
   @Test
   void test() throws Exception {
-    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     assertFalse(profiler.enabledModes().isEmpty());
 
@@ -73,8 +76,9 @@ class DatadogProfilerTest {
 
   @ParameterizedTest
   @MethodSource("profilingModes")
-  void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) {
-    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "Profiler not available");
+  void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(configProvider(cpu, wall, alloc, memleak));
 

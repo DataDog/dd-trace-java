@@ -33,15 +33,16 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.TempLocationManager;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.environment.JavaVirtualMachine;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
+import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,13 +119,14 @@ public final class DatadogProfiler {
   // visible for testing
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
-    this.profiler = JavaProfilerLoader.PROFILER;
+    this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
-    if (JavaProfilerLoader.REASON_NOT_LOADED != null) {
+    Throwable reasonNotLoaded = DdprofLibraryLoader.javaProfiler().getReasonNotLoaded();
+    if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
-          "Unable to instantiate datadog profiler", JavaProfilerLoader.REASON_NOT_LOADED);
+          "Unable to instantiate datadog profiler", reasonNotLoaded);
     }
 
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration

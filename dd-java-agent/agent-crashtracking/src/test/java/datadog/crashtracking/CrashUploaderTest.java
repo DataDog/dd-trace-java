@@ -1,13 +1,13 @@
-package com.datadog.crashtracking;
+package datadog.crashtracking;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import com.datadog.crashtracking.dto.CrashLog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
+import datadog.crashtracking.dto.CrashLog;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
