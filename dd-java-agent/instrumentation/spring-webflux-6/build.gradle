@@ -53,9 +53,9 @@ dependencies {
   }
   bootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
   // our default version of spock is too old
-  bootTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-3.0'
-  bootTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: '2.4-M1-groovy-3.0'
-  bootTestImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-3.0'
+  bootTestImplementation group: 'org.spockframework', name: 'spock-core', version: libs.versions.spock24.get()
+  bootTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: libs.versions.spock24.get()
+  bootTestImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock24.get()
 
   latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '3.+'
   latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+', {
@@ -64,9 +64,9 @@ dependencies {
   }
   latestDepBootTestImplementation project(':dd-java-agent:instrumentation:spring-webflux-5')
   // our default version of spock is too old
-  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-3.0'
-  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: '2.4-M1-groovy-3.0'
-  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-3.0'
+  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-core', version: libs.versions.spock24.get()
+  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: libs.versions.spock24.get()
+  latestDepBootTestImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock24.get()
 
 
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
@@ -85,8 +85,8 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
 
   // our default version of spock is too old
-  iastTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-3.0'
-  iastTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: '2.4-M1-groovy-3.0'
-  iastTestImplementation group: 'org.spockframework', name: 'spock-spring', version: '2.4-M1-groovy-3.0'
+  iastTestImplementation group: 'org.spockframework', name: 'spock-core', version: libs.versions.spock24.get()
+  iastTestImplementation group: 'org.spockframework', name: 'spock-junit4', version: libs.versions.spock24.get()
+  iastTestImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock24.get()
 }
 
