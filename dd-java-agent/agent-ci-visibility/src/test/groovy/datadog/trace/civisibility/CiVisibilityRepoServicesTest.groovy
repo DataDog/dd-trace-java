@@ -7,6 +7,7 @@ import datadog.trace.civisibility.ci.CIProviderInfo
 import datadog.trace.civisibility.ci.PullRequestInfo
 import datadog.trace.civisibility.ci.env.CiEnvironment
 import datadog.trace.civisibility.git.tree.GitClient
+import datadog.trace.civisibility.git.tree.GitRepoUnshallow
 import java.nio.file.Paths
 import spock.lang.Specification
 
@@ -52,6 +53,7 @@ class CiVisibilityRepoServicesTest extends Specification {
     environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA) >> "targetSha"
     environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA) >> expectedInfo.getGitCommitHead().getSha()
 
+    def repoUnshallow = Stub(GitRepoUnshallow)
     def ciProviderInfo = Stub(CIProviderInfo)
     ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
 
@@ -66,6 +68,6 @@ class CiVisibilityRepoServicesTest extends Specification {
     gitClient.getFullMessage("sourceSha") >> expectedInfo.getGitCommitHead().getFullMessage()
 
     expect:
-    CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient) == expectedInfo
+    CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient, repoUnshallow) == expectedInfo
   }
 }
