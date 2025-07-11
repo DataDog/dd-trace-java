@@ -112,6 +112,12 @@ check-slo-breaches:
       done
     - ls -lah "$ARTIFACTS_DIR"
     - bp-runner .gitlab/benchmarks/bp-runner.fail-on-breach.yml
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 1 week
   variables:
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
