@@ -1,9 +1,9 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import spock.lang.IgnoreIf
 
-@IgnoreIf({
-  // JBoss Modules 1.x doesn't support Java 17
-  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+@IgnoreIf(reason = "JBoss Modules 1.x doesn't support Java 17", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(17)
 })
 class JBossModulesV1SmokeTest extends AbstractModulesSmokeTest {}

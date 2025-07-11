@@ -60,7 +60,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
-      command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams"
+      command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }
     return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
   }

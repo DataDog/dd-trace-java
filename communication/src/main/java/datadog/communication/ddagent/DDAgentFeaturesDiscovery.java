@@ -1,7 +1,9 @@
 package datadog.communication.ddagent;
 
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -86,6 +88,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String evpProxyEndpoint;
   private volatile String version;
   private volatile String telemetryProxyEndpoint;
+  private volatile List<String> peerTags = emptyList();
+  private volatile List<String> spanKindsToComputedStats = emptyList();
 
   private long lastTimeDiscovered;
 
@@ -119,6 +123,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     version = null;
     lastTimeDiscovered = 0;
     telemetryProxyEndpoint = null;
+    peerTags = emptyList();
+    spanKindsToComputedStats = emptyList();
   }
 
   /** Run feature discovery, unconditionally. */
@@ -287,6 +293,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
+
+        Object peer_tags = map.get("peer_tags");
+        peerTags = peer_tags == null ? emptyList() : unmodifiableList((List<String>) peer_tags);
+
+        Object span_kinds = map.get("span_kinds_stats_computed");
+        spanKindsToComputedStats =
+            span_kinds == null ? emptyList() : unmodifiableList((List<String>) span_kinds);
       }
       try {
         state = Strings.sha256(response);
@@ -342,6 +355,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsLongRunning() {
     return supportsLongRunning;
+  }
+
+  public List<String> peerTags() {
+    return peerTags;
+  }
+
+  public List<String> spanKindsToComputedStats() {
+    return spanKindsToComputedStats;
   }
 
   public String getMetricsEndpoint() {
