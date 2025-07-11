@@ -213,9 +213,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         tracer()
             .startSpan(instrumentationName, spanName(), inferredProxySpan.context())
             .setMeasured(true);
-    
+
     serverSpan.setServiceName(Config.get().getServiceName());
-    
+
     // run the same IG/header logic we normally execute in startSpan(..)
     Flow<Void> flow = callIGCallbackRequestHeaders(serverSpan, carrier);
     if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {

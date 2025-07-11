@@ -5,11 +5,11 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.bootstrap.instrumentation.api.InferredProxyContext;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.HashMap;
-import java.util.Map;
 
 public class InferredProxyPropagator implements Propagator {
   private static final Logger log = LoggerFactory.getLogger(InferredProxyPropagator.class);
@@ -22,6 +22,7 @@ public class InferredProxyPropagator implements Propagator {
 
   // Supported proxies mapping (header value -> canonical component name)
   static final Map<String, String> SUPPORTED_PROXIES;
+
   static {
     SUPPORTED_PROXIES = new HashMap<>();
     SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
