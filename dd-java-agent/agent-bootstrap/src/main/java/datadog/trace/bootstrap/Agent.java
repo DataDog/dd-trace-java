@@ -3,9 +3,13 @@ package datadog.trace.bootstrap;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.FLEET;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.LOCAL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
@@ -212,74 +216,11 @@ public class Agent {
       injectAgentArgsConfig(agentArgs);
     }
 
-    // Retro-compatibility for the old way to configure CI Visibility
-    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
-        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
-      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
-    }
+    configureCiVisibility(agentJarURL);
 
-    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
-    if (ciVisibilityEnabled) {
-      // if CI Visibility is enabled, all the other features are disabled by default
-      // unless the user had explicitly enabled them.
-      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
-
-      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
-
-      try {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
-            agentJarURL.toURI().toString());
-      } catch (URISyntaxException e) {
-        throw new IllegalArgumentException(
-            "Could not create URI from agent JAR URL: " + agentJarURL, e);
-      }
-    }
-
-    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
-    // not enabled
-    if (!ciVisibilityEnabled) {
-      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
-    }
-
-    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
-    if (dataJobsEnabled) {
-      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
-
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
-      // needed for e2e pipeline
-      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
-
-      if (Config.get().isDataJobsOpenLineageEnabled()) {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
-      }
-
-      String javaCommand = String.join(" ", JavaVirtualMachine.getCommandArguments());
-      String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
-      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
-        log.warn(
-            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
-            javaCommand,
-            dataJobsCommandPattern);
-        return;
-      }
+    // Halt agent start if DJM is enabled and is not successfully configure
+    if (!configureDataJobsMonitoring()) {
+      return;
     }
 
     if (!isSupportedAppSecArch()) {
@@ -446,6 +387,43 @@ public class Agent {
     StaticEventLogger.end("Agent.start");
   }
 
+  private static boolean configureDataJobsMonitoring() {
+    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
+    if (dataJobsEnabled) {
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
+
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if ("true".equals(ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_ENABLED)))) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
+
+      String javaCommand = String.join(" ", JavaVirtualMachine.getCommandArguments());
+      String dataJobsCommandPattern =
+          ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_COMMAND_PATTERN));
+      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
+        log.warn(
+            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
+            javaCommand,
+            dataJobsCommandPattern);
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static void injectAgentArgsConfig(String agentArgs) {
     try {
       final Class<?> agentArgsInjectorClass =
@@ -455,6 +433,45 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  private static void configureCiVisibility(URL agentJarURL) {
+    // Retro-compatibility for the old way to configure CI Visibility
+    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
+        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
+      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    }
+
+    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
+    if (ciVisibilityEnabled) {
+      // if CI Visibility is enabled, all the other features are disabled by default
+      // unless the user had explicitly enabled them.
+      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
+
+      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
+
+      try {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
+            agentJarURL.toURI().toString());
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(
+            "Could not create URI from agent JAR URL: " + agentJarURL, e);
+      }
+    }
+
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
     }
   }
 
@@ -1401,13 +1418,13 @@ public class Agent {
     final String featureSystemProp = feature.getSystemProp();
     String featureEnabled = SystemProperties.get(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
+      featureEnabled = getStableConfig(FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
+      featureEnabled = getStableConfig(LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1431,13 +1448,13 @@ public class Agent {
     final String featureSystemProp = feature.getSystemProp();
     String settingValue = getNullIfEmpty(SystemProperties.get(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(FLEET, featureConfigKey));
     }
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
     }
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(LOCAL, featureConfigKey));
     }
 
     // defaults to inactive
