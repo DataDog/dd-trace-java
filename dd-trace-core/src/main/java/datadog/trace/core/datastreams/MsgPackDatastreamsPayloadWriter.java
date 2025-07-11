@@ -161,7 +161,8 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      packer.startMap(6);
+      boolean firstNode = group.getTags().getSize() == 0;
+      packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
       packer.writeUTF8(PATHWAY_LATENCY);
@@ -183,9 +184,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeUTF8(PARENT_HASH);
       packer.writeUnsignedLong(group.getParentHash());
 
-      /* 6 */
-      packer.writeUTF8(EDGE_TAGS);
-      writeDataStreamsTags(group.getTags(), packer);
+      if (!firstNode) {
+        /* 6 */
+        packer.writeUTF8(EDGE_TAGS);
+        writeDataStreamsTags(group.getTags(), packer);
+      }
     }
   }
 
@@ -202,14 +205,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeUTF8(BACKLOG_VALUE);
       packer.writeLong(entry.getValue());
     }
-  }
-
-  private void writeStringIfNotEmpty(String name, String value, Writable packer) {
-    if (value == null || value.isEmpty()) {
-      return;
-    }
-
-    packer.writeString(name + ":" + value, null);
   }
 
   private void writeDataStreamsTags(DataStreamsTags tags, Writable packer) {

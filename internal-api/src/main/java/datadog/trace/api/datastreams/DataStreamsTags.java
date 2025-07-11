@@ -107,10 +107,15 @@ public class DataStreamsTags {
         processor.process(EXCHANGE_TAG, this.builder.exchange);
       }
 
-      // topic and type are always required, no need to check for null
-      count += 2;
-      processor.process(TOPIC_TAG, this.builder.topic);
-      processor.process(TYPE_TAG, this.builder.type);
+      if (this.builder.topic != null) {
+        count += 1;
+        processor.process(TOPIC_TAG, this.builder.topic);
+      }
+
+      if (this.builder.type != null) {
+        count += 1;
+        processor.process(TYPE_TAG, this.builder.type);
+      }
 
       if (this.builder.subscription != null) {
         count += 1;
@@ -119,8 +124,10 @@ public class DataStreamsTags {
     }
 
     if (mode == TagTraverseMode.GroupOnly || mode == TagTraverseMode.All) {
-      count += 1;
-      processor.process(MANUAL_TAG, this.builder.isManual.toString());
+      if (this.builder.isManual != null) {
+        count += 1;
+        processor.process(MANUAL_TAG, this.builder.isManual.toString());
+      }
 
       if (this.builder.datasetName != null) {
         count += 1;
@@ -134,8 +141,10 @@ public class DataStreamsTags {
     }
 
     if (mode == TagTraverseMode.ValueOnly || mode == TagTraverseMode.All) {
-      count += 1;
-      processor.process(HAS_ROUTING_KEY_TAG, this.builder.hasRoutingKey.toString());
+      if (this.builder.hasRoutingKey != null) {
+        count += 1;
+        processor.process(HAS_ROUTING_KEY_TAG, this.builder.hasRoutingKey.toString());
+      }
 
       if (this.builder.consumerGroup != null) {
         count += 1;
@@ -231,6 +240,11 @@ public class DataStreamsTags {
 
     DataStreamsTags that = (DataStreamsTags) o;
     return this.completeHash == that.completeHash;
+  }
+
+  @Override
+  public int hashCode() {
+    return Long.hashCode(this.completeHash);
   }
 
   @Override

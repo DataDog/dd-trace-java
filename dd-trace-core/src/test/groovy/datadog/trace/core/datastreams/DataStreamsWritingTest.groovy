@@ -228,9 +228,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackLong() == 2
         assert unpacker.unpackString() == "EdgeTags"
         assert unpacker.unpackArrayHeader() == 3
+        assert unpacker.unpackString() == "topic:testTopic"
         assert unpacker.unpackString() == "type:testType"
         assert unpacker.unpackString() == "group:testGroup"
-        assert unpacker.unpackString() == "topic:testTopic"
       }
     }
 
@@ -240,9 +240,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackMapHeader() == 2
     assert unpacker.unpackString() == "Tags"
     assert unpacker.unpackArrayHeader() == 3
-    assert unpacker.unpackString() == "partition:1"
     assert unpacker.unpackString() == "topic:testTopic"
     assert unpacker.unpackString() == "type:kafka_produce"
+    assert unpacker.unpackString() == "partition:1"
     assert unpacker.unpackString() == "Value"
     assert unpacker.unpackLong() == 130
 
@@ -271,9 +271,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
       assert unpacker.unpackString() == "EdgeTags"
       assert unpacker.unpackArrayHeader() == 3
+      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
       assert unpacker.unpackString() == "type:testType"
       assert unpacker.unpackString() == "group:testGroup"
-      assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
     }
 
     assert unpacker.unpackString() == "ProductMask"
