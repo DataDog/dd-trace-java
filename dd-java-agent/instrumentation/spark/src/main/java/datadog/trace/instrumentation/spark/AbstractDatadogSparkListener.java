@@ -1,16 +1,14 @@
 package datadog.trace.instrumentation.spark;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstanceStore;
@@ -32,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1317,20 +1314,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           JsonNode topicNode = jsonNode.get(topic);
           // iterate thought reported partitions
           Iterator<String> allPartitions = topicNode.fieldNames();
-          // dsm tags
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(CONSUMER_GROUP_TAG, appName);
-          // will be overwritten
-          sortedTags.put(PARTITION_TAG, "");
-          sortedTags.put(TOPIC_TAG, topic);
-          sortedTags.put(TYPE_TAG, "kafka_commit");
-
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
-            sortedTags.put(PARTITION_TAG, partition);
+            DataStreamsTags tags =
+                new DataStreamsTagsBuilder()
+                    .withType("kafka_commit")
+                    .withConsumerGroup(appName)
+                    .withTopic(topic)
+                    .withPartition(partition)
+                    .build();
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .trackBacklog(sortedTags, topicNode.get(partition).asLong());
+                .trackBacklog(tags, topicNode.get(partition).asLong());
           }
         }
       } catch (Throwable e) {

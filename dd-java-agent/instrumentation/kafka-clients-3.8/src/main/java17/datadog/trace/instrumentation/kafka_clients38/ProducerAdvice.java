@@ -6,11 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
@@ -20,11 +15,12 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import java.util.LinkedHashMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
@@ -67,13 +63,13 @@ public class ProducerAdvice {
         && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
       setter = TextMapInjectAdapter.SETTER;
     }
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    if (clusterId != null) {
-      sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
-    }
-    sortedTags.put(TOPIC_TAG, record.topic());
-    sortedTags.put(TYPE_TAG, "kafka");
+    DataStreamsTags tags =
+        new DataStreamsTagsBuilder()
+            .withType("kafka")
+            .withDirection(DataStreamsTags.Direction.Outbound)
+            .withKafkaClusterId(clusterId)
+            .withTopic(record.topic())
+            .build();
     try {
       defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
@@ -82,7 +78,7 @@ public class ProducerAdvice {
         // message size.
         // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
         dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
         AvroSchemaExtractor.tryExtractProducer(record, span);
       }
@@ -101,7 +97,7 @@ public class ProducerAdvice {
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(sortedTags);
+        DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
         dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
         AvroSchemaExtractor.tryExtractProducer(record, span);
       }

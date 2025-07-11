@@ -9,11 +9,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.EXCHANGE_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.HAS_ROUTING_KEY_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_COMMAND;
@@ -41,12 +36,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -190,13 +186,15 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         if (TIME_IN_QUEUE_ENABLED) {
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        sortedTags.put(EXCHANGE_TAG, exchange);
-        sortedTags.put(
-            HAS_ROUTING_KEY_TAG, routingKey == null || routingKey.isEmpty() ? "false" : "true");
-        sortedTags.put(TYPE_TAG, "rabbitmq");
-        DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
+        DataStreamsTags tags =
+            new DataStreamsTagsBuilder()
+                .withDirection(DataStreamsTags.Direction.Outbound)
+                .withExchange(exchange)
+                .withHasRoutingKey(routingKey != null && !routingKey.isEmpty())
+                .withType("rabbitmq")
+                .build();
+
+        DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
         defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
         props =
             new AMQP.BasicProperties(

@@ -2,10 +2,6 @@ package datadog.trace.instrumentation.aws.v1.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sns.TextMapInjectAdapter.SETTER;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -16,13 +12,14 @@ import com.amazonaws.services.sns.model.PublishBatchRequestEntry;
 import com.amazonaws.services.sns.model.PublishRequest;
 import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
@@ -114,12 +111,11 @@ public class SnsInterceptor extends RequestHandler2 {
     return span;
   }
 
-  private LinkedHashMap<String, String> getTags(String snsTopicName) {
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TOPIC_TAG, snsTopicName);
-    sortedTags.put(TYPE_TAG, "sns");
-
-    return sortedTags;
+  private DataStreamsTags getTags(String snsTopicName) {
+    return new DataStreamsTagsBuilder()
+        .withType("sns")
+        .withDirection(DataStreamsTags.Direction.Outbound)
+        .withTopic(snsTopicName)
+        .build();
   }
 }

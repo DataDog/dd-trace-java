@@ -2,10 +2,9 @@ package datadog.trace.api.datastreams;
 
 import datadog.trace.util.FNV64Hash;
 
-import javax.xml.crypto.Data;
-
 public class DataStreamsTags {
   public enum Direction {
+    Unknown,
     Inbound,
     Outbound,
   }
@@ -17,25 +16,9 @@ public class DataStreamsTags {
     All
   }
 
-  public static DataStreamsTags EMPTY = DataStreamsTags.Create(null, null, null);
+  public static DataStreamsTags EMPTY = new DataStreamsTagsBuilder().build();
 
-  // hash tags
-  private final String bus;
-  private final Direction direction;
-  private final String exchange;
-  private final String topic;
-  private final String type;
-  private final String subscription;
-  // additional grouping tags
-  private final String datasetName;
-  private final String datasetNamespace;
-  private final Boolean isManual;
-  // informational tags
-  private final String group;
-  private final Boolean hasRoutingKey;
-  private final String kafkaClusterId;
-  private final String partition;
-
+  private final DataStreamsTagsBuilder builder;
   private long hash;
   private long aggregationHash;
   private long completeHash;
@@ -58,16 +41,6 @@ public class DataStreamsTags {
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
 
-  public static DataStreamsTags Create(String type, Direction direction, String topic) {
-    return DataStreamsTags.Create(type, direction, topic, false);
-  }
-
-  public static DataStreamsTags Create(
-      String type, Direction direction, String topic, Boolean isManual) {
-    return new DataStreamsTags(
-        type, direction, topic, isManual, null, null, null, null, null, null, false, null, null);
-  }
-
   public static byte[] longToBytes(long val) {
     return new byte[] {
       (byte) val,
@@ -81,34 +54,8 @@ public class DataStreamsTags {
     };
   }
 
-  private DataStreamsTags(
-      String type,
-      Direction direction,
-      String topic,
-      Boolean isManual,
-      String bus,
-      String exchange,
-      String subscription,
-      String datasetName,
-      String datasetNamespace,
-      String group,
-      Boolean hasRoutingKey,
-      String kafkaClusterId,
-      String partition) {
-    this.bus = bus;
-    this.direction = direction;
-    this.exchange = exchange;
-    this.topic = topic;
-    this.type = type;
-    this.subscription = subscription;
-    this.isManual = isManual;
-    this.datasetName = datasetName;
-    this.datasetNamespace = datasetNamespace;
-    this.group = group;
-    this.hasRoutingKey = hasRoutingKey;
-    this.kafkaClusterId = kafkaClusterId;
-    this.partition = partition;
-
+  public DataStreamsTags(DataStreamsTagsBuilder builder) {
+    this.builder = builder;
     this.size =
         this.forEachTag(
             (name, value) -> {
@@ -142,61 +89,71 @@ public class DataStreamsTags {
     int count = 0;
 
     if (mode == TagTraverseMode.HashOnly || mode == TagTraverseMode.All) {
-      if (this.bus != null) {
-        processor.process(BUS_TAG, this.bus);
+      if (this.builder.bus != null) {
+        processor.process(BUS_TAG, this.builder.bus);
         count += 1;
       }
 
-      count += 1;
-      if (this.direction == Direction.Inbound) {
+      if (this.builder.direction == Direction.Inbound) {
+        count += 1;
         processor.process(DIRECTION_TAG, DIRECTION_IN);
-      } else {
+      } else if (this.builder.direction == Direction.Outbound) {
+        count += 1;
         processor.process(DIRECTION_TAG, DIRECTION_OUT);
       }
 
-      if (this.exchange != null) {
+      if (this.builder.exchange != null) {
         count += 1;
-        processor.process(EXCHANGE_TAG, this.exchange);
+        processor.process(EXCHANGE_TAG, this.builder.exchange);
       }
 
       // topic and type are always required, no need to check for null
       count += 2;
-      processor.process(TOPIC_TAG, this.topic);
-      processor.process(TYPE_TAG, this.type);
+      processor.process(TOPIC_TAG, this.builder.topic);
+      processor.process(TYPE_TAG, this.builder.type);
 
-      if (this.subscription != null) {
+      if (this.builder.subscription != null) {
         count += 1;
-        processor.process(SUBSCRIPTION_TAG, this.subscription);
+        processor.process(SUBSCRIPTION_TAG, this.builder.subscription);
       }
     }
 
     if (mode == TagTraverseMode.GroupOnly || mode == TagTraverseMode.All) {
       count += 1;
-      processor.process(MANUAL_TAG, this.isManual.toString());
+      processor.process(MANUAL_TAG, this.builder.isManual.toString());
 
-      if (this.datasetName != null) {
+      if (this.builder.datasetName != null) {
         count += 1;
-        processor.process(DATASET_NAME_TAG, this.datasetName);
+        processor.process(DATASET_NAME_TAG, this.builder.datasetName);
       }
 
-      if (this.datasetNamespace != null) {
+      if (this.builder.datasetNamespace != null) {
         count += 1;
-        processor.process(DATASET_NAMESPACE_TAG, this.datasetNamespace);
+        processor.process(DATASET_NAMESPACE_TAG, this.builder.datasetNamespace);
       }
     }
 
     if (mode == TagTraverseMode.ValueOnly || mode == TagTraverseMode.All) {
-      if (this.hasRoutingKey != null) {
+      count += 1;
+      processor.process(HAS_ROUTING_KEY_TAG, this.builder.hasRoutingKey.toString());
+
+      if (this.builder.consumerGroup != null) {
         count += 1;
-        processor.process(HAS_ROUTING_KEY_TAG, this.hasRoutingKey.toString());
+        processor.process(CONSUMER_GROUP_TAG, this.builder.consumerGroup);
       }
-      if (this.kafkaClusterId != null) {
+
+      if (this.builder.group != null) {
         count += 1;
-        processor.process(KAFKA_CLUSTER_ID_TAG, this.kafkaClusterId);
+        processor.process(GROUP_TAG, this.builder.group);
       }
-      if (this.partition != null) {
+
+      if (this.builder.kafkaClusterId != null) {
         count += 1;
-        processor.process(PARTITION_TAG, this.partition);
+        processor.process(KAFKA_CLUSTER_ID_TAG, this.builder.kafkaClusterId);
+      }
+      if (this.builder.partition != null) {
+        count += 1;
+        processor.process(PARTITION_TAG, this.builder.partition);
       }
     }
 
@@ -204,55 +161,55 @@ public class DataStreamsTags {
   }
 
   public Direction getDirection() {
-    return direction;
+    return this.builder.direction;
   }
 
   public String getTopic() {
-    return topic;
+    return this.builder.topic;
   }
 
   public String getType() {
-    return type;
+    return this.builder.type;
   }
 
   public Boolean isManual() {
-    return isManual;
+    return this.builder.isManual;
   }
 
   public String getBus() {
-    return bus;
+    return this.builder.bus;
   }
 
   public String getExchange() {
-    return exchange;
+    return this.builder.exchange;
   }
 
   public String getSubscription() {
-    return subscription;
+    return this.builder.subscription;
   }
 
   public String getDatasetName() {
-    return datasetName;
+    return this.builder.datasetName;
   }
 
   public String getDatasetNamespace() {
-    return datasetNamespace;
+    return this.builder.datasetNamespace;
   }
 
   public String getGroup() {
-    return group;
+    return this.builder.group;
   }
 
   public String getPartition() {
-    return partition;
+    return this.builder.partition;
   }
 
   public String getKafkaClusterId() {
-    return kafkaClusterId;
+    return this.builder.kafkaClusterId;
   }
 
   public boolean getHasRoutingKey() {
-    return hasRoutingKey;
+    return this.builder.hasRoutingKey;
   }
 
   public long getHash() {
@@ -261,10 +218,6 @@ public class DataStreamsTags {
 
   public long getAggregationHash() {
     return aggregationHash;
-  }
-
-  public long getCompleteHash() {
-    return completeHash;
   }
 
   public int getSize() {
@@ -284,42 +237,44 @@ public class DataStreamsTags {
   public String toString() {
     return "DataStreamsTags{"
         + "bus='"
-        + bus
+        + this.builder.bus
         + ","
         + ", direction="
-        + direction
+        + this.builder.direction
         + ","
         + ", exchange='"
-        + exchange
+        + this.builder.exchange
         + ","
         + ", topic='"
-        + topic
+        + this.builder.topic
         + ","
         + ", type='"
-        + type
+        + this.builder.type
         + ","
         + ", subscription='"
-        + subscription
+        + this.builder.subscription
         + ","
         + ", datasetName='"
-        + datasetName
+        + this.builder.datasetName
         + ","
         + ", datasetNamespace='"
-        + datasetNamespace
+        + this.builder.datasetNamespace
         + ","
         + ", isManual="
-        + isManual
+        + this.builder.isManual
         + ", group='"
-        + group
+        + this.builder.group
+        + ", consumerGroup='"
+        + this.builder.consumerGroup
         + ","
         + ", hasRoutingKey='"
-        + hasRoutingKey
+        + this.builder.hasRoutingKey
         + ","
         + ", kafkaClusterId='"
-        + kafkaClusterId
+        + this.builder.kafkaClusterId
         + ","
         + ", partition='"
-        + partition
+        + this.builder.partition
         + ","
         + ", hash="
         + hash

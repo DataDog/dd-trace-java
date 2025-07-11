@@ -17,9 +17,15 @@ public class DataStreamsContext implements ImplicitContextKeyed {
 
   static {
     CLIENT_PATHWAY_EDGE_TAGS =
-        DataStreamsTags.Create("http", DataStreamsTags.Direction.Outbound, null);
+        new DataStreamsTagsBuilder()
+            .withType("http")
+            .withDirection(DataStreamsTags.Direction.Outbound)
+            .build();
     SERVER_PATHWAY_EDGE_TAGS =
-        DataStreamsTags.Create("http", DataStreamsTags.Direction.Inbound, null);
+        new DataStreamsTagsBuilder()
+            .withType("http")
+            .withDirection(DataStreamsTags.Direction.Inbound)
+            .build();
   }
 
   public static DataStreamsContext fromContext(Context context) {

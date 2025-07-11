@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
@@ -15,6 +14,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,9 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -255,17 +254,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
             && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
                 || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-
-          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
-          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
-          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
-          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
-          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
-
+          DataStreamsTags tags =
+              new DataStreamsTagsBuilder()
+                  .withType("s3")
+                  .withDirection(DataStreamsTags.Direction.Inbound)
+                  .withTopic(bucket)
+                  .withDatasetNamespace(bucket)
+                  .withDatasetName(key)
+                  .build();
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(sortedTags, 0, responseSize));
+              .setCheckpoint(span, create(tags, 0, responseSize));
         }
 
         if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
@@ -276,17 +275,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             payloadSize = (long) requestSize;
           }
 
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-
-          sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
-          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
-          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
-          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
-          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+          DataStreamsTags tags =
+              new DataStreamsTagsBuilder()
+                  .withType("s3")
+                  .withDirection(DataStreamsTags.Direction.Outbound)
+                  .withTopic(bucket)
+                  .withDatasetNamespace(bucket)
+                  .withDatasetName(key)
+                  .build();
 
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(sortedTags, 0, payloadSize));
+              .setCheckpoint(span, create(tags, 0, payloadSize));
         }
       }
     }
