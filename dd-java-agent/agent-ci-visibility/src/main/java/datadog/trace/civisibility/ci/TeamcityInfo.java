@@ -43,7 +43,7 @@ public class TeamcityInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(TEAMCITY_PULL_REQUEST_TARGET_BRANCH)),
         null,
-        null,
+        CommitInfo.NOOP,
         environment.get(TEAMCITY_PULL_REQUEST_NUMBER));
   }
 

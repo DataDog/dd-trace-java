@@ -132,7 +132,14 @@ public class Tags {
   public static final String GIT_TAG = "git.tag";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
-  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
+  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_NAME = "git.commit.head.author.name";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_EMAIL = "git.commit.head.author.email";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_DATE = "git.commit.head.author.date";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_NAME = "git.commit.head.committer.name";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_EMAIL = "git.commit.head.committer.email";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_DATE = "git.commit.head.committer.date";
+  public static final String GIT_COMMIT_HEAD_MESSAGE = "git.commit.head.message";
   public static final String PULL_REQUEST_NUMBER = "pr.number";
 
   public static final String RUNTIME_NAME = "runtime.name";

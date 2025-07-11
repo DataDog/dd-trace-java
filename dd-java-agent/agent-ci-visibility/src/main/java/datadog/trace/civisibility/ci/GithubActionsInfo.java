@@ -123,11 +123,11 @@ class GithubActionsInfo implements CIProviderInfo {
         }
       }
 
-      return new PullRequestInfo(baseRef, baseSha, headSha, null);
+      return new PullRequestInfo(baseRef, baseSha, new CommitInfo(headSha), null);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
-      return new PullRequestInfo(baseRef, null, null, null);
+      return new PullRequestInfo(baseRef, null, CommitInfo.NOOP, null);
     }
   }
 

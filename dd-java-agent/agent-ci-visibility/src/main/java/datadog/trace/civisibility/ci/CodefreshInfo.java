@@ -51,7 +51,7 @@ public class CodefreshInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(CF_PULL_REQUEST_TARGET_BRANCH)),
         null,
-        null,
+        CommitInfo.NOOP,
         environment.get(CF_PULL_REQUEST_NUMBER));
   }
 

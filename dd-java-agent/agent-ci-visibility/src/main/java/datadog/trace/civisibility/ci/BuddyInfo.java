@@ -67,7 +67,7 @@ class BuddyInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(BUDDY_RUN_PR_BASE_BRANCH)),
         null,
-        null,
+        CommitInfo.NOOP,
         environment.get(BUDDY_RUN_PR_NUMBER));
   }
 

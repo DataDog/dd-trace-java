@@ -195,7 +195,7 @@ class ConfigurationApiImplTest extends Specification {
     def configurationApi = givenConfigurationApi(intakeServer)
 
     when:
-    def testManagementTests = configurationApi.getTestManagementTestsByModule(tracerEnvironment)
+    def testManagementTests = configurationApi.getTestManagementTestsByModule(tracerEnvironment, tracerEnvironment.getSha(), tracerEnvironment.getCommitMessage())
     def quarantinedTests = testManagementTests.get(TestSetting.QUARANTINED)
     def disabledTests = testManagementTests.get(TestSetting.DISABLED)
     def attemptToFixTests = testManagementTests.get(TestSetting.ATTEMPT_TO_FIX)
