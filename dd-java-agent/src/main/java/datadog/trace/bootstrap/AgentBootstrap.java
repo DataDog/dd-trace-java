@@ -155,7 +155,11 @@ public final class AgentBootstrap {
     final Method startMethod =
         agentClass.getMethod("start", Object.class, Instrumentation.class, URL.class, String.class);
 
-    startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+    try {
+      startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
+    } catch (ReflectiveOperationException | LinkageError e) {
+      throw new IllegalStateException("Unable to start DD Java Agent.", e);
+    }
   }
 
   static boolean getConfig(String configName) {
