@@ -5,10 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
@@ -23,11 +19,12 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
@@ -75,13 +72,15 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, topicName);
 
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
-      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-      sortedTags.put(TOPIC_TAG, topicName.toString());
-      sortedTags.put(TYPE_TAG, "google-pubsub");
+      DataStreamsTags tags =
+          new DataStreamsTagsBuilder()
+              .withType("google-pubsub")
+              .withDirection(DataStreamsTags.Direction.Outbound)
+              .withTopic(topicName.toString())
+              .build();
 
       PubsubMessage.Builder builder = msg.toBuilder();
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(sortedTags);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
       msg = builder.build();
       return activateSpan(span);

@@ -2,10 +2,6 @@ package datadog.trace.instrumentation.googlepubsub;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.SUBSCRIPTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PubsubMessage;
@@ -14,6 +10,8 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -22,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
-import java.util.LinkedHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -133,10 +130,12 @@ public class PubSubDecorator extends MessagingClientDecorator {
         extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
-    final LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>(3);
-    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-    sortedTags.put(SUBSCRIPTION_TAG, parsedSubscription.toString());
-    sortedTags.put(TYPE_TAG, "google-pubsub");
+    DataStreamsTags tags =
+        new DataStreamsTagsBuilder()
+            .withType("google-pubsub")
+            .withDirection(DataStreamsTags.Direction.Inbound)
+            .withTopic(parsedSubscription.toString())
+            .build();
     final Timestamp publishTime = message.getPublishTime();
     // FIXME: use full nanosecond resolution when this method will accept nanos
     AgentTracer.get()
@@ -144,7 +143,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
         .setCheckpoint(
             span,
             DataStreamsContext.create(
-                sortedTags,
+                tags,
                 publishTime.getSeconds() * 1_000 + publishTime.getNanos() / (int) 1e6,
                 message.getSerializedSize()));
     afterStart(span);

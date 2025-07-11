@@ -9,16 +9,14 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -250,13 +247,16 @@ public class RabbitDecorator extends MessagingClientDecorator {
     }
 
     if (null != headers) {
-      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-      sortedTags.put(TOPIC_TAG, queue);
-      sortedTags.put(TYPE_TAG, "rabbitmq");
+      DataStreamsTags tags =
+          new DataStreamsTagsBuilder()
+              .withDirection(DataStreamsTags.Direction.Inbound)
+              .withTopic(queue)
+              .withType("rabbitmq")
+              .build();
+      ;
       AgentTracer.get()
           .getDataStreamsMonitoring()
-          .setCheckpoint(span, create(sortedTags, produceMillis, 0));
+          .setCheckpoint(span, create(tags, produceMillis, 0));
     }
 
     CONSUMER_DECORATE.afterStart(span);

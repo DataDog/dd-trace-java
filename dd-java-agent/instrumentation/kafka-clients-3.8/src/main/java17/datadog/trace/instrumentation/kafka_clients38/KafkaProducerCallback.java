@@ -1,16 +1,13 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.LinkedHashMap;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
@@ -48,13 +45,13 @@ public class KafkaProducerCallback implements Callback {
     if (metadata == null) {
       return;
     }
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    if (clusterId != null) {
-      sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
-    }
-    sortedTags.put(PARTITION_TAG, String.valueOf(metadata.partition()));
-    sortedTags.put(TOPIC_TAG, metadata.topic());
-    sortedTags.put(TYPE_TAG, "kafka_produce");
-    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, metadata.offset());
+    DataStreamsTags tags =
+        new DataStreamsTagsBuilder()
+            .withKafkaClusterId(clusterId)
+            .withPartition(String.valueOf(metadata.partition()))
+            .withTopic(metadata.topic())
+            .withType("kafka_produce")
+            .build();
+    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
   }
 }

@@ -3,6 +3,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.common.metrics.EventListener
@@ -46,7 +47,12 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(sink, sharedCommunicationObjects.featuresDiscovery(Config.get()), timeSource, { traceConfig }, Config.get())
     dataStreams.start()
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
+    def tags = new DataStreamsTagsBuilder()
+      .withTopic("testTopic")
+      .withGroup("testGroup")
+      .withType("testType")
+      .build()
+    dataStreams.add(new StatsPoint(tags, 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
     timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds())
     dataStreams.report()
 

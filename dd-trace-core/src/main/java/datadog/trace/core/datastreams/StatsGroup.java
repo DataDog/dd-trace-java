@@ -1,21 +1,21 @@
 package datadog.trace.core.datastreams;
 
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
-import java.util.List;
 
 public class StatsGroup {
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;
 
-  private final List<String> edgeTags;
+  private final DataStreamsTags tags;
   private final long hash;
   private final long parentHash;
   private final Histogram pathwayLatency;
   private final Histogram edgeLatency;
   private final Histogram payloadSize;
 
-  public StatsGroup(List<String> edgeTags, long hash, long parentHash) {
-    this.edgeTags = edgeTags;
+  public StatsGroup(DataStreamsTags tags, long hash, long parentHash) {
+    this.tags = tags;
     this.hash = hash;
     this.parentHash = parentHash;
     pathwayLatency = Histograms.newLogHistogram();
@@ -31,8 +31,8 @@ public class StatsGroup {
     if (payloadSizeBytes != 0) payloadSize.accept((double) payloadSizeBytes);
   }
 
-  public List<String> getEdgeTags() {
-    return edgeTags;
+  public DataStreamsTags getTags() {
+    return tags;
   }
 
   public long getHash() {
@@ -58,8 +58,8 @@ public class StatsGroup {
   @Override
   public String toString() {
     return "StatsGroup{"
-        + "edgeTags='"
-        + edgeTags
+        + "tags='"
+        + tags
         + '\''
         + ", hash="
         + hash

@@ -3,9 +3,6 @@ package datadog.trace.instrumentation.grpc.client;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -14,6 +11,8 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -23,7 +22,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -35,10 +33,11 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
   private static DataStreamsContext createDsmContext() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
-    result.put(DIRECTION_TAG, DIRECTION_OUT);
-    result.put(TYPE_TAG, "grpc");
-    return DataStreamsContext.fromTags(result);
+    return DataStreamsContext.fromTags(
+        new DataStreamsTagsBuilder()
+            .withDirection(DataStreamsTags.Direction.Outbound)
+            .withType("grpc")
+            .build());
   }
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
