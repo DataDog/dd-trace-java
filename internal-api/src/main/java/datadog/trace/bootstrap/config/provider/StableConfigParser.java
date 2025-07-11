@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
@@ -138,7 +140,7 @@ public class StableConfigParser {
     return false;
   }
 
-  // We do all of the case insensitivity modifications in this function, because each selector will
+  // We do all the case insensitivity modifications in this function, because each selector will
   // be viewed just once
   static boolean selectorMatch(String origin, List<String> matches, String operator, String key) {
     switch (origin.toLowerCase()) {
@@ -156,7 +158,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = System.getenv(key.toUpperCase());
+        String envValue = EnvironmentVariables.get(key.toUpperCase());
         if (envValue == null) {
           return false;
         }
@@ -187,7 +189,7 @@ public class StableConfigParser {
           return false;
         }
         // Cut the -D prefix
-        return System.getProperty(key.substring(2)) != null;
+        return SystemProperties.get(key.substring(2)) != null;
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
@@ -249,7 +251,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar.toUpperCase());
+      String value = EnvironmentVariables.get(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
@@ -266,7 +268,7 @@ public class StableConfigParser {
             processArg);
         return UNDEFINED_VALUE;
       }
-      String value = System.getProperty(processArg.substring(2));
+      String value = SystemProperties.get(processArg.substring(2));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
