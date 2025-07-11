@@ -30,6 +30,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
@@ -223,6 +224,11 @@ public class WAFModule implements AppSecModule {
     reconf.reloadSubscriptions();
   }
 
+  /**
+   * Creates a rate limiter for AppSec events. The rate limiter accounts for when libddwaf returns
+   * keep with a value of true, rather than when events are present, as specified in the technical
+   * specification.
+   */
   private static RateLimiter getRateLimiter(Monitoring monitoring) {
     if (monitoring == null) {
       return null;
@@ -402,14 +408,16 @@ public class WAFModule implements AppSecModule {
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
 
-        if (!events.isEmpty()) {
+        if (resultWithData.keep) {
           if (!reqCtx.isThrottled(rateLimiter)) {
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
-              log.debug("Setting force-keep tag on the current span");
+              log.debug("Setting force-keep tag and manual keep tag on the current span");
               // Keep event related span, because it could be ignored in case of
               // reduced datadog sampling rate.
               activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+              // Set manual keep tag as required by the technical spec
+              activeSpan.getLocalRootSpan().setTag(DDTags.MANUAL_KEEP, true);
               // If APM is disabled, inform downstream services that the current
               // distributed trace contains at least one ASM event and must inherit
               // the given force-keep priority
@@ -421,13 +429,15 @@ public class WAFModule implements AppSecModule {
               // when the request ends
               log.debug("There is no active span available");
             }
-            reqCtx.reportEvents(events);
           } else {
             log.debug("Rate limited WAF events");
             if (!gwCtx.isRasp) {
               reqCtx.setWafRateLimited();
             }
           }
+        }
+        if (resultWithData.events && !events.isEmpty()) {
+          reqCtx.reportEvents(events);
         }
 
         if (flow.isBlocking()) {
@@ -437,8 +447,8 @@ public class WAFModule implements AppSecModule {
         }
       }
 
-      if (resultWithData.derivatives != null) {
-        reqCtx.reportDerivatives(resultWithData.derivatives);
+      if (resultWithData.attributes != null && !resultWithData.attributes.isEmpty()) {
+        reqCtx.reportDerivatives(resultWithData.attributes);
       }
     }
 
@@ -559,6 +569,10 @@ public class WAFModule implements AppSecModule {
   private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
     Collection<WAFResultData> listResults;
     try {
+      if (actionWithData.data == null || actionWithData.data.isEmpty()) {
+        log.debug("WAF returned no data");
+        return emptyList();
+      }
       listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
     } catch (IOException e) {
       throw new UndeclaredThrowableException(e);
