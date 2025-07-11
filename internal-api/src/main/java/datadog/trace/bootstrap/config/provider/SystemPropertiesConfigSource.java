@@ -1,22 +1,19 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.api.ConfigOrigin.JVM_PROP;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 
 public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
-
   @Override
   protected String get(String key) {
-    try {
-      return System.getProperty(propertyNameToSystemPropertyName(key));
-    } catch (SecurityException e) {
-      return null;
-    }
+    return SystemProperties.get(propertyNameToSystemPropertyName(key));
   }
 
   @Override
   public ConfigOrigin origin() {
-    return ConfigOrigin.JVM_PROP;
+    return JVM_PROP;
   }
 }
