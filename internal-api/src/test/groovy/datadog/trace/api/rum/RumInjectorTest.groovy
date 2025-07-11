@@ -38,6 +38,8 @@ class RumInjectorTest extends DDSpecification {
     !injector.isEnabled()
     injector.getMarker(UTF8) == null
     injector.getSnippet(UTF8) == null
+    injector.getSnippet() == null
+    injector.getMarker() == null
   }
 
   void 'enabled injector'() {
@@ -56,5 +58,7 @@ class RumInjectorTest extends DDSpecification {
     injector.isEnabled()
     injector.getMarker(UTF8) != null
     injector.getSnippet(UTF8) != null
+    injector.getSnippet() != null
+    injector.getMarker() != null
   }
 }

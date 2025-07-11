@@ -3,24 +3,6 @@ package datadog.trace.bootstrap.instrumentation.buffer
 import datadog.trace.test.util.DDSpecification
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
-
-  static class ExceptionControlledOutputStream extends FilterOutputStream {
-
-    boolean failWrite = false
-
-    ExceptionControlledOutputStream(OutputStream out) {
-      super(out)
-    }
-
-    @Override
-    void write(int b) throws IOException {
-      if (failWrite) {
-        throw new IOException("Failed")
-      }
-      super.write(b)
-    }
-  }
-
   def 'should filter a buffer and inject if found #found'() {
     setup:
     def downstream = new ByteArrayOutputStream()
