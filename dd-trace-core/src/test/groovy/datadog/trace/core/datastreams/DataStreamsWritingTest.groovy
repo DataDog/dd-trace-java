@@ -7,6 +7,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.DataStreamsTagsBuilder
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.core.DDTraceCoreInfo
@@ -82,8 +83,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
     dataStreams.setThreadServiceName(serviceNameOverride)
-    dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
-    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().build(), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
+    def tags = new DataStreamsTagsBuilder().withPartition("1").withTopic("testTopic").withType("kafka_produce").build()
+    dataStreams.trackBacklog(tags, 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     // force flush
     dataStreams.report()
@@ -140,15 +142,15 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     when:
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
-    dataStreams.add(new StatsPoint([], 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
-    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 100)
-    dataStreams.trackBacklog(new LinkedHashMap<>(["partition": "1", "topic": "testTopic", "type": "kafka_produce"]), 130)
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().build(), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().withType("testType").withGroup("testGroup").withTopic("testTopic").build(), 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
+    dataStreams.trackBacklog(new DataStreamsTagsBuilder().withPartition("1").withTopic("testTopic").withType("kafka_produce").build(), 100)
+    dataStreams.trackBacklog(new DataStreamsTagsBuilder().withPartition("1").withTopic("testTopic").withType("kafka_produce").build(), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10, null))
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().withGroup("testGroup").withTopic("testTopic").withType("testType").build(), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic"], 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
-    dataStreams.add(new StatsPoint(["type:testType", "group:testGroup", "topic:testTopic2"], 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().withGroup("testGroup").withTopic("testTopic").withType("testType").build(), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
+    dataStreams.add(new StatsPoint(new DataStreamsTagsBuilder().withGroup("testGroup").withTopic("testTopic2").withType("testType").build(), 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.close()
 
