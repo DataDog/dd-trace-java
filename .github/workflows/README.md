@@ -130,6 +130,14 @@ _Action:_ Build the Java Client Library and runs [the system tests](https://gith
 
 _Recovery:_ Manually trigger the action on the desired branch.
 
+### update-jmxfetch-submodule [🔗](update-jmxfetch-submodule.yaml)
+
+_Trigger:_ Monthly or manually
+
+_Action:_ Creates a PR updating the git submodule at dd-java-agent/agent-jmxfetch/integrations-core
+
+_Recovery:_ Manually trigger the action again.
+
 ## Maintenance
 
 GitHub actions should be part of the [repository allowed actions to run](https://github.com/DataDog/dd-trace-java/settings/actions).
