@@ -330,6 +330,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 500
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
       }
@@ -368,6 +369,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 401
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, false, false, uri, 401, true)
       }

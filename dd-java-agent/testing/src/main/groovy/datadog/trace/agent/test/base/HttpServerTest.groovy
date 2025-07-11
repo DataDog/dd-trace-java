@@ -2384,6 +2384,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean bodyConvertedBlock
       boolean responseHeadersInTags
       boolean responseBodyTag
+      Object responseBody
     }
 
     static final String stringOrEmpty(String string) {
@@ -2399,6 +2400,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
     ({ RequestContext rqCtxt, IGSpanInfo info ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseBodyTag) {
+        rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
+      }
       if (context.extraSpanName) {
         runUnderTrace(context.extraSpanName, false) {
           def span = activeSpan()
@@ -2547,9 +2551,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         body = obj.toString()
       }
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (context.responseBodyTag) {
-        rqCtxt.traceSegment.setTagTop('response.body', body)
-      }
+      context.responseBody = body
       if (context.responseBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)

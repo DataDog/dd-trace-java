@@ -15,4 +15,4 @@ dependencies {
   compileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.0'
 }
 
-// testing happens in :dd-java-agent:instrumentation:akka-http-10.0:latestDepIastTest
+// testing happens in :dd-java-agent:instrumentation:akka:akka-http-10.0:latestDepIastTest

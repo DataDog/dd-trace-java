@@ -97,10 +97,10 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
         throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
       }
     }
-  }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-  static void after() {
-    CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after() {
+      CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
+    }
   }
 }
