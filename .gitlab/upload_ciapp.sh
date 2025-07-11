@@ -46,8 +46,12 @@ coverage_upload() {
 junit_upload "$DATADOG_API_KEY_PROD"
 junit_upload_status=$?
 
+# Upload coverage data to production environment
 coverage_upload "$DATADOG_API_KEY_PROD"
 coverage_upload_status=$?
+
+# Upload the same coverage data to demo environment, ignoring upload status
+coverage_upload "$DATADOG_API_KEY_DEMO"
 
 if [[ $junit_upload_status -ne 0 || $coverage_upload_status -ne 0 ]]; then
   exit 1
