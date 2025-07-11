@@ -1,3 +1,4 @@
+import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
 
 apply plugin: 'java-library'
@@ -154,6 +155,7 @@ project.afterEvaluate {
     def javaVersions = System.getenv()
       .findAll { it.key =~ /^JAVA_[0-9]+_HOME$/ }
       .collect { (it.key =~ /^JAVA_(\d+)_HOME$/)[0][1] as Integer }
+      .findAll { it != 25 }  // Exclude LTS JDK v25 (early access)
 
     if (javaVersions.isEmpty()) {
       throw new GradleException("No valid JAVA_X_HOME environment variables found.")
@@ -175,7 +177,7 @@ project.afterEvaluate {
     def testJvmHomePath = getJavaHomePath(testJvmHome)
     // Only change test JVM if it's not the one we are running the gradle build with
     if (currentJavaHomePath != testJvmHomePath) {
-      def jvmSpec = new SpecificInstallationToolchainSpec(project.getObjects(), file(testJvmHomePath))
+      def jvmSpec = new SpecificInstallationToolchainSpec(project.services.get(PropertyFactory), file(testJvmHomePath))
       // The provider always says that a value is present so we need to wrap it for proper error messages
       Provider<JavaLauncher> launcher = providers.provider {
         try {

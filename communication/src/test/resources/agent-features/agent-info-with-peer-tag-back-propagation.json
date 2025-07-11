@@ -1,0 +1,80 @@
+{
+  "version": "7.67.0",
+  "git_commit": "bdf863ccc9",
+  "endpoints": [
+    "/v0.3/traces",
+    "/v0.3/services",
+    "/v0.4/traces",
+    "/v0.4/services",
+    "/v0.5/traces",
+    "/v0.7/traces",
+    "/profiling/v1/input",
+    "/telemetry/proxy/",
+    "/v0.6/stats",
+    "/v0.1/pipeline_stats",
+    "/openlineage/api/v1/lineage",
+    "/evp_proxy/v1/",
+    "/evp_proxy/v2/",
+    "/evp_proxy/v3/",
+    "/evp_proxy/v4/",
+    "/debugger/v1/input",
+    "/debugger/v1/diagnostics",
+    "/symdb/v1/input",
+    "/dogstatsd/v1/proxy",
+    "/dogstatsd/v2/proxy",
+    "/tracer_flare/v1",
+    "/config/set"
+  ],
+  "client_drop_p0s": true,
+  "span_meta_structs": true,
+  "long_running_spans": true,
+  "span_events": true,
+  "config": {
+    "default_env": "prod",
+    "target_tps": 10,
+    "max_eps": 200,
+    "receiver_port": 8127,
+    "receiver_socket": "/var/run/datadog/apm.socket",
+    "connection_limit": 12,
+    "receiver_timeout": 100,
+    "max_request_bytes": 26214400,
+    "statsd_port": 8125,
+    "max_memory": 0,
+    "max_cpu": 0,
+    "analyzed_spans_by_service": {},
+    "obfuscation": {
+      "elastic_search": true,
+      "mongo": true,
+      "sql_exec_plan": true,
+      "sql_exec_plan_normalize": true,
+      "http": {
+        "remove_query_string": true,
+        "remove_path_digits": true
+      },
+      "remove_stack_traces": false,
+      "redis": true,
+      "memcached": false
+    }
+  },
+  "peer_tags": [
+    "_dd.base_service",
+    "active_record.db.vendor",
+    "amqp.destination",
+    "amqp.exchange",
+    "amqp.queue",
+    "grpc.host",
+    "hostname",
+    "http.host",
+    "http.server_name",
+    "streamname",
+    "tablename",
+    "topicname"
+  ],
+  "span_kinds_stats_computed": [
+    "server",
+    "consumer",
+    "client",
+    "producer"
+  ],
+  "obfuscation_version": 1
+}
