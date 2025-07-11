@@ -1,5 +1,7 @@
 package datadog.communication.ddagent;
 
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -8,6 +10,7 @@ import static java.util.Collections.unmodifiableSet;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
@@ -157,11 +160,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      try (Response response =
-          client
-              .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
-              .execute()) {
+      final Request.Builder requestBuilder =
+          new Request.Builder().url(agentBaseUrl.resolve("info").url());
+      final String containerId = ContainerInfo.get().getContainerId();
+      if (containerId != null) {
+        requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
+      }
+      try (Response response = client.newCall(requestBuilder.build()).execute()) {
         if (response.isSuccessful()) {
+          processInfoResponseHeaders(response);
           fallback = !processInfoResponse(response.body().string());
         }
       } catch (Throwable error) {
@@ -220,6 +227,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
     }
     return V3_ENDPOINT;
+  }
+
+  private void processInfoResponseHeaders(Response response) {
+    ContainerInfo.get().setContainerTagsHash(response.header(DATADOG_CONTAINER_TAGS_HASH));
   }
 
   @SuppressWarnings("unchecked")

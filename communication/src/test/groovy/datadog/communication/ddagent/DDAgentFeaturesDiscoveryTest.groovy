@@ -1,9 +1,11 @@
 package datadog.communication.ddagent
 
+import datadog.common.container.ContainerInfo
 import datadog.communication.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import okhttp3.Call
+import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -19,6 +21,8 @@ import java.nio.file.Paths
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -466,13 +470,37 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
       )
   }
 
-  def infoResponse(Request request, String json) {
+  def "should send container id as header on the info request and parse the hash in the response"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def oldContainerId = ContainerInfo.get().getContainerId()
+    def oldContainerTagsHash = ContainerInfo.get().getContainerTagsHash()
+    ContainerInfo.get().setContainerId("test")
+
+    when: "/info requested"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request ->
+      assert request.header(DATADOG_CONTAINER_ID) == "test"
+      infoResponse(request, INFO_RESPONSE, Headers.of(DATADOG_CONTAINER_TAGS_HASH, "test-hash"))
+    }
+    and:
+    assert ContainerInfo.get().getContainerTagsHash() == "test-hash"
+    cleanup:
+    ContainerInfo.get().setContainerId(oldContainerId)
+    ContainerInfo.get().setContainerTagsHash(oldContainerTagsHash)
+  }
+
+  def infoResponse(Request request, String json, Headers headers = new Headers.Builder().build()) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
         .code(200)
         .request(request)
         .protocol(Protocol.HTTP_1_1)
         .message("")
+        .headers(headers)
         .body(ResponseBody.create(MediaType.get("application/json"), json))
         .build()
     }
