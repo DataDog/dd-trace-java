@@ -293,6 +293,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 200
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method)
       }
@@ -439,6 +440,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     // only one trace (client).
     assertTraces(1) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, renameService)
       }
@@ -482,6 +484,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     assertTraces(1) {
       sortSpansByStart()
       trace(size(3)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method)
         basicSpan(it, "child", span(0))
@@ -721,6 +724,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     def thrownException = ex instanceof ExecutionException ? ex.cause : ex
     assertTraces(1) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent", null, thrownException)
         clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }
