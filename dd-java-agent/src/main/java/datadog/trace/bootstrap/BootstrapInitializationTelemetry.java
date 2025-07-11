@@ -150,7 +150,7 @@ public abstract class BootstrapInitializationTelemetry {
         case "already_initialized":
           return "already_instrumented";
         case "other-java-agents":
-          return "incorrect_installation";
+          return "incompatible_library";
         case "jdk_tool":
           return "unsupported_binary";
         default:

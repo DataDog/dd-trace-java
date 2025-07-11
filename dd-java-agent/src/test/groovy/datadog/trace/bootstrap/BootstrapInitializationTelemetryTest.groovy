@@ -65,7 +65,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     reasonCode            | resultClass
     "jdk_tool"            | "unsupported_binary"
     "already_initialized" | "already_instrumented"
-    "other-java-agents"   | "incorrect_installation"
+    "other-java-agents"   | "incompatible_library"
     "foo"                 | "unknown"
   }
 
