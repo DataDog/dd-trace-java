@@ -6,12 +6,7 @@ include:
 .macrobenchmarks:
   stage: macrobenchmarks
   rules:
-    - if: $POPULATE_CACHE
-      when: never
-    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
-      when: always
-    - when: manual
-      allow_failure: true
+    - when: on_success  # TODO: PLEASE revert before merging the PR
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["build"]
   interruptible: true
@@ -62,8 +57,6 @@ baseline:
 
 only-tracing:
   extends: .macrobenchmarks
-  rules:
-    - when: on_success
   variables:
     BP_BENCHMARKS_CONFIGURATION: only-tracing
     TRACER_OPTS: -javaagent:/app/dd-java-agent.jar -Ddd.env=${BP_BENCHMARKS_CONFIGURATION} -Ddd.service=bp-java-petclinic
@@ -113,8 +106,8 @@ check-slo-breaches:
               *benchmark-baseline.json) type="baseline" ;;
               *benchmark-candidate.json) type="candidate" ;;
             esac
-            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
-            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+            echo "Moving $file to $ARTIFACTS_DIR/${type}-${benchmarkType}-${prefix}.converted.json"
+            cp "$file" "$ARTIFACTS_DIR/${type}-${benchmarkType}-${prefix}.converted.json"
           done
       done
     - ls -lah "$ARTIFACTS_DIR"
