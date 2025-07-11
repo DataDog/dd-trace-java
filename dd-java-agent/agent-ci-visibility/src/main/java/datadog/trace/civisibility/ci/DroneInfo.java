@@ -68,7 +68,7 @@ public class DroneInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(DRONE_PULL_REQUEST_TARGET_BRANCH)),
         null,
-        null,
+        CommitInfo.NOOP,
         environment.get(DRONE_PULL_REQUEST_NUMBER));
   }
 
