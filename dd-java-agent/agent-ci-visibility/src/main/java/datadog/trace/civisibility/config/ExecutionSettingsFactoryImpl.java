@@ -396,7 +396,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return Collections.emptyMap();
     }
     try {
-      if (Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getSha())) {
+      if (Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getSha())
+          && Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getFullMessage())) {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment,
             pullRequestInfo.getGitCommitHead().getSha(),
