@@ -12,28 +12,37 @@ experiments:
         # Measurements
         #   https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario
         scenarios:
+          # Note that thresholds there are choosen based the confidence interval with a 10% adjustment.
 
           # Standard macrobenchmarks
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fonly-tracing&trendsType=scenario
           - name: normal_operation/only-tracing
             thresholds:
-              - agg_http_req_duration_p50 < 2.28 ms
-              - agg_http_req_duration_p99 < 7.45 ms
+              - agg_http_req_duration_p50 < 2.36 ms
+              - agg_http_req_duration_p99 < 7.89 ms
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fotel-latest&trendsType=scenario
           - name: normal_operation/otel-latest
             thresholds:
-              - agg_http_req_duration_p50 < 2.28 ms
-              - agg_http_req_duration_p99 < 9.00 ms
+              - agg_http_req_duration_p50 < 2.34 ms
+              - agg_http_req_duration_p99 < 9.50 ms
 
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fonly-tracing&trendsType=scenario
           - name: high_load/only-tracing
             thresholds:
-              - throughput > 1400.0 op/s
+              - throughput > 1100.0 op/s
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fotel-latest&trendsType=scenario
           - name: high_load/otel-latest
             thresholds:
-              - throughput > 1400.0 op/s
+              - throughput > 1100.0 op/s
 
           # Startup macrobenchmarks
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AGlobalTracer&trendsType=scenario
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AGlobalTracer&trendsType=scenario
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AGlobalTracer&trendsType=scenario
           - name: "startup:petclinic:(tracing|appsec|iast):GlobalTracer"
             thresholds:
-              - execution_time < 245 ms
+              - execution_time < 260 ms
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AGlobalTracer&trendsType=scenario
           - name: "startup:petclinic:profiling:GlobalTracer"
             thresholds:
               - execution_time < 368 ms

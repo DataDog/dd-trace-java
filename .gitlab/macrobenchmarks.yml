@@ -6,6 +6,12 @@ include:
 .macrobenchmarks:
   stage: macrobenchmarks
   rules:
+#    - if: $POPULATE_CACHE
+#      when: never
+#    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
+#      when: always
+#    - when: manual
+#      allow_failure: true
     - when: on_success  # TODO: PLEASE revert before merging the PR
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["build"]
@@ -96,7 +102,7 @@ check-slo-breaches:
     # Need to move the artifacts the benchmarks-* job
     - |
       export BENCHMARKS_ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${BENCHMARKS_ARTIFACTS_DIR}"
-      for benchmarkType in startup load; do
+      for benchmarkType in startup load dacapo; do
           find "$BENCHMARKS_ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
             relpath="${file#$BENCHMARKS_ARTIFACTS_DIR/$benchmarkType/}"
             prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
