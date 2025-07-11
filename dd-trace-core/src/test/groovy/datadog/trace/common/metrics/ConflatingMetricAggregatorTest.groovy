@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.function.Supplier
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -32,7 +33,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
@@ -61,7 +62,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Mock(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version","language")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
@@ -118,6 +119,44 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     cleanup:
     aggregator.close()
+  }
+
+  def "should compute stats for span kind #kind"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.spanKindsToComputedStats() >> ["client", "server", "producer", "consumer"]
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    def span = Spy(new SimpleSpan("service", "operation", "resource", "type", false, false, false, 0, 100, HTTP_OK))
+    span.getTag(SPAN_KIND) >> kind
+    aggregator.publish([span])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered == statsComputed
+    (statsComputed ? 1 : 0) * writer.startBucket(1, _, _)
+    (statsComputed ? 1 : 0) * writer.add(new MetricKey("resource", "service", "operation", "type", HTTP_OK, false), _) >> { MetricKey key, AggregateMetric value ->
+      value.getHitCount() == 1 && value.getTopLevelCount() == 0 && value.getDuration() == 100
+    }
+    (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+
+    where:
+    kind                             | statsComputed
+    "client"                         | true
+    UTF8BytesString.create("server") | true
+    "internal"                       | false
+    null                             | false
   }
 
   def "measured spans do not contribute to top level count"() {
@@ -472,7 +511,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, sink, writer, 10, queueSize, 200, MILLISECONDS)
     final spans = [
-      new SimpleSpan("service" , "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
+      new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
     ]
     aggregator.start()
 
