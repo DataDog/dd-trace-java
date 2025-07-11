@@ -5,11 +5,11 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.bootstrap.instrumentation.api.InferredProxyContext;
-import datadog.trace.core.CoreTracer;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.BiConsumer;
+import java.util.HashMap;
+import java.util.Map;
 
 public class InferredProxyPropagator implements Propagator {
   private static final Logger log = LoggerFactory.getLogger(InferredProxyPropagator.class);
@@ -19,6 +19,13 @@ public class InferredProxyPropagator implements Propagator {
   static final String HTTP_METHOD_KEY = "x-dd-proxy-httpmethod";
   static final String PATH_KEY = "x-dd-proxy-path";
   static final String STAGE_KEY = "x-dd-proxy-stage";
+
+  // Supported proxies mapping (header value -> canonical component name)
+  static final Map<String, String> SUPPORTED_PROXIES;
+  static {
+    SUPPORTED_PROXIES = new HashMap<>();
+    SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
+  }
 
   /**
    * METHOD STUB: InferredProxy is currently not meant to be injected to downstream services
@@ -31,7 +38,8 @@ public class InferredProxyPropagator implements Propagator {
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {}
 
   /**
-   * Extracts an InferredProxyContext from un upstream service and stores it as part of the Context object
+   * Extracts an InferredProxyContext from un upstream service and stores it as part of the Context
+   * object
    *
    * @param context the base context to store the extracted values on top, use {@link
    *     Context#root()} for a default base context.
@@ -78,8 +86,8 @@ public class InferredProxyPropagator implements Propagator {
 
       switch (key) {
         case INFERRED_PROXY_KEY:
-          if (value.equals("aws.apigateway")){
-            extractedContext.setProxyName(value);
+          if (SUPPORTED_PROXIES.containsKey(value)) {
+            extractedContext.setProxyName(SUPPORTED_PROXIES.get(value));
           }
           break;
         case REQUEST_TIME_KEY:
@@ -98,7 +106,8 @@ public class InferredProxyPropagator implements Propagator {
           extractedContext.setStage(value);
           break;
         default:
-          log.info("Extracting Inferred Proxy header that doesn't match accepted Inferred Proxy keys");
+          log.info(
+              "Extracting Inferred Proxy header that doesn't match accepted Inferred Proxy keys");
       }
     }
   }

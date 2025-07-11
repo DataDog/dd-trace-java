@@ -1719,7 +1719,9 @@ public class Config {
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
 
-    traceInferredProxyServicesEnabled = configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, DEFAULT_TRACE_INFERRED_PROXY_SERVICES_ENABLED);
+    traceInferredProxyServicesEnabled =
+        configProvider.getBoolean(
+            TRACE_INFERRED_PROXY_SERVICES_ENABLED, DEFAULT_TRACE_INFERRED_PROXY_SERVICES_ENABLED);
 
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 

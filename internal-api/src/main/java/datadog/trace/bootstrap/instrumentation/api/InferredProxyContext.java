@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
-
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -23,55 +22,55 @@ public class InferredProxyContext implements ImplicitContextKeyed {
 
   public InferredProxyContext() {}
 
-  public void setProxyName(String name){
+  public void setProxyName(String name) {
     this.proxyName = name;
   }
 
-  public String getProxyName(){
+  public String getProxyName() {
     return this.proxyName;
   }
 
-  public void setStartTime(String time){
+  public void setStartTime(String time) {
     this.startTime = time;
   }
 
-  public String getStartTime(){
+  public String getStartTime() {
     return this.startTime;
   }
 
-  public void setDomainName(String name){
+  public void setDomainName(String name) {
     this.domainName = name;
   }
 
-  public String getDomainName(){
+  public String getDomainName() {
     return this.domainName;
   }
 
-  public void setHttpMethod(String httpMethod){
+  public void setHttpMethod(String httpMethod) {
     this.httpMethod = httpMethod;
   }
 
-  public String getHttpMethod(){
+  public String getHttpMethod() {
     return this.httpMethod;
   }
 
-  public void setPath(String path){
+  public void setPath(String path) {
     this.path = path;
   }
 
-  public String getPath(){
+  public String getPath() {
     return this.path;
   }
 
-  public void setStage(String stage){
+  public void setStage(String stage) {
     this.stage = stage;
   }
 
-  public String getStage(){
+  public String getStage() {
     return this.stage;
   }
 
-  public boolean validContext(){
+  public boolean validContext() {
     return Stream.of(proxyName, startTime, domainName, httpMethod, path, stage)
         .allMatch(Objects::nonNull);
   }
