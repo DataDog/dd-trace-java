@@ -82,12 +82,24 @@ class InferredProxyContextTest extends Specification {
     def context = new InferredProxyContext()
 
     when:
-    if (proxyName) context.setProxyName("proxy")
-    if (startTime) context.setStartTime("123")
-    if (domainName) context.setDomainName("domain")
-    if (httpMethod) context.setHttpMethod("GET")
-    if (path) context.setPath("/path")
-    if (stage) context.setStage("prod")
+    if (proxyName) {
+      context.setProxyName("proxy")
+    }
+    if (startTime) {
+      context.setStartTime("123")
+    }
+    if (domainName) {
+      context.setDomainName("domain")
+    }
+    if (httpMethod) {
+      context.setHttpMethod("GET")
+    }
+    if (path) {
+      context.setPath("/path")
+    }
+    if (stage) {
+      context.setStage("prod")
+    }
 
     then:
     context.validContext() == expected
