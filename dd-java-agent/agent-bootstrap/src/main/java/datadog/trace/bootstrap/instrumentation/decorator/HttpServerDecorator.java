@@ -27,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.InferredProxyContext;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -128,6 +129,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public AgentSpan startSpan(
       String instrumentationName, REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
+
     AgentSpan span =
         tracer()
             .startSpan(instrumentationName, spanName(), callIGCallbackStart(context))
@@ -144,7 +146,68 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan startSpan(REQUEST_CARRIER carrier, Context context) {
+    if (Config.get().isTraceInferredProxyServicesEnabled()) {
+      InferredProxyContext inferredContext = InferredProxyContext.fromContext(context);
+      if (inferredContext != null && inferredContext.validContext()) {
+        return startInferredProxySpan("http-server", carrier, inferredContext, context);
+      }
+    }
     return startSpan("http-server", carrier, getExtractedSpanContext(context));
+  }
+
+  public AgentSpan startInferredProxySpan(
+      String instrumentationName,
+      REQUEST_CARRIER carrier,
+      InferredProxyContext inferredContext,
+      Context context) {
+
+    AgentSpanContext.Extracted extractedCtx = getExtractedSpanContext(context);
+
+    long startTimeMicros;
+    try {
+      startTimeMicros = Long.parseLong(inferredContext.getStartTime()) * 1000;
+    } catch (NumberFormatException nfe) {
+      return startSpan(instrumentationName, carrier, extractedCtx);
+    }
+
+    AgentSpan inferredProxySpan =
+        tracer()
+            .startSpan(
+                "inferred_proxy",
+                inferredContext.getProxyName(),
+                callIGCallbackStart(extractedCtx),
+                startTimeMicros);
+
+    // enrich the inferred proxy span with APIGW metadata
+    inferredProxySpan.setTag(Tags.COMPONENT, inferredContext.getComponentName());
+    inferredProxySpan.setTag(
+        DDTags.RESOURCE_NAME, inferredContext.getHttpMethod() + " " + inferredContext.getPath());
+    inferredProxySpan.setTag(DDTags.SERVICE_NAME, inferredContext.getDomainName());
+    inferredProxySpan.setTag(DDTags.SPAN_TYPE, "web");
+    inferredProxySpan.setTag(Tags.HTTP_METHOD, inferredContext.getHttpMethod());
+    inferredProxySpan.setTag(
+        Tags.HTTP_URL, inferredContext.getDomainName() + inferredContext.getPath());
+    inferredProxySpan.setTag("stage", inferredContext.getStage());
+    inferredProxySpan.setTag("_dd.inferred_span", 1);
+
+    AgentSpan serverSpan =
+        tracer()
+            .startSpan(instrumentationName, spanName(), inferredProxySpan.context())
+            .setMeasured(true);
+
+    serverSpan.setServiceName(Config.get().getServiceName());
+
+    // run the same IG/header logic we normally execute in startSpan(..)
+    Flow<Void> flow = callIGCallbackRequestHeaders(serverSpan, carrier);
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      serverSpan.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
+    }
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (carrier != null && getter != null) {
+      tracer().getDataStreamsMonitoring().setCheckpoint(serverSpan, forHttpServer());
+    }
+
+    return new InferredProxySpanGroupDecorator(inferredProxySpan, serverSpan);
   }
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
