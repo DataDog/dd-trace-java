@@ -126,13 +126,15 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
+   * @param parentOnly If only the parent commit should be unshallowed or the full {@code
+   *     latestCommitsSince}
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference)
+  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
@@ -150,13 +152,15 @@ public class ShellGitClient implements GitClient {
                   .trim();
 
           // refetch data from the server for the given period of time
+          String depth =
+              parentOnly ? "--deepen=1" : String.format("--shallow-since='%s'", latestCommitsSince);
           if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
             String headSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since='%s'", latestCommitsSince),
+                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -167,7 +171,7 @@ public class ShellGitClient implements GitClient {
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since='%s'", latestCommitsSince),
+                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -958,20 +962,23 @@ public class ShellGitClient implements GitClient {
   }
 
   /**
-   * Returns the merge base between to branches
+   * Returns the merge base between two commits or references
    *
-   * @param baseBranch Base branch. Must be remote, i.e. "origin/master"
-   * @param sourceBranch Source branch
-   * @return Merge base between the two branches
+   * @param base Base commit SHA or reference (HEAD, branch name, etc)
+   * @param source Source commit SHA or reference (HEAD, branch name, etc)
+   * @return Merge base between the two references
    */
-  String getMergeBase(String baseBranch, String sourceBranch)
+  public String getMergeBase(@Nullable String base, @Nullable String source)
       throws IOException, InterruptedException, TimeoutException {
+    if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
+      return null;
+    }
     try {
       return commandExecutor
-          .executeCommand(IOUtils::readFully, "git", "merge-base", baseBranch, sourceBranch)
+          .executeCommand(IOUtils::readFully, "git", "merge-base", base, source)
           .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error calculating common ancestor for {} and {}", baseBranch, sourceBranch, e);
+      LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
     }
     return null;
   }
