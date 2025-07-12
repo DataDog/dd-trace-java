@@ -759,6 +759,68 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     p.toFile().delete()
   }
 
+  // https://github.com/DataDog/dd-trace-java/issues/9159
+  void 'test initialization issues while applying remote config'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    noExceptionThrown()
+  }
+
+  void 'test default config is applied when RC removes all ASM_DD configs'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+    service.usedDDWafConfigKeys.empty // lazy loaded
+
+    when:
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [AppSecConfigServiceImpl.DEFAULT_WAF_CONFIG_RULE]
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+
+    when:
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
+  }
+
   private static AppSecFeatures autoUserInstrum(String mode) {
     return new AppSecFeatures().tap { features ->
       features.autoUserInstrum = new AppSecFeatures.AutoUserInstrum().tap { instrum ->
