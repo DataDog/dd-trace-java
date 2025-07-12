@@ -27,6 +27,7 @@ class InferredProxyPropagatorTest extends DDCoreSpecification {
     then:
     inferredProxyContext != null
     inferredProxyContext.getProxyName() == "aws.apigateway"
+    inferredProxyContext.getComponentName() == "aws-apigateway"
     Long.parseLong(inferredProxyContext.getStartTime()) == 1672531200000L
     inferredProxyContext.getDomainName() == "example.com"
     inferredProxyContext.getHttpMethod() == "GET"

@@ -179,7 +179,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
                 startTimeMicros);
 
     // enrich the inferred proxy span with APIGW metadata
-    inferredProxySpan.setTag(Tags.COMPONENT, inferredContext.getProxyName());
+    inferredProxySpan.setTag(Tags.COMPONENT, inferredContext.getComponentName());
     inferredProxySpan.setTag(
         DDTags.RESOURCE_NAME, inferredContext.getHttpMethod() + " " + inferredContext.getPath());
     inferredProxySpan.setTag(DDTags.SERVICE_NAME, inferredContext.getDomainName());

@@ -89,6 +89,7 @@ public class InferredProxyPropagator implements Propagator {
         case INFERRED_PROXY_KEY:
           if (SUPPORTED_PROXIES.containsKey(value)) {
             extractedContext.setProxyName(SUPPORTED_PROXIES.get(value));
+            extractedContext.setComponentName(value);
           }
           break;
         case REQUEST_TIME_KEY:

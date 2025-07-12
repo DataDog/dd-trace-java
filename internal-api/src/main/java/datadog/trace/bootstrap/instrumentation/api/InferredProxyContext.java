@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 public class InferredProxyContext implements ImplicitContextKeyed {
   public static final ContextKey<InferredProxyContext> CONTEXT_KEY =
       ContextKey.named("inferred-proxy-key");
+  private String componentName;
   private String proxyName;
   private String startTime;
   private String domainName;
@@ -21,6 +22,14 @@ public class InferredProxyContext implements ImplicitContextKeyed {
   }
 
   public InferredProxyContext() {}
+
+  public void setComponentName(String name) {
+    this.componentName = name;
+  }
+
+  public String getComponentName() {
+    return this.componentName;
+  }
 
   public void setProxyName(String name) {
     this.proxyName = name;
@@ -71,7 +80,7 @@ public class InferredProxyContext implements ImplicitContextKeyed {
   }
 
   public boolean validContext() {
-    return Stream.of(proxyName, startTime, domainName, httpMethod, path, stage)
+    return Stream.of(proxyName, componentName, startTime, domainName, httpMethod, path, stage)
         .allMatch(Objects::nonNull);
   }
 

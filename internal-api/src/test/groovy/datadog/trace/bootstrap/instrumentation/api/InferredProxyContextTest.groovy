@@ -14,6 +14,7 @@ class InferredProxyContextTest extends Specification {
 
     when:
     context.setProxyName("aws.apigateway")
+    context.setComponentName("aws-apigateway")
     context.setStartTime("123")
     context.setDomainName("example.com")
     context.setHttpMethod("GET")
@@ -33,6 +34,7 @@ class InferredProxyContextTest extends Specification {
     setup:
     def inferredProxyContext = new InferredProxyContext()
     inferredProxyContext.setProxyName("aws.apigateway")
+    inferredProxyContext.setComponentName("aws-apigateway")
     inferredProxyContext.setStartTime("123")
     inferredProxyContext.setDomainName("example.com")
     inferredProxyContext.setHttpMethod("GET")
@@ -46,6 +48,7 @@ class InferredProxyContextTest extends Specification {
     then:
     extractedContext == inferredProxyContext
     extractedContext.getProxyName() == "aws.apigateway"
+    extractedContext.getComponentName() == "aws-apigateway"
   }
 
   def "test fromContext with no inferred proxy context"() {
@@ -62,6 +65,7 @@ class InferredProxyContextTest extends Specification {
 
     when:
     context.setProxyName("aws.apigateway")
+    context.setComponentName("aws-apigateway")
     context.setStartTime("123")
     context.setDomainName("example.com")
     context.setHttpMethod("GET")
@@ -70,6 +74,7 @@ class InferredProxyContextTest extends Specification {
 
     then:
     context.getProxyName() == "aws.apigateway"
+    context.getComponentName() == "aws-apigateway"
     context.getStartTime() == "123"
     context.getDomainName() == "example.com"
     context.getHttpMethod() == "GET"
@@ -82,8 +87,9 @@ class InferredProxyContextTest extends Specification {
     def context = new InferredProxyContext()
 
     when:
-    if (proxyName) {
+    if (proxy) {
       context.setProxyName("proxy")
+      context.setComponentName("proxy-header")
     }
     if (startTime) {
       context.setStartTime("123")
@@ -105,7 +111,7 @@ class InferredProxyContextTest extends Specification {
     context.validContext() == expected
 
     where:
-    proxyName | startTime | domainName | httpMethod | path   | stage  | expected
+    proxy     | startTime | domainName | httpMethod | path   | stage  | expected
     false     | true      | true       | true       | true   | true   | false
     true      | false     | true       | true       | true   | true   | false
     true      | true      | false      | true       | true   | true   | false
