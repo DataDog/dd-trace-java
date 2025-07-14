@@ -639,6 +639,13 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env"  | "service"     | "env_1"
     "service" | "env"  | "service_2"   | "env_2"
   }
+
+  def "test mapBaggageTags"() {
+    when:
+    def tags = CoreTracer.mapBaggageTags(["user.id": "doggo", "foo": "bar"])
+    then:
+    tags == ["baggage.user.id": "doggo"]
+  }
 }
 
 class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
