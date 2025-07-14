@@ -6,6 +6,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -54,7 +55,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer)
 
     then:
     context.isStarted()
@@ -69,18 +70,20 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     when:
     timeSource.advance(50)
-    context.setCheckpoint(fromTags(new LinkedHashMap<>(["type": "internal"])), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer)
     timeSource.advance(25)
-    context.setCheckpoint(
-      fromTags(new LinkedHashMap<>(["group": "group", "topic": "topic", "type": "kafka"])), pointConsumer)
+    def tags = DataStreamsTags.create("kafka", null, "topic", "group", null)
+    context.setCheckpoint(fromTags(tags), pointConsumer)
 
     then:
     context.isStarted()
     pointConsumer.points.size() == 2
     verifyFirstPoint(pointConsumer.points[0])
     with(pointConsumer.points[1]) {
-      edgeTags == ["group:group", "topic:topic", "type:kafka"]
-      edgeTags.size() == 3
+      tags.group == "group"
+      tags.topic == "topic"
+      tags.type == "kafka"
+      tags.size() == 3
       parentHash == pointConsumer.points[0].hash
       hash != 0
       pathwayLatencyNano == 25

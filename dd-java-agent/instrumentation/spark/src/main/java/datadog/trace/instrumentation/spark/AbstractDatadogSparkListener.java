@@ -8,7 +8,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.InstanceStore;
@@ -1317,12 +1316,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
             DataStreamsTags tags =
-                new DataStreamsTagsBuilder()
-                    .withType("kafka_commit")
-                    .withConsumerGroup(appName)
-                    .withTopic(topic)
-                    .withPartition(partition)
-                    .build();
+                DataStreamsTags.createWithPartition(
+                    "kafka_commit", topic, partition, null, appName);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .trackBacklog(tags, topicNode.get(partition).asLong());

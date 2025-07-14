@@ -120,7 +120,7 @@ public class DefaultPathwayContext implements PathwayContext {
     // loop protection - a node should not be chosen as parent
     // for a sequential node with the same direction, as this
     // will cause a `cardinality explosion` for hash / parentHash tag values
-    DataStreamsTags.Direction direction = context.tags().getDirection();
+    DataStreamsTags.Direction direction = context.tags().getDirectionValue();
     if (direction == previousDirection) {
       hash = closestOppositeDirectionHash;
     } else {
@@ -259,7 +259,7 @@ public class DefaultPathwayContext implements PathwayContext {
     long pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long pathwayStartNanos = TimeUnit.MILLISECONDS.toNanos(pathwayStartMillis);
 
-    // Convert the start time to the current JVM's nanoclock
+    // Convert the start time to the current JVM's nano clock
     long nowNanos = timeSource.getCurrentTimeNanos();
     long nanosSinceStart = nowNanos - pathwayStartNanos;
     long nowNanoTicks = timeSource.getNanoTicks();
@@ -292,14 +292,6 @@ public class DefaultPathwayContext implements PathwayContext {
     public void addTag(String tag) {
       hash = FNV64Hash.continueHash(hash, tag, FNV64Hash.Version.v1);
     }
-
-    public void addValue(long val) {
-      hash = FNV64Hash.continueHash(hash, DataStreamsTags.longToBytes(val), FNV64Hash.Version.v1);
-    }
-
-    public long getHash() {
-      return hash;
-    }
   }
 
   public static long getBaseHash(WellKnownTags wellKnownTags) {
@@ -316,10 +308,6 @@ public class DefaultPathwayContext implements PathwayContext {
       builder.append(processTags);
     }
     return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
-  }
-
-  private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
-    return pathwayHashBuilder.getHash();
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

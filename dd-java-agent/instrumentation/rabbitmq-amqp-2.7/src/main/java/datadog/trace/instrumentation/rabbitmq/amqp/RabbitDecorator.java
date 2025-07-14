@@ -16,7 +16,6 @@ import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -248,12 +247,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
     if (null != headers) {
       DataStreamsTags tags =
-          new DataStreamsTagsBuilder()
-              .withDirection(DataStreamsTags.Direction.Inbound)
-              .withTopic(queue)
-              .withType("rabbitmq")
-              .build();
-      ;
+          DataStreamsTags.create("rabbitmq", DataStreamsTags.Direction.Inbound, queue);
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .setCheckpoint(span, create(tags, produceMillis, 0));

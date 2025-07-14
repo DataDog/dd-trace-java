@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
@@ -48,13 +47,12 @@ public class ConsumerCoordinatorAdvice {
         continue;
       }
       DataStreamsTags tags =
-          new DataStreamsTagsBuilder()
-              .withConsumerGroup(consumerGroup)
-              .withKafkaClusterId(clusterId)
-              .withPartition(String.valueOf(entry.getKey().partition()))
-              .withTopic(entry.getKey().topic())
-              .withType("kafka_commit")
-              .build();
+          DataStreamsTags.createWithPartition(
+              "kafka_commit",
+              entry.getKey().topic(),
+              String.valueOf(entry.getKey().partition()),
+              clusterId,
+              consumerGroup);
       AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
     }
   }

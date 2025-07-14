@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -31,10 +30,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
   private static DataStreamsTags createServerPathwaySortedTags() {
-    return new DataStreamsTagsBuilder()
-        .withDirection(DataStreamsTags.Direction.Inbound)
-        .withType("grpc")
-        .build();
+    return DataStreamsTags.create("grpc", DataStreamsTags.Direction.Inbound);
   }
 
   public static final DataStreamsTags SERVER_PATHWAY_EDGE_TAGS = createServerPathwaySortedTags();

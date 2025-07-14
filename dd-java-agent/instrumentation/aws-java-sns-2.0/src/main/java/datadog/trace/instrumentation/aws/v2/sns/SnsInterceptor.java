@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETT
 
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
@@ -104,10 +103,6 @@ public class SnsInterceptor implements ExecutionInterceptor {
   }
 
   private DataStreamsTags getTags(String snsTopicName) {
-    return new DataStreamsTagsBuilder()
-        .withType("sns")
-        .withDirection(DataStreamsTags.Direction.Outbound)
-        .withTopic(snsTopicName)
-        .build();
+    return DataStreamsTags.create("sns", DataStreamsTags.Direction.Outbound, snsTopicName);
   }
 }

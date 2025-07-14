@@ -16,7 +16,6 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -64,12 +63,8 @@ public class ProducerAdvice {
       setter = TextMapInjectAdapter.SETTER;
     }
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withType("kafka")
-            .withDirection(DataStreamsTags.Direction.Outbound)
-            .withKafkaClusterId(clusterId)
-            .withTopic(record.topic())
-            .build();
+        DataStreamsTags.create(
+            "kafka", DataStreamsTags.Direction.Outbound, record.topic(), null, clusterId);
     try {
       defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

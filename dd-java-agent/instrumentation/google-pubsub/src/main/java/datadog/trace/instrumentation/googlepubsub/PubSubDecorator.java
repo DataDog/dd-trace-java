@@ -11,7 +11,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -131,11 +130,8 @@ public class PubSubDecorator extends MessagingClientDecorator {
     final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withType("google-pubsub")
-            .withDirection(DataStreamsTags.Direction.Inbound)
-            .withTopic(parsedSubscription.toString())
-            .build();
+        DataStreamsTags.create(
+            "google-pubsub", DataStreamsTags.Direction.Inbound, parsedSubscription.toString());
     final Timestamp publishTime = message.getPublishTime();
     // FIXME: use full nanosecond resolution when this method will accept nanos
     AgentTracer.get()

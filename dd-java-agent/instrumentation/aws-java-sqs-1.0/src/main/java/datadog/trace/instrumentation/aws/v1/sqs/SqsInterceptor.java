@@ -18,7 +18,6 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -93,10 +92,6 @@ public class SqsInterceptor extends RequestHandler2 {
   }
 
   private static DataStreamsTags getTags(String queueUrl) {
-    return new DataStreamsTagsBuilder()
-        .withType("sqs")
-        .withDirection(DataStreamsTags.Direction.Outbound)
-        .withTopic(urlFileName(queueUrl))
-        .build();
+    return DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, urlFileName(queueUrl));
   }
 }

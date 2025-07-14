@@ -21,7 +21,6 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -97,14 +96,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           }
 
           DataStreamsTags tags =
-              new DataStreamsTagsBuilder()
-                  .withDirection(DataStreamsTags.Direction.Inbound)
-                  .withGroup(group)
-                  .withKafkaClusterId(clusterId)
-                  .withTopic(val.topic())
-                  .withType("kafka")
-                  .build();
-
+              DataStreamsTags.create(
+                  "kafka", DataStreamsTags.Direction.Inbound, val.topic(), group, clusterId);
           final long payloadSize =
               traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {

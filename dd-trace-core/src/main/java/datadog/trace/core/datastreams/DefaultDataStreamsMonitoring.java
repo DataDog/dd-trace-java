@@ -237,13 +237,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     mergePathwayContextIntoSpan(span, carrier);
 
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withType(type)
-            .withDirection(DataStreamsTags.Direction.Inbound)
-            .withTopic(source)
-            .withManual(true)
-            .build();
-
+        DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
     setCheckpoint(span, fromTags(tags));
   }
 
@@ -261,13 +255,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withType(type)
-            .withDirection(DataStreamsTags.Direction.Outbound)
-            .withTopic(target)
-            .withManual(true)
-            .build();
-
+        DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
     DataStreamsContext dsmContext = fromTags(tags);
     this.propagator.inject(
         span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);

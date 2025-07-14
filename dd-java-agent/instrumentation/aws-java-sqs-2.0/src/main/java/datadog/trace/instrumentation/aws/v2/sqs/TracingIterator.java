@@ -16,7 +16,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -89,12 +88,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
 
         DataStreamsTags tags =
-            new DataStreamsTagsBuilder()
-                .withType("sqs")
-                .withDirection(DataStreamsTags.Direction.Inbound)
-                .withTopic(urlFileName(queueUrl))
-                .build();
-
+            DataStreamsTags.create("sqs", DataStreamsTags.Direction.Inbound, urlFileName(queueUrl));
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
 
         CONSUMER_DECORATE.afterStart(span);

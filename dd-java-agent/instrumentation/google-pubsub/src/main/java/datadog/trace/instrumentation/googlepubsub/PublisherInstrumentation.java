@@ -20,7 +20,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -73,12 +72,8 @@ public final class PublisherInstrumentation extends InstrumenterModule.Tracing
       PRODUCER_DECORATE.onProduce(span, topicName);
 
       DataStreamsTags tags =
-          new DataStreamsTagsBuilder()
-              .withType("google-pubsub")
-              .withDirection(DataStreamsTags.Direction.Outbound)
-              .withTopic(topicName.toString())
-              .build();
-
+          DataStreamsTags.create(
+              "google-pubsub", DataStreamsTags.Direction.Outbound, topicName.toString());
       PubsubMessage.Builder builder = msg.toBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), builder, SETTER);

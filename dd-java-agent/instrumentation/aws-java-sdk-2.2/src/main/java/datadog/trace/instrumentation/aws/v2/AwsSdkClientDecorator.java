@@ -11,7 +11,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
@@ -334,12 +333,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
                     if (!records.isEmpty()) {
                       DataStreamsTags tags =
-                          new DataStreamsTagsBuilder()
-                              .withType("kinesis")
-                              .withDirection(DataStreamsTags.Direction.Inbound)
-                              .withTopic(streamArn)
-                              .build();
-
+                          DataStreamsTags.create(
+                              "kinesis", DataStreamsTags.Direction.Inbound, streamArn);
                       if (null == kinesisApproximateArrivalTimestampField) {
                         Optional<SdkField<?>> maybeField =
                             records.get(0).sdkFields().stream()
@@ -383,14 +378,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         if (key != null && bucket != null && awsOperation != null) {
           if ("GetObject".equalsIgnoreCase(awsOperation)) {
             DataStreamsTags tags =
-                new DataStreamsTagsBuilder()
-                    .withDirection(DataStreamsTags.Direction.Inbound)
-                    .withType("s3")
-                    .withDatasetName(key)
-                    .withDatasetNamespace(bucket)
-                    .withTopic(bucket)
-                    .build();
-
+                DataStreamsTags.createWithDataset(
+                    "s3", DataStreamsTags.Direction.Inbound, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, create(tags, 0, responseSize));
@@ -404,14 +393,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             }
 
             DataStreamsTags tags =
-                new DataStreamsTagsBuilder()
-                    .withType("s3")
-                    .withDirection(DataStreamsTags.Direction.Outbound)
-                    .withDatasetName(key)
-                    .withDatasetNamespace(bucket)
-                    .withTopic(bucket)
-                    .build();
-
+                DataStreamsTags.createWithDataset(
+                    "s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, create(tags, 0, payloadSize));

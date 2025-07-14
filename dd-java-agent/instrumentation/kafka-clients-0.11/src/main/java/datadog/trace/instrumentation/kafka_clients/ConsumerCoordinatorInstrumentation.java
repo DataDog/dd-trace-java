@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
@@ -103,13 +102,12 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         }
 
         DataStreamsTags tags =
-            new DataStreamsTagsBuilder()
-                .withConsumerGroup(consumerGroup)
-                .withKafkaClusterId(clusterId)
-                .withPartition(String.valueOf(entry.getKey().partition()))
-                .withTopic(entry.getKey().topic())
-                .withType("kafka_commit")
-                .build();
+            DataStreamsTags.createWithPartition(
+                "kafka_commit",
+                entry.getKey().topic(),
+                String.valueOf(entry.getKey().partition()),
+                clusterId,
+                consumerGroup);
         AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
       }
     }

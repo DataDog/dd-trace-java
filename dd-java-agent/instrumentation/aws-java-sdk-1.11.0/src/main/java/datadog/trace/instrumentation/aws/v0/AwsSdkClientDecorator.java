@@ -15,7 +15,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -255,13 +254,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
                 || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
           DataStreamsTags tags =
-              new DataStreamsTagsBuilder()
-                  .withType("s3")
-                  .withDirection(DataStreamsTags.Direction.Inbound)
-                  .withTopic(bucket)
-                  .withDatasetNamespace(bucket)
-                  .withDatasetName(key)
-                  .build();
+              DataStreamsTags.createWithDataset(
+                  "s3", DataStreamsTags.Direction.Inbound, bucket, key, bucket);
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, create(tags, 0, responseSize));
@@ -274,16 +268,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           if (requestSize != null) {
             payloadSize = (long) requestSize;
           }
-
-          DataStreamsTags tags =
-              new DataStreamsTagsBuilder()
-                  .withType("s3")
-                  .withDirection(DataStreamsTags.Direction.Outbound)
-                  .withTopic(bucket)
-                  .withDatasetNamespace(bucket)
-                  .withDatasetName(key)
-                  .build();
-
+          DataStreamsTags tags = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, create(tags, 0, payloadSize));

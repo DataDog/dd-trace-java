@@ -13,7 +13,6 @@ import com.amazonaws.services.sns.model.PublishRequest;
 import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -112,10 +111,6 @@ public class SnsInterceptor extends RequestHandler2 {
   }
 
   private DataStreamsTags getTags(String snsTopicName) {
-    return new DataStreamsTagsBuilder()
-        .withType("sns")
-        .withDirection(DataStreamsTags.Direction.Outbound)
-        .withTopic(snsTopicName)
-        .build();
+    return DataStreamsTags.create("sns", DataStreamsTags.Direction.Outbound, snsTopicName);
   }
 }

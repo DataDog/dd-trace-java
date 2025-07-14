@@ -110,12 +110,7 @@ public class TracingRequestHandler extends RequestHandler2 {
             GetterAccess.of(response.getAwsResponse()).getRecords(response.getAwsResponse());
         if (null != records) {
           DataStreamsTags tags =
-              new DataStreamsTagsBuilder()
-                  .withType("kinesis")
-                  .withDirection(DataStreamsTags.Direction.Inbound)
-                  .withTopic(streamArn)
-                  .build();
-
+              DataStreamsTags.create("kinesis", DataStreamsTags.Direction.Inbound, streamArn);
           for (Object record : records) {
             Date arrivalTime = GetterAccess.of(record).getApproximateArrivalTimestamp(record);
             AgentDataStreamsMonitoring dataStreamsMonitoring =

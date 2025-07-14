@@ -9,7 +9,6 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -94,12 +93,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
 
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withDirection(DataStreamsTags.Direction.Outbound)
-            .withTopic(urlFileName(queueUrl))
-            .withType("sqs")
-            .build();
-
+        DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, urlFileName(queueUrl));
     DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
     return span.with(dsmContext);
   }

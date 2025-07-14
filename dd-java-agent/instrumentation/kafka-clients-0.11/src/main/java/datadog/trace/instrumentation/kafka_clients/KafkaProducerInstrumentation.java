@@ -27,7 +27,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -142,12 +141,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         setter = TextMapInjectAdapter.SETTER;
       }
       DataStreamsTags tags =
-          new DataStreamsTagsBuilder()
-              .withType("kafka")
-              .withDirection(DataStreamsTags.Direction.Outbound)
-              .withKafkaClusterId(clusterId)
-              .withTopic(record.topic())
-              .build();
+          DataStreamsTags.createWithClusterId(
+              "" + "kafka", DataStreamsTags.Direction.Outbound, record.topic(), clusterId);
       try {
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

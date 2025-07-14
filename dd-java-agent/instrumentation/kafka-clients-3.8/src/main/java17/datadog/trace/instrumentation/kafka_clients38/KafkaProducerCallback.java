@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -46,12 +45,12 @@ public class KafkaProducerCallback implements Callback {
       return;
     }
     DataStreamsTags tags =
-        new DataStreamsTagsBuilder()
-            .withKafkaClusterId(clusterId)
-            .withPartition(String.valueOf(metadata.partition()))
-            .withTopic(metadata.topic())
-            .withType("kafka_produce")
-            .build();
+        DataStreamsTags.createWithPartition(
+            "kafka_produce",
+            metadata.topic(),
+            String.valueOf(metadata.partition()),
+            clusterId,
+            null);
     AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
   }
 }

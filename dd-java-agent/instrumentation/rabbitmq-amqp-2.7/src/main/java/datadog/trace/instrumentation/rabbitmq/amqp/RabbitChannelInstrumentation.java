@@ -37,7 +37,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -187,13 +186,11 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
           RabbitDecorator.injectTimeInQueueStart(headers);
         }
         DataStreamsTags tags =
-            new DataStreamsTagsBuilder()
-                .withDirection(DataStreamsTags.Direction.Outbound)
-                .withExchange(exchange)
-                .withHasRoutingKey(routingKey != null && !routingKey.isEmpty())
-                .withType("rabbitmq")
-                .build();
-
+            DataStreamsTags.createWithExchange(
+                "rabbitmq",
+                DataStreamsTags.Direction.Outbound,
+                exchange,
+                routingKey != null && !routingKey.isEmpty());
         DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
         defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
         props =

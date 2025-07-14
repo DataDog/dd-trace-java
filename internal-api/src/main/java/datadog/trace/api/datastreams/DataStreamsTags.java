@@ -9,26 +9,35 @@ public class DataStreamsTags {
     Outbound,
   }
 
-  public enum TagTraverseMode {
-    HashOnly,
-    GroupOnly,
-    ValueOnly,
-    All
-  }
+  public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
 
-  public static DataStreamsTags EMPTY = new DataStreamsTagsBuilder().build();
-
-  private final DataStreamsTagsBuilder builder;
   private long hash;
   private long aggregationHash;
   private long completeHash;
-  private int size;
+  private int nonNullSize;
+
+  // hash tags
+  protected String bus;
+  protected String direction;
+  protected Direction directionValue;
+  protected String exchange;
+  protected String topic;
+  protected String type;
+  protected String subscription;
+  // additional grouping tags
+  protected String datasetName;
+  protected String datasetNamespace;
+  protected String isManual;
+  // informational tags
+  protected String group;
+  protected String consumerGroup;
+  protected String hasRoutingKey;
+  protected String kafkaClusterId;
+  protected String partition;
 
   public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
   public static final String DIRECTION_TAG = "direction";
-  public static final String DIRECTION_IN = "in";
-  public static final String DIRECTION_OUT = "out";
   public static final String TOPIC_TAG = "topic";
   public static final String BUS_TAG = "bus";
   public static final String PARTITION_TAG = "partition";
@@ -54,171 +63,281 @@ public class DataStreamsTags {
     };
   }
 
-  public DataStreamsTags(DataStreamsTagsBuilder builder) {
-    this.builder = builder;
-    this.size =
-        this.forEachTag(
-            (name, value) -> {
-              this.hash =
-                  FNV64Hash.continueHash(this.hash, name + ":" + value, FNV64Hash.Version.v1);
-            },
-            TagTraverseMode.HashOnly);
+  public static DataStreamsTags create(String type, Direction direction) {
+    return DataStreamsTags.create(type, direction, null);
+  }
 
+  public static DataStreamsTags create(String type, Direction direction, String topic) {
+    return DataStreamsTags.createWithGroup(type, direction, topic, null);
+  }
+
+  public static DataStreamsTags create(
+      String type, Direction direction, String topic, String group, String kafkaClusterId) {
+    return new DataStreamsTags(
+        null,
+        direction,
+        null,
+        topic,
+        type,
+        null,
+        null,
+        null,
+        null,
+        group,
+        null,
+        null,
+        kafkaClusterId,
+        null);
+  }
+
+  public static DataStreamsTags createManual(String type, Direction direction, String topic) {
+    return new DataStreamsTags(
+        null, direction, null, topic, type, null, null, null, true, null, null, null, null, null);
+  }
+
+  public static DataStreamsTags createWithBus(String type, Direction direction, String bus) {
+    return new DataStreamsTags(
+        bus, direction, null, null, type, null, null, null, null, null, null, null, null, null);
+  }
+
+  public static DataStreamsTags createWithPartition(
+      String type, String topic, String partition, String kafkaClusterId, String consumerGroup) {
+    return new DataStreamsTags(
+        null,
+        null,
+        null,
+        topic,
+        type,
+        null,
+        null,
+        null,
+        null,
+        null,
+        consumerGroup,
+        null,
+        kafkaClusterId,
+        partition);
+  }
+
+  public static DataStreamsTags createWithGroup(
+      String type, Direction direction, String topic, String group) {
+    return new DataStreamsTags(
+        null, direction, null, topic, type, null, null, null, null, group, null, null, null, null);
+  }
+
+  public static DataStreamsTags createWithDataset(
+      String type, Direction direction, String topic, String datasetName, String datasetNamespace) {
+    return new DataStreamsTags(
+        null,
+        direction,
+        null,
+        topic,
+        type,
+        null,
+        datasetName,
+        datasetNamespace,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  public static DataStreamsTags createWithClusterId(
+      String type, Direction direction, String topic, String clusterId) {
+    return new DataStreamsTags(
+        null, direction, null, topic, type, null, null, null, false, null, null, null, clusterId,
+        null);
+  }
+
+  public static DataStreamsTags createWithExchange(
+      String type, Direction direction, String exchange, Boolean hasRoutingKey) {
+    return new DataStreamsTags(
+        null,
+        direction,
+        exchange,
+        null,
+        type,
+        null,
+        null,
+        null,
+        false,
+        null,
+        null,
+        hasRoutingKey,
+        null,
+        null);
+  }
+
+  public DataStreamsTags(
+      String bus,
+      Direction direction,
+      String exchange,
+      String topic,
+      String type,
+      String subscription,
+      String datasetName,
+      String datasetNamespace,
+      Boolean isManual,
+      String group,
+      String consumerGroup,
+      Boolean hasRoutingKey,
+      String kafkaClusterId,
+      String partition) {
+    this.bus = bus != null ? BUS_TAG + ":" + bus : null;
+    this.directionValue = direction;
+    if (direction == Direction.Inbound) {
+      this.direction = DIRECTION_TAG + ":in";
+    } else if (direction == Direction.Outbound) {
+      this.direction = DIRECTION_TAG + ":out";
+    }
+    this.exchange = exchange != null ? EXCHANGE_TAG + ":" + exchange : null;
+    this.topic = topic != null ? TOPIC_TAG + ":" + topic : null;
+    this.type = type != null ? TYPE_TAG + ":" + type : null;
+    this.subscription = subscription != null ? SUBSCRIPTION_TAG + ":" + subscription : null;
+    this.datasetName = datasetName != null ? DATASET_NAME_TAG + ":" + datasetName : null;
+    this.datasetNamespace =
+        datasetNamespace != null ? DATASET_NAMESPACE_TAG + ":" + datasetNamespace : null;
+    this.isManual = isManual != null ? MANUAL_TAG + ":" + isManual : null;
+    this.group = group != null ? GROUP_TAG + ":" + group : null;
+    this.consumerGroup = consumerGroup != null ? CONSUMER_GROUP_TAG + ":" + consumerGroup : null;
+    this.hasRoutingKey = hasRoutingKey != null ? HAS_ROUTING_KEY_TAG + ":" + hasRoutingKey : null;
+    this.kafkaClusterId =
+        kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
+    this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
+
+
+    // hashable tags are 0-4
+    for (int i = 0; i < 7; i++) {
+      String tag = this.tagByIndex(i);
+      if (tag != null) {
+        this.nonNullSize++;
+        this.hash = FNV64Hash.continueHash(this.hash, tag, FNV64Hash.Version.v1);
+      }
+    }
+
+    // aggregation tags are 5-7
     this.aggregationHash = this.hash;
-    this.size +=
-        this.forEachTag(
-            (name, value) -> {
-              this.aggregationHash =
-                  FNV64Hash.continueHash(
-                      this.aggregationHash, name + ":" + value, FNV64Hash.Version.v1);
-            },
-            TagTraverseMode.GroupOnly);
+    for (int i = 7; i < 10; i++) {
+      String tag = this.tagByIndex(i);
+      if (tag != null) {
+        this.nonNullSize++;
+        this.aggregationHash =
+            FNV64Hash.continueHash(this.aggregationHash, tag, FNV64Hash.Version.v1);
+      }
+    }
 
+    // the rest are values
     this.completeHash = aggregationHash;
-    this.size +=
-        this.forEachTag(
-            (name, value) -> {
-              this.completeHash =
-                  FNV64Hash.continueHash(
-                      this.completeHash, name + ":" + value, FNV64Hash.Version.v1);
-            },
-            TagTraverseMode.ValueOnly);
+    for (int i = 10; i < this.size(); i++) {
+      String tag = this.tagByIndex(i);
+      if (tag != null) {
+        this.nonNullSize++;
+        this.completeHash =
+            FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
+      }
+    }
   }
 
-  public int forEachTag(DataStreamsTagsProcessor processor, TagTraverseMode mode) {
-    int count = 0;
-
-    if (mode == TagTraverseMode.HashOnly || mode == TagTraverseMode.All) {
-      if (this.builder.bus != null) {
-        processor.process(BUS_TAG, this.builder.bus);
-        count += 1;
-      }
-
-      if (this.builder.direction == Direction.Inbound) {
-        count += 1;
-        processor.process(DIRECTION_TAG, DIRECTION_IN);
-      } else if (this.builder.direction == Direction.Outbound) {
-        count += 1;
-        processor.process(DIRECTION_TAG, DIRECTION_OUT);
-      }
-
-      if (this.builder.exchange != null) {
-        count += 1;
-        processor.process(EXCHANGE_TAG, this.builder.exchange);
-      }
-
-      if (this.builder.topic != null) {
-        count += 1;
-        processor.process(TOPIC_TAG, this.builder.topic);
-      }
-
-      if (this.builder.type != null) {
-        count += 1;
-        processor.process(TYPE_TAG, this.builder.type);
-      }
-
-      if (this.builder.subscription != null) {
-        count += 1;
-        processor.process(SUBSCRIPTION_TAG, this.builder.subscription);
-      }
-    }
-
-    if (mode == TagTraverseMode.GroupOnly || mode == TagTraverseMode.All) {
-      if (this.builder.isManual != null) {
-        count += 1;
-        processor.process(MANUAL_TAG, this.builder.isManual.toString());
-      }
-
-      if (this.builder.datasetName != null) {
-        count += 1;
-        processor.process(DATASET_NAME_TAG, this.builder.datasetName);
-      }
-
-      if (this.builder.datasetNamespace != null) {
-        count += 1;
-        processor.process(DATASET_NAMESPACE_TAG, this.builder.datasetNamespace);
-      }
-    }
-
-    if (mode == TagTraverseMode.ValueOnly || mode == TagTraverseMode.All) {
-      if (this.builder.hasRoutingKey != null) {
-        count += 1;
-        processor.process(HAS_ROUTING_KEY_TAG, this.builder.hasRoutingKey.toString());
-      }
-
-      if (this.builder.consumerGroup != null) {
-        count += 1;
-        processor.process(CONSUMER_GROUP_TAG, this.builder.consumerGroup);
-      }
-
-      if (this.builder.group != null) {
-        count += 1;
-        processor.process(GROUP_TAG, this.builder.group);
-      }
-
-      if (this.builder.kafkaClusterId != null) {
-        count += 1;
-        processor.process(KAFKA_CLUSTER_ID_TAG, this.builder.kafkaClusterId);
-      }
-      if (this.builder.partition != null) {
-        count += 1;
-        processor.process(PARTITION_TAG, this.builder.partition);
-      }
-    }
-
-    return count;
+  public int size() {
+    // make sure it's in sync with tagByIndex logic
+    return 13;
   }
 
-  public Direction getDirection() {
-    return this.builder.direction;
+  public String tagByIndex(int index) {
+    switch (index) {
+      case 0:
+        return this.bus;
+      case 1:
+        return this.direction;
+      case 2:
+        return this.exchange;
+      case 3:
+        return this.topic;
+      case 4:
+        return this.type;
+      case 5:
+        return this.subscription;
+      case 6:
+        return this.datasetName;
+      case 7:
+        return this.datasetNamespace;
+      case 8:
+        return this.isManual;
+      case 9:
+        return this.group;
+      case 10:
+        return this.consumerGroup;
+      case 11:
+        return this.hasRoutingKey;
+      case 12:
+        return this.kafkaClusterId;
+      case 13:
+        return this.partition;
+      default:
+        return null;
+    }
+  }
+
+  public String getDirection() {
+    return this.direction;
   }
 
   public String getTopic() {
-    return this.builder.topic;
+    return this.topic;
   }
 
   public String getType() {
-    return this.builder.type;
+    return this.type;
   }
 
-  public Boolean isManual() {
-    return this.builder.isManual;
+  public String isManual() {
+    return this.isManual;
   }
 
   public String getBus() {
-    return this.builder.bus;
+    return this.bus;
   }
 
   public String getExchange() {
-    return this.builder.exchange;
+    return this.exchange;
+  }
+
+  public Direction getDirectionValue() {
+    return this.directionValue;
   }
 
   public String getSubscription() {
-    return this.builder.subscription;
+    return this.subscription;
   }
 
   public String getDatasetName() {
-    return this.builder.datasetName;
+    return this.datasetName;
   }
 
   public String getDatasetNamespace() {
-    return this.builder.datasetNamespace;
+    return this.datasetNamespace;
   }
 
   public String getGroup() {
-    return this.builder.group;
+    return this.group;
   }
 
   public String getPartition() {
-    return this.builder.partition;
+    return this.partition;
   }
 
   public String getKafkaClusterId() {
-    return this.builder.kafkaClusterId;
+    return this.kafkaClusterId;
   }
 
-  public boolean getHasRoutingKey() {
-    return this.builder.hasRoutingKey;
+  public String getHasRoutingKey() {
+    return this.hasRoutingKey;
+  }
+
+  public int nonNullSize() {
+    return this.nonNullSize;
   }
 
   public long getHash() {
@@ -227,10 +346,6 @@ public class DataStreamsTags {
 
   public long getAggregationHash() {
     return aggregationHash;
-  }
-
-  public int getSize() {
-    return size;
   }
 
   @Override
@@ -251,52 +366,38 @@ public class DataStreamsTags {
   public String toString() {
     return "DataStreamsTags{"
         + "bus='"
-        + this.builder.bus
-        + ","
+        + this.bus
         + ", direction="
-        + this.builder.direction
-        + ","
+        + this.direction
         + ", exchange='"
-        + this.builder.exchange
-        + ","
+        + this.exchange
         + ", topic='"
-        + this.builder.topic
-        + ","
+        + this.topic
         + ", type='"
-        + this.builder.type
-        + ","
+        + this.type
         + ", subscription='"
-        + this.builder.subscription
-        + ","
+        + this.subscription
         + ", datasetName='"
-        + this.builder.datasetName
-        + ","
+        + this.datasetName
         + ", datasetNamespace='"
-        + this.builder.datasetNamespace
-        + ","
+        + this.datasetNamespace
         + ", isManual="
-        + this.builder.isManual
+        + this.isManual
         + ", group='"
-        + this.builder.group
+        + this.group
         + ", consumerGroup='"
-        + this.builder.consumerGroup
-        + ","
+        + this.consumerGroup
         + ", hasRoutingKey='"
-        + this.builder.hasRoutingKey
-        + ","
+        + this.hasRoutingKey
         + ", kafkaClusterId='"
-        + this.builder.kafkaClusterId
-        + ","
+        + this.kafkaClusterId
         + ", partition='"
-        + this.builder.partition
-        + ","
+        + this.partition
         + ", hash="
         + hash
-        + ","
         + ", aggregationHash="
         + aggregationHash
-        + ","
         + ", size="
-        + size;
+        + size();
   }
 }

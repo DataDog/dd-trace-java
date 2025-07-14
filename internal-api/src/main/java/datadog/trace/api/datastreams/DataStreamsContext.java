@@ -16,16 +16,8 @@ public class DataStreamsContext implements ImplicitContextKeyed {
   final boolean sendCheckpoint;
 
   static {
-    CLIENT_PATHWAY_EDGE_TAGS =
-        new DataStreamsTagsBuilder()
-            .withType("http")
-            .withDirection(DataStreamsTags.Direction.Outbound)
-            .build();
-    SERVER_PATHWAY_EDGE_TAGS =
-        new DataStreamsTagsBuilder()
-            .withType("http")
-            .withDirection(DataStreamsTags.Direction.Inbound)
-            .build();
+    CLIENT_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Outbound);
+    SERVER_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Inbound);
   }
 
   public static DataStreamsContext fromContext(Context context) {

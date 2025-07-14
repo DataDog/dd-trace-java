@@ -161,7 +161,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      boolean firstNode = group.getTags().getSize() == 0;
+      boolean firstNode = group.getTags().size() == 0;
       packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
@@ -208,12 +208,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   }
 
   private void writeDataStreamsTags(DataStreamsTags tags, Writable packer) {
-    packer.startArray(tags.getSize());
+    packer.startArray(tags.size());
 
-    tags.forEachTag(
-        (name, value) -> {
-          packer.writeString(name + ":" + value, null);
-        },
-        DataStreamsTags.TagTraverseMode.All);
+    for (int i = 0; i < tags.size(); i++) {
+      String val = tags.tagByIndex(i);
+      if (val != null) {
+        packer.writeString(val, null);
+      }
+    }
   }
 }

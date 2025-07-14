@@ -34,7 +34,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -252,12 +251,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           applicationId = streamTaskContext.getApplicationId();
         }
         DataStreamsTags tags =
-            new DataStreamsTagsBuilder()
-                .withType("kafka")
-                .withDirection(DataStreamsTags.Direction.Inbound)
-                .withGroup(applicationId)
-                .withTopic(record.topic())
-                .build();
+            DataStreamsTags.createWithGroup(
+                "kafka", DataStreamsTags.Direction.Inbound, applicationId, record.topic());
 
         final long payloadSize =
             traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
@@ -329,12 +324,8 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           applicationId = streamTaskContext.getApplicationId();
         }
         DataStreamsTags tags =
-            new DataStreamsTagsBuilder()
-                .withType("kafka")
-                .withDirection(DataStreamsTags.Direction.Inbound)
-                .withGroup(applicationId)
-                .withTopic(record.topic())
-                .build();
+            DataStreamsTags.createWithGroup(
+                "kafka", DataStreamsTags.Direction.Inbound, applicationId, record.topic());
 
         long payloadSize = 0;
         // we have to go through Object to get the RecordMetadata here because the class of `record`

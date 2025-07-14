@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdap
 
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -87,11 +86,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsTags tags =
-          new DataStreamsTagsBuilder()
-              .withDirection(DataStreamsTags.Direction.Outbound)
-              .withType("bus")
-              .withBus(eventBusName)
-              .build();
+          DataStreamsTags.createWithBus("bus", DataStreamsTags.Direction.Outbound, eventBusName);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }

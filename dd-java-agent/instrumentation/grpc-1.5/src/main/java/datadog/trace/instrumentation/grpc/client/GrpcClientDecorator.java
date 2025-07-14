@@ -12,7 +12,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.api.datastreams.DataStreamsTagsBuilder;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -34,10 +33,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static DataStreamsContext createDsmContext() {
     return DataStreamsContext.fromTags(
-        new DataStreamsTagsBuilder()
-            .withDirection(DataStreamsTags.Direction.Outbound)
-            .withType("grpc")
-            .build());
+        DataStreamsTags.create("grpc", DataStreamsTags.Direction.Outbound));
   }
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
