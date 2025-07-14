@@ -48,17 +48,20 @@ class W3CHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
-    return new Injector(invertedBaggageMapping);
+  public static HttpCodec.Injector newInjector(
+      Map<String, String> invertedBaggageMapping, boolean isInjectBaggage) {
+    return new Injector(invertedBaggageMapping, isInjectBaggage);
   }
 
   private static class Injector implements HttpCodec.Injector {
 
     private final Map<String, String> invertedBaggageMapping;
+    private final boolean isInjectBaggage;
 
-    public Injector(Map<String, String> invertedBaggageMapping) {
+    public Injector(Map<String, String> invertedBaggageMapping, boolean isInjectBaggage) {
       assert invertedBaggageMapping != null;
       this.invertedBaggageMapping = invertedBaggageMapping;
+      this.isInjectBaggage = isInjectBaggage;
     }
 
     @Override
@@ -66,7 +69,9 @@ class W3CHttpCodec {
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
       injectTraceParent(context, carrier, setter);
       injectTraceState(context, carrier, setter);
-      injectBaggage(context, carrier, setter);
+      if (isInjectBaggage) {
+        injectBaggage(context, carrier, setter);
+      }
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {

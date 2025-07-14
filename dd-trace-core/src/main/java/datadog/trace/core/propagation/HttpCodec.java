@@ -98,10 +98,12 @@ public class HttpCodec {
       Set<TracePropagationStyle> propagationStyles,
       Map<String, String> reverseBaggageMapping) {
     EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
+    boolean isInjectOtBaggage = true;
     for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
         case DATADOG:
-          result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping));
+          result.put(style, DatadogHttpCodec.newInjector(reverseBaggageMapping, isInjectOtBaggage));
+          isInjectOtBaggage = false;
           break;
         case B3SINGLE:
           result.put(
@@ -123,7 +125,8 @@ public class HttpCodec {
           result.put(style, NoneCodec.INJECTOR);
           break;
         case TRACECONTEXT:
-          result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping));
+          result.put(style, W3CHttpCodec.newInjector(reverseBaggageMapping, isInjectOtBaggage));
+          isInjectOtBaggage = false;
           break;
         case BAGGAGE:
           break;
