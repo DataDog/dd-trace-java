@@ -9,6 +9,7 @@ import com.datadog.debugger.exception.ExceptionProbeManager.ThrowableState;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -33,6 +34,10 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       DD_DEBUG_ERROR_PREFIX + "exception_hash";
   public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
   public static final String SNAPSHOT_ID_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.snapshot_id";
+
+  // Test Optimization / Failed Test Replay specific
+  public static final String TEST_DEBUG_ERROR_FILE_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.file";
+  public static final String TEST_DEBUG_ERROR_LINE_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.line";
 
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
@@ -69,7 +74,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
-    if (t instanceof Error) {
+    if (t instanceof Error && !Config.get().isCiVisibilityEnabled()) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Skip handling error: {}", t.toString());
       }
@@ -93,6 +98,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     if (exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
       ThrowableState state = exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
+        LOGGER.info("Unable to find state for throwable: {}", innerMostException.toString());
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;
       }
@@ -108,7 +114,12 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          LOGGER.info("Creating probes for: {}", t.getMessage());
+          if (Config.get().isCiVisibilityEnabled()) {
+             applyExceptionConfiguration(fingerprint);
+          } else {
+            AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          }
           break;
         } else {
           if (LOGGER.isDebugEnabled()) {
@@ -147,6 +158,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
                 }
               });
     }
+    LOGGER.info("Processing exception snapshot for: {}", t.getMessage());
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
     int maxSnapshotSize = Math.min(snapshots.size(), maxCapturedFrames);
@@ -166,10 +178,26 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
       span.setTag(tagName, snapshot.getId());
       LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
+
+      StackTraceElement stackFrame = innerTrace[currentIdx];
+      String fileTag = String.format(TEST_DEBUG_ERROR_FILE_TAG_FMT, frameIndex);
+      String lineTag = String.format(TEST_DEBUG_ERROR_LINE_TAG_FMT, frameIndex);
+      span.setTag(fileTag, stackFrame.getFileName());
+      span.setTag(lineTag, stackFrame.getLineNumber());
+
+      LOGGER.debug(
+          "add ftr debug tags to span[{}]: {}={}, {}={}",
+          span.getSpanId(),
+          fileTag,
+          stackFrame.getFileName(),
+          lineTag,
+          stackFrame.getLineNumber());
+
       if (!state.isSnapshotSent()) {
         DebuggerAgent.getSink().addSnapshot(snapshot);
       }
       snapshotAssigned = true;
+      LOGGER.info("Capture for {}: {}", t.getMessage(), snapshots.get(i).getVariables());
     }
     if (snapshotAssigned) {
       state.markAsSnapshotSent();

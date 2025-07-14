@@ -4009,7 +4009,13 @@ public class Config {
   }
 
   private String getFinalDebuggerBaseUrl() {
-    if (agentUrl.startsWith("unix:")) {
+    if (isCiVisibilityEnabled() && isCiVisibilityAgentlessEnabled()) {
+      String agentlessUrl = getCiVisibilityAgentlessUrl();
+      if (Strings.isNotBlank(agentlessUrl)) {
+        return agentlessUrl;
+      }
+      return "https://http-intake.logs." + getSite();
+    } else if (agentUrl.startsWith("unix:")) {
       // provide placeholder agent URL, in practice we'll be tunnelling over UDS
       return "http://" + agentHost + ":" + agentPort;
     } else {

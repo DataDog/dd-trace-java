@@ -101,6 +101,10 @@ public class CiVisibilitySystem {
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
       }
 
+      if (executionSettings.isFailedTestReplayEnabled()) {
+        // TODO
+      }
+
       CiVisibilityCoverageServices.Child coverageServices =
           new CiVisibilityCoverageServices.Child(services, repoServices, executionSettings);
       TestEventsHandlerFactory testEventsHandlerFactory =

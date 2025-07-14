@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /** Data class representing all data collected at a probe location */
 public class Snapshot {
@@ -159,6 +160,18 @@ public class Snapshot {
 
   public List<EvaluationError> getEvaluationErrors() {
     return evaluationErrors;
+  }
+
+  public String getVariables() {
+    String variables = "";
+    CapturedContext returnContext = captures.getReturn();
+    if (returnContext != null) {
+      Map<String, CapturedContext.CapturedValue> allVars = new HashMap<>();
+      if (returnContext.getArguments() != null) allVars.putAll(returnContext.getArguments());
+      if (returnContext.getLocals() != null) allVars.putAll(returnContext.getLocals());
+      variables = allVars.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue().getStrValue()).collect(Collectors.joining(", "));
+    }
+    return variables;
   }
 
   public void addEvaluationErrors(List<EvaluationError> errors) {
