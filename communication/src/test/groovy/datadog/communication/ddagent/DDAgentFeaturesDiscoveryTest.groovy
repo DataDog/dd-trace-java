@@ -1,9 +1,11 @@
 package datadog.communication.ddagent
 
+import datadog.common.container.ContainerInfo
 import datadog.communication.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import okhttp3.Call
+import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -19,6 +21,8 @@ import java.nio.file.Paths
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -30,6 +34,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
   static final String INFO_RESPONSE = loadJsonFile("agent-info.json")
   static final String INFO_STATE = Strings.sha256(INFO_RESPONSE)
+  static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE = loadJsonFile("agent-info-with-peer-tag-back-propagation.json")
+  static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE = Strings.sha256(INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE)
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
   static final String INFO_WITH_CLIENT_DROPPING_STATE = Strings.sha256(INFO_WITH_CLIENT_DROPPING_RESPONSE)
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
@@ -424,13 +430,77 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsContentEncodingHeadersWithEvpProxy()
   }
 
-  def infoResponse(Request request, String json) {
+  def "test parse /info response with peer tag back propagation"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+
+    when: "/info available with peer tag back propagation"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE) }
+    features.state() == INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE
+    features.supportsDropping()
+    features.peerTags().containsAll(
+      "_dd.base_service",
+      "active_record.db.vendor",
+      "amqp.destination",
+      "amqp.exchange",
+      "amqp.queue",
+      "grpc.host",
+      "hostname",
+      "http.host",
+      "http.server_name",
+      "streamname",
+      "tablename",
+      "topicname"
+      )
+    features.spanKindsToComputedStats().containsAll(
+      "client",
+      "consumer",
+      "producer",
+      "server"
+      )
+  }
+
+  def "should send container id as header on the info request and parse the hash in the response"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def oldContainerId = ContainerInfo.get().getContainerId()
+    def oldContainerTagsHash = ContainerInfo.get().getContainerTagsHash()
+    ContainerInfo.get().setContainerId("test")
+
+    when: "/info requested"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request ->
+      assert request.header(DATADOG_CONTAINER_ID) == "test"
+      infoResponse(request, INFO_RESPONSE, Headers.of(DATADOG_CONTAINER_TAGS_HASH, "test-hash"))
+    }
+    and:
+    assert ContainerInfo.get().getContainerTagsHash() == "test-hash"
+    cleanup:
+    ContainerInfo.get().setContainerId(oldContainerId)
+    ContainerInfo.get().setContainerTagsHash(oldContainerTagsHash)
+  }
+
+  def infoResponse(Request request, String json, Headers headers = new Headers.Builder().build()) {
     return Mock(Call) {
       it.execute() >> new Response.Builder()
         .code(200)
         .request(request)
         .protocol(Protocol.HTTP_1_1)
         .message("")
+        .headers(headers)
         .body(ResponseBody.create(MediaType.get("application/json"), json))
         .build()
     }

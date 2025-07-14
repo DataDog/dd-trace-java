@@ -29,6 +29,7 @@ dependencies {
   implementation project(':internal-api')
 
   testImplementation project(":utils:test-utils")
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.0'
 
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')
