@@ -1512,6 +1512,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       Object ciVisibilityContextData;
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
+      final Map<String, String> baggageTags;
 
       if (this.spanId == 0) {
         spanId = idGenerationStrategy.generateSpanId();
@@ -1558,6 +1559,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         origin = null;
         coreTags = null;
         rootSpanTags = null;
+        baggageTags = null;
         parentServiceName = ddsc.getServiceName();
         if (serviceName == null) {
           serviceName = parentServiceName;
@@ -1611,6 +1613,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           coreTags = tc.getTags();
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
+          baggageTags = mapBaggageTags(baggage);
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
           ciVisibilityContextData = tc.getCiVisibilityContextData();
@@ -1622,6 +1625,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           requestContextDataAppSec = null;
           requestContextDataIast = null;
           ciVisibilityContextData = null;
+          baggageTags = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1728,6 +1732,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
       context.setAllTags(contextualTags);
+      context.setAllTags(baggageTags);
       return context;
     }
   }
@@ -1806,5 +1811,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
     }
     return Collections.unmodifiableMap(result);
+  }
+
+  static Map<String, String> mapBaggageTags(Map<String, String> baggage) {
+    List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
+    if (baggageTagKeys.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> baggageTags = new HashMap<>(baggageTagKeys.size());
+    for (String key : baggageTagKeys) {
+      if (key == "*") {
+        // If the key is "*", we add all baggage items
+        for (Map.Entry<String, String> entry : baggage.entrySet()) {
+          baggageTags.put("baggage." + entry.getKey(), entry.getValue());
+        }
+        break;
+      }
+      String value = baggage.get(key);
+      if (value != null) {
+        baggageTags.put("baggage." + key, value);
+      }
+    }
+    return Collections.unmodifiableMap(baggageTags);
   }
 }

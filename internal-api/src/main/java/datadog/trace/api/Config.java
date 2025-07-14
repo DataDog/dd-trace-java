@@ -195,6 +195,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final List<String> traceBaggageTagKeys;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1056,6 +1057,11 @@ public class Config {
         // If we have a new setting, we log a warning
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
+
+      // Parse the baggage tag keys configuration
+      traceBaggageTagKeys =
+          configProvider.getList(TRACE_BAGGAGE_TAG_KEYS, DEFAULT_TRACE_BAGGAGE_TAG_KEYS);
+
       // Now we can check if we should pick the default injection/extraction
 
       tracePropagationStylesToExtract =
@@ -2260,6 +2266,10 @@ public class Config {
 
   public Map<String, String> getBaggageMapping() {
     return baggageMapping;
+  }
+
+  public List<String> getTraceBaggageTagKeys() {
+    return traceBaggageTagKeys;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -4647,6 +4657,8 @@ public class Config {
         + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
+        + ", traceBaggageTagKeys="
+        + traceBaggageTagKeys
         + ", tracePropagationStylesToExtract="
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
