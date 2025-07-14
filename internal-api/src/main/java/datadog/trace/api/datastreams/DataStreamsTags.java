@@ -207,7 +207,6 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-
     // hashable tags are 0-4
     for (int i = 0; i < 7; i++) {
       String tag = this.tagByIndex(i);
@@ -234,8 +233,7 @@ public class DataStreamsTags {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
-        this.completeHash =
-            FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
+        this.completeHash = FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
       }
     }
   }

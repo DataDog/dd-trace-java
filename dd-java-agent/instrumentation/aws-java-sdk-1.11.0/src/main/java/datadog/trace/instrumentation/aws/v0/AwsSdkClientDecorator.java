@@ -268,7 +268,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           if (requestSize != null) {
             payloadSize = (long) requestSize;
           }
-          DataStreamsTags tags = DataStreamsTags.createWithDataset("s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
+          DataStreamsTags tags =
+              DataStreamsTags.createWithDataset(
+                  "s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, create(tags, 0, payloadSize));
