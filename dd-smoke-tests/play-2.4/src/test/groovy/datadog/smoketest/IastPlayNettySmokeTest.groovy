@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
 import static java.util.concurrent.TimeUnit.SECONDS
 import okhttp3.FormBody
 import okhttp3.Request
@@ -8,6 +9,7 @@ import spock.lang.Shared
 import java.nio.file.Files
 
 
+@Flaky("https://datadoghq.atlassian.net/browse/APPSEC-58301")
 class IastPlayNettySmokeTest extends AbstractIastServerSmokeTest {
 
   @Shared

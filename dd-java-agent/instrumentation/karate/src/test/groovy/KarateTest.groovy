@@ -21,7 +21,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
-@IgnoreIf(reason = "Karate instrumentation is creating an unclosed span of kind test_suite_end specifically for Java 24. Skip until we have a fix.", value = {
+@IgnoreIf(reason = "Karate does not support Java 24+ yet: https://github.com/karatelabs/karate/blob/master/.github/workflows/jdk-compat.yml#L18", value = {
   JavaVirtualMachine.isJavaVersionAtLeast(24)
 })
 @DisableTestTrace(reason = "avoid self-tracing")

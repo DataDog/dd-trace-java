@@ -105,7 +105,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final Context context = DECORATE.extractContext(request);
+      final Context context = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, context);
       final AgentSpan span = DECORATE.startSpan(request, context);
       scope = context.with(span).attach();

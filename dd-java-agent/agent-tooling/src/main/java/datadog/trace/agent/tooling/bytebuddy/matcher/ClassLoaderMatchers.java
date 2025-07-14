@@ -42,11 +42,19 @@ public final class ClassLoaderMatchers {
       case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
       case "sun.reflect.DelegatingClassLoader":
       case "jdk.internal.reflect.DelegatingClassLoader":
+      case "org.jvnet.hk2.internal.DelegatingClassLoader":
       case "clojure.lang.DynamicClassLoader":
       case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
       case "com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory$RootStubClassLoader":
       case "sun.misc.Launcher$ExtClassLoader":
+      case "org.springframework.context.support.ContextTypeMatchClassLoader$ContextOverridingClassLoader":
+      case "org.openjdk.nashorn.internal.runtime.ScriptLoader":
+      case "jdk.nashorn.internal.runtime.ScriptLoader":
+      case "org.codehaus.janino.ByteArrayClassLoader":
+      case "org.eclipse.persistence.internal.jaxb.JaxbClassLoader":
+      case "com.alibaba.fastjson.util.ASMClassLoader":
       case "datadog.trace.bootstrap.DatadogClassLoader":
+      case "datadog.trace.bootstrap.InstrumentationClassLoader":
         return true;
     }
     if (CHECK_EXCLUDES) {
