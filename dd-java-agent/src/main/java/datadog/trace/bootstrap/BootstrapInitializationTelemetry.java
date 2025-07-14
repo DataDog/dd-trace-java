@@ -6,6 +6,7 @@ import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
@@ -115,7 +116,23 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {
-      onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
+      Stack<String> causes = new Stack<>();
+
+      Throwable cause = t.getCause();
+      if (cause != null) {
+        while (cause != null) {
+          causes.push(cause.getClass().getName());
+          cause = cause.getCause();
+        }
+      }
+      causes.push(t.getClass().getName());
+
+      // Limit the number of causes to avoid overpopulating the JSON payload.
+      int cnt = Math.min(5, causes.size());
+      while (cnt > 0) {
+        onPoint("library_entrypoint.error", "error_type:" + causes.pop());
+        cnt--;
+      }
     }
 
     @Override

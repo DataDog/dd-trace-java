@@ -76,6 +76,18 @@ class BootstrapInitializationTelemetryTest extends Specification {
     !capture.json().contains("library_entrypoint.complete")
   }
 
+  def "unwind root cause"() {
+    when:
+    initTelemetry.initMetaInfo("runtime_name", "java")
+    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
+
+    initTelemetry.onError(new Exception("top cause", new NullPointerException("root cause")))
+    initTelemetry.finish()
+
+    then:
+    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.error","tags":["error_type:java.lang.NullPointerException"]},{"name":"library_entrypoint.complete"}]}'
+  }
+
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
     String json
 
