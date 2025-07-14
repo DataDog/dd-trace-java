@@ -1116,12 +1116,12 @@ public class Agent {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
       // first try to use the JVMAccess using the native library; unless `checkNative` is false
       Boolean rslt =
-          checkNative && (boolean) clz.getMethod("initialize", boolean.class).invoke(null, false);
+          checkNative && (Boolean) clz.getMethod("initialize", boolean.class).invoke(null, false);
       if (!rslt) {
         if (delayed) {
           // already delayed initialization, so no need to reschedule it again
           // just call initialize and force JMX
-          rslt = (boolean) clz.getMethod("initialize", boolean.class).invoke(null, true);
+          rslt = (Boolean) clz.getMethod("initialize", boolean.class).invoke(null, true);
         } else {
           // delayed initialization, so we need to reschedule it and mark as delayed but do not
           // re-check the native library
