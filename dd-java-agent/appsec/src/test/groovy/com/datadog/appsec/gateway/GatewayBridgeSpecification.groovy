@@ -1202,6 +1202,24 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
   }
 
+  void 'test api security sampling - No http route'() {
+    given:
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * spanInfo.getTags() >>  ['http.route': null]
+    1 * requestSampler.preSampleRequest(_) >> true
+    0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
+    0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
+  }
+
   void 'test api security sampling - trace excluded'() {
     given:
     AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
