@@ -14,6 +14,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.api.datastreams.DataStreamsContext
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
@@ -26,6 +27,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
+import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
@@ -39,6 +41,8 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import groovy.transform.Canonical
 import groovy.transform.CompileStatic
 import net.bytebuddy.utility.RandomString
@@ -96,14 +100,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.SERVER_PATHWAY_EDGE_TAGS
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
 
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
-  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect {
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpServer().sortedTags().collect {
     key, value ->
     return key + ":" + value
   }
@@ -135,6 +138,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ss.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ss.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
+    ss.registerCallback(events.responseBody(), callbacks.responseBodyObjectCb)
     ss.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
@@ -164,6 +168,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
     // allow endpoint discover for the tests
     injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
+    if (testRumInjection()) {
+      injectSysConfig("rum.enabled", "true")
+      injectSysConfig("rum.application.id", "test")
+      injectSysConfig("rum.client.token", "secret")
+      injectSysConfig("rum.remote.configuration.id", "12345")
+    }
   }
 
   // used in blocking tests to check if the handler was skipped
@@ -335,6 +345,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+
   boolean isRequestBodyNoStreaming() {
     // if true, plain text request body tests expect the requestBodyProcessed
     // callback to tbe called, not requestBodyStart/requestBodyDone
@@ -350,6 +361,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testBodyJson() {
+    false
+  }
+
+  boolean testResponseBodyJson() {
     false
   }
 
@@ -412,6 +427,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testEndpointDiscovery() {
+    false
+  }
+
+  boolean testRumInjection() {
     false
   }
 
@@ -1581,6 +1600,44 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true         | 'text/html;q=0.8, application/json;q=0.9'
   }
 
+  void 'test instrumentation gateway json response body'() {
+    setup:
+    assumeTrue(testResponseBodyJson())
+    final body = [a: 'x']
+    def request = request(
+    BODY_JSON, 'POST',
+    RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
+    .header(IG_RESPONSE_BODY_TAG, 'true')
+    .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.body().charStream().text == BODY_JSON.body
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+
+    then:
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    final responseBody = rootSpan.getTag('response.body') as String
+    new JsonSlurper().parseText(responseBody) == body
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        edgeTags.containsAll(DSM_EDGE_TAGS)
+        edgeTags.size() == DSM_EDGE_TAGS.size()
+      }
+    }
+  }
+
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4681", suites = ["GrizzlyAsyncTest", "GrizzlyTest"])
   def 'test blocking of request with json response'() {
     setup:
@@ -2145,6 +2202,28 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertEndpointDiscovery(discovered)
   }
 
+
+  /**
+   * This test should be done in a forked test class
+   * @return
+   */
+  def "test rum injection in head for mime #mime"() {
+    setup:
+    assumeTrue(testRumInjection())
+    def request = new Request.Builder().url(server.address().resolve("gimme-$mime").toURL())
+    .get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    assert response.code() == 200
+    assert response.body().string().contains(new String(RumInjector.get().getSnippet("UTF-8"), "UTF-8")) == expected
+    assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
+    where:
+    mime   | expected
+    "html" | true
+    "xml"  | false
+  }
+
   // to be overridden for more specific asserts
   void assertEndpointDiscovery(final List<?> endpoints) { }
 
@@ -2280,6 +2359,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
   static final String IG_BODY_CONVERTED_HEADER = "x-block-body-converted"
   static final String IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER = "x-include-response-headers-in-tags"
+  static final String IG_RESPONSE_BODY_TAG = "x-include-response-body-in-tags"
   static final String IG_PEER_ADDRESS = "ig-peer-address"
   static final String IG_PEER_PORT = "ig-peer-port"
   static final String IG_RESPONSE_STATUS = "ig-response-status"
@@ -2303,6 +2383,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean bodyEndBlock
       boolean bodyConvertedBlock
       boolean responseHeadersInTags
+      boolean responseBodyTag
+      Object responseBody
     }
 
     static final String stringOrEmpty(String string) {
@@ -2318,6 +2400,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
     ({ RequestContext rqCtxt, IGSpanInfo info ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseBodyTag) {
+        rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
+      }
       if (context.extraSpanName) {
         runUnderTrace(context.extraSpanName, false) {
           def span = activeSpan()
@@ -2355,6 +2440,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (IG_ASK_FOR_RESPONSE_HEADER_TAGS_HEADER.equalsIgnoreCase(key)) {
         context.responseHeadersInTags = true
+      }
+      if (IG_RESPONSE_BODY_TAG.equalsIgnoreCase(key)) {
+        context.responseBodyTag = true
       }
     } as TriConsumer<RequestContext, String, String>
 
@@ -2442,6 +2530,29 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.bodyConvertedBlock) {
+        new RbaFlow(
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
+      } else {
+        Flow.ResultFlow.empty()
+      }
+    } as BiFunction<RequestContext, Object, Flow<Void>>)
+
+    final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
+    ({ RequestContext rqCtxt, Object obj ->
+      String body
+      // we need to extract a JSON representation of the response object, some frameworks classes might need updating
+      // as they might not work with a simple toString() call
+      if (obj instanceof String) {
+        body = obj as String
+      } else if (obj instanceof Map | obj instanceof List) {
+        body = JsonOutput.toJson(obj)
+      } else {
+        body = obj.toString()
+      }
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      context.responseBody = body
+      if (context.responseBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )

@@ -4,7 +4,7 @@ import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDCli
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
-import static datadog.trace.api.TracePropagationBehaviorExtract.RESTART;
+import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
@@ -169,7 +169,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Default service name if none provided on the trace or span */
   final String serviceName;
 
-  /** Writer is an charge of reporting traces and spans to the desired endpoint */
+  /** Writer is in charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
 
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
@@ -716,7 +716,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (config.isDataStreamsEnabled()) {
       Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
     }
-    if (config.isBaggagePropagationEnabled()) {
+    if (config.isBaggagePropagationEnabled()
+        && config.getTracePropagationBehaviorExtract() != IGNORE) {
       Propagators.register(BAGGAGE_CONCERN, new BaggagePropagator(config));
     }
 
@@ -1039,9 +1040,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         try {
           // If one TraceInterceptor throws an exception, then continue with the next one
           interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
-        } catch (Exception e) {
+        } catch (Throwable e) {
           String interceptorName = interceptor.getClass().getName();
-          rlLog.warn("Exception in TraceInterceptor {}", interceptorName, e);
+          rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
         }
       }
       trace = new ArrayList<>(interceptedTrace.size());

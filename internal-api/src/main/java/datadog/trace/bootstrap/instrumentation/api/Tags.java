@@ -132,7 +132,15 @@ public class Tags {
   public static final String GIT_TAG = "git.tag";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
-  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
+  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_NAME = "git.commit.head.author.name";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_EMAIL = "git.commit.head.author.email";
+  public static final String GIT_COMMIT_HEAD_AUTHOR_DATE = "git.commit.head.author.date";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_NAME = "git.commit.head.committer.name";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_EMAIL = "git.commit.head.committer.email";
+  public static final String GIT_COMMIT_HEAD_COMMITTER_DATE = "git.commit.head.committer.date";
+  public static final String GIT_COMMIT_HEAD_MESSAGE = "git.commit.head.message";
+  public static final String PULL_REQUEST_NUMBER = "pr.number";
 
   public static final String RUNTIME_NAME = "runtime.name";
   public static final String RUNTIME_VENDOR = "runtime.vendor";
@@ -152,4 +160,10 @@ public class Tags {
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
+
+  public static final String LLMOBS_LLM_SPAN_KIND = "llm";
+  public static final String LLMOBS_WORKFLOW_SPAN_KIND = "workflow";
+  public static final String LLMOBS_TASK_SPAN_KIND = "task";
+  public static final String LLMOBS_AGENT_SPAN_KIND = "agent";
+  public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
 }

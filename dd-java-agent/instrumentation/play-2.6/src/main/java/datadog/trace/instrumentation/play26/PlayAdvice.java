@@ -32,7 +32,7 @@ public class PlayAdvice {
 
     if (activeSpan() == null) {
       final Headers headers = req.headers();
-      extractedContext = DECORATE.extractContext(headers);
+      extractedContext = DECORATE.extract(headers);
       span = DECORATE.startSpan(headers, extractedContext);
       scope = extractedContext.with(span).attach();
     } else {
@@ -46,6 +46,10 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = req.addAttr(HasPlayRequestSpan.KEY, HasPlayRequestSpan.INSTANCE);
+
+    // Moved from OnMethodExit
+    // Call onRequest on return after tags are populated.
+    DECORATE.onRequest(span, req, req, extractedContext);
 
     return scope;
   }
@@ -65,9 +69,6 @@ public class PlayAdvice {
 
     final AgentSpan playControllerSpan = spanFromContext(playControllerScope.context());
 
-    // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(playControllerSpan, req, req, extractedContext);
-
     if (throwable == null) {
       responseFuture.onComplete(
           new RequestCompleteCallback(playControllerSpan),
@@ -84,7 +85,7 @@ public class PlayAdvice {
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null && playControllerSpan.getResourceName() != null) {
       rootSpan.setResourceName(
-          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
   }
 }

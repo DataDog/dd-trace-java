@@ -1,6 +1,6 @@
 package datadog.trace.util.stacktrace;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -31,7 +31,7 @@ public class StackWalkerFactory {
 
   private static Supplier<StackWalker> hotspot() {
     return () -> {
-      if (!Platform.isJavaVersion(8)) {
+      if (!JavaVirtualMachine.isJavaVersion(8)) {
         return null;
       }
       return new HotSpotStackWalker();
@@ -40,7 +40,7 @@ public class StackWalkerFactory {
 
   private static Supplier<StackWalker> jdk9() {
     return () -> {
-      if (!Platform.isJavaVersionAtLeast(9)) {
+      if (!JavaVirtualMachine.isJavaVersionAtLeast(9)) {
         return null;
       }
       try {

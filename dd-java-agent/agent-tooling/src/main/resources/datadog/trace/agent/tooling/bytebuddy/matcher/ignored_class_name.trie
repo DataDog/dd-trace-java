@@ -190,6 +190,8 @@
 0 com.fasterxml.jackson.databind.util.TokenBuffer$Parser
 0 com.fasterxml.jackson.databind.ObjectMapper
 0 com.fasterxml.jackson.module.afterburner.util.MyClassLoader
+# Included for API Security response schema collection
+0 com.fasterxml.jackson.jaxrs.*
 2 com.github.mustachejava.*
 2 com.google.api.*
 0 com.google.api.client.http.HttpRequest
@@ -348,6 +350,7 @@
 0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
 0 org.springframework.web.context.support.XmlWebApplicationContext
+1 org.springframework.web.filter.CompositeFilter$VirtualFilterChain
 0 org.springframework.web.reactive.*
 0 org.springframework.web.servlet.*
 0 org.springframework.web.socket.*

@@ -26,12 +26,12 @@ public class JettyServerAdvice {
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final Context extractedContext = DECORATE.extractContext(req);
-      span = DECORATE.startSpan(req, extractedContext);
-      final ContextScope scope = extractedContext.with(span).attach();
+      final Context context = DECORATE.extract(req);
+      span = DECORATE.startSpan(req, context);
+      final ContextScope scope = context.with(span).attach();
       span.setMeasured(true);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, extractedContext);
+      DECORATE.onRequest(span, req, req, context);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

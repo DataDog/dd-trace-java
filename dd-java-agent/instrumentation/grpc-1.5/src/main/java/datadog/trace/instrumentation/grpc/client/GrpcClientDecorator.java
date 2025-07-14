@@ -1,14 +1,19 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
+import datadog.context.Context;
+import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -29,15 +34,12 @@ public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
-  private static LinkedHashMap<String, String> createClientPathwaySortedTags() {
+  private static DataStreamsContext createDsmContext() {
     LinkedHashMap<String, String> result = new LinkedHashMap<>();
     result.put(DIRECTION_TAG, DIRECTION_OUT);
     result.put(TYPE_TAG, "grpc");
-    return result;
+    return DataStreamsContext.fromTags(result);
   }
-
-  public static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS =
-      createClientPathwaySortedTags();
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
@@ -106,6 +108,13 @@ public class GrpcClientDecorator extends ClientDecorator {
                     method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
     span.setResourceName(method.getFullMethodName());
     return afterStart(span);
+  }
+
+  public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
+    if (traceConfig().isDataStreamsEnabled()) {
+      context = context.with(createDsmContext());
+    }
+    defaultPropagator().inject(context, request, setter);
   }
 
   public AgentSpan onClose(final AgentSpan span, final Status status) {

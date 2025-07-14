@@ -1,6 +1,6 @@
 plugins {
-  id "com.gradleup.shadow"
-  id "me.champeau.jmh"
+  id 'com.gradleup.shadow'
+  id 'me.champeau.jmh'
 }
 
 description = 'dd-trace-ot'

@@ -1,9 +1,8 @@
 package datadog.trace.bootstrap;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
-import static datadog.trace.api.Platform.isOracleJDK8;
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
@@ -13,6 +12,8 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -25,6 +26,7 @@ import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.LlmObsConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -41,11 +43,11 @@ import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -109,7 +111,9 @@ public class Agent {
     EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
-    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -156,6 +160,8 @@ public class Agent {
   private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean llmObsEnabled = false;
+  private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
@@ -290,8 +296,25 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
 
-    patchJPSAccess(inst);
+    // setup writers when llmobs is enabled to accomodate apm and llmobs
+    if (llmObsEnabled) {
+      // for llm obs spans, use agent proxy by default, apm spans will use agent writer
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+          WriterConstants.MULTI_WRITER_TYPE
+              + ":"
+              + WriterConstants.DD_INTAKE_WRITER_TYPE
+              + ","
+              + WriterConstants.DD_AGENT_WRITER_TYPE);
+      if (llmObsAgentlessEnabled) {
+        // use API writer only
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+            WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
+    }
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -419,23 +442,6 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
-    }
-  }
-
-  @SuppressForbidden
-  public static void patchJPSAccess(Instrumentation inst) {
-    if (Platform.isJavaVersionAtLeast(9)) {
-      // Unclear if supported for J9, may need to revisit
-      try {
-        Class.forName("datadog.trace.util.JPMSJPSAccess")
-            .getMethod("patchModuleAccess", Instrumentation.class)
-            .invoke(null, inst);
-      } catch (Exception e) {
-        log.debug(
-            SEND_TELEMETRY,
-            "Failed to patch module access for jvmstat and Java version "
-                + Platform.getRuntimeVersion());
-      }
     }
   }
 
@@ -597,6 +603,7 @@ public class Agent {
 
       maybeStartAppSec(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -894,12 +901,12 @@ public class Agent {
 
   private static boolean isSupportedAppSecArch() {
     final String arch = System.getProperty("os.arch");
-    if (Platform.isWindows()) {
+    if (OperatingSystem.isWindows()) {
       // TODO: Windows bindings need to be built for x86
       return "amd64".equals(arch) || "x86_64".equals(arch);
-    } else if (Platform.isMac()) {
+    } else if (OperatingSystem.isMacOs()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
-    } else if (Platform.isLinux()) {
+    } else if (OperatingSystem.isLinux()) {
       return "amd64".equals(arch) || "x86_64".equals(arch) || "aarch64".equals(arch);
     }
     // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
@@ -949,6 +956,24 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void maybeStartLLMObs(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (llmObsEnabled) {
+      StaticEventLogger.begin("LLM Observability");
+
+      try {
+        final Class<?> llmObsSysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.llmobs.LLMObsSystem");
+        final Method llmObsInstallerMethod =
+            llmObsSysClass.getMethod("start", Instrumentation.class, scoClass);
+        llmObsInstallerMethod.invoke(null, inst, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting LLM Observability subsystem", e);
+      }
+
+      StaticEventLogger.end("LLM Observability");
     }
   }
 
@@ -1018,7 +1043,7 @@ public class Agent {
   }
 
   private static void initializeErrorTracking() {
-    if (Platform.isJ9()) {
+    if (JavaVirtualMachine.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
@@ -1066,7 +1091,7 @@ public class Agent {
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !Platform.isWindows()) {
+      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
         try {
           return (ProfilingContextIntegration)
               AGENT_CLASSLOADER

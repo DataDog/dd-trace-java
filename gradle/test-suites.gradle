@@ -1,6 +1,6 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
-ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName, String dirName) -> {
+ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
   testing {
     suites {
       create(testSuiteName, JvmTestSuite, {
@@ -27,16 +27,12 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
             }
           }
         }
-        dependencies {
-          implementation project(project.path)
-        }
       })
     }
   }
 
   configurations {
-    def extendConf = {
-      String suffix ->
+    def extendConf = { suffix ->
       def config = named("${testSuiteName}${suffix}")
       def parentConfig = named("${parentSuiteName}${suffix}")
       if (parentConfig.present) {
@@ -65,12 +61,19 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
     from(sourceSets.named(testSuiteName).get().output)
     archiveClassifier = testSuiteName
   }
+
+  // The project dependency definition cannot sit inside previous blocks. As of Gradle 8.8, configurations cannot be mutated after they have been used as part of the dependency graph.
+  // See: https://docs.gradle.org/current/userguide/upgrading_version_8.html#mutate_configuration_after_locking
+  // And related issue: https://github.com/gradle/gradle/issues/28867
+  project.dependencies {
+    "${testSuiteName}Implementation"(project(project.path))
+  }
 }
 
-ext.addTestSuiteForDir = (String testSuiteName, String dirName) -> {
+ext.addTestSuiteForDir = { testSuiteName, dirName ->
   ext.addTestSuiteExtendingForDir(testSuiteName, 'test', dirName)
 }
 
-ext.addTestSuite = (String testSuiteName) -> {
+ext.addTestSuite = { testSuiteName ->
   ext.addTestSuiteForDir(testSuiteName, testSuiteName)
 }

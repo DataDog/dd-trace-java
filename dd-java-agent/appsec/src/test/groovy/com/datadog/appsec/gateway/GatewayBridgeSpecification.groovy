@@ -86,7 +86,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   TraceSegmentPostProcessor pp = Mock()
   ApiSecuritySamplerImpl requestSampler = Mock(ApiSecuritySamplerImpl)
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, requestSampler, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, () -> requestSampler, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -99,6 +99,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
+  BiFunction<RequestContext, Object, Flow<Void>> responseBodyCB
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
@@ -114,6 +115,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  BiConsumer<RequestContext, String> httpRouteCB
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
 
@@ -258,8 +260,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     ctx.data.rawURI = '/'
     ctx.data.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -277,8 +280,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -298,8 +302,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -319,8 +324,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -339,9 +345,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_URI_RAW in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -373,9 +382,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create(uri)
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_URI_RAW in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -406,9 +418,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     GatewayContext gatewayContext
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_PATH_PARAMS in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_PATH_PARAMS in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     pathParamsCB.apply(ctx, [a: 'b'])
@@ -449,6 +464,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBody(), _) >> { responseBodyCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
@@ -464,6 +480,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpRoute(), _) >> { httpRouteCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -663,9 +680,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     Flow<?> flow = requestBodyProcessedCB.apply(ctx, new Object() {
-        @SuppressWarnings('UnusedPrivateField')
-        private String foo = 'bar'
-      })
+      @SuppressWarnings('UnusedPrivateField')
+      private String foo = 'bar'
+    })
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
@@ -762,9 +779,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
-        @SuppressWarnings('UnusedPrivateField')
-        private String foo = 'bar'
-      })
+      @SuppressWarnings('UnusedPrivateField')
+      private String foo = 'bar'
+    })
 
     then:
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
@@ -919,27 +936,27 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'no appsec events if was not created request context in request_start event'() {
     RequestContext emptyCtx = new RequestContext() {
-        final Object data = null
-        BlockResponseFunction blockResponseFunction
+      final Object data = null
+      BlockResponseFunction blockResponseFunction
 
-        @Override
-        Object getData(RequestContextSlot slot) {
-          data
-        }
-
-        @Override
-        final TraceSegment getTraceSegment() {
-          GatewayBridgeSpecification.this.traceSegment
-        }
-
-        @Override
-        def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
-          return null
-        }
-
-        @Override
-        void close() throws IOException {}
+      @Override
+      Object getData(RequestContextSlot slot) {
+        data
       }
+
+      @Override
+      final TraceSegment getTraceSegment() {
+        GatewayBridgeSpecification.this.traceSegment
+      }
+
+      @Override
+      def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null
+      }
+
+      @Override
+      void close() throws IOException {}
+    }
 
     StoredBodySupplier supplier = Stub()
     IGSpanInfo spanInfo = Stub(AgentSpan)
@@ -1312,6 +1329,30 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
     1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
     0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test on httpRoute'() {
+    given:
+    final route = 'dummy-route'
+
+    when:
+    httpRouteCB.accept(ctx, route)
+
+    then:
+    arCtx.getRoute() == route
+  }
+
+  void 'test on response body callback'() {
+    when:
+    responseBodyCB.apply(ctx, [test: 'this is a test'])
+
+    then:
+    1 * eventDispatcher.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT) >> nonEmptyDsInfo
+    1 * eventDispatcher.publishDataEvent(_, _, _, _) >> {
+      final bundle = it[2] as DataBundle
+      final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
+      assert body['test'] == 'this is a test'
+    }
   }
 
 }

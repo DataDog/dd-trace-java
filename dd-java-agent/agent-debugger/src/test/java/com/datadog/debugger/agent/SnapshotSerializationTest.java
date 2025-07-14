@@ -104,7 +104,7 @@ public class SnapshotSerializationTest {
 
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
-  @DisabledIf("datadog.trace.api.Platform#isJ9")
+  @DisabledIf("datadog.environment.JavaVirtualMachine#isJ9")
   public void roundTripCapturedValue() throws IOException, URISyntaxException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshot();
@@ -297,7 +297,7 @@ public class SnapshotSerializationTest {
     UUID uuid = UUID.nameUUIDFromBytes("foobar".getBytes());
     AtomicLong atomicLong = new AtomicLong(123);
     URI uri = URI.create("https://www.datadoghq.com");
-    Optional<Date> maybeDate = Optional.of(new Date());
+    Optional<Date> maybeDate = Optional.of(new Date(1700000000000L));
     Optional<Object> empty = Optional.empty();
     OptionalInt maybeInt = OptionalInt.of(42);
     OptionalDouble maybeDouble = OptionalDouble.of(3.14);
@@ -344,13 +344,12 @@ public class SnapshotSerializationTest {
     Map<String, Object> maybeDate = (Map<String, Object>) objLocalFields.get("maybeDate");
     assertComplexClass(maybeDate, Optional.class.getTypeName());
     Map<String, Object> maybeDateFields = (Map<String, Object>) maybeDate.get(FIELDS);
-    Map<String, Object> value = (Map<String, Object>) maybeDateFields.get("value");
-    assertComplexClass(value, Date.class.getTypeName());
+    assertPrimitiveValue(maybeDateFields, "value", Date.class.getTypeName(), "1700000000000");
     // empty
     Map<String, Object> empty = (Map<String, Object>) objLocalFields.get("empty");
     assertComplexClass(empty, Optional.class.getTypeName());
     Map<String, Object> emptyFields = (Map<String, Object>) empty.get(FIELDS);
-    value = (Map<String, Object>) emptyFields.get("value");
+    Map<String, Object> value = (Map<String, Object>) emptyFields.get("value");
     assertEquals(Object.class.getTypeName(), value.get(TYPE));
     assertTrue((Boolean) value.get(IS_NULL));
     // maybeInt

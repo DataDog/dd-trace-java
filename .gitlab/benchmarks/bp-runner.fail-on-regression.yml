@@ -1,0 +1,7 @@
+experiments:
+  - name: Run regression check
+    steps:
+      - name: Regression Check
+        run: fail_on_regression
+        # Applies on all scenarios
+        regression_threshold: 10.0 # percents

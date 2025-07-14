@@ -19,14 +19,15 @@ public class GitRepoUnshallow {
     this.gitClient = gitClient;
   }
 
-  public boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+  public synchronized boolean unshallow(boolean parentOnly)
+      throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }
 
     long unshallowStart = System.currentTimeMillis();
     try {
-      gitClient.unshallow(GitClient.HEAD);
+      gitClient.unshallow(GitClient.HEAD, parentOnly);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
           "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
@@ -35,12 +36,12 @@ public class GitRepoUnshallow {
 
     try {
       String upstreamBranch = gitClient.getUpstreamBranchSha();
-      gitClient.unshallow(upstreamBranch);
+      gitClient.unshallow(upstreamBranch, parentOnly);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
           "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
           e);
-      gitClient.unshallow(null);
+      gitClient.unshallow(null, parentOnly);
     }
     LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
     return true;
