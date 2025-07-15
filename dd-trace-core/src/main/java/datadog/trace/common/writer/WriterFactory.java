@@ -86,6 +86,7 @@ public class WriterFactory {
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
     if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isCiVisibilityEnabled())) {
+      featuresDiscovery.discoverIfOutdated();
       if (featuresDiscovery.supportsEvpProxy() || config.isCiVisibilityAgentlessEnabled()) {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
@@ -94,6 +95,7 @@ public class WriterFactory {
       }
     }
     if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isLlmObsEnabled())) {
+      featuresDiscovery.discoverIfOutdated();
       if (featuresDiscovery.supportsEvpProxy() || config.isLlmObsAgentlessEnabled()) {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
@@ -186,6 +188,7 @@ public class WriterFactory {
       SharedCommunicationObjects commObjects,
       DDAgentFeaturesDiscovery featuresDiscovery,
       TrackType trackType) {
+    featuresDiscovery.discoverIfOutdated();
     boolean evpProxySupported = featuresDiscovery.supportsEvpProxy();
     boolean useProxyApi =
         (evpProxySupported && TrackType.LLMOBS == trackType && !config.isLlmObsAgentlessEnabled())
