@@ -138,16 +138,6 @@ public class SharedCommunicationObjects {
     this.featuresDiscovery = featuresDiscovery;
   }
 
-  // for testing
-  public void setAgentUrl(HttpUrl agentUrl) {
-    this.agentUrl = agentUrl;
-  }
-
-  // for testing
-  public void setOkHttpClient(OkHttpClient okHttpClient) {
-    this.okHttpClient = okHttpClient;
-  }
-
   public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
     DDAgentFeaturesDiscovery ret = featuresDiscovery;
     if (ret == null) {
