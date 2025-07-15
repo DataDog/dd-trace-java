@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -13,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
@@ -24,7 +24,7 @@ public class TagContext implements AgentSpanContext.Extracted {
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
   private final CharSequence origin;
-  private Map<String, String> tags;
+  private TagMap tags;
   private List<AgentSpanLink> terminatedContextLinks;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
@@ -41,13 +41,13 @@ public class TagContext implements AgentSpanContext.Extracted {
     this(null, null);
   }
 
-  public TagContext(final CharSequence origin, final Map<String, String> tags) {
+  public TagContext(final CharSequence origin, final TagMap tags) {
     this(origin, tags, null, null, PrioritySampling.UNSET, null, NONE, DDTraceId.ZERO);
   }
 
   public TagContext(
       final CharSequence origin,
-      final Map<String, String> tags,
+      final TagMap tags,
       final HttpHeaders httpHeaders,
       final Map<String, String> baggage,
       final int samplingPriority,
@@ -164,15 +164,15 @@ public class TagContext implements AgentSpanContext.Extracted {
     return httpHeaders.customIpHeader;
   }
 
-  public final Map<String, String> getTags() {
-    return tags;
+  public final TagMap getTags() {
+    return (this.tags == null) ? TagMap.EMPTY : this.tags;
   }
 
   public void putTag(final String key, final String value) {
-    if (this.tags.isEmpty()) {
-      this.tags = new TreeMap<>();
+    if (this.tags == null) {
+      this.tags = TagMap.create(4);
     }
-    this.tags.put(key, value);
+    this.tags.set(key, value);
   }
 
   @Override
