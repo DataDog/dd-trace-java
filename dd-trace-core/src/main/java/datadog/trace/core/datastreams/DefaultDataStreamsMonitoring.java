@@ -123,6 +123,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     this.propagator =
         new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+    // configure global tags behavior
+    DataStreamsTags.setGlobalBaseHash(this.hashOfKnownTags);
+    DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
   @Override

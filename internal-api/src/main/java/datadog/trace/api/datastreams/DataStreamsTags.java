@@ -2,6 +2,8 @@ package datadog.trace.api.datastreams;
 
 import datadog.trace.util.FNV64Hash;
 
+import javax.xml.crypto.Data;
+
 public class DataStreamsTags {
   public enum Direction {
     Unknown,
@@ -49,6 +51,9 @@ public class DataStreamsTags {
   public static final String DATASET_NAMESPACE_TAG = "ds.namespace";
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
+
+  private static volatile ThreadLocal<String> serviceNameOverride;
+  private static volatile long baseHash;
 
   public static byte[] longToBytes(long val) {
     return new byte[] {
@@ -144,6 +149,14 @@ public class DataStreamsTags {
         null);
   }
 
+  public static void setServiceNameOverride(ThreadLocal<String> serviceNameOverride) {
+    DataStreamsTags.serviceNameOverride = serviceNameOverride;
+  }
+
+  public static void setGlobalBaseHash(long hash) {
+    DataStreamsTags.baseHash = hash;
+  }
+
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
     return new DataStreamsTags(
@@ -208,6 +221,17 @@ public class DataStreamsTags {
     this.kafkaClusterId =
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
+
+    if (DataStreamsTags.baseHash != 0) {
+      this.hash = DataStreamsTags.baseHash;
+    }
+
+    if (DataStreamsTags.serviceNameOverride != null) {
+      String val = DataStreamsTags.serviceNameOverride.get();
+      if (val != null) {
+        this.hash = FNV64Hash.continueHash(this.hash, val, FNV64Hash.Version.v1);
+      }
+    }
 
     // hashable tags are 0-4
     for (int i = 0; i < 7; i++) {
