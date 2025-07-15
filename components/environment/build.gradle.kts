@@ -18,6 +18,7 @@ tasks.shadowJar {
  * Configure test coverage.
  */
 extra.set("minimumInstructionCoverage", 0.7)
+extra.set("minimumBranchCoverage", 0.7)
 val excludedClassesCoverage by extra {
   listOf(
     "datadog.environment.JavaVirtualMachine", // depends on OS and JVM vendor
