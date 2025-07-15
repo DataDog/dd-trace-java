@@ -138,6 +138,16 @@ public class SharedCommunicationObjects {
     this.featuresDiscovery = featuresDiscovery;
   }
 
+  // for testing
+  public void setAgentUrl(HttpUrl agentUrl) {
+    this.agentUrl = agentUrl;
+  }
+
+  // for testing
+  public void setOkHttpClient(OkHttpClient okHttpClient) {
+    this.okHttpClient = okHttpClient;
+  }
+
   public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
     DDAgentFeaturesDiscovery ret = featuresDiscovery;
     if (ret == null) {
@@ -159,7 +169,7 @@ public class SharedCommunicationObjects {
               ret.discover(); // safe to run on same thread
             } else {
               // avoid performing blocking I/O operation on application thread
-              AgentTaskScheduler.INSTANCE.execute(ret::discover);
+              AgentTaskScheduler.INSTANCE.execute(ret::discoverIfOutdated);
             }
           }
           featuresDiscovery = ret;
