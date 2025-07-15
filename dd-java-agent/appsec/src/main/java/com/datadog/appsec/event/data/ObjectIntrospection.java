@@ -1,5 +1,9 @@
 package com.datadog.appsec.event.data;
 
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH;
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS;
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE;
+
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -20,9 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ObjectIntrospection {
-  private static final int MAX_DEPTH = 20;
-  private static final int MAX_ELEMENTS = 256;
-  private static final int MAX_STRING_LENGTH = 4096;
+
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
 
   private static final Method trySetAccessible;
@@ -337,9 +339,9 @@ public final class ObjectIntrospection {
   }
 
   private static String checkStringLength(final String str, final State state) {
-    if (str.length() > MAX_STRING_LENGTH) {
+    if (str.length() > MAX_STRING_SIZE) {
       state.stringTooLong = true;
-      return str.substring(0, MAX_STRING_LENGTH);
+      return str.substring(0, MAX_STRING_SIZE);
     }
     return str;
   }

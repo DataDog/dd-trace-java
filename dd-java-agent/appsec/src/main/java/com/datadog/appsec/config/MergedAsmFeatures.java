@@ -49,4 +49,9 @@ public class MergedAsmFeatures {
     }
     target.autoUserInstrum = newValue;
   }
+
+  public void clear() {
+    mergedData = null;
+    configs.clear();
+  }
 }
