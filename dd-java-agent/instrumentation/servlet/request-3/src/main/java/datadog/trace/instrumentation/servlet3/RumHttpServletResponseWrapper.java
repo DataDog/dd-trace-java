@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.api.rum.RumInjector;
+import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
@@ -41,11 +42,15 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
 
   @Override
   public PrintWriter getWriter() throws IOException {
+    final PrintWriter delegate = super.getWriter();
     if (!shouldInject) {
-      return super.getWriter();
+      return delegate;
     }
     if (printWriter == null) {
-      printWriter = new PrintWriter(getOutputStream());
+      printWriter =
+          new PrintWriter(
+              new InjectingPipeWriter(
+                  delegate, rumInjector.getMarker(), rumInjector.getSnippet(), this::onInjected));
     }
     return printWriter;
   }
