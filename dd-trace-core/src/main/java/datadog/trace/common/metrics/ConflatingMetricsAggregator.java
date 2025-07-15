@@ -24,6 +24,8 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.TraceUtils;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -249,7 +251,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getOperationName(),
             span.getType(),
             span.getHttpStatusCode(),
-            isSynthetic(span));
+            isSynthetic(span),
+            span.isTopLevel(),
+            span.getTag(SPAN_KIND, ""),
+            getPeerTags(span));
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
@@ -282,6 +287,17 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     inbox.offer(batch);
     // force keep keys we haven't seen before or errors
     return isNewKey || span.getError() > 0;
+  }
+
+  private List<CharSequence> getPeerTags(CoreSpan<?> span) {
+    List<CharSequence> peerTags = new ArrayList<>();
+    for (String peerTag : features.peerTags()) {
+      Object value = span.getTag(peerTag);
+      if (value != null) {
+        peerTags.add(peerTag + ":" + TraceUtils.normalizeTag(value.toString()));
+      }
+    }
+    return peerTags;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
