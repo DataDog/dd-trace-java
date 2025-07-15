@@ -7,6 +7,7 @@ import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
@@ -14,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.Sink
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
@@ -502,9 +504,10 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("itnernal", DataStreamsTags.Direction.Inbound)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [
       (PROPAGATION_KEY_BASE64): encoded,
@@ -518,6 +521,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
+    encoded == "L+lDG/Pa9hRkZA=="
     !dynamicConfigEnabled || extractedSpan != null
     if (dynamicConfigEnabled) {
       def extracted = extractedSpan.context()
@@ -546,8 +550,15 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> { return globalDsmEnabled }
     }
 
+    def tracerApi = Mock(AgentTracer.TracerAPI) {
+      captureTraceConfig() >> globalTraceConfig
+    }
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    AgentTracer.forceRegister(tracerApi)
+
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
     context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
@@ -562,6 +573,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     def extractedSpan = AgentSpan.fromContext(extractedContext)
 
     then:
+    encoded == "L+lDG/Pa9hRkZA=="
     if (globalDsmEnabled) {
       extractedSpan != null
       def extracted = extractedSpan.context()
@@ -571,6 +583,9 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     } else {
       extractedSpan == null
     }
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
 
     where:
     globalDsmEnabled << [true, false]
@@ -589,18 +604,26 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> { return globalDsmEnabled }
     }
 
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    def tracerApi = Mock(AgentTracer.TracerAPI) {
+      captureTraceConfig() >> globalTraceConfig
+    }
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    AgentTracer.forceRegister(tracerApi)
 
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig },
+      wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+
+    DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
     timeSource.advance(MILLISECONDS.toNanos(50))
-    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", null)), pointConsumer)
+    context.setCheckpoint(fromTags(DataStreamsTags.create("internal", DataStreamsTags.Direction.Inbound)), pointConsumer)
     def encoded = context.encode()
     Map<String, String> carrier = [(PROPAGATION_KEY_BASE64): encoded, "someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
-    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, (TagMap)null, null, null, null, DATADOG)
+    def spanContext = new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0,
+      null, (TagMap)null, null, null, globalTraceConfig, DATADOG)
     def baseContext = AgentSpan.fromSpanContext(spanContext).storeInto(root())
     def propagator = dataStreams.propagator()
-
 
     when:
     def extractedContext = propagator.extract(baseContext, carrier, contextVisitor)
@@ -614,12 +637,16 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     then:
     extracted != null
+    encoded == "L+lDG/Pa9hRkZA=="
     if (globalDsmEnabled) {
       extracted.pathwayContext != null
       extracted.pathwayContext.isStarted()
     } else {
       extracted.pathwayContext == null
     }
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
 
     where:
     globalDsmEnabled << [true, false]

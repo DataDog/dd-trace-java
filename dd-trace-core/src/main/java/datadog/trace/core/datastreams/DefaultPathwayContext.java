@@ -109,19 +109,12 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     // generate node hash
-    long nodeHash = hashOfKnownTags;
-    if (serviceNameOverride != null) {
-      nodeHash = FNV64Hash.continueHash(nodeHash, serviceNameOverride, FNV64Hash.Version.v1);
-    }
-    nodeHash =
-        FNV64Hash.continueHash(
-            nodeHash, DataStreamsTags.longToBytes(context.tags().getHash()), FNV64Hash.Version.v1);
-
+    long nodeHash = context.tags().getHash();
     // loop protection - a node should not be chosen as parent
     // for a sequential node with the same direction, as this
     // will cause a `cardinality explosion` for hash / parentHash tag values
     DataStreamsTags.Direction direction = context.tags().getDirectionValue();
-    if (direction == previousDirection) {
+    if (direction == previousDirection && previousDirection != null) {
       hash = closestOppositeDirectionHash;
     } else {
       previousDirection = direction;
