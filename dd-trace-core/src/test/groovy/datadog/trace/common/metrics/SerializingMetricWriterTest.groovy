@@ -43,11 +43,50 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-        Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0, false), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))),
-        Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200, true), new AggregateMetric().recordDurations(9, new AtomicLongArray(1L)))
+        Pair.of(
+        new MetricKey(
+        "resource1",
+        "service1",
+        "operation1",
+        "type",
+        0,
+        false,
+        false,
+        "client",
+        ["country:canada", "georegion:amer", "peer.service:remote-service"]
+        ),
+        new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
+        ),
+        Pair.of(
+        new MetricKey(
+        "resource2",
+        "service2",
+        "operation2",
+        "type2",
+        200,
+        true,
+        false,
+        "producer",
+        ["country:canada", "georegion:amer", "peer.service:remote-service"]
+        ),
+        new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
+        )
       ],
       (0..10000).collect({ i ->
-        Pair.of(new MetricKey("resource" + i, "service" + i, "operation" + i, "type", 0, false), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L)))
+        Pair.of(
+          new MetricKey(
+          "resource" + i,
+          "service" + i,
+          "operation" + i,
+          "type",
+          0,
+          false,
+          false,
+          "producer",
+          ["messaging.destination" + i]
+          ),
+          new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
+          )
       })
     ]
     withProcessTags << [true, false]
@@ -107,8 +146,8 @@ class SerializingMetricWriterTest extends DDSpecification {
       for (Pair<MetricKey, AggregateMetric> pair : content) {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
-        int size = unpacker.unpackMapHeader()
-        assert size == 12
+        int metricMapSize = unpacker.unpackMapHeader()
+        assert metricMapSize == 15
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -128,6 +167,19 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackString() == "Synthetics"
         assert unpacker.unpackBoolean() == key.isSynthetics()
         ++elementCount
+        assert unpacker.unpackString() == "IsTraceRoot"
+        assert unpacker.unpackBoolean() == key.isTraceRoot()
+        ++elementCount
+        assert unpacker.unpackString() == "SpanKind"
+        assert unpacker.unpackString() == key.getSpanKind() as String
+        ++elementCount
+        assert unpacker.unpackString() == "PeerTags"
+        int peerTagsLength = unpacker.unpackArrayHeader()
+        assert peerTagsLength == key.getPeerTags().length
+        for (int i = 0; i < peerTagsLength; i++) {
+          assert unpacker.unpackString() == key.getPeerTags()[i] as String
+        }
+        ++elementCount
         assert unpacker.unpackString() == "Hits"
         assert unpacker.unpackInt() == value.getHitCount()
         ++elementCount
@@ -146,7 +198,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackString() == "ErrorSummary"
         validateSketch(unpacker)
         ++elementCount
-        assert elementCount == size
+        assert elementCount == metricMapSize
       }
       validated = true
     }
