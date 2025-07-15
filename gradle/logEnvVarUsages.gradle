@@ -1,0 +1,74 @@
+import groovy.json.JsonSlurper
+import java.nio.file.Path
+
+tasks.register('logEnvVarUsages') {
+  description = "Scan Java files for DD_ tokens and fail if unsupported"
+  group = "verification"
+
+  doLast {
+    def repoRoot = projectDir.toPath()
+    def jsonFile = file("$projectDir/components/environment/src/main/resources/supported-configurations.json")
+
+    if (!jsonFile.exists()) {
+      throw new GradleException("supported-configurations.json not found at $jsonFile")
+    }
+
+    def jsonSlurper = new JsonSlurper()
+    def supportedConfigs = jsonSlurper.parse(jsonFile)
+
+    if (!(supportedConfigs instanceof Map) || !supportedConfigs.containsKey("supportedConfigurations")) {
+      throw new GradleException("supported-configurations.json must contain a top-level 'supportedConfigurations' object")
+    }
+
+    // Extract keys under "supportedConfigurations"
+    Set<String> supportedTokenSet = supportedConfigs.supportedConfigurations.keySet()
+
+    def javaFiles = fileTree("$projectDir") {
+      include '**/src/main/java/**/*.java'
+    }
+
+    def unsupportedTokensFound = []
+
+    javaFiles.each { file ->
+      Path relativePath = repoRoot.relativize(file.toPath())
+      def lines = file.readLines()
+      def inBlockComment = false
+      lines.eachWithIndex { line, idx ->
+        def trimmed = line.trim()
+
+        // Skip single-line comments
+        if (trimmed.startsWith("//")) return
+
+          // Track block comment state
+          if (trimmed.contains("/*")) inBlockComment = true
+        if (inBlockComment) {
+          if (trimmed.contains("*/")) inBlockComment = false
+          return
+        }
+
+        def matcher = (line =~ /"DD_.+?"/)
+        matcher.each { matchedToken ->
+          def token = matchedToken[1..-2] // remove quotes
+          if (!supportedTokenSet.contains(token)) {
+            unsupportedTokensFound << "Unsupported token '$token' found in ${relativePath}:${idx + 1}"
+          }
+        }
+      }
+    }
+
+    if (!unsupportedTokensFound.isEmpty()) {
+      unsupportedTokensFound.each { logger.error(it) }
+      throw new GradleException("Unsupported DD_ tokens found! See errors above.")
+    } else {
+      logger.lifecycle("All DD_ tokens are supported.")
+    }
+  }
+}
+
+tasks.named('spotlessCheck') {
+  dependsOn tasks.named('logEnvVarUsages')
+}
+
+tasks.named('spotlessApply') {
+  dependsOn tasks.named('logEnvVarUsages')
+}

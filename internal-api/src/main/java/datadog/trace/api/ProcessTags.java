@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.environment.ConfigHelper;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
@@ -27,7 +28,7 @@ public class ProcessTags {
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
   // visible for testing
-  static Function<String, String> envGetter = System::getenv;
+  static Function<String, String> envGetter = ConfigHelper::getEnvironmentVariable;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.

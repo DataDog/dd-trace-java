@@ -1,5 +1,7 @@
 package datadog.trace.civisibility;
 
+import static datadog.environment.ConfigHelper.getEnvironmentVariables;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -151,10 +153,10 @@ public class CiVisibilityServices {
           new CiEnvironmentImpl(
               getRemoteEnvironment(
                   remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
-      CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
+      CiEnvironment localEnvironment = new CiEnvironmentImpl(getEnvironmentVariables());
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
-      return new CiEnvironmentImpl(System.getenv());
+      return new CiEnvironmentImpl(getEnvironmentVariables());
     }
   }
 
