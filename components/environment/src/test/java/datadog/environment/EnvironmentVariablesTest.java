@@ -23,5 +23,9 @@ class EnvironmentVariablesTest {
     assertNull(EnvironmentVariables.getOrDefault(MISSING_ENV_VAR, null));
 
     assertThrows(NullPointerException.class, () -> EnvironmentVariables.getOrDefault(null, ""));
+
+    assertEquals(42, EnvironmentVariables.getOrDefault(EXISTING_ENV_VAR, 42));
+    assertEquals(42, EnvironmentVariables.getOrDefault(MISSING_ENV_VAR, 42));
+    assertThrows(NullPointerException.class, () -> EnvironmentVariables.getOrDefault(null, 42));
   }
 }

@@ -1,12 +1,15 @@
 package datadog.trace.bootstrap;
 
 import datadog.json.JsonWriter;
+import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Stack;
+import java.util.Map;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
@@ -89,7 +92,7 @@ public abstract class BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
     private final List<String> meta;
-    private final List<String> points;
+    private final Map<String, List<String>> points;
 
     // one way false to true
     private volatile boolean incomplete = false;
@@ -97,7 +100,7 @@ public abstract class BootstrapInitializationTelemetry {
     JsonBased(JsonSender sender) {
       this.sender = sender;
       this.meta = new ArrayList<>();
-      this.points = new ArrayList<>();
+      this.points = new LinkedHashMap<>();
     }
 
     @Override
@@ -116,23 +119,23 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {
-      Stack<String> causes = new Stack<>();
+      List<String> causes = new ArrayList<>();
 
       Throwable cause = t.getCause();
       if (cause != null) {
         while (cause != null) {
-          causes.push(cause.getClass().getName());
+          causes.add("error_type:" + cause.getClass().getName());
           cause = cause.getCause();
         }
       }
-      causes.push(t.getClass().getName());
+      causes.add("error_type:" + t.getClass().getName());
 
-      // Limit the number of causes to avoid overpopulating the JSON payload.
-      int cnt = Math.min(5, causes.size());
-      while (cnt > 0) {
-        onPoint("library_entrypoint.error", "error_type:" + causes.pop());
-        cnt--;
-      }
+      // Limit the number of tags to avoid overpopulating the JSON payload.
+      int maxTags = EnvironmentVariables.getOrDefault("DD_TELEMETRY_FORWARDER_MAX_TAGS", 5);
+      int sz = causes.size();
+      int cnt = Math.min(maxTags, sz);
+
+      onPoint("library_entrypoint.error", causes.subList(sz - cnt, sz));
     }
 
     @Override
@@ -147,9 +150,12 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     private void onPoint(String name, String tag) {
+      onPoint(name, Collections.singletonList(tag));
+    }
+
+    private void onPoint(String name, List<String> tags) {
       synchronized (this.points) {
-        this.points.add(name);
-        this.points.add(tag);
+        this.points.put(name, tags);
       }
     }
 
@@ -173,10 +179,14 @@ public abstract class BootstrapInitializationTelemetry {
 
         writer.name("points").beginArray();
         synchronized (this.points) {
-          for (int i = 0; i + 1 < this.points.size(); i = i + 2) {
+          for (Map.Entry<String, List<String>> entry : points.entrySet()) {
             writer.beginObject();
-            writer.name("name").value(this.points.get(i));
-            writer.name("tags").beginArray().value(this.points.get(i + 1)).endArray();
+            writer.name("name").value(entry.getKey());
+            writer.name("tags").beginArray();
+            for (String tag : entry.getValue()) {
+              writer.value(tag);
+            }
+            writer.endArray();
             writer.endObject();
           }
           this.points.clear();
