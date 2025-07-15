@@ -28,3 +28,8 @@ net.bytebuddy.matcher.ElementMatchers#isAbstract()
 @defaultMessage Avoid using System.out/err to prevent excess logging. To override, add @SuppressForbidden.
 java.lang.System#out
 java.lang.System#err
+
+# avoid using System.getenv() or System.getenv(String) in code outside of ConfigHelper.java
+@defaultMessage Avoid using System.getenv() or System.getenv(String) in code outside of ConfigHelper.java
+java.lang.System#getenv()
+java.lang.System#getenv(java.lang.String)

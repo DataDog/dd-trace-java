@@ -36,7 +36,7 @@ public final class EnvironmentVariables {
       return defaultValue;
     }
     try {
-      String value = System.getenv(name);
+      String value = ConfigHelper.getEnvironmentVariable(name);
       return value == null ? defaultValue : value;
     } catch (SecurityException e) {
       return defaultValue;

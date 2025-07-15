@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -101,7 +102,7 @@ public class AgentPreCheck {
 
     reportIncompatibleJava(javaVersion, javaHome, agentVersion, output);
 
-    String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
+    String forwarderPath = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath != null) {
       sendTelemetry(forwarderPath, javaVersion, agentVersion);
     }
