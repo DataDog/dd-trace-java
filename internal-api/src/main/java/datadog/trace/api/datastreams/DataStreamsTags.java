@@ -17,23 +17,23 @@ public class DataStreamsTags {
   private int nonNullSize;
 
   // hash tags
-  protected String bus;
-  protected String direction;
-  protected Direction directionValue;
-  protected String exchange;
-  protected String topic;
-  protected String type;
-  protected String subscription;
+  protected final String bus;
+  protected final String direction;
+  protected final Direction directionValue;
+  protected final String exchange;
+  protected final String topic;
+  protected final String type;
+  protected final String subscription;
   // additional grouping tags
-  protected String datasetName;
-  protected String datasetNamespace;
-  protected String isManual;
+  protected final String datasetName;
+  protected final String datasetNamespace;
+  protected final String isManual;
   // informational tags
-  protected String group;
-  protected String consumerGroup;
-  protected String hasRoutingKey;
-  protected String kafkaClusterId;
-  protected String partition;
+  protected final String group;
+  protected final String consumerGroup;
+  protected final String hasRoutingKey;
+  protected final String kafkaClusterId;
+  protected final String partition;
 
   public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
@@ -191,6 +191,8 @@ public class DataStreamsTags {
       this.direction = DIRECTION_TAG + ":in";
     } else if (direction == Direction.Outbound) {
       this.direction = DIRECTION_TAG + ":out";
+    } else {
+      this.direction = null;
     }
     this.exchange = exchange != null ? EXCHANGE_TAG + ":" + exchange : null;
     this.topic = topic != null ? TOPIC_TAG + ":" + topic : null;
