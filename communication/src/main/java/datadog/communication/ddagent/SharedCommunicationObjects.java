@@ -159,7 +159,7 @@ public class SharedCommunicationObjects {
               ret.discover(); // safe to run on same thread
             } else {
               // avoid performing blocking I/O operation on application thread
-              AgentTaskScheduler.INSTANCE.execute(ret::discover);
+              AgentTaskScheduler.INSTANCE.execute(ret::discoverIfOutdated);
             }
           }
           featuresDiscovery = ret;
