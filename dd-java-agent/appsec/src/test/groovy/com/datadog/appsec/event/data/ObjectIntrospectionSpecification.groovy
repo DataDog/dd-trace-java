@@ -10,6 +10,9 @@ import spock.lang.Shared
 
 import java.nio.CharBuffer
 
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE
 import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
 class ObjectIntrospectionSpecification extends DDSpecification {
@@ -381,7 +384,7 @@ class ObjectIntrospectionSpecification extends DDSpecification {
 
   void 'jackson string truncation'() {
     setup:
-    final longString = 'A' * (ObjectIntrospection.MAX_STRING_LENGTH + 1)
+    final longString = 'A' * (MAX_STRING_SIZE + 1)
     final jsonInput = '{"long": "' + longString + '"}'
 
     when:
@@ -390,14 +393,14 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     then:
     1 * ctx.setWafTruncated()
     1 * wafMetricCollector.wafInputTruncated(true, false, false)
-    result["long"].length() <= ObjectIntrospection.MAX_STRING_LENGTH
+    result["long"].length() <= MAX_STRING_SIZE
   }
 
   void 'jackson with deep nesting triggers depth limit'() {
     setup:
     // Create deeply nested JSON
     final json = JsonOutput.toJson(
-    (1..(ObjectIntrospection.MAX_DEPTH + 1)).inject([:], { result, i -> [("child_$i".toString()) : result] })
+    (1..(MAX_DEPTH + 1)).inject([:], { result, i -> [("child_$i".toString()) : result] })
     )
 
     when:
@@ -407,13 +410,13 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     // Should truncate at max depth and set truncation flag
     1 * ctx.setWafTruncated()
     1 * wafMetricCollector.wafInputTruncated(false, false, true)
-    countNesting(result as Map, 0) <= ObjectIntrospection.MAX_DEPTH
+    countNesting(result as Map, 0) <= MAX_DEPTH
   }
 
   void 'jackson with large arrays triggers element limit'() {
     setup:
     // Create large array
-    final largeArray = (1..(ObjectIntrospection.MAX_ELEMENTS + 1)).toList()
+    final largeArray = (1..(MAX_ELEMENTS + 1)).toList()
     final json = new JsonBuilder(largeArray).toString()
 
     when:
@@ -423,7 +426,7 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     // Should truncate and set truncation flag
     1 * ctx.setWafTruncated()
     1 * wafMetricCollector.wafInputTruncated(false, true, false)
-    result.size() <= ObjectIntrospection.MAX_ELEMENTS
+    result.size() <= MAX_ELEMENTS
   }
 
   void 'jackson number type variations'() {
