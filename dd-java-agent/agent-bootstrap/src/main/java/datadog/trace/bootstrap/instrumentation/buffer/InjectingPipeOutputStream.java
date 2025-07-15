@@ -146,6 +146,11 @@ public class InjectingPipeOutputStream extends OutputStream {
   }
 
   @Override
+  public void flush() throws IOException {
+    downstream.flush();
+  }
+
+  @Override
   public void close() throws IOException {
     if (!found) {
       drain();

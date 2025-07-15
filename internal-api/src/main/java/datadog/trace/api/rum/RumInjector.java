@@ -74,7 +74,7 @@ public final class RumInjector {
    * @return The HTML snippet chars to inject, {@code null} if RUM injection is disabled.
    */
   @Nullable
-  public char[] getSnippet() {
+  public char[] getSnippetChars() {
     if (!this.enabled) {
       return null;
     }
@@ -87,7 +87,7 @@ public final class RumInjector {
    * @return The HTML snippet to inject, {@code null} if RUM injection is disabled.
    */
   @Nullable
-  public byte[] getSnippet(String encoding) {
+  public byte[] getSnippetBytes(String encoding) {
     if (!this.enabled) {
       return null;
     }
@@ -100,7 +100,7 @@ public final class RumInjector {
    * @return The marker chars, {@code null} if RUM injection is disabled.
    */
   @Nullable
-  public char[] getMarker() {
+  public char[] getMarkerChars() {
     if (!this.enabled) {
       return null;
     }
@@ -114,7 +114,7 @@ public final class RumInjector {
    * @return The marker bytes, {@code null} if RUM injection is disabled.
    */
   @Nullable
-  public byte[] getMarker(String encoding) {
+  public byte[] getMarkerBytes(String encoding) {
     if (!this.enabled) {
       return null;
     }
