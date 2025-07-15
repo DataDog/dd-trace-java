@@ -33,8 +33,8 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       outputStream =
           new WrappedServletOutputStream(
               super.getOutputStream(),
-              rumInjector.getMarker(encoding),
-              rumInjector.getSnippet(encoding),
+              rumInjector.getMarkerBytes(encoding),
+              rumInjector.getSnippetBytes(encoding),
               this::onInjected);
     }
     return outputStream;
@@ -50,7 +50,10 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       printWriter =
           new PrintWriter(
               new InjectingPipeWriter(
-                  delegate, rumInjector.getMarker(), rumInjector.getSnippet(), this::onInjected));
+                  delegate,
+                  rumInjector.getMarkerChars(),
+                  rumInjector.getSnippetChars(),
+                  this::onInjected));
     }
     return printWriter;
   }

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.Writer;
 
 /**
- * An Writer containing a circular buffer with a lookbehind buffer of n bytes. The first time that
+ * A Writer containing a circular buffer with a lookbehind buffer of n bytes. The first time that
  * the latest n bytes matches the marker, a content is injected before.
  */
 public class InjectingPipeWriter extends Writer {
@@ -40,9 +40,9 @@ public class InjectingPipeWriter extends Writer {
   }
 
   @Override
-  public void write(int b) throws IOException {
+  public void write(int c) throws IOException {
     if (found) {
-      downstream.write(b);
+      downstream.write(c);
       return;
     }
 
@@ -50,14 +50,14 @@ public class InjectingPipeWriter extends Writer {
       downstream.write(lookbehind[pos]);
     }
 
-    lookbehind[pos] = (char) b;
+    lookbehind[pos] = (char) c;
     pos = (pos + 1) % lookbehind.length;
 
     if (!bufferFilled) {
       bufferFilled = pos == 0;
     }
 
-    if (marker[matchingPos++] == b) {
+    if (marker[matchingPos++] == c) {
       if (matchingPos == marker.length) {
         found = true;
         downstream.write(contentToInject);
