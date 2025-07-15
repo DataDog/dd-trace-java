@@ -2,8 +2,6 @@ package datadog.trace.api.datastreams;
 
 import datadog.trace.util.FNV64Hash;
 
-import javax.xml.crypto.Data;
-
 public class DataStreamsTags {
   public enum Direction {
     Unknown,
@@ -100,9 +98,9 @@ public class DataStreamsTags {
         null, direction, null, topic, type, null, null, null, true, null, null, null, null, null);
   }
 
-  public static DataStreamsTags createWithBus(String type, Direction direction, String bus) {
+  public static DataStreamsTags createWithBus(Direction direction, String bus) {
     return new DataStreamsTags(
-        bus, direction, null, null, type, null, null, null, null, null, null, null, null, null);
+        bus, direction, null, null, "bus", null, null, null, null, null, null, null, null, null);
   }
 
   public static DataStreamsTags createWithPartition(

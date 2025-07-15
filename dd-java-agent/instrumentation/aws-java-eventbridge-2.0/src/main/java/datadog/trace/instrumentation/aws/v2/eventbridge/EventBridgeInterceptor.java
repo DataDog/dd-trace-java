@@ -86,7 +86,7 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsTags tags =
-          DataStreamsTags.createWithBus("bus", DataStreamsTags.Direction.Outbound, eventBusName);
+          DataStreamsTags.createWithBus(DataStreamsTags.Direction.Outbound, eventBusName);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }

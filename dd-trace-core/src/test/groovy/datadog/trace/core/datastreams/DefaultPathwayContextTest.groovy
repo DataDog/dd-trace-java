@@ -611,7 +611,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     AgentTracer.forceRegister(tracerApi)
 
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { globalTraceConfig },
-      wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     DataStreamsTags.setGlobalBaseHash(baseHash)
     def context = new DefaultPathwayContext(timeSource, baseHash, null)
@@ -666,7 +666,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     }
 
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig },
-      wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     Map<String, String> carrier = ["someotherkey": "someothervalue"]
     def contextVisitor = new Base64MapContextVisitor()
