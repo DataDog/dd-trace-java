@@ -2,6 +2,7 @@ package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
-public class PeerServiceCalculator implements TagsPostProcessor {
+public final class PeerServiceCalculator extends TagsPostProcessor {
   private final NamingSchema.ForPeerService peerServiceNaming;
 
   private final Map<String, String> peerServiceMapping;
@@ -32,25 +33,26 @@ public class PeerServiceCalculator implements TagsPostProcessor {
   }
 
   @Override
-  public Map<String, Object> processTags(
-      Map<String, Object> unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    Object peerService = unsafeTags.get(Tags.PEER_SERVICE);
+  public void processTags(
+      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+    Object peerService = unsafeTags.getObject(Tags.PEER_SERVICE);
     // the user set it
     if (peerService != null) {
       if (canRemap) {
-        return remapPeerService(unsafeTags, peerService);
+        remapPeerService(unsafeTags, peerService);
+        return;
       }
     } else if (peerServiceNaming.supports()) {
       // calculate the defaults (if any)
       peerServiceNaming.tags(unsafeTags);
       // only remap if the mapping is not empty (saves one get)
-      return remapPeerService(unsafeTags, canRemap ? unsafeTags.get(Tags.PEER_SERVICE) : null);
+      remapPeerService(unsafeTags, canRemap ? unsafeTags.getObject(Tags.PEER_SERVICE) : null);
+      return;
     }
     // we have no peer.service and we do not compute defaults. Leave the map untouched
-    return unsafeTags;
   }
 
-  private Map<String, Object> remapPeerService(Map<String, Object> unsafeTags, Object value) {
+  private void remapPeerService(TagMap unsafeTags, Object value) {
     if (value != null) {
       String mapped = peerServiceMapping.get(value);
       if (mapped != null) {
@@ -58,6 +60,5 @@ public class PeerServiceCalculator implements TagsPostProcessor {
         unsafeTags.put(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
       }
     }
-    return unsafeTags;
   }
 }
