@@ -27,6 +27,8 @@ class FootprintForkedTest extends DDSpecification {
     ValidatingSink sink = new ValidatingSink(latch)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
+    features.spanKindsToComputedStats() >> []
+    features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,

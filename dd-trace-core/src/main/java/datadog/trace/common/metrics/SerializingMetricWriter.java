@@ -31,6 +31,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] OK_SUMMARY = "OkSummary".getBytes(ISO_8859_1);
   private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+  private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
+  private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
+  private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
@@ -93,8 +96,7 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-
-    writer.startMap(12);
+    writer.startMap(15);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -113,6 +115,19 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     writer.writeUTF8(SYNTHETICS);
     writer.writeBoolean(key.isSynthetics());
+
+    writer.writeUTF8(IS_TRACE_ROOT);
+    writer.writeBoolean(key.isTraceRoot());
+
+    writer.writeUTF8(SPAN_KIND);
+    writer.writeUTF8(key.getSpanKind());
+
+    writer.writeUTF8(PEER_TAGS);
+    UTF8BytesString[] peerTags = key.getPeerTags();
+    writer.startArray(peerTags.length);
+    for (UTF8BytesString peerTag : peerTags) {
+      writer.writeUTF8(peerTag);
+    }
 
     writer.writeUTF8(HITS);
     writer.writeInt(aggregate.getHitCount());
