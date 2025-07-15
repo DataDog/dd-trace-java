@@ -75,8 +75,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final ConfigurationPoller configurationPoller;
   private WafBuilder wafBuilder;
 
-  private MergedAsmFeatures mergedAsmFeatures;
-  private volatile boolean initialized;
+  private final MergedAsmFeatures mergedAsmFeatures = new MergedAsmFeatures();
 
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
@@ -173,9 +172,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
-      if (!initialized) {
-        throw new IllegalStateException();
-      }
+      maybeInitializeDefaultConfig();
 
       if (content == null) {
         try {
@@ -219,8 +216,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         }
         defaultConfigActivated = false;
       }
-      super.accept(configKey, content, pollingRateHinter);
       usedDDWafConfigKeys.add(configKey.toString());
+      super.accept(configKey, content, pollingRateHinter);
     }
 
     @Override
@@ -282,13 +279,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         Product.ASM_FEATURES,
         AppSecFeaturesDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
-          if (!hasUserWafConfig && !defaultConfigActivated) {
-            // features activated in runtime
-            init();
-          }
-          if (!initialized) {
-            throw new IllegalStateException();
-          }
+          maybeInitializeDefaultConfig();
           if (newConfig == null) {
             mergedAsmFeatures.removeConfig(configKey);
           } else {
@@ -305,10 +296,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private void distributeSubConfigurations(
       String key, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
-    if (usedDDWafConfigKeys.isEmpty() && !defaultConfigActivated && !hasUserWafConfig) {
-      // no config left in the WAF builder, add the default config
-      init();
-    }
+    maybeInitializeDefaultConfig();
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
       SubconfigListener listener = entry.getValue();
       try {
@@ -317,6 +305,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       } catch (Exception rte) {
         log.warn("Error updating configuration of app sec module listening on key {}", key, rte);
       }
+    }
+  }
+
+  private void maybeInitializeDefaultConfig() {
+    if (usedDDWafConfigKeys.isEmpty() && !hasUserWafConfig && !defaultConfigActivated) {
+      // no config left in the WAF builder, add the default config
+      init();
     }
   }
 
@@ -341,8 +336,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       hasUserWafConfig = true;
     }
-    this.mergedAsmFeatures = new MergedAsmFeatures();
-    this.initialized = true;
+    this.mergedAsmFeatures.clear();
+    this.usedDDWafConfigKeys.clear();
 
     if (wafConfig.isEmpty()) {
       throw new IllegalStateException("Expected default waf config to be available");

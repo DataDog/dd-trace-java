@@ -744,9 +744,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
+    DDAgentFeaturesDiscovery featuresDiscovery =
+        sharedCommunicationObjects.featuresDiscovery(config);
+
+    if (config.isCiVisibilityEnabled()) {
+      // ensure updated discovery and sync if the another discovery currently being done
+      featuresDiscovery.discoverIfOutdated();
+    }
+
     if (config.isCiVisibilityEnabled()
-        && (config.isCiVisibilityAgentlessEnabled()
-            || sharedCommunicationObjects.featuresDiscovery(config).supportsEvpProxy())) {
+        && (config.isCiVisibilityAgentlessEnabled() || featuresDiscovery.supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, healthMetrics);
@@ -804,8 +811,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (config.isCiVisibilityAgentlessEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {
-        DDAgentFeaturesDiscovery featuresDiscovery =
-            sharedCommunicationObjects.featuresDiscovery(config);
+        featuresDiscovery.discoverIfOutdated();
         if (!featuresDiscovery.supportsEvpProxy()) {
           // CI Test Cycle protocol is not available
           addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);

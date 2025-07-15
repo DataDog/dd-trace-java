@@ -69,9 +69,9 @@ import org.slf4j.LoggerFactory;
 public class WAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(WAFModule.class);
 
-  private static final int MAX_DEPTH = 10;
-  private static final int MAX_ELEMENTS = 150;
-  private static final int MAX_STRING_SIZE = 4096;
+  public static final int MAX_DEPTH = 20;
+  public static final int MAX_ELEMENTS = 256;
+  public static final int MAX_STRING_SIZE = 4096;
   private static volatile Waf.Limits LIMITS;
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(WAFModule.class.getClassLoader(), Set.class);

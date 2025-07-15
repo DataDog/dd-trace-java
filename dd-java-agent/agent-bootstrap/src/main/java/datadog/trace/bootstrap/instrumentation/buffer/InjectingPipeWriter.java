@@ -1,38 +1,38 @@
 package datadog.trace.bootstrap.instrumentation.buffer;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.Writer;
 
 /**
- * An OutputStream containing a circular buffer with a lookbehind buffer of n bytes. The first time
- * that the latest n bytes matches the marker, a content is injected before.
+ * A Writer containing a circular buffer with a lookbehind buffer of n bytes. The first time that
+ * the latest n bytes matches the marker, a content is injected before.
  */
-public class InjectingPipeOutputStream extends OutputStream {
-  private final byte[] lookbehind;
+public class InjectingPipeWriter extends Writer {
+  private final char[] lookbehind;
   private int pos;
   private boolean bufferFilled;
-  private final byte[] marker;
-  private final byte[] contentToInject;
+  private final char[] marker;
+  private final char[] contentToInject;
   private boolean found = false;
   private int matchingPos = 0;
   private final Runnable onContentInjected;
   private final int bulkWriteThreshold;
-  private final OutputStream downstream;
+  private final Writer downstream;
 
   /**
-   * @param downstream the delegate output stream
-   * @param marker the marker to find in the stream. Must at least be one byte.
+   * @param downstream the delegate writer
+   * @param marker the marker to find in the stream. Must at least be one char.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
    */
-  public InjectingPipeOutputStream(
-      final OutputStream downstream,
-      final byte[] marker,
-      final byte[] contentToInject,
+  public InjectingPipeWriter(
+      final Writer downstream,
+      final char[] marker,
+      final char[] contentToInject,
       final Runnable onContentInjected) {
     this.downstream = downstream;
     this.marker = marker;
-    this.lookbehind = new byte[marker.length];
+    this.lookbehind = new char[marker.length];
     this.pos = 0;
     this.contentToInject = contentToInject;
     this.onContentInjected = onContentInjected;
@@ -40,9 +40,9 @@ public class InjectingPipeOutputStream extends OutputStream {
   }
 
   @Override
-  public void write(int b) throws IOException {
+  public void write(int c) throws IOException {
     if (found) {
-      downstream.write(b);
+      downstream.write(c);
       return;
     }
 
@@ -50,14 +50,14 @@ public class InjectingPipeOutputStream extends OutputStream {
       downstream.write(lookbehind[pos]);
     }
 
-    lookbehind[pos] = (byte) b;
+    lookbehind[pos] = (char) c;
     pos = (pos + 1) % lookbehind.length;
 
     if (!bufferFilled) {
       bufferFilled = pos == 0;
     }
 
-    if (marker[matchingPos++] == b) {
+    if (marker[matchingPos++] == c) {
       if (matchingPos == marker.length) {
         found = true;
         downstream.write(contentToInject);
@@ -72,7 +72,12 @@ public class InjectingPipeOutputStream extends OutputStream {
   }
 
   @Override
-  public void write(byte[] array, int off, int len) throws IOException {
+  public void flush() throws IOException {
+    downstream.flush();
+  }
+
+  @Override
+  public void write(char[] array, int off, int len) throws IOException {
     if (found) {
       downstream.write(array, off, len);
       return;
@@ -112,7 +117,7 @@ public class InjectingPipeOutputStream extends OutputStream {
     }
   }
 
-  private int arrayContains(byte[] array, int off, int len, byte[] search) {
+  private int arrayContains(char[] array, int off, int len, char[] search) {
     for (int i = off; i < len - search.length; i++) {
       if (array[i] == search[0]) {
         boolean found = true;
@@ -143,11 +148,6 @@ public class InjectingPipeOutputStream extends OutputStream {
     pos = 0;
     matchingPos = 0;
     bufferFilled = false;
-  }
-
-  @Override
-  public void flush() throws IOException {
-    downstream.flush();
   }
 
   @Override
