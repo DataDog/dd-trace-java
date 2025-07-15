@@ -3,6 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Arrays;
+import java.util.List;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
@@ -13,6 +15,9 @@ public final class MetricKey {
   private final int httpStatusCode;
   private final boolean synthetics;
   private final int hash;
+  private final boolean isTraceRoot;
+  private final UTF8BytesString spanKind;
+  private final UTF8BytesString[] peerTags;
 
   public MetricKey(
       CharSequence resource,
@@ -20,18 +25,35 @@ public final class MetricKey {
       CharSequence operationName,
       CharSequence type,
       int httpStatusCode,
-      boolean synthetics) {
+      boolean synthetics,
+      boolean isTraceRoot,
+      CharSequence spanKind,
+      List<CharSequence> peerTags) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
     this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
     this.synthetics = synthetics;
-    // unrolled polynomial hashcode which avoids allocating varargs
-    // the constants are 31^5, 31^4, 31^3, 31^2, 31^1, 31^0
+    this.isTraceRoot = isTraceRoot;
+    this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
+    this.peerTags = new UTF8BytesString[peerTags.size()];
+    for (int i = 0; i < peerTags.size(); i++) {
+      this.peerTags[i] = UTF8BytesString.create(peerTags.get(i));
+    }
+
+    // Unrolled polynomial hashcode to avoid varargs allocation
+    // and eliminate data dependency between iterations as in Arrays.hashCode.
+    // Coefficient constants are powers of 31, with integer overflow (hence negative numbers).
+    // See
+    // https://richardstartin.github.io/posts/collecting-rocks-and-benchmarks
+    // https://richardstartin.github.io/posts/still-true-in-java-9-handwritten-hash-codes-are-faster
     this.hash =
-        28629151 * this.resource.hashCode()
-            + 923521 * this.service.hashCode()
+        -196513505 * Boolean.hashCode(this.isTraceRoot)
+            + -1807454463 * this.spanKind.hashCode()
+            + 887_503_681 * Arrays.hashCode(this.peerTags)
+            + 28_629_151 * this.resource.hashCode()
+            + 923_521 * this.service.hashCode()
             + 29791 * this.operationName.hashCode()
             + 961 * this.type.hashCode()
             + 31 * httpStatusCode
@@ -62,6 +84,18 @@ public final class MetricKey {
     return synthetics;
   }
 
+  public boolean isTraceRoot() {
+    return isTraceRoot;
+  }
+
+  public UTF8BytesString getSpanKind() {
+    return spanKind;
+  }
+
+  public UTF8BytesString[] getPeerTags() {
+    return peerTags;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -75,7 +109,10 @@ public final class MetricKey {
           && resource.equals(metricKey.resource)
           && service.equals(metricKey.service)
           && operationName.equals(metricKey.operationName)
-          && type.equals(metricKey.type);
+          && type.equals(metricKey.type)
+          && isTraceRoot == metricKey.isTraceRoot
+          && spanKind.equals(metricKey.spanKind)
+          && Arrays.equals(peerTags, metricKey.peerTags);
     }
     return false;
   }
