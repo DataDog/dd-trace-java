@@ -53,3 +53,13 @@ idea {
     jdkName = '11'
   }
 }
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
+      jvmArgs += [
+        '--add-opens',
+        'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
+    }
+  }
+}

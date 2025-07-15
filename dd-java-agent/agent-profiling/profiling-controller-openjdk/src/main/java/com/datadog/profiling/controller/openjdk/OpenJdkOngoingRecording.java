@@ -60,10 +60,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     recording.start();
     log.debug("Recording {} started", recordingName);
     this.configMemento =
-        new JfrProfilerSettings(
-            configProvider,
-            context.getDatadogProfilerUnavailableReason(),
-            jfrStackDepthSettingApplied);
+        new JfrProfilerSettings(configProvider, context, jfrStackDepthSettingApplied);
   }
 
   OpenJdkOngoingRecording(
@@ -77,10 +74,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     recording.start();
     log.debug("Recording {} started", recording.getName());
     this.configMemento =
-        new JfrProfilerSettings(
-            ConfigProvider.getInstance(),
-            context.getDatadogProfilerUnavailableReason(),
-            jfrStackDepthSettingApplied);
+        new JfrProfilerSettings(ConfigProvider.getInstance(), context, jfrStackDepthSettingApplied);
   }
 
   private void disableOverriddenEvents(ControllerContext.Snapshot context) {
