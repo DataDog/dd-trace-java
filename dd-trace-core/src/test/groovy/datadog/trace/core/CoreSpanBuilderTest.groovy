@@ -4,11 +4,13 @@ import static datadog.trace.api.DDTags.DJM_ENABLED
 import static datadog.trace.api.DDTags.DSM_ENABLED
 import static datadog.trace.api.DDTags.PROFILING_ENABLED
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
@@ -489,6 +491,31 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span3.finish()
     span2.finish()
     span1.finish()
+  }
+
+  def "buildSpan should add baggage tags with different configurations"() {
+    setup:
+    injectSysConfig(TRACE_BAGGAGE_TAG_KEYS, baggageTagKeysConfig)
+    def baggage = ["user.id": "alice", "session.id": "123", "region": "us-west-1", "env": "production"]
+    def tagContext = new TagContext(null, null, null, baggage, PrioritySampling.UNSET, null, DATADOG, DDTraceId.ZERO)
+
+    when:
+    def span = tracer.buildSpan("test", "test-op")
+      .asChildOf(tagContext)
+      .start()
+
+    then:
+    // Filter span tags to only check baggage tags (those starting with "baggage.")
+    def actualBaggageTags = span.tags.findAll { key, value -> key.startsWith("baggage.") }
+    actualBaggageTags == expectedBaggageTags
+
+    cleanup:
+    span.finish()
+
+    where:
+    baggageTagKeysConfig | expectedBaggageTags
+    "user.id"            | ["baggage.user.id": "alice"]
+    "user.id,session.id" | ["baggage.user.id": "alice", "baggage.session.id": "123"]
   }
 
   def productTags() {

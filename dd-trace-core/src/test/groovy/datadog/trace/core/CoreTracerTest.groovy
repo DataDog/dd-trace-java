@@ -38,6 +38,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 @Timeout(10)
@@ -640,11 +641,31 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env"  | "service_2"   | "env_2"
   }
 
-  def "test mapBaggageTags"() {
+  def "test mapBaggageTags default"() {
     when:
-    def tags = CoreTracer.mapBaggageTags(["user.id": "doggo", "foo": "bar"])
+    def tags = CoreTracer.mapBaggageTags(["user.id": "doggo", "account.id": "test", "session.id":"1234", "region":"us-east-1"])
     then:
-    tags == ["baggage.user.id": "doggo"]
+    tags == ["baggage.user.id": "doggo", "baggage.account.id": "test", "baggage.session.id": "1234"]
+  }
+
+  def "test mapBaggageTags with different configurations"() {
+    setup:
+    injectSysConfig(TRACE_BAGGAGE_TAG_KEYS, baggageTagKeysConfig)
+
+    when:
+    def tags = CoreTracer.mapBaggageTags(["user.id": "doggo", "foo": "bar", "language":"en"])
+
+    then:
+    tags == expectedTags
+
+    where:
+    baggageTagKeysConfig | expectedTags
+    "*"                  | ["baggage.user.id": "doggo", "baggage.foo": "bar", "baggage.language": "en"]
+    " "                  | [:]
+    "system.id"          | [:]
+    "user.id"            | ["baggage.user.id": "doggo"]
+    "foo"                | ["baggage.foo": "bar"]
+    "user.id,foo"        | ["baggage.user.id": "doggo", "baggage.foo": "bar"]
   }
 }
 
