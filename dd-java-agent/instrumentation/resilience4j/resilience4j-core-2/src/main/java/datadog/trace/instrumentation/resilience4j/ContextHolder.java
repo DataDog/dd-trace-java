@@ -89,14 +89,15 @@ public abstract class ContextHolder<T> {
     if (current == null) {
       current = ActiveResilience4jSpan.start();
       this.span = current;
-      //      spanDecorator.afterStart(current);
+      spanDecorator.afterStart(current);
     }
-    //    spanDecorator.decorate(span, data);
+    spanDecorator.decorate(current, data);
     return AgentTracer.activateSpan(current);
   }
 
   protected void finishSpanIfNeeded() {
     if (span != null) {
+      spanDecorator.beforeFinish(span);
       ActiveResilience4jSpan.finish(span);
       span = null;
     }

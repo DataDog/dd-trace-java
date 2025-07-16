@@ -18,6 +18,7 @@ public class ReactorHelper {
       return result;
     }
     AgentSpan span = ActiveResilience4jSpan.start();
+    spanDecorator.afterStart(span);
     spanDecorator.decorate(span, data);
     // pass span to the reactor instrumentation to be activated in the downstream
     return result
@@ -25,7 +26,8 @@ public class ReactorHelper {
         .doFinally(
             signalType -> {
               // TODO handle error? doOnError?
-              span.finish();
+              spanDecorator.beforeFinish(span);
+              ActiveResilience4jSpan.finish(span);
             });
   }
 }
