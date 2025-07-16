@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
-import org.apache.commons.io.IOUtils
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
   static class GlitchedOutputStream extends FilterOutputStream {
@@ -67,7 +66,11 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
         }
       }
     } finally {
-      IOUtils.closeQuietly(piped) // it can throw when draining at close
+      // it can throw when draining at close
+      try {
+        piped.close()
+      } catch (IOException ignored) {
+      }
     }
     then:
     assert baos.toByteArray() == expected.getBytes("UTF-8")
