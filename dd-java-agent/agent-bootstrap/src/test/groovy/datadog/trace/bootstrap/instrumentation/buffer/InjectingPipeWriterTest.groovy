@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
-import org.apache.commons.io.IOUtils
 
 class InjectingPipeWriterTest extends DDSpecification {
   static class GlitchedWriter extends FilterWriter {
@@ -83,7 +82,11 @@ class InjectingPipeWriterTest extends DDSpecification {
         }
       }
     } finally {
-      IOUtils.closeQuietly(piped) // it can throw when draining at close
+      // it can throw when draining at close
+      try {
+        piped.close()
+      } catch (IOException ignored) {
+      }
     }
     then:
     assert writer.toString() == expected
