@@ -13,7 +13,6 @@ import datadog.trace.common.metrics.Sink
 import datadog.trace.core.test.DDCoreSpecification
 import spock.util.concurrent.PollingConditions
 
-import javax.xml.crypto.Data
 import java.util.concurrent.TimeUnit
 import java.util.function.BiConsumer
 

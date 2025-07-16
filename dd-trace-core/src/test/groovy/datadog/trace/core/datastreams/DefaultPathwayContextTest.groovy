@@ -7,7 +7,6 @@ import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.time.ControllableTimeSource
@@ -15,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.Sink
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 
