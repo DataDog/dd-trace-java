@@ -264,7 +264,7 @@ public class DataStreamsTags {
 
   public int size() {
     // make sure it's in sync with tagByIndex logic
-    return 13;
+    return 14;
   }
 
   public String tagByIndex(int index) {
