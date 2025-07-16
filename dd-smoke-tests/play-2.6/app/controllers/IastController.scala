@@ -4,6 +4,7 @@ import play.api.mvc._
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.net.{HttpURLConnection, URL}
 
 class IastController extends Controller {
 
@@ -45,4 +46,22 @@ class IastController extends Controller {
       case e: Exception => InternalServerError(e.getMessage)
     }
   }
+
+  def sourceParameterGet = Action { request =>
+    val table = request.queryString.get("table").map(_.head).getOrElse("")
+    try {
+      val url  = new URL(table)
+      val conn = url.openConnection().asInstanceOf[HttpURLConnection]
+      conn.disconnect()
+    } catch {
+      case _: Exception => // ignorar
+    }
+    Ok(s"Request Parameters => source: $table")
+  }
+
+  def sourceParameterPost = Action { request =>
+    val table = request.body.asFormUrlEncoded.flatMap(_.get("table")).map(_.head).getOrElse("")
+    Ok(s"Request Parameters => source: $table")
+  }
+
 }

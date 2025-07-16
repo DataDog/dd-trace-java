@@ -15,3 +15,7 @@ POST    /api_security/response              controllers.AppSecController.apiResp
 GET  /iast/multiple_vulns/:id  controllers.IastController.multipleVulns(id: String)
 POST    /iast/multiple_vulns/:id    controllers.IastController.postMultipleVulns(id: String)
 GET     /iast/multiple_vulns-2/:id  controllers.IastController.multipleVulns2(id: String)
+
+# IAST Source endpoints
+GET     /iast/source/parameter/test                 controllers.IastController.sourceParameterGet
+POST    /iast/source/parameter/test                 controllers.IastController.sourceParameterPost

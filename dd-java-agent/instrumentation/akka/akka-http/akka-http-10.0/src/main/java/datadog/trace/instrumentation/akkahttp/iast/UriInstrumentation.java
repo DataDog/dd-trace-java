@@ -101,7 +101,7 @@ public class UriInstrumentation extends InstrumenterModule.Iast
 
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
 
-      if (!prop.isTainted(ctx, uri)) {
+      if (prop.isTainted(ctx, uri)) {
         return;
       }
 

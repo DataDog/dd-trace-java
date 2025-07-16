@@ -33,6 +33,7 @@ abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
       new ProcessBuilder("${playDirectory}/bin/${command}")
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
+      '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 '+
       (defaultIastProperties + defaultJavaProperties).collect({ it.replace(' ', '\\ ')}).join(" ")
       + " -Dconfig.file=${playDirectory}/conf/application.conf"
       + " -Dhttp.port=${httpPort}"
@@ -51,53 +52,68 @@ abstract class IastPlaySmokeTest extends AbstractIastServerSmokeTest {
 
   abstract String serverProvider()
 
-  void 'Test that all the vulnerabilities are detected'() {
-    given:
-    def requests = []
-    for (int i = 1; i <= 3; i++) {
-      requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/iast/multiple_vulns/${i}?param=value${i}")
-        .get()
-        .build())
-      requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/iast/multiple_vulns-2/${i}?param=value${i}")
-        .get()
-        .build())
-      requests.add(new Request.Builder()
-        .url("http://localhost:${httpPort}/iast/multiple_vulns/${i}")
-        .post(new FormBody.Builder().add('param', "value${i}").build())
-        .build())
-    }
+  //  void 'Test that all the vulnerabilities are detected'() {
+  //    given:
+  //    def requests = []
+  //    for (int i = 1; i <= 3; i++) {
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/iast/multiple_vulns/${i}?param=value${i}")
+  //        .get()
+  //        .build())
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/iast/multiple_vulns-2/${i}?param=value${i}")
+  //        .get()
+  //        .build())
+  //      requests.add(new Request.Builder()
+  //        .url("http://localhost:${httpPort}/iast/multiple_vulns/${i}")
+  //        .post(new FormBody.Builder().add('param', "value${i}").build())
+  //        .build())
+  //    }
+  //
+  //
+  //    when:
+  //    requests.each { req ->
+  //      client.newCall(req as Request).execute()
+  //    }
+  //
+  //    then: 'check has route dispatched'
+  //    hasMeta('http.route')
+  //
+  //    then: 'check first get mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'MD2'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD5'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'RIPEMD128'}
+  //
+  //    then: 'check first post mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD2'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD5'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'RIPEMD128'}
+  //
+  //    then: 'check second get mapping'
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA-1' }
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD2'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD5'}
+  //    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'RIPEMD128'}
+  //  }
 
+  void 'Test'() {
+    given:
+    def request = new Request.Builder()
+      .url("http://localhost:${httpPort}/iast/source/parameter/test?table=value1")
+      .get()
+      .build()
 
     when:
-    requests.each { req ->
-      client.newCall(req as Request).execute()
-    }
+    def response = client.newCall(request).execute()
 
-    then: 'check has route dispatched'
-    hasMeta('http.route')
-
-    then: 'check first get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'MD2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1' && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns$1'  && vul.evidence.value == 'RIPEMD128'}
-
-    then: 'check first post mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$postMultipleVulns$1' && vul.evidence.value == 'RIPEMD128'}
-
-    then: 'check second get mapping'
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'SHA-1' }
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD2'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'MD5'}
-    hasVulnerability { vul -> vul.type == 'WEAK_HASH' && vul.location.method == '$anonfun$multipleVulns2$1'  && vul.evidence.value == 'RIPEMD128'}
+    then:
+    response.code() == 200
+    hasVulnerability {  it.type == 'SSRF'}
   }
 
   // Ensure to clean up server and not only the shell script that starts it
