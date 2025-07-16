@@ -9,6 +9,7 @@ import com.datadog.debugger.exception.ExceptionProbeManager.ThrowableState;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,19 +40,20 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ClassNameFilter classNameFiltering;
   private final CircuitBreaker circuitBreaker;
   private final int maxCapturedFrames;
+  private final boolean applyConfigAsync;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
-      Duration captureInterval,
-      int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      Config config) {
     this(
-        new ExceptionProbeManager(classNameFiltering, captureInterval),
+        new ExceptionProbeManager(
+            classNameFiltering, Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
         classNameFiltering,
-        maxExceptionPerSecond,
-        maxCapturedFrames);
+        config.getDebuggerMaxExceptionPerSecond(),
+        config.getDebuggerExceptionMaxCapturedFrames(),
+        config.isDebuggerExceptionAsyncConfig());
   }
 
   DefaultExceptionDebugger(
@@ -59,12 +61,14 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       ConfigurationUpdater configurationUpdater,
       ClassNameFilter classNameFiltering,
       int maxExceptionPerSecond,
-      int maxCapturedFrames) {
+      int maxCapturedFrames,
+      boolean applyConfigAsync) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
     this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
     this.maxCapturedFrames = maxCapturedFrames;
+    this.applyConfigAsync = applyConfigAsync;
   }
 
   @Override
@@ -108,7 +112,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          if (applyConfigAsync) {
+            AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+          } else {
+            applyExceptionConfiguration(fingerprint);
+          }
           break;
         } else {
           if (LOGGER.isDebugEnabled()) {
