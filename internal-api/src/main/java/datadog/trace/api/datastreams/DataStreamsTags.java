@@ -314,7 +314,7 @@ public class DataStreamsTags {
     return this.type;
   }
 
-  public String isManual() {
+  public String getIsManual() {
     return this.isManual;
   }
 
@@ -344,6 +344,10 @@ public class DataStreamsTags {
 
   public String getGroup() {
     return this.group;
+  }
+
+  public String getConsumerGroup() {
+    return this.consumerGroup;
   }
 
   public String getPartition() {
