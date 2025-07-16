@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 /** Special lightweight pre-main class that skips installation on incompatible JVMs. */
 public class AgentPreCheck {
   public static final int MIN_JAVA_VERSION = 8;
+
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
@@ -62,7 +63,9 @@ public class AgentPreCheck {
             + "\"tags\":[\"reason:incompatible_runtime\"]"
             + "\"result:error\","
             + "\"result_class:incompatible_runtime\","
-            + "\"result_reason:java version" + MIN_JAVA_VERSION + "+ required\""
+            + "\"result_reason:java version"
+            + MIN_JAVA_VERSION
+            + "+ required\""
             + "]"
             + "}]"
             + "}";
