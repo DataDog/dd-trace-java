@@ -354,7 +354,9 @@ public class Agent {
     // We need to run the crashtracking initialization after all the config has been resolved and
     // task scheduler initialized
     if (crashTrackingEnabled) {
+      StaticEventLogger.begin("crashtracking");
       startCrashTracking();
+      StaticEventLogger.end("crashtracking");
     }
     startDatadogAgent(initTelemetry, inst);
 
