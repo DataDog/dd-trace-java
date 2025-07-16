@@ -804,6 +804,7 @@ get_github_token:
   stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:v68058725-73f34e7-2025.06-1
   tags: [ "arch:amd64" ]
+  needs: []  # DEBUG: No dependencies - can run immediately
   
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -814,7 +815,7 @@ get_github_token:
       when: never
     # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
     #   when: on_success
-    - when: manual
+    - when: manual # DEBUG: Allow manual trigger
       allow_failure: true
 
   script:
@@ -839,7 +840,7 @@ deploy_artifacts_to_github:
       when: never
     # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
     #   when: on_success
-    - when: manual
+    - when: manual # DEBUG: Allow manual trigger
       allow_failure: true
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
