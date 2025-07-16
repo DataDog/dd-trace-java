@@ -812,6 +812,14 @@ public class Agent {
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
         try {
+          /*
+          When getJmxStartDelay() is set to 0 we will attempt to initialize the JMX subsystem as soon as available.
+          But, this can cause issues with JFR as it needs some 'grace period' after JMX is ready. That's why we are
+          re-scheduling the profiler initialization code just a tad later.
+
+          If the jmx start delay is set, we are already delayed relative to the jmx init so we can just plainly
+          run the initialization code.
+          */
           if (getJmxStartDelay() == 0) {
             log.debug("Waiting for profiler initialization");
             AgentTaskScheduler.INSTANCE.scheduleWithJitter(
