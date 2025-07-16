@@ -6,9 +6,11 @@ class InjectingPipeWriterTest extends DDSpecification {
   static class GlitchedWriter extends FilterWriter {
     int glitchesPos
     int count
+    final Writer out
 
     GlitchedWriter(Writer out, int glitchesPos) {
       super(out)
+      this.out = out
       this.glitchesPos = glitchesPos
     }
 
