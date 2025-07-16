@@ -1,12 +1,12 @@
 issuer: https://gitlab.ddbuild.io
 
-subject: repo:DataDog/dd-trace-java:ref:refs/heads/*
+# DEBUG: ref should be "master"
+subject: "project_path:DataDog/apm-reliability/dd-trace-java:ref_type:branch:ref:sarahchen6/use-octo-sts"
 
 claim_pattern:
-  project_path: "DataDog/dd-trace-java"
+  project_path: "DataDog/apm-reliability/dd-trace-java"
+  ref_type: "branch"
   # ref: "master"
-  # ref_type: "branch"
-  # ref_path: "refs/heads/master"
 
 permissions:
   contents: "read,write"
