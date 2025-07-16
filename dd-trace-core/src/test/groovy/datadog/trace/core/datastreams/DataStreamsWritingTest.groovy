@@ -84,7 +84,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.start()
     dataStreams.setThreadServiceName(serviceNameOverride)
     dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, serviceNameOverride))
-    dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1"), 130)
+    dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     // force flush
     dataStreams.report()
@@ -105,11 +105,6 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     assert unpacker.unpackString() == "Service"
     assert unpacker.unpackString() == serviceNameOverride
   }
-
-  def getTags(String type, String topic, String partition, String group) {
-    return DataStreamsTags.createWithPartition(type, topic, partition, null, group)
-  }
-
 
   def "Write bucket to mock server with process tags enabled #processTagsEnabled"() {
     setup:
@@ -147,14 +142,14 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
     dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
-    dataStreams.add(new StatsPoint(getTags("testType", "testTopic", null, null), 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
-    dataStreams.trackBacklog(getTags("kafka_produce", "testTopic", "1", null), 100)
-    dataStreams.trackBacklog(getTags("kafka_produce", "testTopic", "1", null), 130)
+    dataStreams.add(new StatsPoint(DataStreamsTags.create("testType", DataStreamsTags.Direction.Inbound, "testTopic", "testGroup", null), 1, 2, 5, timeSource.currentTimeNanos, 0, 0, 0, null))
+    dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 100)
+    dataStreams.trackBacklog(DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
-    dataStreams.add(new StatsPoint(getTags("testType", "testTopic", null, "testGroup"), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10, null))
+    dataStreams.add(new StatsPoint(DataStreamsTags.create("testType", DataStreamsTags.Direction.Inbound, "testTopic", "testGroup", null), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(10), SECONDS.toNanos(10), 10, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.add(new StatsPoint(getTags("testType", "testTopic", null, "testGroup"), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
-    dataStreams.add(new StatsPoint(getTags("testType", "testTopic2", null, "testGroup"), 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
+    dataStreams.add(new StatsPoint(DataStreamsTags.create("testType", DataStreamsTags.Direction.Inbound, "testTopic", "testGroup", null), 1, 2, 5, timeSource.currentTimeNanos, SECONDS.toNanos(5), SECONDS.toNanos(5), 5, null))
+    dataStreams.add(new StatsPoint(DataStreamsTags.create("testType", DataStreamsTags.Direction.Inbound, "testTopic2", "testGroup", null), 3, 4, 6, timeSource.currentTimeNanos, SECONDS.toNanos(2), 0, 2, null))
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.close()
 
@@ -231,7 +226,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 2
         assert unpacker.unpackString() == "EdgeTags"
-        assert unpacker.unpackArrayHeader() == 3
+        assert unpacker.unpackArrayHeader() == 4
+        assert unpacker.unpackString() == "direction:in"
         assert unpacker.unpackString() == "topic:testTopic"
         assert unpacker.unpackString() == "type:testType"
         assert unpacker.unpackString() == "group:testGroup"
@@ -274,7 +270,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert unpacker.unpackString() == "ParentHash"
       assert unpacker.unpackLong() == (hash == 1 ? 2 : 4)
       assert unpacker.unpackString() == "EdgeTags"
-      assert unpacker.unpackArrayHeader() == 3
+      assert unpacker.unpackArrayHeader() == 4
+      assert unpacker.unpackString() == "direction:in"
       assert unpacker.unpackString() == (hash == 1 ? "topic:testTopic" : "topic:testTopic2")
       assert unpacker.unpackString() == "type:testType"
       assert unpacker.unpackString() == "group:testGroup"
