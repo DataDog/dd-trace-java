@@ -814,6 +814,8 @@ get_github_token:
       when: never
     # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
     #   when: on_success
+    - when: manual
+      allow_failure: true
 
   script:
     - dd-octo-sts version
@@ -837,6 +839,8 @@ deploy_artifacts_to_github:
       when: never
     # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
     #   when: on_success
+    - when: manual
+      allow_failure: true
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
