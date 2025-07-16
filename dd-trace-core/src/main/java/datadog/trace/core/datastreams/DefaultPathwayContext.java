@@ -87,9 +87,6 @@ public class DefaultPathwayContext implements PathwayContext {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
 
-    PathwayHashBuilder pathwayHashBuilder =
-        new PathwayHashBuilder(hashOfKnownTags, serviceNameOverride);
-
     if (!started) {
       long defaultTimestamp = context.defaultTimestamp();
       if (defaultTimestamp == 0) {
@@ -146,7 +143,6 @@ public class DefaultPathwayContext implements PathwayContext {
     hash = newHash;
 
     pointConsumer.accept(point);
-    log.debug("Checkpoint set {}, hash source: {}", this, pathwayHashBuilder);
   }
 
   @Override
@@ -270,21 +266,6 @@ public class DefaultPathwayContext implements PathwayContext {
         edgeStartNanoTicks,
         hash,
         serviceNameOverride);
-  }
-
-  private static class PathwayHashBuilder {
-    private long hash;
-
-    public PathwayHashBuilder(long baseHash, String serviceNameOverride) {
-      hash = baseHash;
-      if (serviceNameOverride != null) {
-        addTag(serviceNameOverride);
-      }
-    }
-
-    public void addTag(String tag) {
-      hash = FNV64Hash.continueHash(hash, tag, FNV64Hash.Version.v1);
-    }
   }
 
   public static long getBaseHash(WellKnownTags wellKnownTags) {

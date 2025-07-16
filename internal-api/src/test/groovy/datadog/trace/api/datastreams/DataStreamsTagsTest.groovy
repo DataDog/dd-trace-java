@@ -64,4 +64,24 @@ class DataStreamsTagsTest extends Specification {
     one != three
     two != three
   }
+
+  def 'test from tags'() {
+    setup:
+    def one = DataStreamsTags.fromTags("direction:in", "topic:abc")
+    expect:
+    one.nonNullSize() == 2
+    one.direction == "direction:in"
+    one.topic == "topic:abc"
+  }
+
+  def 'test create'() {
+    setup:
+    def one = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound)
+    def two = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic")
+    def three = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", "cluster")
+    expect:
+    one == DataStreamsTags.fromTags("type:type", "direction:out")
+    two == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic")
+    three == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic", "group:group", "kafka_cluster_id:cluster")
+  }
 }
