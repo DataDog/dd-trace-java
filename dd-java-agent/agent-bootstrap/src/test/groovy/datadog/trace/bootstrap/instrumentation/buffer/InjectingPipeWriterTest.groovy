@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import org.apache.commons.io.IOUtils
 
 class InjectingPipeWriterTest extends DDSpecification {
   static class GlitchedWriter extends FilterWriter {
