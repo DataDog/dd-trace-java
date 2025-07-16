@@ -820,7 +820,7 @@ get_github_token:
 
   script:
     - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release
+    # - dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release
     - dd-octo-sts token --scope DataDog/dd-trace-java --policy dd-trace-java.release > github-token.txt
     # DEBUG
     - echo "Token file exists:" $(test -f github-token.txt && echo "YES" || echo "NO")
