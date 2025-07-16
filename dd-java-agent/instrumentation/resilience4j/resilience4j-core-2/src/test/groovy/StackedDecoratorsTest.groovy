@@ -11,8 +11,6 @@ import java.util.concurrent.Executors
 import java.util.function.Function
 import java.util.function.Supplier
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
 class StackedDecoratorsTest extends AgentTestRunner {
 
   def "happy path sync test"() {
@@ -27,7 +25,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
       .decorate()
 
     then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
+    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -46,7 +44,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
       .decorate()
 
     then:
-    runUnderTrace("parent"){supplier.get().toCompletableFuture()}.get() == "foobar"
+    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get().toCompletableFuture()}.get() == "foobar"
     and:
     assertExpectedTrace()
   }

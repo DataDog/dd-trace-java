@@ -25,7 +25,7 @@ class CircuitBreakerTest extends AgentTestRunner {
       .decorate()
 
     then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
+    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -38,7 +38,7 @@ class CircuitBreakerTest extends AgentTestRunner {
       .decorate()
 
     then:
-    runUnderTrace("parent"){supplier.get()} == "foobar"
+    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -65,7 +65,7 @@ class CircuitBreakerTest extends AgentTestRunner {
       .decorate()
 
     then:
-    def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
+    def future = datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
     and:
     assertExpectedTrace()
