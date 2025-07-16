@@ -23,7 +23,7 @@ def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", 
   maxParallelUsages = 3
 }
 
-// Force timeout after 9 minutes (CircleCI defaults will fail after 10 minutes without output)
+// Force timeout after 9 minutes (The timeout is configurable per job, default job timeout is 1h)
 def testTimeoutDuration = Duration.of(9, ChronoUnit.MINUTES)
 
 testing {

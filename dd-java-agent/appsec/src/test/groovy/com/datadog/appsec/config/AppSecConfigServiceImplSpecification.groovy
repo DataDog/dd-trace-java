@@ -13,6 +13,7 @@ import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.UserIdCollectionMode
+import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -50,6 +51,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
   AppSecConfigServiceImpl appSecConfigService
   SavedListeners listeners
+  protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
 
   void cleanup() {
     appSecConfigService?.close()
@@ -710,6 +712,112 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     cleanup:
     AppSecSystem.active = true
+  }
+
+  void 'InvalidRuleSetException is thrown when rules are not configured correctly' () {
+    setup:
+    // Mock WafMetricCollector
+    WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
+    WafMetricCollector.INSTANCE = wafMetricCollector
+
+    // Create a temporary file with invalid WAF configuration
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << '''{
+      "version": "2.2",
+      "rules": [
+        {
+          "id": "invalid-rule",
+          "name": "Invalid Rule",
+          "tags": {
+            "type": "invalid_type",
+            "category": "invalid_category"
+          },
+          "conditions": [
+            {
+              "operator": "invalid_operator",
+              "parameters": {
+                "invalid_param": "invalid_value"
+              }
+            }
+          ],
+          "type": "invalid_type",
+          "data": []
+        }
+      ]
+    }'''
+
+    when:
+    appSecConfigService.init()
+
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+    1 * wafMetricCollector.addWafConfigError(_ as Integer)
+    thrown RuntimeException
+
+    cleanup:
+    WafMetricCollector.INSTANCE = ORIGINAL_METRIC_COLLECTOR
+    p.toFile().delete()
+  }
+
+  // https://github.com/DataDog/dd-trace-java/issues/9159
+  void 'test initialization issues while applying remote config'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    noExceptionThrown()
+  }
+
+  void 'config keys are added and removed to the set when receiving ASM_DD payloads'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+
+    when:
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+
+    when:
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
   }
 
   private static AppSecFeatures autoUserInstrum(String mode) {

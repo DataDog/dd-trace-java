@@ -7,9 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Platform;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -37,7 +37,7 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && !Platform.isGraalVM();
+    return super.isEnabled() && !JavaVirtualMachine.isGraalVM();
   }
 
   @Override

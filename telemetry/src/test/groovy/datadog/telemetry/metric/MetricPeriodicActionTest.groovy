@@ -157,15 +157,15 @@ class MetricPeriodicActionTest extends Specification {
 
   class DefaultMetricPeriodicAction extends MetricPeriodicAction {
 
-    private final MetricCollector<Metric> collector
+    private final MetricCollector<MetricCollector.Metric> collector
 
-    DefaultMetricPeriodicAction(@NonNull final MetricCollector<Metric> collector) {
+    DefaultMetricPeriodicAction(@NonNull final MetricCollector<MetricCollector.Metric> collector) {
       this.collector = collector
     }
 
     @Override
     @NonNull
-    MetricCollector<Metric> collector() {
+    MetricCollector<MetricCollector.Metric> collector() {
       return collector
     }
   }

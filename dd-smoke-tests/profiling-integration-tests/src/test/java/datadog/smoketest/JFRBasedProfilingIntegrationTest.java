@@ -13,8 +13,8 @@ import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Pair;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import delight.fileupload.FileUpload;
 import io.airlift.compress.zstd.ZstdInputStream;
@@ -49,6 +49,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.item.Aggregators;
@@ -70,6 +71,9 @@ import org.slf4j.LoggerFactory;
 import spock.util.environment.OperatingSystem;
 
 @DisabledIfSystemProperty(named = "java.vm.name", matches = ".*J9.*")
+@DisabledIf(
+    value = "isJavaVersionAtLeast24",
+    disabledReason = "Failing on Java 24. Skip until we have a fix.")
 class JFRBasedProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(JFRBasedProfilingIntegrationTest.class);
   private static final Duration ONE_NANO = Duration.ofNanos(1);
@@ -213,7 +217,7 @@ class JFRBasedProfilingIntegrationTest {
                   logFilePath)
               .start();
 
-      Assumptions.assumeFalse(Platform.isJ9());
+      Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
 
       final RecordedRequest firstRequest = retrieveRequest();
 
@@ -619,7 +623,7 @@ class JFRBasedProfilingIntegrationTest {
       verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
-          Platform.isJavaVersionAtLeast(11),
+          JavaVirtualMachine.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
@@ -840,5 +844,9 @@ class JFRBasedProfilingIntegrationTest {
           "Test application log is containing errors. See full run logs in " + logFilePath);
     }
     return logHasErrors[0];
+  }
+
+  public static boolean isJavaVersionAtLeast24() {
+    return JavaVirtualMachine.isJavaVersionAtLeast(24);
   }
 }

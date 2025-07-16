@@ -13,6 +13,8 @@ import javax.annotation.Nullable;
 
 public class XssModuleImpl extends SinkModuleBase implements XssModule {
 
+  private static final int MAX_LENGTH = 500;
+
   public XssModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -61,6 +63,13 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     checkInjection(VulnerabilityType.XSS, s, new FileAndLineLocationSupplier(file, line));
   }
 
+  private static String truncate(final String s) {
+    if (s == null || s.length() <= MAX_LENGTH) {
+      return s;
+    }
+    return s.substring(0, MAX_LENGTH);
+  }
+
   private static class ClassMethodLocationSupplier implements LocationSupplier {
     private final String clazz;
     private final String method;
@@ -72,7 +81,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
 
     @Override
     public Location build(final @Nullable AgentSpan span) {
-      return Location.forSpanAndClassAndMethod(span, clazz, method);
+      return Location.forSpanAndClassAndMethod(span, truncate(clazz), truncate(method));
     }
   }
 
@@ -87,7 +96,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
 
     @Override
     public Location build(@Nullable final AgentSpan span) {
-      return Location.forSpanAndFileAndLine(span, file, line);
+      return Location.forSpanAndFileAndLine(span, truncate(file), line);
     }
   }
 }

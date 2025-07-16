@@ -54,7 +54,7 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      Context context = DECORATE.extractContext(exchange);
+      Context context = DECORATE.extract(exchange);
       AgentSpan span = DECORATE.startSpan(exchange, context);
       ContextScope scope = context.with(span).attach();
       DECORATE.afterStart(span);

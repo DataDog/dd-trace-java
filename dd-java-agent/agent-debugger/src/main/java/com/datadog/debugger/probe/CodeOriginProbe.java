@@ -1,7 +1,6 @@
 package com.datadog.debugger.probe;
 
 import static datadog.trace.api.DDTags.*;
-import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 

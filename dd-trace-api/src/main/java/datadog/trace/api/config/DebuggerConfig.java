@@ -40,8 +40,8 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.redaction.excluded.identifiers";
   public static final String DYNAMIC_INSTRUMENTATION_REDACTED_TYPES =
       "dynamic.instrumentation.redacted.types";
-  public static final String DYNAMIC_INSTRUMENTATION_HOIST_LOCALVARS_ENABLED =
-      "dynamic.instrumentation.hoist.localvars.enabled";
+  public static final String DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL =
+      "dynamic.instrumentation.localvar.hoisting.level";
   public static final String SYMBOL_DATABASE_ENABLED = "symbol.database.upload.enabled";
   public static final String SYMBOL_DATABASE_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String SYMBOL_DATABASE_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
@@ -61,6 +61,8 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED =
       "exception.replay.capture.intermediate.spans.enabled";
   public static final String DISTRIBUTED_DEBUGGER_ENABLED = "distributed.debugger.enabled";
+  public static final String DEBUGGER_SOURCE_FILE_TRACKING_ENABLED =
+      "dynamic.instrumentation.source.file.tracking.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
   public static final String THIRD_PARTY_SHADING_IDENTIFIERS = "third.party.shading.identifiers";

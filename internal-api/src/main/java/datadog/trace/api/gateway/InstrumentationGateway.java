@@ -23,6 +23,7 @@ import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_PATH_PARAMS_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_SESSION_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
+import static datadog.trace.api.gateway.Events.RESPONSE_BODY_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
@@ -347,6 +348,7 @@ public class InstrumentationGateway {
       case GRPC_SERVER_REQUEST_MESSAGE_ID:
       case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
+      case RESPONSE_BODY_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {
               @Override

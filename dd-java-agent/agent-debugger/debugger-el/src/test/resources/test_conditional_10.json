@@ -15,17 +15,12 @@
       "eq": [
         {"ref": "clazz"},
         "java.lang.String"]
-    }
+    }, {
+       "eq": [
+        {"ref": "now"},
+        1700000000000
+       ]
+      }
     ]
   }
 }
-
-  "dsl": "isEmpty(emptyStr) && isEmpty(emptyList) && isEmpty(emptyMap) && isEmpty(emptyArray) && isUndefined(@exception)",
-  "json": {
-    "and": [
-      {"isEmpty": {"ref": "emptyStr"}},
-      {"isEmpty": {"ref": "emptyList"}},
-      {"isEmpty": {"ref": "emptyMap"}},
-      {"isEmpty": {"ref": "emptyArray"}},
-      {"isUndefined":  {"ref": "@exception"}}
-

@@ -1,7 +1,11 @@
 package com.datadog.appsec.event.data;
 
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH;
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS;
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE;
+
 import com.datadog.appsec.gateway.AppSecRequestContext;
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
@@ -11,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -19,9 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ObjectIntrospection {
-  private static final int MAX_DEPTH = 20;
-  private static final int MAX_ELEMENTS = 256;
-  private static final int MAX_STRING_LENGTH = 4096;
+
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
 
   private static final Method trySetAccessible;
@@ -29,7 +32,7 @@ public final class ObjectIntrospection {
   static {
     // Method AccessibleObject.trySetAccessible introduced in Java 9
     Method method = null;
-    if (Platform.isJavaVersionAtLeast(9)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
         method = Field.class.getMethod("trySetAccessible");
       } catch (NoSuchMethodException e) {
@@ -211,20 +214,42 @@ public final class ObjectIntrospection {
 
     // iterables
     if (obj instanceof Iterable) {
-      List<Object> newList;
-      if (obj instanceof List) {
-        newList = new ArrayList<>(((List<?>) obj).size());
-      } else {
-        newList = new ArrayList<>();
-      }
-      for (Object o : ((Iterable<?>) obj)) {
-        if (state.elemsLeft <= 0) {
-          state.listMapTooLarge = true;
-          break;
+      final Iterator<?> it = ((Iterable<?>) obj).iterator();
+      final boolean isMap = it.hasNext() && it.next() instanceof Map.Entry;
+      // some json libraries implement objects as Iterable<Map.Entry>
+      if (isMap) {
+        Map<Object, Object> newMap;
+        if (obj instanceof Collection) {
+          newMap = new HashMap<>(((Collection<?>) obj).size());
+        } else {
+          newMap = new HashMap<>();
         }
-        newList.add(guardedConversion(o, depth + 1, state));
+        for (Map.Entry<?, ?> e : ((Iterable<Map.Entry<?, ?>>) obj)) {
+          Object key = e.getKey();
+          Object newKey = keyConversion(e.getKey(), state);
+          if (newKey == null && key != null) {
+            // probably we're out of elements anyway
+            continue;
+          }
+          newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
+        }
+        return newMap;
+      } else {
+        List<Object> newList;
+        if (obj instanceof Collection) {
+          newList = new ArrayList<>(((Collection<?>) obj).size());
+        } else {
+          newList = new ArrayList<>();
+        }
+        for (Object o : ((Iterable<?>) obj)) {
+          if (state.elemsLeft <= 0) {
+            state.listMapTooLarge = true;
+            break;
+          }
+          newList.add(guardedConversion(o, depth + 1, state));
+        }
+        return newList;
       }
-      return newList;
     }
 
     // arrays
@@ -314,9 +339,9 @@ public final class ObjectIntrospection {
   }
 
   private static String checkStringLength(final String str, final State state) {
-    if (str.length() > MAX_STRING_LENGTH) {
+    if (str.length() > MAX_STRING_SIZE) {
       state.stringTooLong = true;
-      return str.substring(0, MAX_STRING_LENGTH);
+      return str.substring(0, MAX_STRING_SIZE);
     }
     return str;
   }

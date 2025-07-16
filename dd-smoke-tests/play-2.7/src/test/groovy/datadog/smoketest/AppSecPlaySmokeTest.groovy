@@ -2,11 +2,16 @@ package datadog.smoketest
 
 import datadog.smoketest.appsec.AbstractAppSecServerSmokeTest
 import datadog.trace.agent.test.utils.OkHttpUtils
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import okhttp3.MediaType
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import spock.lang.Shared
 
 import java.nio.file.Files
+import java.util.zip.GZIPInputStream
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -72,6 +77,37 @@ abstract class AppSecPlaySmokeTest extends AbstractAppSecServerSmokeTest {
     def span = sampledSpans[0]
     span.meta.containsKey('_dd.appsec.s.req.query')
     span.meta.containsKey('_dd.appsec.s.req.headers')
+  }
+
+  void 'test response schema extraction'() {
+    given:
+    def url = "http://localhost:${httpPort}/api_security/response"
+    def client = OkHttpUtils.clientBuilder().build()
+    def body = [
+      "main"    : [["key": "id001", "value": 1345.67], ["value": 1567.89, "key": "id002"]],
+      "nullable": null,
+    ]
+    def request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson(body)))
+      .build()
+
+    when:
+    final response = client.newCall(request).execute()
+    waitForTraceCount(1)
+
+    then:
+    response.code() == 200
+    def span = rootSpans.first()
+    span.meta.containsKey('_dd.appsec.s.res.headers')
+    span.meta.containsKey('_dd.appsec.s.res.body')
+    final schema = new JsonSlurper().parse(unzip(span.meta.get('_dd.appsec.s.res.body')))
+    assert schema == [["main": [[[["key": [8], "value": [16]]]], ["len": 2]], "nullable": [1]]]
+  }
+
+  private static byte[] unzip(final String text) {
+    final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
+    return inflaterStream.getBytes()
   }
 
   // Ensure to clean up server and not only the shell script that starts it

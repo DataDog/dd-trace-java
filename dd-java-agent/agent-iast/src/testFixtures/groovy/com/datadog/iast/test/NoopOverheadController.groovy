@@ -1,5 +1,6 @@
 package com.datadog.iast.test
 
+import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.overhead.Operation
 import com.datadog.iast.overhead.OverheadController
 import com.github.javaparser.quality.Nullable
@@ -25,6 +26,11 @@ class NoopOverheadController implements OverheadController {
 
   @Override
   boolean consumeQuota(Operation operation, @Nullable AgentSpan span) {
+    true
+  }
+
+  @Override
+  boolean consumeQuota(Operation operation, @Nullable AgentSpan span, @Nullable VulnerabilityType type) {
     true
   }
 

@@ -54,8 +54,6 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
   public static final String CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED =
       "civisibility.impacted.tests.detection.enabled";
-  public static final String CIVISIBILITY_IMPACTED_TESTS_BACKEND_REQUEST_ENABLED =
-      "civisibility.impacted.tests.backend.request.enabled";
   public static final String CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED =
       "civisibility.known.tests.request.enabled";
   public static final String CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES =

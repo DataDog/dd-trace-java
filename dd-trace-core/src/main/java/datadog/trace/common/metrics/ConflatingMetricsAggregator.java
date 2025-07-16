@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
@@ -143,20 +144,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (isMetricsEnabled()) {
-      sink.register(this);
-      thread.start();
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new ReportTask(),
-              this,
-              reportingInterval,
-              reportingInterval,
-              reportingIntervalTimeUnit);
-      log.debug("started metrics aggregator");
-    } else {
-      log.debug("metrics not supported by trace agent");
-    }
+    sink.register(this);
+    thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+    log.debug("started metrics aggregator");
   }
 
   private boolean isMetricsEnabled() {
@@ -234,7 +231,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean shouldComputeMetric(CoreSpan<?> span) {
-    return (span.isMeasured() || span.isTopLevel()) && span.getDurationNano() > 0;
+    return (span.isMeasured() || span.isTopLevel() || spanKindEligible(span))
+        && span.getDurationNano() > 0;
+  }
+
+  private boolean spanKindEligible(CoreSpan<?> span) {
+    final Object spanKind = span.getTag(SPAN_KIND);
+    // use toString since it could be a CharSequence...
+    return spanKind != null && features.spanKindsToComputedStats().contains(spanKind.toString());
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
@@ -329,11 +333,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
-      if (null != cancellation) {
-        cancellation.cancel();
-      }
-      this.thread.interrupt();
       this.pending.clear();
       this.batchPool.clear();
       this.inbox.clear();

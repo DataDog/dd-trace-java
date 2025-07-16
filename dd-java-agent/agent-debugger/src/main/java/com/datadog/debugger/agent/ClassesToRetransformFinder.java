@@ -111,4 +111,8 @@ public class ClassesToRetransformFinder {
     String simpleName = extractSimpleName(clazz);
     return changedClasses.contains(reverseStr(simpleName));
   }
+
+  ConcurrentMap<String, String> getClassNamesBySourceFile() {
+    return classNamesBySourceFile;
+  }
 }
