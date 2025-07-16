@@ -804,7 +804,7 @@ get_github_token:
   stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:v68058725-73f34e7-2025.06-1
   tags: [ "arch:amd64" ]
-  needs: []  # DEBUG: No dependencies - can run immediately
+  needs: []  # DEBUG: Enforce no dependencies to run immediately
   
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -820,9 +820,9 @@ get_github_token:
 
   script:
     - dd-octo-sts version
-    # - dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release
     - dd-octo-sts token --scope DataDog/dd-trace-java --policy dd-trace-java.release > github-token.txt
-    # DEBUG
+    # DEBUG: Check token file
     - echo "Token file exists:" $(test -f github-token.txt && echo "YES" || echo "NO")
     - echo "Token file size:" $(wc -c < github-token.txt) "bytes"
     - echo "Token preview:" $(head -c 10 github-token.txt)...
@@ -851,10 +851,10 @@ deploy_artifacts_to_github:
     - job: get_github_token
 
   script:
-    # - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
-    # Debug token reception
+    # DEBUG: Check token file
     - echo "Token file exists:" $(test -f github-token.txt && echo "YES" || echo "NO")
     - echo "Token file size:" $(wc -c < github-token.txt) "bytes"
+
     - gh auth login --with-token < github-token.txt
     - gh auth status  # Maybe helpful to have this output in logs?
     # - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
