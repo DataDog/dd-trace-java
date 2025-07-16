@@ -1,0 +1,14 @@
+issuer: https://gitlab.ddbuild.io
+
+subject: repo:DataDog/dd-trace-java:ref:refs/heads/* ?????
+
+claim_pattern:
+  project_path: "DataDog/dd-trace-rb"
+  ref: "master"
+  ref_type: "branch"
+  ref_path: "refs/heads/master"
+
+permissions:
+  contents:
+    - read
+    - write
