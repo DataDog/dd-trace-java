@@ -80,6 +80,7 @@ include ':dd-java-agent:agent-debugger:debugger-test-scala'
 include ':dd-java-agent:agent-debugger:debugger-el'
 
 include ':dd-java-agent:agent-crashtracking'
+include ':dd-java-agent:ddprof-lib'
 
 include ':dd-java-agent:agent-otel:otel-bootstrap'
 include ':dd-java-agent:agent-otel:otel-shim'
