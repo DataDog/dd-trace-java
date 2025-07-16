@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
-import org.apache.commons.io.IOUtils
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
   static class GlitchedOutputStream extends FilterOutputStream {
