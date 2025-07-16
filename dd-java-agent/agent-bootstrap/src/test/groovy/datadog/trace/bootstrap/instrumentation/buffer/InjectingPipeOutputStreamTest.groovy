@@ -6,9 +6,11 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
   static class GlitchedOutputStream extends FilterOutputStream {
     int glitchesPos
     int count
+    final OutputStream out
 
     GlitchedOutputStream(OutputStream out, int glitchesPos) {
       super(out)
+      this.out = out
       this.glitchesPos = glitchesPos
     }
 
