@@ -13,6 +13,8 @@ import java.util.Map;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
+  private static final int DEFAULT_MAX_TAGS = 5;
+
   /** Returns a singleton no op instance of initialization telemetry */
   public static BootstrapInitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
@@ -129,7 +131,7 @@ public abstract class BootstrapInitializationTelemetry {
       causes.add("error_type:" + t.getClass().getName());
 
       // Limit the number of tags to avoid overpopulating the JSON payload.
-      int maxTags = maxTags(5);
+      int maxTags = maxTags();
       int numCauses = causes.size();
       if (numCauses > maxTags) {
         causes = causes.subList(numCauses - maxTags, numCauses);
@@ -138,16 +140,18 @@ public abstract class BootstrapInitializationTelemetry {
       onPoint("library_entrypoint.error", causes);
     }
 
-    private int maxTags(int defaultValue) {
-      try {
-        String s =
-            EnvironmentVariables.getOrDefault(
-                "DD_TELEMETRY_FORWARDER_MAX_TAGS", String.valueOf(defaultValue));
+    private int maxTags() {
+      String maxTags = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_MAX_TAGS");
 
-        return Integer.parseInt(s);
-      } catch (Exception e) {
-        return defaultValue;
+      if (maxTags != null) {
+        try {
+          return Integer.parseInt(maxTags);
+        } catch (Throwable ignore) {
+          // Ignore and return default value.
+        }
       }
+
+      return DEFAULT_MAX_TAGS;
     }
 
     @Override
