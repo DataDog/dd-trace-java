@@ -27,7 +27,7 @@ class RetryTest extends AgentTestRunner {
       .decorate()
 
     then:
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
+    runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -40,7 +40,7 @@ class RetryTest extends AgentTestRunner {
       .decorate()
 
     then:
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
+    runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -67,7 +67,7 @@ class RetryTest extends AgentTestRunner {
       .decorate()
 
     then:
-    def future = datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get().toCompletableFuture()}
+    def future = runUnderTrace("parent"){supplier.get().toCompletableFuture()}
     future.get() == "foobar"
     and:
     assertExpectedTrace()
@@ -79,7 +79,7 @@ class RetryTest extends AgentTestRunner {
       .ofSupplier{serviceCallErr(new IllegalStateException("error"))}
       .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()))
       .decorate()
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent") { supplier.get() }
+    runUnderTrace("parent") { supplier.get() }
     then:
     thrown(IllegalStateException)
     and:
@@ -123,7 +123,7 @@ class RetryTest extends AgentTestRunner {
       }
       .withRetry(Retry.of("id", RetryConfig.custom().maxAttempts(2).build()), Executors.newSingleThreadScheduledExecutor())
       .decorate()
-    def future = datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent") { supplier.get().toCompletableFuture() }
+    def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
     future.get()
 
     then:

@@ -6,58 +6,26 @@ import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 
-import java.util.concurrent.CountDownLatch
-
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class ScopeTest extends AgentTestRunner {
+class CircuitBreakerTest extends AgentTestRunner {
 
-  def "test flux"() {
-    // TODO instrument so there is a circuit-breaker span show up in the result
-
+  def "test circuit-breaker"() {
+    // TODO add mono, error, and other tests
     ConnectableFlux<String> connection = Flux.just("foo", "bar")
-      //    Flux<String> autoConnect = Flux.just("foo", "bar")
-      .map { it ->
-        //        if (it == "err") {
-        //          throw new IllegalStateException("test")
-        //        }
-        //        AgentTracer.startSpan("before").finish()
-        it
-      }
-      //      .subscribeOn(Schedulers.boundedElastic())
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("CB")))
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("DE")))
       .publishOn(Schedulers.boundedElastic())
-      //      .subscribeOn(Schedulers.boundedElastic())
-      //      .map { it ->
-      //        AgentTracer.startSpan("after").finish()
-      //        it
-      //      }
       .publish()
-    //      .autoConnect(1)
+
     when:
-
-    //    CountDownLatch latch = new CountDownLatch(1)
-
-    //    new Thread({
-    //      runnableUnderTrace("abc", { // this won't propagate with connection, but will with autoConnect
     connection.subscribe {
-      //        autoConnect.subscribe {
-      //        Thread.sleep(500)
       AgentTracer.startSpan("test", it).finish()
     }
-    //      })
-    //      latch.countDown()
-    //    }).run()
 
-
-    //    new Thread({
-    //      latch.await()
     runnableUnderTrace("parent", {
-      // this back propagates embracing spans in the subscribe logic
-      connection.connect() // start the flux from a different thread
+      connection.connect()
     })
-    //    }).run()
 
     then:
     assertTraces(1) {

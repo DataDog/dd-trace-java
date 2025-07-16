@@ -10,6 +10,7 @@ import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executors
 import java.util.function.Function
 import java.util.function.Supplier
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class StackedDecoratorsTest extends AgentTestRunner {
 
@@ -25,7 +26,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
       .decorate()
 
     then:
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get()} == "foobar"
+    runUnderTrace("parent"){supplier.get()} == "foobar"
     and:
     assertExpectedTrace()
   }
@@ -44,7 +45,7 @@ class StackedDecoratorsTest extends AgentTestRunner {
       .decorate()
 
     then:
-    datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent"){supplier.get().toCompletableFuture()}.get() == "foobar"
+    runUnderTrace("parent"){supplier.get().toCompletableFuture()}.get() == "foobar"
     and:
     assertExpectedTrace()
   }

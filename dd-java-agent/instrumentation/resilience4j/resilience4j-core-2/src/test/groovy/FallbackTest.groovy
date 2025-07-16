@@ -29,7 +29,7 @@ class FallbackTest extends AgentTestRunner {
         serviceCall("fallbackResult", "fallbackCall")
       } as Function<Throwable, String>)
       .decorate()
-    def future = datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent") { supplier.get().toCompletableFuture() }
+    def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
 
     then:
     future.get() == "fallbackResult"
@@ -45,7 +45,7 @@ class FallbackTest extends AgentTestRunner {
     def supplier = decorateSupplier.decorate()
 
     when:
-    def result = datadog.trace.agent.test.utils.TraceUtils.runUnderTrace("parent") { supplier.get() }
+    def result = runUnderTrace("parent") { supplier.get() }
 
     then:
     result == "fallbackResult"
