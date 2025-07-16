@@ -285,20 +285,18 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == [
+        tags == DataStreamsTags.fromTags(
           "direction:in",
           "group:sender",
           "kafka_cluster_id:$clusterId",
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
-        ]
-        edgeTags.size() == 5
+        )
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId",
@@ -433,25 +431,23 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == [
+        tags == DataStreamsTags.fromTags(
           "direction:out",
           "kafka_cluster_id:$clusterId".toString(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
-        ]
-        edgeTags.size() == 4
+        )
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == [
+        tags == DataStreamsTags.fromTags(
           "direction:in",
           "group:sender",
           "kafka_cluster_id:$clusterId".toString(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
-        ]
-        edgeTags.size() == 5
+        )
       }
       List<String> produce = [
         "kafka_cluster_id:$clusterId".toString(),
