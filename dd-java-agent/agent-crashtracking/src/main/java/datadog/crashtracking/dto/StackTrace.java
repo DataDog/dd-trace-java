@@ -1,4 +1,4 @@
-package com.datadog.crashtracking.dto;
+package datadog.crashtracking.dto;
 
 import java.util.Arrays;
 import java.util.Objects;

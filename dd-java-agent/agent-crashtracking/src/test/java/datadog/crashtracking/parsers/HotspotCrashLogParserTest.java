@@ -1,4 +1,4 @@
-package com.datadog.crashtracking.parsers;
+package datadog.crashtracking.parsers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

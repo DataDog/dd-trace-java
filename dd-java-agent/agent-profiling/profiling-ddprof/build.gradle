@@ -29,7 +29,7 @@ excludedClassesCoverage += [
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
-  implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+  api project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
   annotationProcessor libs.autoservice.processor
   compileOnly libs.autoservice.annotation
@@ -40,20 +40,6 @@ dependencies {
   testImplementation libs.bundles.junit5
 }
 
-shadowJar {
-  archiveClassifier = ''
-  include {
-    def rslt = false
-    rslt |= it.path == "com" || it.path == "com/datadog"
-    || it.path.startsWith("com/datadog/") || it.path == "com/datadoghq" || it.path == "com/datadoghq/profiler"
-    || it.path.startsWith("com/datadoghq/profiler")
-    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/") || it.path.startsWith("META-INF/native-libs/")
-    rslt |= (it.path.contains("ddprof") && it.path.endsWith(".jar"))
-    return rslt
-  }
-}
-
-build.dependsOn shadowJar
 
 configurations.all {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
