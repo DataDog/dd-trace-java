@@ -122,20 +122,32 @@ public abstract class BootstrapInitializationTelemetry {
       List<String> causes = new ArrayList<>();
 
       Throwable cause = t.getCause();
-      if (cause != null) {
-        while (cause != null) {
-          causes.add("error_type:" + cause.getClass().getName());
-          cause = cause.getCause();
-        }
+      while (cause != null) {
+        causes.add("error_type:" + cause.getClass().getName());
+        cause = cause.getCause();
       }
       causes.add("error_type:" + t.getClass().getName());
 
       // Limit the number of tags to avoid overpopulating the JSON payload.
-      int maxTags = EnvironmentVariables.getOrDefault("DD_TELEMETRY_FORWARDER_MAX_TAGS", 5);
-      int sz = causes.size();
-      int cnt = Math.min(maxTags, sz);
+      int maxTags = maxTags(5);
+      int numCauses = causes.size();
+      if (numCauses > maxTags) {
+        causes = causes.subList(numCauses - maxTags, numCauses);
+      }
 
-      onPoint("library_entrypoint.error", causes.subList(sz - cnt, sz));
+      onPoint("library_entrypoint.error", causes);
+    }
+
+    private int maxTags(int defaultValue) {
+      try {
+        String s =
+            EnvironmentVariables.getOrDefault(
+                "DD_TELEMETRY_FORWARDER_MAX_TAGS", String.valueOf(defaultValue));
+
+        return Integer.parseInt(s);
+      } catch (Exception e) {
+        return defaultValue;
+      }
     }
 
     @Override

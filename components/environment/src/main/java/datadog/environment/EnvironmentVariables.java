@@ -38,21 +38,4 @@ public final class EnvironmentVariables {
       return defaultValue;
     }
   }
-
-  /**
-   * Gets an environment variable value, or default value if missing or can't be retrieved.
-   *
-   * @param name The environment variable name.
-   * @param defaultValue The default value to return if the environment variable is missing or can't
-   *     be retrieved.
-   * @return The environment variable value, {@code defaultValue} if missing or can't be retrieved.
-   */
-  public static int getOrDefault(@Nonnull String name, int defaultValue) {
-    try {
-      String value = System.getenv(name);
-      return value == null ? defaultValue : Integer.parseInt(value);
-    } catch (SecurityException | NumberFormatException e) {
-      return defaultValue;
-    }
-  }
 }
