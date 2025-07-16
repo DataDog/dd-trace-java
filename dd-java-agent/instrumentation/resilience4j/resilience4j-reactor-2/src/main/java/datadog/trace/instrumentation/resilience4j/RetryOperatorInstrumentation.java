@@ -52,9 +52,6 @@ public class RetryOperatorInstrumentation extends AbstractResilience4jInstrument
         @Advice.FieldValue(value = "retry") Retry retry) {
 
       if (result instanceof Flux) {
-        System.err.println(">>> (3) RetryOperatorInstrumentation enter: retry=" + retry);
-
-        // TODO pass decorator into it along with the circuit breaker
         result = ReactorHelper.wrapFlux((Flux<?>) result, RetryDecorator.DECORATE, retry);
       } // TODO mono
     }

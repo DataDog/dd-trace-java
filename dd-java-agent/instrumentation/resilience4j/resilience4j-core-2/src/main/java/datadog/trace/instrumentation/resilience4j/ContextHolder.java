@@ -64,9 +64,13 @@ public abstract class ContextHolder<T> {
     @Override
     public CompletionStage<?> get() {
       try (AgentScope ignore = activateScope()) {
-        return outbound.get();
-      } finally {
-        finishSpanIfNeeded(); // TODO should postpone this by using wrapAsyncResultOrFinishSpan
+        return outbound
+            .get()
+            .whenComplete(
+                (v, e) -> {
+                  // TODO decorate when error
+                  finishSpanIfNeeded();
+                });
       }
     }
   }

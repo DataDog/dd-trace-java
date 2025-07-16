@@ -52,11 +52,6 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
       if (result instanceof Flux) {
-        System.err.println(
-            ">>> (3) CircuitBreakerOperatorInstrumentation enter: circuitBreaker="
-                + circuitBreaker);
-
-        // TODO pass decorator into it along with the circuit breaker
         result =
             ReactorHelper.wrapFlux(
                 (Flux<?>) result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
