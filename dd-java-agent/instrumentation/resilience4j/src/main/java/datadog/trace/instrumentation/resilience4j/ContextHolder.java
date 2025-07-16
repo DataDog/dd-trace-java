@@ -7,25 +7,21 @@ import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-public abstract class ContextHolder {
+public abstract class ContextHolder<T> {
 
-  public static final class CheckedSupplierWithContext<T> extends ContextHolder
+  public static final class CheckedSupplierWithContext<T> extends ContextHolder<T>
       implements CheckedSupplier<Object> {
     private final CheckedSupplier<?> outbound;
-    private final AbstractResilience4jDecorator<T> spanDecorator;
-    private final T data;
 
     public CheckedSupplierWithContext(
         CheckedSupplier<?> outbound, AbstractResilience4jDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
       this.outbound = outbound;
-      this.spanDecorator = spanDecorator;
-      this.data = data;
     }
 
     @Override
     public Object get() throws Throwable {
-      try (AgentScope scope = activateDecoratorScope()) {
-        spanDecorator.decorate(scope, data);
+      try (AgentScope scope = activateScope()) {
         return outbound.get();
       } finally {
         finishSpanIfNeeded();
@@ -33,16 +29,19 @@ public abstract class ContextHolder {
     }
   }
 
-  public static final class SupplierWithContext extends ContextHolder implements Supplier<Object> {
+  public static final class SupplierWithContext<T> extends ContextHolder<T>
+      implements Supplier<Object> {
     private final Supplier<?> outbound;
 
-    public SupplierWithContext(Supplier<?> outbound) {
+    public SupplierWithContext(
+        Supplier<?> outbound, AbstractResilience4jDecorator<T> spanDecorator, T data) {
+      super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
     public Object get() {
-      try (AgentScope ignore = activateDecoratorScope()) {
+      try (AgentScope ignore = activateScope()) {
         return outbound.get();
       } finally {
         finishSpanIfNeeded();
@@ -50,32 +49,45 @@ public abstract class ContextHolder {
     }
   }
 
-  public static final class SupplierCompletionStageWithContext extends ContextHolder
+  public static final class SupplierCompletionStageWithContext<T> extends ContextHolder<T>
       implements Supplier<CompletionStage<?>> {
     private final Supplier<CompletionStage<?>> outbound;
 
-    public SupplierCompletionStageWithContext(Supplier<CompletionStage<?>> outbound) {
+    public SupplierCompletionStageWithContext(
+        Supplier<CompletionStage<?>> outbound,
+        AbstractResilience4jDecorator<T> spanDecorator,
+        T data) {
+      super(spanDecorator, data);
       this.outbound = outbound;
     }
 
     @Override
     public CompletionStage<?> get() {
-      try (AgentScope ignore = activateDecoratorScope()) {
+      try (AgentScope ignore = activateScope()) {
         return outbound.get();
       } finally {
-        finishSpanIfNeeded();
+        finishSpanIfNeeded(); // TODO should postpone this by using wrapAsyncResultOrFinishSpan
       }
     }
   }
 
+  private final AbstractResilience4jDecorator<T> spanDecorator;
+  private final T data;
   private AgentSpan span;
 
-  protected AgentScope activateDecoratorScope() {
+  public ContextHolder(AbstractResilience4jDecorator<T> spanDecorator, T data) {
+    this.spanDecorator = spanDecorator;
+    this.data = data;
+  }
+
+  protected AgentScope activateScope() {
     AgentSpan current = ActiveResilience4jSpan.current();
     if (current == null) {
       current = ActiveResilience4jSpan.start();
       this.span = current;
+      //      spanDecorator.afterStart(current);
     }
+    //    spanDecorator.decorate(span, data);
     return AgentTracer.activateSpan(current);
   }
 

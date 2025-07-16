@@ -28,7 +28,7 @@ public class FallbackSupplierInstrumentation extends FallbackAbstractInstrumenta
   public static class SupplierAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(@Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext(outbound);
+      outbound = new ContextHolder.SupplierWithContext<>(outbound, NoopDecorator.DECORATE, null);
     }
   }
 }

@@ -64,7 +64,7 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext(outbound);
+      outbound = new ContextHolder.SupplierWithContext<>(outbound, RetryDecorator.DECORATE, retry);
     }
   }
 
@@ -73,7 +73,9 @@ public final class RetryInstrumentation extends AbstractResilience4jInstrumentat
     public static void afterExecute(
         @Advice.Argument(value = 0) Retry retry,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound);
+      outbound =
+          new ContextHolder.SupplierCompletionStageWithContext<>(
+              outbound, RetryDecorator.DECORATE, retry);
     }
   }
 }

@@ -29,7 +29,9 @@ public class FallbackCompletionStageInstrumentation extends FallbackAbstractInst
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterExecute(
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound);
+      outbound =
+          new ContextHolder.SupplierCompletionStageWithContext<>(
+              outbound, NoopDecorator.DECORATE, null);
     }
   }
 }

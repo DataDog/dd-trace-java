@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.retry.Retry;
 
 public final class RetryDecorator extends AbstractResilience4jDecorator<Retry> {
@@ -16,7 +16,7 @@ public final class RetryDecorator extends AbstractResilience4jDecorator<Retry> {
   }
 
   @Override
-  protected void decorate(AgentScope scope, Retry data) {
+  public void decorate(AgentSpan span, Retry data) {
     // TODO
   }
 }

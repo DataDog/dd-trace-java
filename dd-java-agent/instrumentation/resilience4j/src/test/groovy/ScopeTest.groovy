@@ -5,6 +5,9 @@ import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOper
 import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+
+import java.util.concurrent.CountDownLatch
+
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 class ScopeTest extends AgentTestRunner {
@@ -13,6 +16,7 @@ class ScopeTest extends AgentTestRunner {
     // TODO instrument so there is a circuit-breaker span show up in the result
 
     ConnectableFlux<String> connection = Flux.just("foo", "bar")
+      //    Flux<String> autoConnect = Flux.just("foo", "bar")
       .map { it ->
         //        if (it == "err") {
         //          throw new IllegalStateException("test")
@@ -22,6 +26,7 @@ class ScopeTest extends AgentTestRunner {
       }
       //      .subscribeOn(Schedulers.boundedElastic())
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("CB")))
+      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("DE")))
       .publishOn(Schedulers.boundedElastic())
       //      .subscribeOn(Schedulers.boundedElastic())
       //      .map { it ->
@@ -29,25 +34,31 @@ class ScopeTest extends AgentTestRunner {
       //        it
       //      }
       .publish()
+    //      .autoConnect(1)
     when:
 
-    new Thread({
-      connection.subscribe {
-        //        Thread.sleep(500)
-        AgentTracer.startSpan("test", it).finish()
-      }
-    }).run()
+    //    CountDownLatch latch = new CountDownLatch(1)
 
     //    new Thread({
-    runnableUnderTrace("parent", {
-      connection.connect() // start the flux from a different thread
-    })
-    //      runnableUnderTrace("parent2", {
-    //        connection.connect() // start the flux from a different thread
+    //      runnableUnderTrace("abc", { // this won't propagate with connection, but will with autoConnect
+    connection.subscribe {
+      //        autoConnect.subscribe {
+      //        Thread.sleep(500)
+      AgentTracer.startSpan("test", it).finish()
+    }
     //      })
+    //      latch.countDown()
     //    }).run()
 
-    //    Thread.sleep(1000)
+
+    //    new Thread({
+    //      latch.await()
+    runnableUnderTrace("parent", {
+      // this back propagates embracing spans in the subscribe logic
+      connection.connect() // start the flux from a different thread
+    })
+    //    }).run()
+
     then:
     assertTraces(1) {
       trace(4) {

@@ -70,7 +70,9 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<?> outbound) {
-      outbound = new ContextHolder.SupplierWithContext(outbound);
+      outbound =
+          new ContextHolder.SupplierWithContext<>(
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 
@@ -79,7 +81,9 @@ public final class CircuitBreakerInstrumentation extends AbstractResilience4jIns
     public static void afterExecute(
         @Advice.Argument(value = 0) CircuitBreaker circuitBreaker,
         @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> outbound) {
-      outbound = new ContextHolder.SupplierCompletionStageWithContext(outbound);
+      outbound =
+          new ContextHolder.SupplierCompletionStageWithContext<>(
+              outbound, CircuitBreakerDecorator.DECORATE, circuitBreaker);
     }
   }
 }

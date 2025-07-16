@@ -23,6 +23,8 @@ public abstract class AbstractResilience4jInstrumentation extends InstrumenterMo
       packageName + ".ContextHolder$SupplierCompletionStageWithContext",
       packageName + ".ContextHolder$SupplierWithContext",
       packageName + ".AbstractResilience4jDecorator",
+      packageName + ".NoopDecorator",
+      packageName + ".ActiveResilience4jSpan",
       packageName + ".CircuitBreakerDecorator",
       packageName + ".RetryDecorator",
     };

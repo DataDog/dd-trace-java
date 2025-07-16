@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public abstract class AbstractResilience4jDecorator<T> extends BaseDecorator {
@@ -19,5 +19,5 @@ public abstract class AbstractResilience4jDecorator<T> extends BaseDecorator {
     return null;
   }
 
-  protected abstract void decorate(AgentScope scope, T data);
+  public abstract void decorate(AgentSpan span, T data);
 }

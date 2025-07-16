@@ -6,12 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import java.util.ArrayList;
+import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
-import reactor.core.CoreSubscriber;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import reactor.core.publisher.Flux;
 
 @AutoService(InstrumenterModule.class)
 public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jInstrumentation {
@@ -22,46 +22,45 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
 
   @Override
   public String instrumentedType() {
-    return "io.github.resilience4j.reactor.circuitbreaker.operator.FluxCircuitBreaker";
+    return "io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator";
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CompleteSpan",
-    };
+    ArrayList<String> ret = new ArrayList<>();
+
+    ret.add(packageName + ".ReactorHelper");
+
+    ret.addAll(Arrays.asList(super.helperClassNames()));
+
+    return ret.toArray(new String[0]);
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe")) // TODO CorePublisherInstrumentation instruments the subscribe
-            // method to activate the propagated parent context. How do we
-            // guarantee the this instrumentation is done first, so it's
-            // properly wrapped by the subscribe instrumentation
-            .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
-        CircuitBreakerOperatorInstrumentation.class.getName() + "$SubscribeAdvice");
+            .and(named("apply"))
+            .and(takesArgument(0, named("org.reactivestreams.Publisher"))),
+        CircuitBreakerOperatorInstrumentation.class.getName() + "$ApplyAdvice");
   }
 
-  public static class SubscribeAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
-        @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> actual,
+  public static class ApplyAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void after(
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
 
-      AgentSpan current = ActiveResilience4jSpan.current();
-      if (current == null) {
-        current = ActiveResilience4jSpan.start();
-        actual = new CompleteSpan<>(actual, current);
-      }
-      //      CircuitBreakerDecorator.DECORATE.decorate(scope, circuitBreaker);
-      return AgentTracer.activateSpan(current);
-    }
+      if (result instanceof Flux) {
+        System.err.println(
+            ">>> (3) CircuitBreakerOperatorInstrumentation enter: circuitBreaker="
+                + circuitBreaker);
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter final AgentScope scope) {
-      ActiveResilience4jSpan.close(scope);
+        // TODO pass decorator into it along with the circuit breaker
+        result =
+            ReactorHelper.wrapFlux(
+                (Flux<?>) result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+      } // TODO mono
     }
   }
 }
