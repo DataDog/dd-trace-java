@@ -143,52 +143,52 @@ public class DataStreamsTags {
     String partition = null;
 
     for (String tag : tags) {
-      String[] splitResult = tag.split(":");
-      if (splitResult.length != 2) {
+      if (tag.indexOf(':') == -1) {
         continue;
       }
-      switch (splitResult[0]) {
+      String key = tag.substring(0, tag.indexOf(':'));
+      String value = tag.substring(tag.indexOf(':') + 1);
+      switch (key) {
         case BUS_TAG:
-          bus = splitResult[1];
+          bus = value;
           break;
         case DIRECTION_TAG:
-          direction =
-              Objects.equals(splitResult[1], "out") ? Direction.Outbound : Direction.Inbound;
+          direction = Objects.equals(value, "out") ? Direction.Outbound : Direction.Inbound;
           break;
         case EXCHANGE_TAG:
-          exchange = splitResult[1];
+          exchange = value;
           break;
         case TOPIC_TAG:
-          topic = splitResult[1];
+          topic = value;
           break;
         case TYPE_TAG:
-          type = splitResult[1];
+          type = value;
           break;
         case SUBSCRIPTION_TAG:
-          subscription = splitResult[1];
+          subscription = value;
           break;
         case DATASET_NAME_TAG:
-          datasetName = splitResult[1];
+          datasetName = value;
           break;
         case DATASET_NAMESPACE_TAG:
-          datasetNamespace = splitResult[1];
+          datasetNamespace = value;
           break;
         case MANUAL_TAG:
-          isManual = Objects.equals(splitResult[1], "true");
+          isManual = Objects.equals(value, "true");
         case GROUP_TAG:
-          group = splitResult[1];
+          group = value;
           break;
         case CONSUMER_GROUP_TAG:
-          consumerGroup = splitResult[1];
+          consumerGroup = value;
           break;
         case HAS_ROUTING_KEY_TAG:
-          hasRoutingKey = Objects.equals(splitResult[1], "true");
+          hasRoutingKey = Objects.equals(value, "true");
           break;
         case KAFKA_CLUSTER_ID_TAG:
-          kafkaClusterId = splitResult[1];
+          kafkaClusterId = value;
           break;
         case PARTITION_TAG:
-          partition = splitResult[1];
+          partition = value;
           break;
       }
     }
