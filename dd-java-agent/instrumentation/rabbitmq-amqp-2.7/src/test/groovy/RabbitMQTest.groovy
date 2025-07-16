@@ -12,6 +12,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -171,14 +172,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
       }
     }
 
@@ -225,14 +224,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"]
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
       }
     }
   }
@@ -322,15 +319,13 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       List<StatsGroup> producerPoints = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
       producerPoints.each { producerPoint ->
         verifyAll(producerPoint) {
-          edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
-          edgeTags.size() == 4
+          tags == DataStreamsTags.fromTags("direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq")
         }
       }
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
       }
     }
 
@@ -414,14 +409,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq"]
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "exchange:" + exchangeName, "has_routing_key:false", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
       }
     }
 
@@ -499,14 +492,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq"])
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:some-routing-queue", "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:some-routing-queue", "type:rabbitmq")
       }
     }
   }
@@ -583,14 +574,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled() && !noParent) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
-        edgeTags.size() == 4
+        tags == DataStreamsTags.fromTags("direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
       }
     }
 
@@ -679,14 +668,12 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
         // assert with retries in case DSM data is split in more groups that take a bit longer to arrive.
         StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
         verifyAll(first) {
-          edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
-          edgeTags.size() == 4
+          tags == DataStreamsTags.fromTags("direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq")
         }
 
         StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
         verifyAll(second) {
-          edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-          edgeTags.size() == 3
+          tags == DataStreamsTags.fromTags("direction:in", "topic:" + queueName, "type:rabbitmq")
         }
       }
     }

@@ -2,6 +2,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
@@ -156,8 +157,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis"])
-          edgeTags.size() == 3
+          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
         }
       }
       verifyAll {
@@ -278,8 +278,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis"])
-          edgeTags.size() == 3
+          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
         }
       }
       verifyAll {

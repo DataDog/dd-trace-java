@@ -1,3 +1,5 @@
+import datadog.trace.api.datastreams.DataStreamsTags
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -927,14 +929,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == [
+        tags == DataStreamsTags.fromTags(
           "direction:in",
           "group:sender",
           "kafka_cluster_id:$clusterId",
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
-        ]
-        edgeTags.size() == 5
+          )
       }
     }
 

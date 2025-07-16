@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -173,14 +174,12 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:out", "topic:somequeue", "type:sqs")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in", "topic:somequeue", "type:sqs")
       }
     }
 

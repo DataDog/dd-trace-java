@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -153,21 +154,21 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      assert [
-        "direction:out",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags == DataStreamsTags.fromTags(
+      "direction:out",
+      "topic:test-topic",
+      "type:kafka"
+      )
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      assert [
-        "direction:in",
-        "group:test-consumer-group",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags == DataStreamsTags.fromTags(
+      "direction:in",
+      "group:test-consumer-group",
+      "topic:test-topic",
+      "type:kafka"
+      )
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 
@@ -285,21 +286,21 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      assert [
-        "direction:out",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags == DataStreamsTags.fromTags(
+      "direction:out",
+      "topic:test-topic",
+      "type:kafka"
+      )
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      assert [
-        "direction:in",
-        "group:connect-file-sink-connector",
-        "topic:test-topic",
-        "type:kafka"
-      ].every( tag -> edgeTags.contains(tag) )
+      tags == DataStreamsTags.fromTags(
+      "direction:in",
+      "group:connect-file-sink-connector",
+      "topic:test-topic",
+      "type:kafka"
+      )
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 

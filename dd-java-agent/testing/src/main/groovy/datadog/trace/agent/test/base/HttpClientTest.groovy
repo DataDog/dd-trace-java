@@ -6,7 +6,7 @@ import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
-import datadog.trace.api.datastreams.DataStreamsContext
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
@@ -36,9 +36,6 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
   protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
-  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpClient().sortedTags().collect { key, value ->
-    return key + ":" + value
-  }
 
   @AutoCleanup
   @Shared
@@ -178,8 +175,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -221,8 +217,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -269,8 +264,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -304,8 +298,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -342,8 +335,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -381,8 +373,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -415,8 +406,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -450,8 +440,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -495,8 +484,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
   }
@@ -543,8 +531,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -580,8 +567,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -615,8 +601,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -674,8 +659,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -759,8 +743,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -788,8 +771,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 
@@ -822,8 +804,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DataStreamsTags.fromTags("type:http", "direction:in")
       }
     }
 

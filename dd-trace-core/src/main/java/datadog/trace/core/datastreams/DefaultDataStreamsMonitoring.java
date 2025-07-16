@@ -227,6 +227,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    setConsumeCheckpoint(type, source, carrier, true);
+  }
+
+  public void setConsumeCheckpoint(
+      String type, String source, DataStreamsContextCarrier carrier, Boolean isManual) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
@@ -239,8 +244,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
     mergePathwayContextIntoSpan(span, carrier);
 
-    DataStreamsTags tags =
-        DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
+    DataStreamsTags tags;
+    if (isManual) {
+      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
+    } else {
+      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Inbound, source);
+    }
+
     setCheckpoint(span, fromTags(tags));
   }
 
@@ -256,9 +266,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("SetProduceCheckpoint is called with no active span");
       return;
     }
+    DataStreamsTags tags;
+    if (manualCheckpoint) {
+      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
+    } else {
+      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Outbound, target);
+    }
 
-    DataStreamsTags tags =
-        DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
     DataStreamsContext dsmContext = fromTags(tags);
     this.propagator.inject(
         span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);

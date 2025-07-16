@@ -1,6 +1,7 @@
 package datadog.trace.api.datastreams;
 
 import datadog.trace.util.FNV64Hash;
+import java.util.Objects;
 
 public class DataStreamsTags {
   public enum Direction {
@@ -118,6 +119,93 @@ public class DataStreamsTags {
         null,
         consumerGroup,
         null,
+        kafkaClusterId,
+        partition);
+  }
+
+  /// For usage in tests *only*
+  public static DataStreamsTags fromTags(String[] tags) {
+    String bus = null;
+    Direction direction = null;
+    String exchange = null;
+    String topic = null;
+    String type = null;
+    String subscription = null;
+    // additional grouping tags
+    String datasetName = null;
+    String datasetNamespace = null;
+    Boolean isManual = null;
+    // informational tags
+    String group = null;
+    String consumerGroup = null;
+    Boolean hasRoutingKey = null;
+    String kafkaClusterId = null;
+    String partition = null;
+
+    for (String tag : tags) {
+      String[] splitResult = tag.split(":");
+      if (splitResult.length != 2) {
+        continue;
+      }
+      switch (splitResult[0]) {
+        case BUS_TAG:
+          bus = splitResult[1];
+          break;
+        case DIRECTION_TAG:
+          direction =
+              Objects.equals(splitResult[1], "out") ? Direction.Outbound : Direction.Inbound;
+          break;
+        case EXCHANGE_TAG:
+          exchange = splitResult[1];
+          break;
+        case TOPIC_TAG:
+          topic = splitResult[1];
+          break;
+        case TYPE_TAG:
+          type = splitResult[1];
+          break;
+        case SUBSCRIPTION_TAG:
+          subscription = splitResult[1];
+          break;
+        case DATASET_NAME_TAG:
+          datasetName = splitResult[1];
+          break;
+        case DATASET_NAMESPACE_TAG:
+          datasetNamespace = splitResult[1];
+          break;
+        case MANUAL_TAG:
+          isManual = Objects.equals(splitResult[1], "true");
+        case GROUP_TAG:
+          group = splitResult[1];
+          break;
+        case CONSUMER_GROUP_TAG:
+          consumerGroup = splitResult[1];
+          break;
+        case HAS_ROUTING_KEY_TAG:
+          hasRoutingKey = Objects.equals(splitResult[1], "true");
+          break;
+        case KAFKA_CLUSTER_ID_TAG:
+          kafkaClusterId = splitResult[1];
+          break;
+        case PARTITION_TAG:
+          partition = splitResult[1];
+          break;
+      }
+    }
+
+    return new DataStreamsTags(
+        bus,
+        direction,
+        exchange,
+        topic,
+        type,
+        subscription,
+        datasetName,
+        datasetNamespace,
+        isManual,
+        group,
+        consumerGroup,
+        hasRoutingKey,
         kafkaClusterId,
         partition);
   }

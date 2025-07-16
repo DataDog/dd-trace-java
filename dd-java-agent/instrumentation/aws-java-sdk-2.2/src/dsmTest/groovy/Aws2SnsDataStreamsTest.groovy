@@ -2,6 +2,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
@@ -144,8 +145,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-          edgeTags.size() == 3
+          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:mytopic", "type:sns")
         }
       }
       verifyAll {
@@ -243,8 +243,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-          edgeTags.size() == 3
+          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:mytopic", "type:sns")
         }
       }
       verifyAll {

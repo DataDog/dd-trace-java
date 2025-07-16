@@ -3,6 +3,7 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
@@ -164,10 +165,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags.contains("direction:out")
-        edgeTags.contains("topic:testtopic")
-        edgeTags.contains("type:sns")
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:out", "topic:testtopic", "type:sns")
       }
     }
 

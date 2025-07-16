@@ -1,3 +1,5 @@
+import datadog.trace.api.datastreams.DataStreamsTags
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import com.google.api.gax.core.NoCredentialsProvider
@@ -236,13 +238,11 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
       StatsGroup sendStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0}
       verifyAll (sendStat) {
-        edgeTags.containsAll(["direction:out" , "topic:test-topic", "type:google-pubsub"])
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:out" , "topic:test-topic", "type:google-pubsub")
       }
       StatsGroup receiveStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == sendStat.hash}
       verifyAll(receiveStat) {
-        edgeTags.containsAll(["direction:in" , "subscription:my-subscription", "type:google-pubsub"])
-        edgeTags.size() == 3
+        tags == DataStreamsTags.fromTags("direction:in" , "subscription:my-subscription", "type:google-pubsub")
         pathwayLatency.count == 1
         pathwayLatency.minValue > 0.0
         edgeLatency.count == 1
