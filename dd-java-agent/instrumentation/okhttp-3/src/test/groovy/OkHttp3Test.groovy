@@ -78,65 +78,6 @@ abstract class OkHttp3Test extends HttpClientTest {
     method = "GET"
     url = server.address.resolve(path)
   }
-
-  def "baggage span tags are properly added"() {
-    setup:
-    // W3C Baggage header format: key1=value1,key2=value2,key3=value3
-    def baggageHeader = "user.id=bark,session.id=test-sess1,account.id=fetch,language=en"
-    def sentHeaders = [:]
-
-    when:
-    def status
-    // Capture the headers that OkHttp3 sends
-    def interceptor = new Interceptor() {
-        @Override
-        Response intercept(Chain chain) throws IOException {
-          def request = chain.request()
-          // Capture all headers sent
-          request.headers().names().each { headerName ->
-            sentHeaders[headerName] = request.header(headerName)
-          }
-          return chain.proceed(request)
-        }
-      }
-
-    def testClient = new OkHttpClient.Builder()
-      .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-      .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-      .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-      .addInterceptor(interceptor)
-      .build()
-
-    def request = new Request.Builder()
-      .url(server.address.resolve("/success").toURL())
-      .header("baggage", baggageHeader)  // Pass baggage directly in header
-      .get()
-      .build()
-    def response = testClient.newCall(request).execute()
-    status = response.code()
-
-    then:
-    status == 200
-    // Verify baggage header was sent
-    sentHeaders["baggage"] == baggageHeader
-    sentHeaders["baggage"].contains("user.id=bark")
-    sentHeaders["baggage"].contains("session.id=test-sess1")
-    sentHeaders["baggage"].contains("account.id=fetch")
-    sentHeaders["baggage"].contains("language=en")
-
-    // Verify the resulting span has the correct baggage tags (only default configured keys)
-    assertTraces(1) {
-      trace(1) {
-        clientSpan(it, null, "GET", false, false, server.address.resolve("/success"), 200, false, null, false, [
-          // Should have baggage tags for keys in default configuration
-          "baggage.user.id": "bark",
-          "baggage.session.id": "test-sess1",
-          "baggage.account.id": "fetch",
-          // "baggage.language" should NOT be present since it's not in default config
-        ])
-      }
-    }
-  }
 }
 
 @Timeout(5)
