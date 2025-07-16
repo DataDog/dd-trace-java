@@ -262,7 +262,7 @@ public class TagInterceptor {
   }
 
   private boolean interceptError(DDSpanContext span, Object value) {
-    span.setErrorFlag(asBoolean(value), ErrorPriorities.DEFAULT);
+    span.setErrorFlag(asBoolean(value), ErrorPriorities.TAG_INTERCEPTOR);
     return true;
   }
 
