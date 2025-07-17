@@ -110,11 +110,13 @@ class DataStreamsTagsTest extends Specification {
     def three = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", "cluster")
     def four = DataStreamsTags.createWithPartition("type", "topic", "partition", "cluster", "group")
     def five = DataStreamsTags.createWithDataset("type", DataStreamsTags.Direction.Outbound, "topic", "dataset", "namespace")
+    def six = DataStreamsTags.createWithSubscription("type", DataStreamsTags.Direction.Inbound, "subscription")
     expect:
     one.hasAllTags("type:type", "direction:out")
     two.hasAllTags("type:type", "direction:out", "topic:topic")
     three.hasAllTags("type:type", "direction:out", "topic:topic", "group:group", "kafka_cluster_id:cluster")
     four.hasAllTags("type:type", "topic:topic", "partition:partition", "kafka_cluster_id:cluster", "consumer_group:group")
     five.hasAllTags("type:type", "direction:out", "topic:topic", "ds.name:dataset", "ds.namespace:namespace")
+    six.hasAllTags("type:type", "direction:in", "subscription:subscription")
   }
 }

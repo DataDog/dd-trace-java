@@ -75,6 +75,25 @@ public class DataStreamsTags {
     return DataStreamsTags.createWithGroup(type, direction, topic, null);
   }
 
+  public static DataStreamsTags createWithSubscription(
+      String type, Direction direction, String subscription) {
+    return new DataStreamsTags(
+        null,
+        direction,
+        null,
+        null,
+        type,
+        subscription,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
+  }
+
   public static DataStreamsTags create(
       String type, Direction direction, String topic, String group, String kafkaClusterId) {
     return new DataStreamsTags(

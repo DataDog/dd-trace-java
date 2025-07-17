@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -14,12 +13,12 @@ import org.apache.kafka.common.utils.Time
 import org.apache.kafka.connect.connector.policy.AllConnectorClientConfigOverridePolicy
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy
 import org.apache.kafka.connect.runtime.Herder
-import org.apache.kafka.connect.runtime.rest.entities.ConnectorInfo
-import org.apache.kafka.connect.runtime.standalone.StandaloneConfig
-import org.apache.kafka.connect.runtime.standalone.StandaloneHerder
 import org.apache.kafka.connect.runtime.Worker
 import org.apache.kafka.connect.runtime.WorkerConfig
 import org.apache.kafka.connect.runtime.isolation.Plugins
+import org.apache.kafka.connect.runtime.rest.entities.ConnectorInfo
+import org.apache.kafka.connect.runtime.standalone.StandaloneConfig
+import org.apache.kafka.connect.runtime.standalone.StandaloneHerder
 import org.apache.kafka.connect.storage.FileOffsetBackingStore
 import org.apache.kafka.connect.util.Callback
 import org.springframework.kafka.test.EmbeddedKafkaBroker
@@ -162,12 +161,8 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-    def control = DataStreamsTags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
     verifyAll(second) {
-      tags.direction == control.direction
-      tags.group == control.group
-      tags.topic == control.topic
-      tags.type == control.type
+      tags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 
@@ -289,13 +284,8 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-    def control = DataStreamsTags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
     verifyAll(second) {
-      tags.direction == control.direction
-      tags.group == control.group
-      tags.topic == control.topic
-      tags.type == control.type
-      tags.kafkaClusterId == control.kafkaClusterId
+      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 
