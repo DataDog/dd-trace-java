@@ -1,5 +1,7 @@
 package datadog.environment;
 
+import javax.annotation.Nonnull;
+
 /**
  * Safely queries system properties against security manager.
  *
@@ -13,7 +15,8 @@ public final class SystemProperties {
    * Gets a system property value.
    *
    * @param property The system property name.
-   * @return The system property value, {@code null} if missing or can't be retrieved.
+   * @return The system property value, {@code null} if missing, can't be retrieved, or the system
+   *     property name is {@code null}.
    */
   public static String get(String property) {
     return getOrDefault(property, null);
@@ -25,9 +28,13 @@ public final class SystemProperties {
    * @param property The system property name.
    * @param defaultValue The default value to return if the system property is missing or can't be
    *     retrieved.
-   * @return The system property value, {@code defaultValue} if missing or can't be retrieved.
+   * @return The system property value, {@code defaultValue} if missing, can't be retrieved, or the
+   *     system property name is {@code null}.
    */
-  public static String getOrDefault(String property, String defaultValue) {
+  public static String getOrDefault(@Nonnull String property, String defaultValue) {
+    if (property == null) {
+      return defaultValue;
+    }
     try {
       return System.getProperty(property, defaultValue);
     } catch (SecurityException ignored) {
