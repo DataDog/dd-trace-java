@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
@@ -10,11 +11,7 @@ import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.Producer
-import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.clients.producer.*
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.Rule
@@ -29,15 +26,12 @@ import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 
-
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
-
-import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
-
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -272,22 +266,23 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "type:kafka"
           )
       }
-      List<String> produce = [
-        "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
-        "type:kafka_produce"
-      ]
-      List<String> commit = [
-        "consumer_group:sender",
-        "kafka_cluster_id:$clusterId",
-        "partition:"+received.partition(),
-        "topic:$SHARED_TOPIC",
-        "type:kafka_commit"
-      ]
-      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
+
+      def sorted = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort{ it.type }
+      verifyAll(sorted) {
+        size() == 2
+        get(0).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId",
+          "partition:"+received.partition(),
+          "topic:$SHARED_TOPIC",
+          "type:kafka_commit"
+          )
+        get(1).hasAllTags(
+          "kafka_cluster_id:$clusterId",
+          "partition:"+received.partition(),
+          "topic:"+SHARED_TOPIC,
+          "type:kafka_produce"
+          )
       }
     }
 
@@ -428,22 +423,22 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "type:kafka"
           )
       }
-      List<String> produce = [
-        "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
-        "type:kafka_produce"
-      ]
-      List<String> commit = [
-        "consumer_group:sender",
-        "kafka_cluster_id:$clusterId".toString(),
-        "partition:"+received.partition(),
-        "topic:"+SHARED_TOPIC,
-        "type:kafka_commit"
-      ]
-      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
+      def items = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort {it.type}
+      verifyAll(items) {
+        size() == 2
+        get(0).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId".toString(),
+          "partition:"+received.partition(),
+          "topic:"+SHARED_TOPIC,
+          "type:kafka_commit"
+          )
+        get(1).hasAllTags(
+          "kafka_cluster_id:$clusterId".toString(),
+          "partition:"+received.partition(),
+          "topic:"+SHARED_TOPIC,
+          "type:kafka_produce"
+          )
       }
     }
 

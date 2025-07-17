@@ -1,3 +1,5 @@
+import datadog.trace.api.datastreams.DataStreamsTags
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -239,7 +241,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(3)
     }
 
     then:
@@ -296,22 +298,29 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "type:kafka"
           )
       }
-      List<String> produce = [
-        "kafka_cluster_id:$clusterId",
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_produce"
-      ]
-      List<String> commit = [
-        "consumer_group:sender",
-        "kafka_cluster_id:$clusterId",
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_commit"
-      ]
-      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
+      def items = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort { it.type + it.partition}
+      verifyAll(items) {
+        size() == 3
+        get(0).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId",
+          "partition:0",
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_commit"
+          )
+        get(1).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId",
+          "partition:1",
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_commit"
+          )
+        get(2).hasAllTags(
+          "kafka_cluster_id:$clusterId",
+          "partition:" + received.partition(),
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_produce"
+          )
       }
     }
 
@@ -394,7 +403,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(2)
       // wait for produce offset 0, commit offset 0 on partition 0 and 1, and commit offset 1 on 1 partition.
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(4)
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(3)
     }
 
     then:
@@ -447,22 +456,29 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "type:kafka"
           )
       }
-      List<String> produce = [
-        "kafka_cluster_id:$clusterId".toString(),
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_produce"
-      ]
-      List<String> commit = [
-        "consumer_group:sender",
-        "kafka_cluster_id:$clusterId".toString(),
-        "partition:" + received.partition(),
-        "topic:" + SHARED_TOPIC,
-        "type:kafka_commit"
-      ]
-      verifyAll(TEST_DATA_STREAMS_WRITER.backlogs) {
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(commit, 1).toString())
-        contains(new AbstractMap.SimpleEntry<List<String>, Long>(produce, 0).toString())
+      def items = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort {it.type + it.partition}
+      verifyAll(items) {
+        size() == 3
+        get(0).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId".toString(),
+          "partition:0",
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_commit"
+          )
+        get(1).hasAllTags(
+          "consumer_group:sender",
+          "kafka_cluster_id:$clusterId".toString(),
+          "partition:1",
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_commit"
+          )
+        get(2).hasAllTags(
+          "kafka_cluster_id:$clusterId".toString(),
+          "partition:" + received.partition(),
+          "topic:" + SHARED_TOPIC,
+          "type:kafka_produce"
+          )
       }
     }
 
