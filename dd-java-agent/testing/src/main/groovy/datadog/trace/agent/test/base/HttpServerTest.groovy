@@ -2216,7 +2216,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def response = client.newCall(request).execute()
     then:
     assert response.code() == 200
-    assert response.body().string().contains(new String(RumInjector.get().getSnippet("UTF-8"), "UTF-8")) == expected
+    assert response.body().string().contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
     assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
     where:
     mime   | expected
@@ -2384,6 +2384,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean bodyConvertedBlock
       boolean responseHeadersInTags
       boolean responseBodyTag
+      Object responseBody
     }
 
     static final String stringOrEmpty(String string) {
@@ -2399,6 +2400,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
     ({ RequestContext rqCtxt, IGSpanInfo info ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context.responseBodyTag) {
+        rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
+      }
       if (context.extraSpanName) {
         runUnderTrace(context.extraSpanName, false) {
           def span = activeSpan()
@@ -2547,9 +2551,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         body = obj.toString()
       }
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (context.responseBodyTag) {
-        rqCtxt.traceSegment.setTagTop('response.body', body)
-      }
+      context.responseBody = body
       if (context.responseBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
