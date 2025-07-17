@@ -101,9 +101,12 @@ public class AgentPreCheck {
 
     reportIncompatibleJava(javaVersion, javaHome, agentVersion, output);
 
-    String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
-    if (forwarderPath != null) {
-      sendTelemetry(forwarderPath, javaVersion, agentVersion);
+    try {
+      String forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
+      if (forwarderPath != null) {
+        sendTelemetry(forwarderPath, javaVersion, agentVersion);
+      }
+    } catch (SecurityException ignored) {
     }
 
     return false;

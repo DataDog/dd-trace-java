@@ -165,7 +165,7 @@ public final class AgentBootstrap {
   static boolean getConfig(String configName) {
     switch (configName) {
       case LIB_INJECTION_ENABLED_ENV_VAR:
-        return System.getenv(LIB_INJECTION_ENABLED_ENV_VAR) != null;
+        return EnvironmentVariables.get(LIB_INJECTION_ENABLED_ENV_VAR) != null;
       case LIB_INJECTION_FORCE_SYS_PROP:
         {
           String envVarName =
