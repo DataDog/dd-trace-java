@@ -67,11 +67,35 @@ class DataStreamsTagsTest extends Specification {
 
   def 'test from tags'() {
     setup:
-    def one = DataStreamsTags.fromTags("direction:in", "topic:abc")
+    def one = DataStreamsTags.fromTags(
+            "direction:in",
+            "topic:abc",
+            "exchange:exchange",
+            "partition:0",
+            "has_routing_key:true",
+            "ds.name:dataset",
+            "subscription:subscription",
+            "bus:bus",
+            "garbage",
+            "ds.namespace:namespace",
+            "manual_checkpoint:false",
+            "consumer_group:group",
+            "group:group"
+    )
     expect:
-    one.nonNullSize() == 2
+    one.nonNullSize() == 12
+    one.bus == "bus:bus"
     one.direction == "direction:in"
     one.topic == "topic:abc"
+    one.exchange == "exchange:exchange"
+    one.partition == "partition:0"
+    one.hasRoutingKey == "has_routing_key:true"
+    one.datasetName == "ds.name:dataset"
+    one.subscription == "subscription:subscription"
+    one.datasetNamespace == "ds.namespace:namespace"
+    one.isManual == "manual_checkpoint:false"
+    one.consumerGroup == "consumer_group:group"
+    one.group == "group:group"
   }
 
   def 'test create'() {
@@ -79,9 +103,13 @@ class DataStreamsTagsTest extends Specification {
     def one = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound)
     def two = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic")
     def three = DataStreamsTags.create("type", DataStreamsTags.Direction.Outbound, "topic", "group", "cluster")
+    def four = DataStreamsTags.createWithPartition("type", "topic", "partition", "cluster", "group")
+    def five = DataStreamsTags.createWithDataset("type", DataStreamsTags.Direction.Outbound, "topic", "dataset", "namespace")
     expect:
     one == DataStreamsTags.fromTags("type:type", "direction:out")
     two == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic")
     three == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic", "group:group", "kafka_cluster_id:cluster")
+    four == DataStreamsTags.fromTags("type:type", "topic:topic", "partition:partition", "kafka_cluster_id:cluster", "consumer_group:group")
+    five == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic", "ds.name:dataset", "ds.namespace:namespace")
   }
 }
