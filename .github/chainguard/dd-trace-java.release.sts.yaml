@@ -9,4 +9,4 @@ claim_pattern:
   # ref: "master"
 
 permissions:
-  contents: "read,write"
+  contents: "write"
