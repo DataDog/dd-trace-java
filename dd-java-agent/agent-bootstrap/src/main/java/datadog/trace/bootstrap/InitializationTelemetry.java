@@ -8,7 +8,7 @@ import java.lang.invoke.MethodType;
  * Thread safe wrapper around BootstrapInitializationTelemetry used inside the Datadog ClassLoader.
  *
  * <p>Right now, this is needed because of the build separation between the two portions of the
- * bootstrap. We should consider adjusting the build to allow Agent et al to reference
+ * bootstrap. We should consider adjusting the build to allow Agent et al. to reference
  * BootstrapInitializationTelemetry, then we could remove this proxy.
  */
 public abstract class InitializationTelemetry {
@@ -48,7 +48,7 @@ public abstract class InitializationTelemetry {
   public abstract void onFatalError(Throwable t);
 
   /**
-   * Indicates that an exception conditional occurred during the bootstrapping process. By default
+   * Indicates that an exception conditional occurred during the bootstrapping process. By default,
    * the exceptional condition is assumed to NOT have fully stopped the initialization of the
    * tracer.
    *
