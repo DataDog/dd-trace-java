@@ -804,7 +804,6 @@ deploy_artifacts_to_github:
   stage: publish
   image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
   tags: [ "docker-in-docker:amd64" ]
-  needs: []  # DEBUG: Enforce no dependencies to run immediately
   services:
     - docker:dind
 
@@ -820,10 +819,10 @@ deploy_artifacts_to_github:
     - when: manual # DEBUG: Allow manual trigger
       allow_failure: true
   
-  needs:
-    - job: deploy_to_maven_central
-      # The deploy_to_maven_central job is not run for release candidate versions
-      optional: true
+  needs: [] # DEBUG: Enforce no dependencies to run immediately
+#    - job: deploy_to_maven_central
+#      # The deploy_to_maven_central job is not run for release candidate versions
+#      optional: true
 
   script:
     # Get GitHub token using dd-octo-sts in a container
@@ -833,8 +832,8 @@ deploy_artifacts_to_github:
         registry.ddbuild.io/images/dd-octo-sts-ci-base:v68058725-73f34e7-2025.06-1 
         sh -c "
           dd-octo-sts version &&
-          dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release &&
-          dd-octo-sts token --scope DataDog/dd-trace-java --policy dd-trace-java.release > /workspace/github-token.txt
+          dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release &&
+          dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > /workspace/github-token.txt
         "
 
     # Verify token was generated
