@@ -57,16 +57,14 @@ public class AgentPreCheck {
             + "\","
             + "\"tracer_version\":\""
             + agentVersion
-            + "\"},"
+            + "\","
+            + "\"result\":\"abort\","
+            + "\"result_class\":\"unknown\","
+            + "\"result_reason\":\"incompatible_runtime\""
+            + "},"
             + "\"points\":[{"
             + "\"name\":\"library_entrypoint.abort\","
             + "\"tags\":[\"reason:incompatible_runtime\"]"
-            + "\"result:error\","
-            + "\"result_class:incompatible_runtime\","
-            + "\"result_reason:java version"
-            + MIN_JAVA_VERSION
-            + "+ required\""
-            + "]"
             + "}]"
             + "}";
 
