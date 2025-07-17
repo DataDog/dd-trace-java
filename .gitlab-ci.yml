@@ -825,7 +825,7 @@ deploy_artifacts_to_github:
   before_script:
     # Get a token
     - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release # Uncomment to debug the token
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
     - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
 
   script:
