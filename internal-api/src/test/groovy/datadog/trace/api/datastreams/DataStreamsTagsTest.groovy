@@ -56,7 +56,7 @@ class DataStreamsTagsTest extends Specification {
       "has_routing_key:true",
       "kafka_cluster_id:kafka_cluster_id",
       "partition:partition"
-    )
+      )
     !tags.hasAllTags("garbage")
   }
 
@@ -64,7 +64,7 @@ class DataStreamsTagsTest extends Specification {
     setup:
     def value = 123444L
     def bts = DataStreamsTags.longToBytes(value)
-    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES)
     buffer.putLong(value)
     def ctrl = buffer.array()
     expect:
