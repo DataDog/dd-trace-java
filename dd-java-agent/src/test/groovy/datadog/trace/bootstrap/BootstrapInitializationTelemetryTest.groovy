@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap
 
+import groovy.json.JsonBuilder
 import spock.lang.Specification
 
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -106,8 +107,20 @@ class BootstrapInitializationTelemetryTest extends Specification {
     !capture.json().contains("library_entrypoint.complete")
   }
 
-  private String json(String result, String resultClass, String resultReason, List points) {
-    return """{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"${result}","result_class":"${resultClass}","result_reason":"${resultReason}"},"points":${new groovy.json.JsonBuilder(points)}}"""
+  def "unwind root cause"() {
+    when:
+    initTelemetry.onError(new Exception("top cause", new FileNotFoundException("root cause")))
+    initTelemetry.finish()
+
+    then:
+    capture.json() == json("error", "internal_error", "top cause", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.io.FileNotFoundException", "error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
+  }
+
+  private static String json(String result, String resultClass, String resultReason, List points) {
+    return """{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"${result}","result_class":"${resultClass}","result_reason":"${resultReason}"},"points":${new JsonBuilder(points)}}"""
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
