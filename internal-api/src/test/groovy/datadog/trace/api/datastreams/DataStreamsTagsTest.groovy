@@ -68,20 +68,20 @@ class DataStreamsTagsTest extends Specification {
   def 'test from tags'() {
     setup:
     def one = DataStreamsTags.fromTags(
-            "direction:in",
-            "topic:abc",
-            "exchange:exchange",
-            "partition:0",
-            "has_routing_key:true",
-            "ds.name:dataset",
-            "subscription:subscription",
-            "bus:bus",
-            "garbage",
-            "ds.namespace:namespace",
-            "manual_checkpoint:false",
-            "consumer_group:group",
-            "group:group"
-    )
+      "direction:in",
+      "topic:abc",
+      "exchange:exchange",
+      "partition:0",
+      "has_routing_key:true",
+      "ds.name:dataset",
+      "subscription:subscription",
+      "bus:bus",
+      "garbage",
+      "ds.namespace:namespace",
+      "manual_checkpoint:false",
+      "consumer_group:group",
+      "group:group"
+      )
     expect:
     one.nonNullSize() == 12
     one.bus == "bus:bus"
