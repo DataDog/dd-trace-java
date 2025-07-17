@@ -7,7 +7,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags

@@ -1,4 +1,3 @@
-import datadog.trace.api.datastreams.DataStreamsTags
 
 import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES

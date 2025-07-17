@@ -1,6 +1,7 @@
 package datadog.trace.api.datastreams
 
 import spock.lang.Specification
+import java.nio.ByteBuffer
 
 
 class DataStreamsTagsTest extends Specification {
@@ -32,7 +33,42 @@ class DataStreamsTagsTest extends Specification {
     tg.getPartition() == DataStreamsTags.PARTITION_TAG + ":partition0"
     tg.getDirectionValue() == DataStreamsTags.Direction.Outbound
     tg.toString() != null
-    tg.hasAllTags("123") == false
+  }
+
+  def 'test has all tags'() {
+    setup:
+    def tags = new DataStreamsTags("bus", DataStreamsTags.Direction.Outbound,
+      "exchange", "topic", "type", "subscription", "dataset_name", "dataset_namespace", true,
+      "group", "consumer_group", true, "kafka_cluster_id", "partition")
+    expect:
+    tags.hasAllTags(
+      "bus:bus",
+      "direction:out",
+      "exchange:exchange",
+      "topic:topic",
+      "type:type",
+      "subscription:subscription",
+      "ds.name:dataset_name",
+      "ds.namespace:dataset_namespace",
+      "manual_checkpoint:true",
+      "group:group",
+      "consumer_group:consumer_group",
+      "has_routing_key:true",
+      "kafka_cluster_id:kafka_cluster_id",
+      "partition:partition"
+    )
+    !tags.hasAllTags("garbage")
+  }
+
+  def 'test long to bytes'() {
+    setup:
+    def value = 123444L
+    def bts = DataStreamsTags.longToBytes(value)
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(value)
+    def ctrl = buffer.array()
+    expect:
+    bts == ctrl
   }
 
   def 'test service name override and global hash'() {

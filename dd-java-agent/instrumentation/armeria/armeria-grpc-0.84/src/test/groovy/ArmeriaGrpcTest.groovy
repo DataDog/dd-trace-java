@@ -1,5 +1,3 @@
-import datadog.trace.api.datastreams.DataStreamsTags
-
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
 
 import com.google.common.util.concurrent.ListenableFuture

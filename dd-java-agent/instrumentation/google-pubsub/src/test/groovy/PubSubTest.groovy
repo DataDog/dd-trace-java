@@ -1,4 +1,3 @@
-import datadog.trace.api.datastreams.DataStreamsTags
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
