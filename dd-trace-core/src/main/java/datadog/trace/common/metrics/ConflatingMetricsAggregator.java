@@ -24,9 +24,8 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.TraceUtils;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -269,7 +268,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       // returning false means that either the batch can't take any
       // more data, or it has already been consumed
       if (batch.add(tag, durationNanos)) {
-        // added to a pending batch prior to consumption
+        // added to a pending batch prior to consumption,
         // so skip publishing to the queue (we also know
         // the key isn't rare enough to override the sampler)
         return false;
@@ -289,12 +288,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return isNewKey || span.getError() > 0;
   }
 
-  private List<CharSequence> getPeerTags(CoreSpan<?> span) {
-    List<CharSequence> peerTags = new ArrayList<>();
+  private Map<String, String> getPeerTags(CoreSpan<?> span) {
+    Map<String, String> peerTags = new HashMap<>();
     for (String peerTag : features.peerTags()) {
       Object value = span.getTag(peerTag);
       if (value != null) {
-        peerTags.add(peerTag + ":" + TraceUtils.normalizeTag(value.toString()));
+        peerTags.put(peerTag, value.toString());
       }
     }
     return peerTags;

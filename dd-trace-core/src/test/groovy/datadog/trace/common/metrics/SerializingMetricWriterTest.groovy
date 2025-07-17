@@ -53,7 +53,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         false,
         false,
         "client",
-        ["country:canada", "georegion:amer", "peer.service:remote-service"]
+        ["country":"canada", "georegion":"amer", "peer.service":"remote-service"]
         ),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
@@ -67,7 +67,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         true,
         false,
         "producer",
-        ["country:canada", "georegion:amer", "peer.service:remote-service"]
+        ["country":"canada", "georegion":"amer", "peer.service":"remote-service"]
         ),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
         )
@@ -83,7 +83,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           false,
           false,
           "producer",
-          ["messaging.destination" + i]
+          ["messaging.destination" : "dest" + i]
           ),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
@@ -175,9 +175,12 @@ class SerializingMetricWriterTest extends DDSpecification {
         ++elementCount
         assert unpacker.unpackString() == "PeerTags"
         int peerTagsLength = unpacker.unpackArrayHeader()
-        assert peerTagsLength == key.getPeerTags().length
+        assert peerTagsLength == key.getPeerTags().size()
         for (int i = 0; i < peerTagsLength; i++) {
-          assert unpacker.unpackString() == key.getPeerTags()[i] as String
+          def string = unpacker.unpackString()
+          def separatorPos = string.indexOf(':')
+          def tagVal = key.getPeerTags()[string.substring(0, separatorPos)]
+          assert tagVal == string.substring(separatorPos + 1)
         }
         ++elementCount
         assert unpacker.unpackString() == "Hits"

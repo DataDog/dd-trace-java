@@ -125,7 +125,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       true,
       "baz",
-      []
+      [:]
       ), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
       }
@@ -168,7 +168,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       kind,
-      []
+      [:]
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -221,7 +221,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "grault",
-      ["country:france"]
+      ["country":"france"]
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -235,7 +235,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "grault",
-      ["country:france", "georegion:europe"]
+      ["country":"france", "georegion":"europe"]
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -277,7 +277,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       topLevel,
       "baz",
-      []
+      [:]
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
       })
@@ -333,7 +333,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [:]
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
       })
@@ -346,7 +346,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       false,
       "baz",
-      []
+      [:]
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration * 2
       })
@@ -396,7 +396,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "baz",
-        []
+        [:]
         ), _) >> { MetricKey key, AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         }
@@ -410,7 +410,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       true,
       "baz",
-      []
+      [:]
       ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -456,7 +456,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "baz",
-        []
+        [:]
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -487,7 +487,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "baz",
-        []
+        [:]
         ),{ AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -501,7 +501,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       true,
       "baz",
-      []
+      [:]
       ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -547,7 +547,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "quux",
-        []
+        [:]
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
@@ -603,7 +603,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         true,
         "garply",
-        []
+        [:]
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
