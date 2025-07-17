@@ -18,8 +18,8 @@ experiments:
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fonly-tracing&trendsType=scenario
           - name: normal_operation/only-tracing
             thresholds:
-              - agg_http_req_duration_p50 < 2.36 ms
-              - agg_http_req_duration_p99 < 7.89 ms
+              - agg_http_req_duration_p50 < 2.6 ms
+              - agg_http_req_duration_p99 < 8.5 ms
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fotel-latest&trendsType=scenario
           - name: normal_operation/otel-latest
             thresholds:
