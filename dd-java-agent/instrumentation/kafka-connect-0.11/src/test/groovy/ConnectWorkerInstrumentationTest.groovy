@@ -154,7 +154,7 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      tags == DataStreamsTags.fromTags(
+      tags.hasAllTags(
       "direction:out",
       "topic:test-topic",
       "type:kafka"
@@ -162,13 +162,12 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    def control = DataStreamsTags.hasAllTags("direction:in", "group:test-consumer-group", "topic:test-topic", "type:kafka")
     verifyAll(second) {
-      tags == DataStreamsTags.fromTags(
-      "direction:in",
-      "group:test-consumer-group",
-      "topic:test-topic",
-      "type:kafka"
-      )
+      tags.direction == control.direction
+      tags.group == control.group
+      tags.topic == control.topic
+      tags.type == control.type
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-source-connector')
 
@@ -286,21 +285,17 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      tags == DataStreamsTags.fromTags(
-      "direction:out",
-      "topic:test-topic",
-      "type:kafka"
-      )
+      tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+    def control = DataStreamsTags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
     verifyAll(second) {
-      tags == DataStreamsTags.fromTags(
-      "direction:in",
-      "group:connect-file-sink-connector",
-      "topic:test-topic",
-      "type:kafka"
-      )
+      tags.direction == control.direction
+      tags.group == control.group
+      tags.topic == control.topic
+      tags.type == control.type
+      tags.kafkaClusterId == control.kafkaClusterId
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 

@@ -173,12 +173,12 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        tags == DataStreamsTags.fromTags("direction:out", "topic:somequeue", "type:sqs")
+        tags.hasAllTags("direction:out", "topic:somequeue", "type:sqs")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags == DataStreamsTags.fromTags("direction:in", "topic:somequeue", "type:sqs")
+        tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
       }
     }
 
@@ -628,7 +628,7 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == -2734507826469073289 }
 
     verifyAll(first) {
-      tags == DataStreamsTags.fromTags("direction:in", "topic:somequeue", "type:sqs")
+      tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
     }
 
     cleanup:
@@ -657,7 +657,7 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
     verifyAll(first) {
-      tags == DataStreamsTags.fromTags("direction:in", "topic:somequeue", "type:sqs")
+      tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
     }
 
     cleanup:

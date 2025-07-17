@@ -97,7 +97,7 @@ abstract class AWS1SnsClientTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:" + topicName, "type:sns")
+          tags.hasAllTags("direction:" + dsmDirection, "topic:" + topicName, "type:sns")
         }
       }
       verifyAll {

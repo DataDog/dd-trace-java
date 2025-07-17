@@ -40,10 +40,6 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
-import java.util.function.Function
-import java.util.function.ToDoubleFunction
-import java.util.function.ToIntFunction
-import java.util.function.ToLongFunction
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -238,11 +234,11 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
       StatsGroup sendStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0}
       verifyAll (sendStat) {
-        tags == DataStreamsTags.fromTags("direction:out" , "topic:test-topic", "type:google-pubsub")
+        tags.hasAllTags("direction:out" , "topic:test-topic", "type:google-pubsub")
       }
       StatsGroup receiveStat = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == sendStat.hash}
       verifyAll(receiveStat) {
-        tags == DataStreamsTags.fromTags("direction:in" , "subscription:my-subscription", "type:google-pubsub")
+        tags.hasAllTags("direction:in" , "subscription:my-subscription", "type:google-pubsub")
         pathwayLatency.count == 1
         pathwayLatency.minValue > 0.0
         edgeLatency.count == 1

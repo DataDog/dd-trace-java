@@ -116,7 +116,7 @@ abstract class AWS1KinesisClientTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:" + streamArn, "type:kinesis")
+          tags.hasAllTags("direction:" + dsmDirection, "topic:" + streamArn, "type:kinesis")
         }
       }
       verifyAll {

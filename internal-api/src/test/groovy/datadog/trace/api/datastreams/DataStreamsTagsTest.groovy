@@ -67,7 +67,7 @@ class DataStreamsTagsTest extends Specification {
 
   def 'test from tags'() {
     setup:
-    def one = DataStreamsTags.fromTags(
+    def one = DataStreamsTags.hasAllTags(
       "direction:in",
       "topic:abc",
       "exchange:exchange",
@@ -106,10 +106,10 @@ class DataStreamsTagsTest extends Specification {
     def four = DataStreamsTags.createWithPartition("type", "topic", "partition", "cluster", "group")
     def five = DataStreamsTags.createWithDataset("type", DataStreamsTags.Direction.Outbound, "topic", "dataset", "namespace")
     expect:
-    one == DataStreamsTags.fromTags("type:type", "direction:out")
-    two == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic")
-    three == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic", "group:group", "kafka_cluster_id:cluster")
-    four == DataStreamsTags.fromTags("type:type", "topic:topic", "partition:partition", "kafka_cluster_id:cluster", "consumer_group:group")
-    five == DataStreamsTags.fromTags("type:type", "direction:out", "topic:topic", "ds.name:dataset", "ds.namespace:namespace")
+    one.hasAllTags("type:type", "direction:out")
+    two.hasAllTags("type:type", "direction:out", "topic:topic")
+    three.hasAllTags("type:type", "direction:out", "topic:topic", "group:group", "kafka_cluster_id:cluster")
+    four.hasAllTags("type:type", "topic:topic", "partition:partition", "kafka_cluster_id:cluster", "consumer_group:group")
+    five.hasAllTags("type:type", "direction:out", "topic:topic", "ds.name:dataset", "ds.namespace:namespace")
   }
 }

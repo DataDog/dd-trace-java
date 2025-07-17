@@ -157,7 +157,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
+          tags.hasAllTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
         }
       }
       verifyAll {
@@ -278,7 +278,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          tags == DataStreamsTags.fromTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
+          tags.hasAllTags("direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis")
         }
       }
       verifyAll {

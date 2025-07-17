@@ -124,90 +124,91 @@ public class DataStreamsTags {
   }
 
   /// For usage in tests *only*
-  public static DataStreamsTags fromTags(String[] tags) {
-    String bus = null;
-    Direction direction = null;
-    String exchange = null;
-    String topic = null;
-    String type = null;
-    String subscription = null;
-    // additional grouping tags
-    String datasetName = null;
-    String datasetNamespace = null;
-    Boolean isManual = null;
-    // informational tags
-    String group = null;
-    String consumerGroup = null;
-    Boolean hasRoutingKey = null;
-    String kafkaClusterId = null;
-    String partition = null;
-
+  public Boolean hasAllTags(String[] tags) {
     for (String tag : tags) {
       if (tag.indexOf(':') == -1) {
-        continue;
+        return false;
       }
       String key = tag.substring(0, tag.indexOf(':'));
       String value = tag.substring(tag.indexOf(':') + 1);
       switch (key) {
         case BUS_TAG:
-          bus = value;
+          if (!Objects.equals(this.bus, tag)) {
+            return false;
+          }
           break;
         case DIRECTION_TAG:
-          direction = Objects.equals(value, "out") ? Direction.Outbound : Direction.Inbound;
+          if (!Objects.equals(
+              this.directionValue,
+              Objects.equals(value, "out") ? Direction.Outbound : Direction.Inbound)) {
+            return false;
+          }
           break;
         case EXCHANGE_TAG:
-          exchange = value;
+          if (!Objects.equals(this.exchange, tag)) {
+            return false;
+          }
           break;
         case TOPIC_TAG:
-          topic = value;
+          if (!Objects.equals(this.topic, tag)) {
+            return false;
+          }
           break;
         case TYPE_TAG:
-          type = value;
+          if (!Objects.equals(this.type, tag)) {
+            return false;
+          }
           break;
         case SUBSCRIPTION_TAG:
-          subscription = value;
+          if (!Objects.equals(this.subscription, tag)) {
+            return false;
+          }
           break;
         case DATASET_NAME_TAG:
-          datasetName = value;
+          if (!Objects.equals(this.datasetName, tag)) {
+            return false;
+          }
           break;
         case DATASET_NAMESPACE_TAG:
-          datasetNamespace = value;
+          if (!Objects.equals(this.datasetNamespace, tag)) {
+            return false;
+          }
           break;
         case MANUAL_TAG:
-          isManual = Objects.equals(value, "true");
+          if (!Objects.equals(this.isManual, tag)) {
+            return false;
+          }
         case GROUP_TAG:
-          group = value;
+          if (!Objects.equals(this.group, tag)) {
+            return false;
+          }
           break;
         case CONSUMER_GROUP_TAG:
-          consumerGroup = value;
+          if (!Objects.equals(this.consumerGroup, tag)) {
+            return false;
+          }
           break;
         case HAS_ROUTING_KEY_TAG:
-          hasRoutingKey = Objects.equals(value, "true");
+          if (!Objects.equals(this.hasRoutingKey, tag)) {
+            return false;
+          }
           break;
         case KAFKA_CLUSTER_ID_TAG:
-          kafkaClusterId = value;
+          if (!Objects.equals(this.kafkaClusterId, tag)) {
+            return false;
+          }
           break;
         case PARTITION_TAG:
-          partition = value;
+          if (!Objects.equals(this.partition, tag)) {
+            return false;
+          }
           break;
+        default:
+          return false;
       }
     }
 
-    return new DataStreamsTags(
-        bus,
-        direction,
-        exchange,
-        topic,
-        type,
-        subscription,
-        datasetName,
-        datasetNamespace,
-        isManual,
-        group,
-        consumerGroup,
-        hasRoutingKey,
-        kafkaClusterId,
-        partition);
+    return true;
   }
 
   public static DataStreamsTags createWithGroup(
@@ -246,7 +247,7 @@ public class DataStreamsTags {
   public static DataStreamsTags createWithClusterId(
       String type, Direction direction, String topic, String clusterId) {
     return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, false, null, null, null, clusterId,
+        null, direction, null, topic, type, null, null, null, null, null, null, null, clusterId,
         null);
   }
 
@@ -481,37 +482,37 @@ public class DataStreamsTags {
     return "DataStreamsTags{"
         + "bus='"
         + this.bus
-        + ", direction="
+        + "', direction='"
         + this.direction
-        + ", exchange='"
+        + "', exchange='"
         + this.exchange
-        + ", topic='"
+        + "', topic='"
         + this.topic
-        + ", type='"
+        + "', type='"
         + this.type
-        + ", subscription='"
+        + "', subscription='"
         + this.subscription
-        + ", datasetName='"
+        + "', datasetName='"
         + this.datasetName
-        + ", datasetNamespace='"
+        + "', datasetNamespace='"
         + this.datasetNamespace
-        + ", isManual="
+        + "', isManual="
         + this.isManual
-        + ", group='"
+        + "', group='"
         + this.group
-        + ", consumerGroup='"
+        + "', consumerGroup='"
         + this.consumerGroup
-        + ", hasRoutingKey='"
+        + "', hasRoutingKey='"
         + this.hasRoutingKey
-        + ", kafkaClusterId='"
+        + "', kafkaClusterId='"
         + this.kafkaClusterId
-        + ", partition='"
+        + "', partition='"
         + this.partition
-        + ", hash="
+        + "', hash='"
         + hash
-        + ", aggregationHash="
+        + "', aggregationHash='"
         + aggregationHash
-        + ", size="
+        + "', size='"
         + size();
   }
 }

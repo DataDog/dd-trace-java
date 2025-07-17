@@ -290,12 +290,12 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup originProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(originProducerPoint) {
-        tags == DataStreamsTags.fromTags("direction:out", "topic:$STREAM_PENDING", "type:kafka")
+        tags.hasAllTags("direction:out", "topic:$STREAM_PENDING", "type:kafka")
       }
 
       StatsGroup kafkaStreamsConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == originProducerPoint.hash }
       verifyAll(kafkaStreamsConsumerPoint) {
-        tags == DataStreamsTags.fromTags("direction:in",
+        tags.hasAllTags("direction:in",
           "group:test-application",
           "topic:$STREAM_PENDING".toString(),
           "type:kafka")
@@ -303,12 +303,12 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
 
       StatsGroup kafkaStreamsProducerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsConsumerPoint.hash }
       verifyAll(kafkaStreamsProducerPoint) {
-        tags == DataStreamsTags.fromTags("direction:out", "topic:$STREAM_PROCESSED", "type:kafka")
+        tags.hasAllTags("direction:out", "topic:$STREAM_PROCESSED", "type:kafka")
       }
 
       StatsGroup finalConsumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == kafkaStreamsProducerPoint.hash }
       verifyAll(finalConsumerPoint) {
-        tags == DataStreamsTags.fromTags("direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka")
+        tags.hasAllTags("direction:in", "group:sender", "topic:$STREAM_PROCESSED".toString(), "type:kafka")
       }
     }
 

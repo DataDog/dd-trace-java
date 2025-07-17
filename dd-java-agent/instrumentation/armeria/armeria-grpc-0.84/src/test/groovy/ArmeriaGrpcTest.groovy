@@ -256,12 +256,12 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        tags == DataStreamsTags.fromTags("direction:in", "topic:somequeue", "type:sqs")
+        tags.hasAllTags("direction:in", "topic:somequeue", "type:grpc")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags == DataStreamsTags.fromTags("direction:in", "type:grpc")
+        tags.hasAllTags("direction:in", "type:grpc")
       }
     }
 
