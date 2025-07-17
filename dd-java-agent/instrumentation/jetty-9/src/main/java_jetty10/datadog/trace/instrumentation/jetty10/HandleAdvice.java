@@ -24,7 +24,7 @@ public class HandleAdvice {
       return ((AgentSpan) existingSpan).attach();
     }
 
-    final Context context = DECORATE.extractContext(req);
+    final Context context = DECORATE.extract(req);
     span = DECORATE.startSpan(req, context);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, req, req, context);

@@ -25,10 +25,10 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
   PROFILE_TESTS:
@@ -137,9 +137,12 @@ default:
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
     CACHE_TYPE: lib #default
+    FF_USE_FASTZIP: "true"
+    CACHE_COMPRESSION_LEVEL: "slowest"
+
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
   cache:
-    - key: '$CI_SERVER_VERSION-$CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+    - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for gradle
         - .gradle/wrapper
@@ -148,8 +151,8 @@ default:
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
-        - '$CI_SERVER_VERSION-base'
-        - '$CI_SERVER_VERSION-lib'
+        - 'dependency-base'
+        - 'dependency-lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
@@ -837,7 +840,7 @@ package-oci:
 
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,docker-ssi,lib-injection"
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:
   stage: generate-signing-key

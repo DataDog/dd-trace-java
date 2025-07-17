@@ -54,6 +54,7 @@ public class ContainerInfo {
   private static final String ENTITY_ID;
 
   public String containerId;
+  public String containerTagsHash;
   public String podId;
   public List<CGroupInfo> cGroups = new ArrayList<>();
 
@@ -63,6 +64,14 @@ public class ContainerInfo {
 
   public void setContainerId(String containerId) {
     this.containerId = containerId;
+  }
+
+  public String getContainerTagsHash() {
+    return containerTagsHash;
+  }
+
+  public void setContainerTagsHash(String containerTagsHash) {
+    this.containerTagsHash = containerTagsHash;
   }
 
   public String getPodId() {

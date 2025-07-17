@@ -23,7 +23,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
       // Propagate context in case income request was going through several routes
       // TODO: Add test for it
       final HttpRequest request = ctx.request();
-      Context extractedContext = DECORATE.extractContext(request);
+      Context extractedContext = DECORATE.extract(request);
       extractedSpanContext = DECORATE.getExtractedSpanContext(extractedContext);
       span = DECORATE.startSpan(request, extractedContext);
       context = extractedContext.with(span);
