@@ -6,7 +6,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,13 +51,13 @@ public abstract class BootstrapInitializationTelemetry {
    */
   public abstract void onError(Throwable t);
 
+  public abstract void onError(String reasonCode);
+
   /**
    * Indicates an exception that occurred during the bootstrapping process that left initialization
    * incomplete. Equivalent to calling {@link #onError(Throwable)} and {@link #markIncomplete()}
    */
   public abstract void onFatalError(Throwable t);
-
-  public abstract void onError(String reasonCode);
 
   public abstract void markIncomplete();
 
@@ -78,10 +78,10 @@ public abstract class BootstrapInitializationTelemetry {
     public void onError(String reasonCode) {}
 
     @Override
-    public void onFatalError(Throwable t) {}
+    public void onError(Throwable t) {}
 
     @Override
-    public void onError(Throwable t) {}
+    public void onFatalError(Throwable t) {}
 
     @Override
     public void markIncomplete() {}
@@ -93,24 +93,24 @@ public abstract class BootstrapInitializationTelemetry {
   public static final class JsonBased extends BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
-    private final List<String> meta;
+    private final Map<String, String> meta;
     private final Map<String, List<String>> points;
 
     // one way false to true
     private volatile boolean incomplete = false;
-    private volatile boolean error = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
-      this.meta = new ArrayList<>();
+      this.meta = new LinkedHashMap<>();
       this.points = new LinkedHashMap<>();
+
+      setMetaInfo("success", "success", "Successfully configured ddtrace package");
     }
 
     @Override
     public void initMetaInfo(String attr, String value) {
       synchronized (this.meta) {
-        this.meta.add(attr);
-        this.meta.add(value);
+        this.meta.put(attr, value);
       }
     }
 
@@ -123,7 +123,6 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(Throwable t) {
-      error = true;
       setMetaInfo("error", "internal_error", t.getMessage());
 
       List<String> causes = new ArrayList<>();
@@ -142,7 +141,13 @@ public abstract class BootstrapInitializationTelemetry {
         causes = causes.subList(numCauses - maxTags, numCauses);
       }
 
-      onPoint("library_entrypoint.error", causes);
+      onPoint("library_entrypoint.error", causes.toArray(new String[0]));
+    }
+
+    @Override
+    public void onError(String reasonCode) {
+      onPoint("library_entrypoint.error", "error_type:" + reasonCode);
+      setMetaInfo("error", mapResultClass(reasonCode), reasonCode);
     }
 
     private int maxTags() {
@@ -163,13 +168,6 @@ public abstract class BootstrapInitializationTelemetry {
     public void onFatalError(Throwable t) {
       onError(t);
       markIncomplete();
-    }
-
-    @Override
-    public void onError(String reasonCode) {
-      error = true;
-      onPoint("library_entrypoint.error", "error_type:" + reasonCode);
-      setMetaInfo("error", mapResultClass(reasonCode), reasonCode);
     }
 
     private void setMetaInfo(String result, String resultClass, String resultReason) {
@@ -195,13 +193,9 @@ public abstract class BootstrapInitializationTelemetry {
       }
     }
 
-    private void onPoint(String name, String tag) {
-      onPoint(name, Collections.singletonList(tag));
-    }
-
-    private void onPoint(String name, List<String> tags) {
+    private void onPoint(String name, String... tags) {
       synchronized (this.points) {
-        this.points.put(name, tags);
+        this.points.put(name, Arrays.asList(tags));
       }
     }
 
@@ -212,17 +206,73 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {
-      if (!this.incomplete && !this.error) {
-        setMetaInfo("success", "success", "Successfully configured ddtrace package");
+      if (!this.incomplete) {
+        onPoint("library_entrypoint.complete");
       }
 
+      this.sender.send(meta, points);
+    }
+  }
+
+  public interface JsonSender {
+    void send(Map<String, String> meta, Map<String, List<String>> points);
+  }
+
+  public static final class ForwarderJsonSender implements JsonSender {
+    private final String forwarderPath;
+
+    ForwarderJsonSender(String forwarderPath) {
+      this.forwarderPath = forwarderPath;
+    }
+
+    @Override
+    public void send(Map<String, String> meta, Map<String, List<String>> points) {
+      ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, meta, points);
+      t.setDaemon(true);
+      t.start();
+    }
+  }
+
+  public static final class ForwarderJsonSenderThread extends Thread {
+    private final String forwarderPath;
+    private final Map<String, String> meta;
+    private final Map<String, List<String>> points;
+
+    public ForwarderJsonSenderThread(
+        String forwarderPath, Map<String, String> meta, Map<String, List<String>> points) {
+      super("dd-forwarder-json-sender");
+      this.forwarderPath = forwarderPath;
+      this.meta = meta;
+      this.points = points;
+    }
+
+    @SuppressForbidden
+    @Override
+    public void run() {
+      ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
+
+      // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
+      try (final Closeable ignored = muteTracing()) {
+        byte[] payload = json();
+
+        Process process = builder.start();
+        try (OutputStream out = process.getOutputStream()) {
+          out.write(payload);
+        }
+      } catch (Throwable e) {
+        // We don't have a log manager here, so just print.
+        System.err.println("Failed to send telemetry: " + e.getMessage());
+      }
+    }
+
+    private byte[] json() {
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
         synchronized (this.meta) {
-          for (int i = 0; i + 1 < this.meta.size(); i = i + 2) {
-            writer.name(this.meta.get(i));
-            writer.value(this.meta.get(i + 1));
+          for (Map.Entry<String, String> entry : meta.entrySet()) {
+            writer.name(entry.getKey());
+            writer.value(entry.getValue());
           }
         }
         writer.endObject();
@@ -241,63 +291,10 @@ public abstract class BootstrapInitializationTelemetry {
           }
           this.points.clear();
         }
-        if (!this.incomplete) {
-          writer.beginObject().name("name").value("library_entrypoint.complete").endObject();
-        }
         writer.endArray();
         writer.endObject();
 
-        this.sender.send(writer.toByteArray());
-      } catch (Throwable t) {
-        // Since this is the reporting mechanism, there's little recourse here
-        // Decided to simply ignore - arguably might want to write to stderr
-      }
-    }
-  }
-
-  public interface JsonSender {
-    void send(byte[] payload);
-  }
-
-  public static final class ForwarderJsonSender implements JsonSender {
-    private final String forwarderPath;
-
-    ForwarderJsonSender(String forwarderPath) {
-      this.forwarderPath = forwarderPath;
-    }
-
-    @Override
-    public void send(byte[] payload) {
-      ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, payload);
-      t.setDaemon(true);
-      t.start();
-    }
-  }
-
-  public static final class ForwarderJsonSenderThread extends Thread {
-    private final String forwarderPath;
-    private final byte[] payload;
-
-    public ForwarderJsonSenderThread(String forwarderPath, byte[] payload) {
-      super("dd-forwarder-json-sender");
-      this.forwarderPath = forwarderPath;
-      this.payload = payload;
-    }
-
-    @SuppressForbidden
-    @Override
-    public void run() {
-      ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
-
-      // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
-      try (final Closeable ignored = muteTracing()) {
-        Process process = builder.start();
-        try (OutputStream out = process.getOutputStream()) {
-          out.write(payload);
-        }
-      } catch (Throwable e) {
-        // We don't have a log manager here, so just print.
-        System.err.println("Failed to send telemetry: " + e.getMessage());
+        return writer.toByteArray();
       }
     }
 
