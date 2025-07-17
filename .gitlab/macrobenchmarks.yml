@@ -6,13 +6,12 @@ include:
 .macrobenchmarks:
   stage: macrobenchmarks
   rules:
-#    - if: $POPULATE_CACHE
-#      when: never
-#    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
-#      when: always
-#    - when: manual
-#      allow_failure: true
-    - when: on_success  # TODO: PLEASE revert before merging the PR
+    - if: $POPULATE_CACHE
+      when: never
+    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
+      when: always
+    - when: manual
+      allow_failure: true
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["build"]
   interruptible: true
