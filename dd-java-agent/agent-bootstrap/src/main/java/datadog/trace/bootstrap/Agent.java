@@ -13,7 +13,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.environment.ConfigHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
@@ -1261,7 +1261,7 @@ public class Agent {
   }
 
   private static boolean isAwsLambdaRuntime() {
-    String val = EnvironmentVariables.get("AWS_LAMBDA_FUNCTION_NAME");
+    String val = ConfigHelper.getEnvironmentVariable("AWS_LAMBDA_FUNCTION_NAME");
     return val != null && !val.isEmpty();
   }
 
@@ -1348,7 +1348,7 @@ public class Agent {
     } else {
       logLevel = ddGetProperty("dd.log.level");
       if (null == logLevel) {
-        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        logLevel = ConfigHelper.getEnvironmentVariable("OTEL_LOG_LEVEL");
       }
     }
 
@@ -1562,7 +1562,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return EnvironmentVariables.get(toEnvVar(sysProp));
+    return ConfigHelper.getEnvironmentVariable(toEnvVar(sysProp));
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
