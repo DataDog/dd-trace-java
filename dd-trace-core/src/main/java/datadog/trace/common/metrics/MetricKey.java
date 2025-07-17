@@ -3,8 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
+import java.util.Map;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
@@ -17,7 +17,7 @@ public final class MetricKey {
   private final int hash;
   private final boolean isTraceRoot;
   private final UTF8BytesString spanKind;
-  private final UTF8BytesString[] peerTags;
+  private final Map<String, String> peerTags;
 
   public MetricKey(
       CharSequence resource,
@@ -28,7 +28,7 @@ public final class MetricKey {
       boolean synthetics,
       boolean isTraceRoot,
       CharSequence spanKind,
-      List<CharSequence> peerTags) {
+      Map<String, String> peerTags) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
@@ -37,10 +37,7 @@ public final class MetricKey {
     this.synthetics = synthetics;
     this.isTraceRoot = isTraceRoot;
     this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
-    this.peerTags = new UTF8BytesString[peerTags.size()];
-    for (int i = 0; i < peerTags.size(); i++) {
-      this.peerTags[i] = UTF8BytesString.create(peerTags.get(i));
-    }
+    this.peerTags = peerTags == null ? Collections.emptyMap() : peerTags;
 
     // Unrolled polynomial hashcode to avoid varargs allocation
     // and eliminate data dependency between iterations as in Arrays.hashCode.
@@ -48,10 +45,11 @@ public final class MetricKey {
     // See
     // https://richardstartin.github.io/posts/collecting-rocks-and-benchmarks
     // https://richardstartin.github.io/posts/still-true-in-java-9-handwritten-hash-codes-are-faster
+
     this.hash =
         -196513505 * Boolean.hashCode(this.isTraceRoot)
             + -1807454463 * this.spanKind.hashCode()
-            + 887_503_681 * Arrays.hashCode(this.peerTags)
+            + 887_503_681 * this.peerTags.hashCode() // possibly unroll here has well.
             + 28_629_151 * this.resource.hashCode()
             + 923_521 * this.service.hashCode()
             + 29791 * this.operationName.hashCode()
@@ -92,7 +90,7 @@ public final class MetricKey {
     return spanKind;
   }
 
-  public UTF8BytesString[] getPeerTags() {
+  public Map<String, String> getPeerTags() {
     return peerTags;
   }
 
@@ -112,7 +110,7 @@ public final class MetricKey {
           && type.equals(metricKey.type)
           && isTraceRoot == metricKey.isTraceRoot
           && spanKind.equals(metricKey.spanKind)
-          && Arrays.equals(peerTags, metricKey.peerTags);
+          && peerTags.equals(metricKey.peerTags);
     }
     return false;
   }
