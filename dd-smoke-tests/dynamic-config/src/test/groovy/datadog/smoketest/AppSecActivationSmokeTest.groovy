@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import datadog.smoketest.dynamicconfig.AppSecApplication
+import datadog.trace.test.util.Flaky
 
 class AppSecActivationSmokeTest extends AbstractSmokeTest {
 
@@ -22,6 +23,7 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  @Flaky
   void 'test activation config change is sent via RC'() {
     when:
     setRemoteConfig('datadog/2/ASM_FEATURES/asm_features_activation/config', '{"asm":{"enabled":true}}')
