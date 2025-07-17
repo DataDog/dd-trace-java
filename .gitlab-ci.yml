@@ -812,17 +812,15 @@ deploy_artifacts_to_github:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-#    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-#      when: on_success
-    - when: manual # DEBUG: Allow manual trigger
-      allow_failure: true
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
 
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
-  needs: [] # DEBUG: Enforce no dependencies for now to run immediately
-#    - job: deploy_to_maven_central
-#      # The deploy_to_maven_central job is not run for release candidate versions
-#      optional: true
+  needs:
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
+      optional: true
 
   before_script:
     # Get a token
@@ -833,12 +831,12 @@ deploy_artifacts_to_github:
   script:
     - gh auth login --with-token < github-token.txt
     - gh auth status  # Maybe helpful to have this output in logs?
-    # - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-    # - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
 
   after_script:
     # Revoke the token after usage
