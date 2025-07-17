@@ -92,6 +92,7 @@ public abstract class BootstrapInitializationTelemetry {
 
     // one way false to true
     private volatile boolean incomplete = false;
+    private volatile boolean error = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
@@ -111,11 +112,14 @@ public abstract class BootstrapInitializationTelemetry {
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
       markIncomplete();
+      setMetaInfo("abort", mapResultClass(reasonCode), reasonCode);
     }
 
     @Override
     public void onError(Throwable t) {
+      error = true;
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
+      setMetaInfo("error", "internal_error", t.getMessage());
     }
 
     @Override
@@ -126,7 +130,32 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(String reasonCode) {
+      error = true;
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
+      setMetaInfo("error", mapResultClass(reasonCode), reasonCode);
+    }
+
+    private void setMetaInfo(String result, String resultClass, String resultReason) {
+      initMetaInfo("result", result);
+      initMetaInfo("result_class", resultClass);
+      initMetaInfo("result_reason", resultReason);
+    }
+
+    private String mapResultClass(String reasonCode) {
+      if (reasonCode == null) {
+        return "success";
+      }
+
+      switch (reasonCode) {
+        case "already_initialized":
+          return "already_instrumented";
+        case "other-java-agents":
+          return "incompatible_library";
+        case "jdk_tool":
+          return "unsupported_binary";
+        default:
+          return "unknown";
+      }
     }
 
     private void onPoint(String name, String tag) {
@@ -143,6 +172,10 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {
+      if (!this.incomplete && !this.error) {
+        setMetaInfo("success", "success", "Successfully configured ddtrace package");
+      }
+
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
