@@ -633,7 +633,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.environment.ConfigHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -5215,7 +5215,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = EnvironmentVariables.get(name);
+    String value = ConfigHelper.getEnvironmentVariable(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }

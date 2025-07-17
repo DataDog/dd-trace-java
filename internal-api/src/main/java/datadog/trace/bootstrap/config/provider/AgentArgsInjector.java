@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.environment.ConfigHelper;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
@@ -30,7 +31,7 @@ public class AgentArgsInjector {
       }
 
       String envVarName = Strings.toEnvVar(propertyName);
-      String envVarValue = EnvironmentVariables.get(envVarName);
+      String envVarValue = ConfigHelper.getEnvironmentVariable(envVarName);
       if (envVarValue != null) {
         // env variables should have higher priority than agent arguments
         continue;

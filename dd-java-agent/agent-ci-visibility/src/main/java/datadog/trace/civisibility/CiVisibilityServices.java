@@ -1,5 +1,7 @@
 package datadog.trace.civisibility;
 
+import static datadog.environment.ConfigHelper.getEnvironmentVariables;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -34,6 +36,7 @@ import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
