@@ -106,11 +106,14 @@ public class StableConfigParser {
   private static boolean matchOperator(String value, String operator, List<String> matches) {
     // not sure if these are nullable, but the semantics make sense
     // and that will save us from a NPE
-    if (value == null || matches == null || operator == null) {
+    if (value == null || operator == null) {
       return false;
     }
     if (operator == "exists") {
       return true;
+    }
+    if (matches == null) {
+      return false;
     }
     value = value.toLowerCase();
     for (String match : matches) {
@@ -148,11 +151,11 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String value = System.getenv(key.toUpperCase());
-        if (value == null) {
+        String envValue = System.getenv(key.toUpperCase());
+        if (envValue == null) {
           return false;
         }
-        return matchOperator(value, operator, matches);
+        return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
           return false;
@@ -164,8 +167,8 @@ public class StableConfigParser {
               key);
           return false;
         }
-        value = System.getProperty(key.substring(2));
-        return matchOperator(value, operator, matches);
+        String argValue = System.getProperty(key.substring(2));
+        return matchOperator(argValue, operator, matches);
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
