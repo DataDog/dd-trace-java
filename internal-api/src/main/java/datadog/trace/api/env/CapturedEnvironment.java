@@ -1,5 +1,6 @@
 package datadog.trace.api.env;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.GeneralConfig;
 import java.io.File;
@@ -77,8 +78,8 @@ public class CapturedEnvironment {
    * autodetection will return either the JAR filename or the java main class.
    */
   private String autodetectServiceName() {
-    String inAas = System.getenv("DD_AZURE_APP_SERVICES");
-    String siteName = System.getenv("WEBSITE_SITE_NAME");
+    String inAas = EnvironmentVariables.get("DD_AZURE_APP_SERVICES");
+    String siteName = EnvironmentVariables.get("WEBSITE_SITE_NAME");
 
     if (("true".equalsIgnoreCase(inAas) || "1".equals(inAas)) && siteName != null) {
       return siteName;

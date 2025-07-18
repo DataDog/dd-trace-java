@@ -5,6 +5,8 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 
+import datadog.environment.SystemProperties;
+
 /**
  * This class is used early on during premain; it must not touch features like JMX or JUL in case
  * they trigger early loading/binding.
@@ -51,7 +53,7 @@ public final class Platform {
 
   private static boolean checkForNativeImageBuilder() {
     try {
-      return "org.graalvm.nativeimage.builder".equals(System.getProperty("jdk.module.main"));
+      return "org.graalvm.nativeimage.builder".equals(SystemProperties.get("jdk.module.main"));
     } catch (Throwable e) {
       return false;
     }

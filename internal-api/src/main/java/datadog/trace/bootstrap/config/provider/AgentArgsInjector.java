@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.util.Strings;
 import java.util.Map;
 
@@ -21,14 +23,14 @@ public class AgentArgsInjector {
     }
     for (Map.Entry<String, String> e : args.entrySet()) {
       String propertyName = e.getKey();
-      String existingPropertyValue = System.getProperty(propertyName);
+      String existingPropertyValue = SystemProperties.get(propertyName);
       if (existingPropertyValue != null) {
         // system properties should have higher priority than agent arguments
         continue;
       }
 
       String envVarName = Strings.toEnvVar(propertyName);
-      String envVarValue = System.getenv(envVarName);
+      String envVarValue = EnvironmentVariables.get(envVarName);
       if (envVarValue != null) {
         // env variables should have higher priority than agent arguments
         continue;

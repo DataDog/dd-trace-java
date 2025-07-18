@@ -55,7 +55,7 @@ class InitializationTelemetryTest extends Specification {
 
   def "incomplete agent start-up"() {
     // In this case, the SecurityManager blocks a custom permission that is checked by bytebuddy causing
-    // agent initialization to fail.  However, we should catch the exception allowing the application
+    // agent initialization to fail. However, we should catch the exception allowing the application
     // to run normally.
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy)
@@ -63,7 +63,7 @@ class InitializationTelemetryTest extends Specification {
     then:
     result.exitCode == 0
     !result.telemetryJson.contains('library_entrypoint.complete')
-    result.telemetryJson.contains('error_type:java.lang.IllegalStateException')
+    result.telemetryJson.contains('error_type:java.lang.reflect.InvocationTargetException')
   }
 
   def "block forwarder env var"() {
