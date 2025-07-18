@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,7 +161,7 @@ public class StableConfigParser {
           return false;
         }
         value = System.getProperty(key.substring(2));
-        return matchOperator(value, operator, matches);      
+        return matchOperator(value, operator, matches);
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
