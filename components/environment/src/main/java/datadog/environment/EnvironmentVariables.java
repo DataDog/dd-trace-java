@@ -36,7 +36,6 @@ public final class EnvironmentVariables {
       return defaultValue;
     }
     try {
-      //      String value = EnvironmentVariables.get(name);
       String value = System.getenv(name);
       return value == null ? defaultValue : value;
     } catch (SecurityException e) {
