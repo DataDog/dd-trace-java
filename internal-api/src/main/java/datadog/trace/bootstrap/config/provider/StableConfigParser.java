@@ -112,6 +112,10 @@ public class StableConfigParser {
     }
     value = value.toLowerCase();
     for (String match : matches) {
+      if (match == null) {
+        continue;
+      }
+      matches = match.toLowerCase();
       switch (operator) {
         case "equals":
           return value == match;
