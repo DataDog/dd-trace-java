@@ -152,12 +152,12 @@ public final class AgentBootstrap {
     if (agentClass.getClassLoader() != null) {
       throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
     }
-    final Method startMethod =
-        agentClass.getMethod("start", Object.class, Instrumentation.class, URL.class, String.class);
-
     try {
+      final Method startMethod =
+          agentClass.getMethod(
+              "start", Object.class, Instrumentation.class, URL.class, String.class);
       startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
-    } catch (ReflectiveOperationException | LinkageError e) {
+    } catch (Throwable e) {
       throw new IllegalStateException("Unable to start DD Java Agent.", e);
     }
   }
