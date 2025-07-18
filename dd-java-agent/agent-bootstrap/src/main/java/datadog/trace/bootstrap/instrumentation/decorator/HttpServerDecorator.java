@@ -657,7 +657,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private static void setBaggageTags(TagContext tagContext, Map<String, String> baggage) {
+  static void setBaggageTags(TagContext tagContext, Map<String, String> baggage) {
     List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
     if (baggageTagKeys.isEmpty()) {
       return;
