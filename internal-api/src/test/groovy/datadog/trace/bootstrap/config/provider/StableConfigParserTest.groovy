@@ -68,6 +68,8 @@ apm_configuration_rules:
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
     injectEnvConfig("DD_SERVICE", "mysvc")
     injectEnvConfig("DD_TAGS", "team:apm,component:web")
+    System.setProperty("arg1", "value1")
+  
     def match = StableConfigParser.selectorMatch(origin, matches, operator, key)
 
     then:
@@ -83,6 +85,7 @@ apm_configuration_rules:
     "language"              | ["java"]              | "exists"               | ""                     | false
     "language"              | ["java"]              | "something unexpected" | ""                     | false
     "environment_variables" | []                    | "exists"               | "DD_TAGS"              | true
+    "environment_variables" | null                  | "exists"               | "DD_TAGS"              | true
     "environment_variables" | ["team:apm"]          | "contains"             | "DD_TAGS"              | true
     "ENVIRONMENT_VARIABLES" | ["TeAm:ApM"]          | "CoNtAiNs"             | "Dd_TaGs"              | true // check case insensitivity
     "environment_variables" | ["team:apm"]          | "equals"               | "DD_TAGS"              | false
@@ -96,6 +99,13 @@ apm_configuration_rules:
     "environment_variables" | ["svc"]               | "contains"             | "DD_SERVICE"           | true
     "environment_variables" | ["other"]             | "contains"             | "DD_SERVICE"           | false
     "environment_variables" | [null]                | "contains"             | "DD_SERVICE"           | false
+    "environment_variables" | []                    | "equals"               | null                   | false
+    "environment_variables" | null                  | "equals"               | "DD_SERVICE"           | false
+    "language"              | ["java"]              | null                   | ""                     | false
+    "process_arguments"     | null                  | "exists"               | "-Darg1"               | true
+    "process_arguments"     | null                  | "exists"               | "-Darg2"               | false
+    "process_arguments"     | ["value1"]            | "equals"               | "-Darg1"               | true
+    "process_arguments"     | ["value2"]            | "equals"               | "-Darg1"               | false
   }
 
   def "test duplicate entries not allowed"() {
