@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.environment.SystemProperties;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -29,6 +30,6 @@ public enum Arch {
   }
 
   public static Arch current() {
-    return Arch.of(System.getProperty("os.arch"));
+    return Arch.of(SystemProperties.get("os.arch"));
   }
 }
