@@ -1,6 +1,7 @@
 package datadog.telemetry;
 
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +41,7 @@ public class HostInfo {
         // os.name == Mac OS X, while uanme -s == Darwin. We'll hardcode it to Darwin.
         osName = "Darwin";
       } else {
-        osName = System.getProperty("os.name");
+        osName = SystemProperties.get("os.name");
       }
     }
     return osName;
@@ -60,7 +61,7 @@ public class HostInfo {
   public static String getKernelRelease() {
     if (kernelRelease == null) {
       // In Linux, os.version == uname -r
-      kernelRelease = System.getProperty("os.version");
+      kernelRelease = SystemProperties.get("os.version");
     }
     return kernelRelease;
   }
@@ -78,7 +79,7 @@ public class HostInfo {
         }
         kernelVersion = version;
       } else {
-        kernelVersion = System.getProperty("os.version");
+        kernelVersion = SystemProperties.get("os.version");
       }
     }
     return kernelVersion;
@@ -87,7 +88,7 @@ public class HostInfo {
   public static String getArchitecture() {
     if (architecture == null) {
       // In Linux, os.arch == uname -me
-      architecture = System.getProperty("os.arch");
+      architecture = SystemProperties.get("os.arch");
     }
     return architecture;
   }
@@ -135,7 +136,7 @@ public class HostInfo {
           return name + " " + version;
         }
       }
-      return System.getProperty("os.version");
+      return SystemProperties.get("os.version");
     }
   }
 }
