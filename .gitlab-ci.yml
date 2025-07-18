@@ -1,5 +1,5 @@
 include:
-  - local: ".gitlab/one-pipeline.locked.yml"
+#  - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -7,8 +7,8 @@ include:
 
 stages:
   - build
-  - shared-pipeline
-  - publish
+#  - shared-pipeline
+#  - publish
   - benchmarks
   - macrobenchmarks
   - tests
@@ -293,36 +293,36 @@ populate_dep_cache:
 #      - GRADLE_TARGET: ":smokeTest"
 #        CACHE_TYPE: "smoke"
 
-publish-artifacts-to-s3:
-  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
-  stage: publish
-  needs: [ build ]
-  script:
-    - source upstream.env
-    - export VERSION="${UPSTREAM_TRACER_VERSION%~*}" # remove ~githash from the end of version
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
-    - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
-    - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
-    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
-    - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
-    - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
-    - |
-      cat << EOF > links.json 
-        {
-          "S3 Links": [
-            {
-              "external_link": {
-                "label": "Public Link to dd-java-agent.jar",
-                "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
-              }
-            }
-          ]
-        }
-      EOF
-  artifacts:
-    reports:
-      annotations:
-        - links.json
+#publish-artifacts-to-s3:
+#  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
+#  stage: publish
+#  needs: [ build ]
+#  script:
+#    - source upstream.env
+#    - export VERSION="${UPSTREAM_TRACER_VERSION%~*}" # remove ~githash from the end of version
+#    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent.jar
+#    - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-api.jar
+#    - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-trace-ot.jar
+#    - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
+#    - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
+#    - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
+#    - |
+#      cat << EOF > links.json
+#        {
+#          "S3 Links": [
+#            {
+#              "external_link": {
+#                "label": "Public Link to dd-java-agent.jar",
+#                "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+#              }
+#            }
+#          ]
+#        }
+#      EOF
+#  artifacts:
+#    reports:
+#      annotations:
+#        - links.json
 
 
 spotless:
@@ -700,29 +700,29 @@ test_smoke_semeru8_debugger:
     NON_DEFAULT_JVMS: "true"
     testJvm: "semeru8"
 
-deploy_to_profiling_backend:
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
-      when: on_success
-    - when: manual
-      allow_failure: true
-  trigger:
-    project: DataDog/profiling-backend
-    branch: dogfooding
-  variables:
-    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
-    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
+#deploy_to_profiling_backend:
+#  stage: publish
+#  needs: [ build ]
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+#      when: on_success
+#    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+#      when: on_success
+#    - when: manual
+#      allow_failure: true
+#  trigger:
+#    project: DataDog/profiling-backend
+#    branch: dogfooding
+#  variables:
+#    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
+#    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
+#    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+#    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+#    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+#    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+#    UPSTREAM_TAG: $CI_COMMIT_TAG
 
 trigger_tibco_tests:
   stage: tests
@@ -750,83 +750,83 @@ trigger_tibco_tests:
     UPSTREAM_TAG: $CI_COMMIT_TAG
     FORCE_TRIGGER: $FORCE_TRIGGER
 
-deploy_to_di_backend:manual:
-  stage: publish
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: manual
-      allow_failure: true
-  trigger:
-    project: DataDog/debugger-demos
-    branch: main
-  variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
-    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
-    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+#deploy_to_di_backend:manual:
+#  stage: publish
+#  needs: [ build ]
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - when: manual
+#      allow_failure: true
+#  trigger:
+#    project: DataDog/debugger-demos
+#    branch: main
+#  variables:
+#    UPSTREAM_PACKAGE_JOB: build
+#    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+#    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+#    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+#    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+#    UPSTREAM_TAG: $CI_COMMIT_TAG
+#    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+#    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
-deploy_to_maven_central:
-  extends: .gradle_build
-  stage: publish
-  needs: [ build ]
-  variables:
-    CACHE_TYPE: lib
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-    # Do not deploy release candidate versions
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-    - when: manual
-      allow_failure: true
-  script:
-    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
-    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
-  artifacts:
-    paths:
-      - 'workspace/dd-java-agent/build/libs/*.jar'
-      - 'workspace/dd-trace-api/build/libs/*.jar'
-      - 'workspace/dd-trace-ot/build/libs/*.jar'
+#deploy_to_maven_central:
+#  extends: .gradle_build
+#  stage: publish
+#  needs: [ build ]
+#  variables:
+#    CACHE_TYPE: lib
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_BRANCH == "master"'
+#      when: on_success
+#    # Do not deploy release candidate versions
+#    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+#      when: on_success
+#    - when: manual
+#      allow_failure: true
+#  script:
+#    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+#    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+#    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+#    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+#    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+#  artifacts:
+#    paths:
+#      - 'workspace/dd-java-agent/build/libs/*.jar'
+#      - 'workspace/dd-trace-api/build/libs/*.jar'
+#      - 'workspace/dd-trace-ot/build/libs/*.jar'
 
-deploy_artifacts_to_github:
-  stage: publish
-  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
-  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
-  needs:
-    - job: deploy_to_maven_central
-      # The deploy_to_maven_central job is not run for release candidate versions
-      optional: true
-  script:
-    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
-    - gh auth login --with-token < github-token.txt
-    - gh auth status  # Maybe helpful to have this output in logs?
-    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
-  retry:
-    max: 2
-    when: always
+#deploy_artifacts_to_github:
+#  stage: publish
+#  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+#  rules:
+#    - if: '$POPULATE_CACHE'
+#      when: never
+#    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+#      when: on_success
+#  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+#  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+#  needs:
+#    - job: deploy_to_maven_central
+#      # The deploy_to_maven_central job is not run for release candidate versions
+#      optional: true
+#  script:
+#    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
+#    - gh auth login --with-token < github-token.txt
+#    - gh auth status  # Maybe helpful to have this output in logs?
+#    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+#    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+#    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+#    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+#    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+#    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+#  retry:
+#    max: 2
+#    when: always
 
 requirements_json_test:
   rules:
