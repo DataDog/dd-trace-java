@@ -633,6 +633,7 @@ import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -1237,7 +1238,7 @@ public class Config {
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled =
         configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemProperties.getOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -3398,7 +3399,7 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!JavaVirtualMachine.isJ9() && isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
+      String arch = SystemProperties.get("os.arch");
       if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
@@ -4442,12 +4443,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"),
+        SystemProperties.get("java.runtime.name"),
+        SystemProperties.get("java.version"),
+        SystemProperties.get("java.vendor"),
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("os.name"),
+        SystemProperties.get("os.version"),
         isServiceNameSetByUser() ? "true" : "false");
   }
 
@@ -5209,7 +5210,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
