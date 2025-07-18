@@ -11,6 +11,7 @@ import datadog.crashtracking.dto.ProcInfo;
 import datadog.crashtracking.dto.SemanticVersion;
 import datadog.crashtracking.dto.StackFrame;
 import datadog.crashtracking.dto.StackTrace;
+import datadog.environment.SystemProperties;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -214,10 +215,10 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     OSInfo osInfo =
         new OSInfo(
-            System.getProperty("os.arch"),
-            System.getProperty("sun.arch.data.model"),
-            System.getProperty("os.name"),
-            SemanticVersion.of(System.getProperty("os.version")));
+            SystemProperties.get("os.arch"),
+            SystemProperties.get("sun.arch.data.model"),
+            SystemProperties.get("os.name"),
+            SemanticVersion.of(SystemProperties.get("os.version")));
     ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
     return new CrashLog(false, datetime, error, metadata, osInfo, procInfo);
   }
