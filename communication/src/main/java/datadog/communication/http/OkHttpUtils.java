@@ -50,9 +50,12 @@ public final class OkHttpUtils {
 
   private static final String DD_API_KEY = "DD-API-KEY";
 
-  private static final String JAVA_VERSION = SystemProperties.getOrDefault("java.version", "unknown");
-  private static final String JAVA_VM_NAME = SystemProperties.getOrDefault("java.vm.name", "unknown");
-  private static final String JAVA_VM_VENDOR = SystemProperties.getOrDefault("java.vm.vendor", "unknown");
+  private static final String JAVA_VERSION =
+      SystemProperties.getOrDefault("java.version", "unknown");
+  private static final String JAVA_VM_NAME =
+      SystemProperties.getOrDefault("java.vm.name", "unknown");
+  private static final String JAVA_VM_VENDOR =
+      SystemProperties.getOrDefault("java.vm.vendor", "unknown");
 
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
     return buildHttpClient(url, null, null, timeoutMillis);
