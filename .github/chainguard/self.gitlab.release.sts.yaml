@@ -1,0 +1,11 @@
+issuer: https://gitlab.ddbuild.io
+
+subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-java:ref_type:tag:ref:v.*"
+
+claim_pattern:
+  project_path: "DataDog/apm-reliability/dd-trace-java"
+  ref_type: "tag"
+  ref: "v.*"
+
+permissions:
+  contents: "write"
