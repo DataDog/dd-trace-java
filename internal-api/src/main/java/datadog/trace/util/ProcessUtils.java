@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -43,7 +44,7 @@ public abstract class ProcessUtils {
     }
 
     // JDK/JRE home, does not include "bin/java" portion
-    return System.getProperty("java.home");
+    return SystemProperties.get("java.home");
   }
 
   private ProcessUtils() {}
