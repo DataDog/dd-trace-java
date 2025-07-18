@@ -7,6 +7,7 @@ include:
 
 stages:
   - build
+  - test_publish
 #  - shared-pipeline
 #  - publish
   - benchmarks
@@ -827,6 +828,41 @@ trigger_tibco_tests:
 #  retry:
 #    max: 2
 #    when: always
+
+test_deploy_artifacts_to_github:
+  stage: test_publish
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+
+  needs: []
+
+  before_script:
+    # Get a token
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
+
+  script:
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+
+  after_script:
+    # Revoke the token after usage
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+
+  retry:
+    max: 2
+    when: always
 
 requirements_json_test:
   rules:
