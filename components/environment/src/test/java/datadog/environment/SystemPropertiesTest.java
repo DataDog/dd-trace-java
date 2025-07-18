@@ -38,11 +38,29 @@ class SystemPropertiesTest {
 
   @Test
   void testSet() {
-    String testProperty = "test.property";
-    String testValue = "test-value";
-    assumeTrue(SystemProperties.get(testProperty) == null);
-
+    String testProperty = "test.set.property";
+    String testValue = "test.set.value";
+    assertNull(SystemProperties.get(testProperty));
     assertTrue(SystemProperties.set(testProperty, testValue));
     assertEquals(testValue, SystemProperties.get(testProperty));
+    // Null values
+    assertDoesNotThrow(() -> SystemProperties.set(testProperty, null));
+    assertFalse(SystemProperties.set(testProperty, null));
+    assertDoesNotThrow(() -> SystemProperties.set(null, testValue));
+    assertFalse(SystemProperties.set(null, testValue));
+  }
+
+  @Test
+  void testClear() {
+    String testProperty = "test.clear.property";
+    String testValue = "test.clear.value";
+    assertNull(SystemProperties.get(testProperty));
+    assertNull(SystemProperties.clear(testProperty));
+    assumeTrue(SystemProperties.set(testProperty, testValue));
+    assertEquals(testValue, SystemProperties.clear(testProperty));
+    assertNull(SystemProperties.clear(testProperty));
+    // Null values
+    assertDoesNotThrow(() -> SystemProperties.clear(null));
+    assertNull(SystemProperties.clear(null));
   }
 }
