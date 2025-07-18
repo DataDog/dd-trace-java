@@ -53,7 +53,8 @@ public class ConfigHelper {
             || name.startsWith("OTEL_")
             || GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(name))
         && !GeneratedSupportedConfigurations.SUPPORTED.contains(name)) {
-      System.err.println("Warning: Unsupported environment variable " + name + " detected.");
+      System.err.println(
+          "Warning: Missing environment variable " + name + " from supported-configurations.json.");
     }
 
     String config = EnvironmentVariables.get(name);

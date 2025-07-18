@@ -868,7 +868,8 @@
     "DD_USM_ENABLED": ["A"],
     "DD_VERSION": ["A"],
     "DD_WRITER_BAGGAGE_INJECT": ["A"],
-    "DD_WRITER_TYPE": ["A"]
+    "DD_WRITER_TYPE": ["A"],
+    "OTEL_LOG_LEVEL": ["A"]
   },
   "aliases": {
   },

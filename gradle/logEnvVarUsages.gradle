@@ -46,7 +46,7 @@ tasks.register('logEnvVarUsages') {
           return
         }
 
-        def matcher = (line =~ /"DD_.+?"/)
+        def matcher = (line =~ /"(?:DD_|OTEL_)[A-Za-z0-9_]+"/)
         matcher.each { matchedToken ->
           def token = matchedToken[1..-2] // remove quotes
           if (!supportedTokenSet.contains(token)) {
