@@ -115,7 +115,7 @@ public class StableConfigParser {
       if (match == null) {
         continue;
       }
-      matches = match.toLowerCase();
+      match = match.toLowerCase();
       switch (operator) {
         case "equals":
           return value == match;
