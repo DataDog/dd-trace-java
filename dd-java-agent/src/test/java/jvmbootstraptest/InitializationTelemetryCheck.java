@@ -88,12 +88,12 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
+  public static Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
       throws Exception {
     return runTestJvm(securityManagerClass, DEFAULT_TRACE_AGENT_PORT);
   }
 
-  public static final Result runTestJvm(
+  public static Result runTestJvm(
       Class<? extends TestSecurityManager> securityManagerClass, int port) throws Exception {
 
     File jarFile =
@@ -130,8 +130,8 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  static final File createTempFile(
-      String baseName, String extension, Set<PosixFilePermission> perms) throws IOException {
+  static File createTempFile(String baseName, String extension, Set<PosixFilePermission> perms)
+      throws IOException {
     Path path =
         Files.createTempFile(
             baseName + "-integration-telemetry-check",
@@ -142,11 +142,11 @@ public class InitializationTelemetryCheck {
     return file;
   }
 
-  static final void write(File file, String... lines) throws IOException {
+  static void write(File file, String... lines) throws IOException {
     Files.write(file.toPath(), Arrays.asList(lines));
   }
 
-  static final String read(File file) {
+  static String read(File file) {
     try {
       return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     } catch (IOException e) {
@@ -154,13 +154,13 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  static final void delete(File... tempFiles) {
+  static void delete(File... tempFiles) {
     for (File file : tempFiles) {
       file.delete();
     }
   }
 
-  public static final Class<?>[] requiredClasses(
+  public static Class<?>[] requiredClasses(
       Class<? extends TestSecurityManager> securityManagerClass) {
 
     if (securityManagerClass == null) {
@@ -178,7 +178,7 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final Map<String, String> envVars(File forwarderFile) {
+  public static Map<String, String> envVars(File forwarderFile) {
     Map<String, String> envVars = new HashMap<>();
     envVars.put("DD_TELEMETRY_FORWARDER_PATH", forwarderFile.getAbsolutePath());
     return envVars;
