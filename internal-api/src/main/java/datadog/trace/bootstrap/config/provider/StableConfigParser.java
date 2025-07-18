@@ -161,7 +161,7 @@ public class StableConfigParser {
               key);
           return false;
         }
-        String value = System.getProperty(key.substring(2));
+        value = System.getProperty(key.substring(2));
         return matchOperator(value, operator, matches);      
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
