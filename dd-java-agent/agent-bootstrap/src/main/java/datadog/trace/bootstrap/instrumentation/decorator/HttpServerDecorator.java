@@ -12,6 +12,7 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -26,6 +27,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -37,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -149,7 +152,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    AgentSpanContext.Extracted extractedContext = null;
+    if (extractedSpan != null) {
+      extractedContext = (AgentSpanContext.Extracted) extractedSpan.context();
+      if (extractedContext instanceof TagContext) {
+        Baggage baggage = Baggage.fromContext(context);
+        if (baggage != null) {
+          setBaggageTags((TagContext) extractedContext, baggage.asMap());
+        }
+      }
+    }
+    return extractedContext;
   }
 
   public AgentSpan onRequest(
@@ -642,6 +655,27 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(mappedKey, value);
       }
       return true;
+    }
+  }
+
+  private static void setBaggageTags(TagContext tagContext, Map<String, String> baggage) {
+    List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
+    if (baggageTagKeys.isEmpty()) {
+      return;
+    }
+    TagMap tags = tagContext.getTags();
+    for (String key : baggageTagKeys) {
+      if ("*".equals(key)) {
+        // If the key is "*", we add all baggage items
+        for (Map.Entry<String, String> entry : baggage.entrySet()) {
+          tags.putIfAbsent("baggage." + entry.getKey(), entry.getValue());
+        }
+        break;
+      }
+      String value = baggage.get(key);
+      if (value != null) {
+        tags.putIfAbsent("baggage." + key, value);
+      }
     }
   }
 }
