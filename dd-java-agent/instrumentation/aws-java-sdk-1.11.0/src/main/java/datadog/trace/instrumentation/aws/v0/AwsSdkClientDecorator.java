@@ -85,12 +85,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
     final GetterAccess access = GetterAccess.of(originalRequest);
+    final String endpoint = request.getEndpoint().toString();
 
     span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsSimplifiedServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
-    span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
+    span.setTag(InstrumentationTags.AWS_ENDPOINT, endpoint);
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
@@ -184,11 +185,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPeerService = tableName;
     }
 
-    // for aws we can calculate this eagerly without needing to have to looking up tags in the peer
-    // service interceptor
-    if (bestPrecursor != null && SpanNaming.instance().namingSchema().peerService().supports()) {
-      span.setTag(Tags.PEER_SERVICE, bestPeerService);
-      span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
+    String serverlessFunction = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
+    // Set peer.service based on environment
+    if (serverlessFunction != null && !serverlessFunction.isEmpty()) {
+      String hostname = endpoint.replaceFirst("^https?://", "").split("/")[0];
+      span.setTag(Tags.PEER_SERVICE, hostname);
+    } else {
+      if (bestPrecursor != null && SpanNaming.instance().namingSchema().peerService().supports()) {
+        span.setTag(Tags.PEER_SERVICE, bestPeerService);
+        span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
+      }
     }
 
     // DSM
