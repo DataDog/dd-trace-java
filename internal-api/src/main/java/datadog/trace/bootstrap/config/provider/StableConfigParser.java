@@ -109,6 +109,9 @@ public class StableConfigParser {
     if (value == null || matches == null || operator == null) {
       return false;
     }
+    if (operator == "exists") {
+      return true;
+    }
     value = value.toLowerCase();
     for (String match : matches) {
       if (match == null) {
@@ -117,15 +120,13 @@ public class StableConfigParser {
       match = match.toLowerCase();
       switch (operator) {
         case "equals":
-          return value == match;
+          return value.equals(match);
         case "starts_with":
           return value.startsWith(match);
         case "ends_with":
           return value.endsWith(match);
         case "contains":
           return value.contains(match);
-        case "exists":
-          return true;
         default:
           return false;
       }
@@ -139,6 +140,9 @@ public class StableConfigParser {
     operator = operator.toLowerCase();
     switch (origin.toLowerCase()) {
       case "language":
+        if (operator == "exists") {
+          return false;
+        }
         return matchOperator("java", operator, matches);
       case "environment_variables":
         if (key == null) {
