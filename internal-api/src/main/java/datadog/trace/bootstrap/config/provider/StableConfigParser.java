@@ -143,7 +143,7 @@ public class StableConfigParser {
         return matchOperator("java", operator, matches);
       case "environment_variables":
         if (key == null) {
-            return false;
+          return false;
         }
         String value = System.getenv(key.toUpperCase());
         if (value == null) {
