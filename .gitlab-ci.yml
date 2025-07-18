@@ -141,6 +141,8 @@ default:
     CACHE_COMPRESSION_LEVEL: "slowest"
 
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
   cache:
     - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
