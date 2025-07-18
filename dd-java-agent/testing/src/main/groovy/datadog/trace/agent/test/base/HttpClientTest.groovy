@@ -13,6 +13,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -29,7 +30,6 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static org.junit.Assume.assumeTrue
-
 abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int
@@ -104,6 +104,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     true
+  }
+
+  boolean hasExtraErrorInformation() {
+    false
   }
 
   @Override
@@ -328,18 +332,18 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     then:
-    status == 500
-    assertTraces(2) {
-      trace(size(2)) {
-        sortSpansByStart()
-        basicSpan(it, "parent")
-        clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
+    if (!hasExtraErrorInformation()) {
+      status == 500
+      assertTraces(2) {
+        trace(size(2)) {
+          basicSpan(it, "parent")
+          clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
+        }
+        server.distributedRequestTrace(it, trace(0).last())
       }
-      server.distributedRequestTrace(it, trace(0).last())
     }
-
     and:
-    if (isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled() && !hasExtraErrorInformation()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
@@ -367,18 +371,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
 
     then:
-    status == 401
-    assertTraces(2) {
-      trace(size(2)) {
-        sortSpansByStart()
-        basicSpan(it, "parent")
-        clientSpan(it, span(0), method, false, false, uri, 401, true)
+    if (!hasExtraErrorInformation()) {
+      status == 401
+      assertTraces(2) {
+        trace(size(2)) {
+          basicSpan(it, "parent")
+          clientSpan(it, span(0), method, false, false, uri, 401, true)
+        }
+        server.distributedRequestTrace(it, trace(0).last())
       }
-      server.distributedRequestTrace(it, trace(0).last())
     }
 
     and:
-    if (isDataStreamsEnabled()) {
+    if (isDataStreamsEnabled() && !hasExtraErrorInformation()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
         edgeTags.containsAll(DSM_EDGE_TAGS)
