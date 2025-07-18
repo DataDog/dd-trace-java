@@ -8,6 +8,7 @@ import static java.util.Locale.ROOT;
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.TempLocationManager;
@@ -162,7 +163,7 @@ public final class Initializer {
         bw.write(entries[i + 1]);
         bw.newLine();
       }
-      bw.write("java_home=" + System.getProperty("java.home"));
+      bw.write("java_home=" + SystemProperties.get("java.home"));
       bw.newLine();
 
       Runtime.getRuntime()

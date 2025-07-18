@@ -11,6 +11,7 @@ import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
 import static java.util.Locale.ROOT;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
@@ -36,7 +37,7 @@ public final class CrashUploaderScriptInitializer {
       return;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
-      onErrorFile = System.getProperty("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
+      onErrorFile = SystemProperties.get("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
       LOG.debug("No -XX:ErrorFile value, defaulting to {}", onErrorFile);
     } else {
       onErrorFile = Strings.replace(onErrorFile, "%p", PidHelper.getPid());
@@ -120,7 +121,7 @@ public final class CrashUploaderScriptInitializer {
 
   private static String template(String line, String execClass, String crashFile) {
     line = Strings.replace(line, "!AGENT_JAR!", execClass);
-    line = Strings.replace(line, "!JAVA_HOME!", System.getProperty("java.home"));
+    line = Strings.replace(line, "!JAVA_HOME!", SystemProperties.get("java.home"));
     if (crashFile != null) {
       line = Strings.replace(line, "!JAVA_ERROR_FILE!", crashFile);
     }
