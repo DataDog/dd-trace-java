@@ -104,7 +104,7 @@ public class StableConfigParser {
     return true; // Return true if all selectors match
   }
 
-  private static boolean matchOperator(String value, String operator, List<String> matches, String match) {
+  private static boolean matchOperator(String value, String operator, List<String> matches) {
     // not sure if these are nullable, but the semantics make sense
     // and that will save us from a NPE
     if (value == null || matches == null || operator == null) {
@@ -149,7 +149,7 @@ public class StableConfigParser {
         if (value == null) {
           return false;
         }
-        return matchOperator(value, operator, matches, key);
+        return matchOperator(value, operator, matches);
       case "process_arguments":
         if (key == null) {
           return false;
@@ -162,7 +162,7 @@ public class StableConfigParser {
           return false;
         }
         String value = System.getProperty(key.substring(2));
-        return matchOperator(value, operator, matches, key);      
+        return matchOperator(value, operator, matches);      
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
