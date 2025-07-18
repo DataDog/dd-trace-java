@@ -3,6 +3,7 @@ package datadog.trace.api;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressForbidden
 public class ProcessTags {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessTags.class);
   private static boolean enabled = Config.get().isExperimentalPropagateProcessTagsEnabled();
@@ -27,6 +29,7 @@ public class ProcessTags {
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
   // visible for testing
+  // TODO: Replace with Environment component when available
   static Function<String, String> envGetter = System::getenv;
 
   private static class Lazy {

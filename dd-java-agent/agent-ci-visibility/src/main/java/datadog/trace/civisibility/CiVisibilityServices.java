@@ -34,6 +34,7 @@ import datadog.trace.civisibility.source.CompilerAidedLinesResolver;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.index.*;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
@@ -143,6 +144,7 @@ public class CiVisibilityServices {
   }
 
   @Nonnull
+  @SuppressForbidden
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
     String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
     if (remoteEnvVarsProviderUrl != null) {
@@ -151,9 +153,11 @@ public class CiVisibilityServices {
           new CiEnvironmentImpl(
               getRemoteEnvironment(
                   remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
+      // TODO: Replace with ConfigHelper when merged
       CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
+      // TODO: Replace with ConfigHelper when merged
       return new CiEnvironmentImpl(System.getenv());
     }
   }

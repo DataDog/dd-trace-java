@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.ConfigOrigin;
 
 final class EnvironmentConfigSource extends ConfigProvider.Source {
@@ -9,7 +10,7 @@ final class EnvironmentConfigSource extends ConfigProvider.Source {
   @Override
   protected String get(String key) {
     try {
-      return System.getenv(propertyNameToEnvironmentVariableName(key));
+      return EnvironmentVariables.get(propertyNameToEnvironmentVariableName(key));
     } catch (SecurityException e) {
       return null;
     }
