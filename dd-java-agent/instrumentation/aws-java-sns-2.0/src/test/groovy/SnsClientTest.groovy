@@ -164,10 +164,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags.contains("direction:out")
-        edgeTags.contains("topic:testtopic")
-        edgeTags.contains("type:sns")
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:out", "topic:testtopic", "type:sns")
       }
     }
 

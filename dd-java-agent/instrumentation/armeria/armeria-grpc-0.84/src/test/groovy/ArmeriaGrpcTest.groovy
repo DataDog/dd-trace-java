@@ -254,14 +254,12 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(["direction:out", "type:grpc"])
-        edgeTags.size() == 2
+        tags.hasAllTags("direction:out", "type:grpc")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags.containsAll(["direction:in", "type:grpc"])
-        edgeTags.size() == 2
+        tags.hasAllTags("direction:in", "type:grpc")
       }
     }
 

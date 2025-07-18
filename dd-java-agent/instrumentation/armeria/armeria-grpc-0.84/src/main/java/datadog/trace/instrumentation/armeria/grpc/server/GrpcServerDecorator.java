@@ -1,12 +1,9 @@
 package datadog.trace.instrumentation.armeria.grpc.server;
 
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -18,7 +15,6 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import java.util.BitSet;
-import java.util.LinkedHashMap;
 import java.util.function.Function;
 
 public class GrpcServerDecorator extends ServerDecorator {
@@ -33,15 +29,11 @@ public class GrpcServerDecorator extends ServerDecorator {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("armeria-grpc-server");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
-  private static final LinkedHashMap<String, String> createServerPathwaySortedTags() {
-    LinkedHashMap<String, String> result = new LinkedHashMap<>();
-    result.put(DIRECTION_TAG, DIRECTION_IN);
-    result.put(TYPE_TAG, "grpc");
-    return result;
+  private static DataStreamsTags createServerPathwaySortedTags() {
+    return DataStreamsTags.create("grpc", DataStreamsTags.Direction.Inbound);
   }
 
-  public static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS =
-      createServerPathwaySortedTags();
+  public static final DataStreamsTags SERVER_PATHWAY_EDGE_TAGS = createServerPathwaySortedTags();
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
   private static final Function<String, String> NORMALIZE =
