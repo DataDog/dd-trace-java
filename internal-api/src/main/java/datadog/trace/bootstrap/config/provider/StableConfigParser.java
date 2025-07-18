@@ -104,7 +104,7 @@ public class StableConfigParser {
   }
 
   private static boolean matchOperator(String value, String operator, List<String> matches) {
-    // not sure if these are nullable, but the semantics make sense
+    // not sure if these are nullable, but the semantics makes sense
     // and that will save us from a NPE
     if (value == null || operator == null) {
       return false;
@@ -140,6 +140,9 @@ public class StableConfigParser {
   // We do all of the case insensitivity modifications in this function, because each selector will
   // be viewed just once
   static boolean selectorMatch(String origin, List<String> matches, String operator, String key) {
+    if (operator == null) {
+      return false;
+    }
     operator = operator.toLowerCase();
     switch (origin.toLowerCase()) {
       case "language":
@@ -152,9 +155,6 @@ public class StableConfigParser {
           return false;
         }
         String envValue = System.getenv(key.toUpperCase());
-        if (envValue == null) {
-          return false;
-        }
         return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
