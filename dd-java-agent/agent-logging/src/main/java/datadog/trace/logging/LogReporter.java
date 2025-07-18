@@ -2,6 +2,7 @@ package datadog.trace.logging;
 
 import static java.nio.file.Files.readAllBytes;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
 import java.io.File;
@@ -45,7 +46,7 @@ public class LogReporter implements TracerFlare.Reporter {
       String captureFilename =
           "tracer" + "-" + Config.get().getRuntimeId() + "-" + endMillis + ".log";
       try {
-        Path tempPath = Paths.get(System.getProperty("java.io.tmpdir"), captureFilename);
+        Path tempPath = Paths.get(SystemProperties.get("java.io.tmpdir"), captureFilename);
         Path parentPath = tempPath.getParent();
         if (parentPath != null && !Files.isDirectory(parentPath)) {
           Files.createDirectories(parentPath);
