@@ -1,7 +1,9 @@
 package datadog.trace.util;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -9,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -75,14 +79,16 @@ public final class PidHelper {
       if (OperatingSystem.isLinux()) {
         return "/tmp";
       } else if (OperatingSystem.isWindows()) {
-        return Stream.of(System.getenv("TMP"), System.getenv("TEMP"), System.getenv("USERPROFILE"))
-            .filter(String::isEmpty)
+        return Stream.of("TMP", "TEMP", "USERPROFILE")
+            .map(EnvironmentVariables::get)
+            .filter(Objects::nonNull)
+            .filter(((Predicate<String>) String::isEmpty).negate())
             .findFirst()
             .orElse("C:\\Windows");
       } else if (OperatingSystem.isMacOs()) {
-        return System.getenv("TMPDIR");
+        return EnvironmentVariables.get("TMPDIR");
       } else {
-        return System.getProperty("java.io.tmpdir");
+        return SystemProperties.get("java.io.tmpdir");
       }
     } else {
       try {
@@ -93,7 +99,7 @@ public final class PidHelper {
                 .invoke(null);
       } catch (Throwable t) {
         // Fall back to constants based on J9 source code, may not have perfect coverage
-        String tmpDir = System.getProperty("java.io.tmpdir");
+        String tmpDir = SystemProperties.get("java.io.tmpdir");
         if (tmpDir != null && !tmpDir.isEmpty()) {
           return tmpDir;
         } else if (OperatingSystem.isWindows()) {
@@ -114,7 +120,7 @@ public final class PidHelper {
     } else {
       // Emulating the hotspot way to enumerate the JVM processes using the perfdata file
       // https://github.com/openjdk/jdk/blob/d7cb933b89839b692f5562aeeb92076cd25a99f6/src/hotspot/share/runtime/perfMemory.cpp#L244
-      return Paths.get(getTempDir(), "hsperfdata_" + System.getProperty("user.name"));
+      return Paths.get(getTempDir(), "hsperfdata_" + SystemProperties.get("user.name"));
     }
   }
 
