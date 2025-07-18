@@ -12,7 +12,6 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -663,18 +662,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (baggageTagKeys.isEmpty()) {
       return;
     }
-    TagMap tags = tagContext.getTags();
     for (String key : baggageTagKeys) {
       if ("*".equals(key)) {
         // If the key is "*", we add all baggage items
         for (Map.Entry<String, String> entry : baggage.entrySet()) {
-          tags.putIfAbsent("baggage." + entry.getKey(), entry.getValue());
+          tagContext.putTagIfAbsent("baggage." + entry.getKey(), entry.getValue());
         }
         break;
       }
       String value = baggage.get(key);
       if (value != null) {
-        tags.putIfAbsent("baggage." + key, value);
+        tagContext.putTagIfAbsent("baggage." + key, value);
       }
     }
   }

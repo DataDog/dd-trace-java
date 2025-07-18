@@ -175,6 +175,15 @@ public class TagContext implements AgentSpanContext.Extracted {
     this.tags.set(key, value);
   }
 
+  public void putTagIfAbsent(final String key, final String value) {
+    if (this.tags == null) {
+      this.tags = TagMap.create(4);
+    }
+    if (!this.tags.containsKey(key)) {
+      this.tags.set(key, value);
+    }
+  }
+
   @Override
   public final int getSamplingPriority() {
     return samplingPriority;
