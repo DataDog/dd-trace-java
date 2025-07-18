@@ -65,10 +65,48 @@ tasks.register('logEnvVarUsages') {
   }
 }
 
+tasks.register('checkEnvironmentVariablesUsage') {
+  group = "verification"
+  description = "Scans src/main/java for direct usages of EnvironmentVariables.get(...)"
+
+  doLast {
+    def pattern = ~/EnvironmentVariables\.get\s*\(/
+    def repoRoot = projectDir.toPath()
+
+    def javaFiles = fileTree(projectDir) {
+      include '**/src/main/java/**/*.java'
+
+      // Exclude specific files (relative to projectDir)
+      exclude 'components/environment/src/main/java/datadog/environment/ConfigHelper.java'
+    }
+
+    def matches = []
+
+    javaFiles.each { file ->
+      def relativePath = repoRoot.relativize(file.toPath())
+      file.eachLine { line, index ->
+        if (line =~ pattern) {
+          matches << "${relativePath}:${index + 1} -> ${line.trim()}"
+        }
+      }
+    }
+
+    if (!matches.isEmpty()) {
+      println "\n❌ Found forbidden usages of EnvironmentVariables.get(...):"
+      matches.each { println it }
+      throw new GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
+    } else {
+      println "✅ No forbidden EnvironmentVariables.get(...) usages found in src/main/java."
+    }
+  }
+}
+
 tasks.named('spotlessCheck') {
   dependsOn tasks.named('logEnvVarUsages')
+  dependsOn tasks.named('checkEnvironmentVariablesUsage')
 }
 
 tasks.named('spotlessApply') {
   dependsOn tasks.named('logEnvVarUsages')
+  dependsOn tasks.named('checkEnvironmentVariablesUsage')
 }
