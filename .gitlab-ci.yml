@@ -8,8 +8,8 @@ include:
 stages:
   - build
   - shared-pipeline
-  - publish-oci-images
   - publish
+  - publish-oci-images
   - benchmarks
   - macrobenchmarks
   - tests
