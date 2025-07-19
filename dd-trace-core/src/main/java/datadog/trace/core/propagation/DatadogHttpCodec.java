@@ -40,17 +40,20 @@ class DatadogHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static HttpCodec.Injector newInjector(Map<String, String> invertedBaggageMapping) {
-    return new Injector(invertedBaggageMapping);
+  public static HttpCodec.Injector newInjector(
+      Map<String, String> invertedBaggageMapping, boolean isInjectOtBaggage) {
+    return new Injector(invertedBaggageMapping, isInjectOtBaggage);
   }
 
   private static class Injector implements HttpCodec.Injector {
 
     private final Map<String, String> invertedBaggageMapping;
+    private final boolean isInjectOtBaggage;
 
-    public Injector(Map<String, String> invertedBaggageMapping) {
+    public Injector(Map<String, String> invertedBaggageMapping, boolean isInjectOtBaggage) {
       assert invertedBaggageMapping != null;
       this.invertedBaggageMapping = invertedBaggageMapping;
+      this.isInjectOtBaggage = isInjectOtBaggage;
     }
 
     @Override
@@ -66,6 +69,17 @@ class DatadogHttpCodec {
       if (origin != null) {
         setter.set(carrier, ORIGIN_KEY, origin.toString());
       }
+      if (isInjectOtBaggage) {
+        injectBaggage(context, carrier, setter);
+      }
+      // inject x-datadog-tags
+      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
+      if (datadogTags != null) {
+        setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
+      }
+    }
+
+    private <C> void injectBaggage(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
       if (e2eStart > 0) {
         setter.set(carrier, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)));
@@ -75,12 +89,6 @@ class DatadogHttpCodec {
         String header = invertedBaggageMapping.get(entry.getKey());
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
         setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
-      }
-
-      // inject x-datadog-tags
-      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
-      if (datadogTags != null) {
-        setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
     }
   }
