@@ -515,7 +515,11 @@ public class DDSpanContext
   private void forceKeepThisSpan(byte samplingMechanism) {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
-    if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
+    if (samplingMechanism == SamplingMechanism.MANUAL
+        && SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.SAMPLER_KEEP)
+            == PrioritySampling.UNSET) {
+      propagationTags.updateTraceSamplingPriority(PrioritySampling.SAMPLER_KEEP, samplingMechanism);
+    } else if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
         == PrioritySampling.UNSET) {
       propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
     }
