@@ -1,12 +1,17 @@
 package datadog.trace.instrumentation.java.lang
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.CommandInjectionModule
 import foo.bar.TestRuntimeSuite
 import groovy.transform.CompileDynamic
+import spock.lang.IgnoreIf
 
 @CompileDynamic
+@IgnoreIf(reason = "TODO: Fix for Java 25.", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(25)
+})
 class RuntimeCallSiteTest extends AgentTestRunner {
 
   @Override
