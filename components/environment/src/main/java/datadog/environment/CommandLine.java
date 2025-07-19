@@ -24,7 +24,7 @@ import java.util.List;
  */
 class CommandLine {
   private static final String SUN_JAVA_COMMAND_PROPERTY = "sun.java.command";
-  final List<String> fullCommand = findFullCommand();
+  private final List<String> fullCommand = findFullCommand();
   final String name = getCommandName();
   final List<String> arguments = getCommandArguments();
 
@@ -35,14 +35,14 @@ class CommandLine {
   }
 
   private String getCommandName() {
-    return fullCommand.isEmpty() ? null : fullCommand.get(0);
+    return this.fullCommand.isEmpty() ? null : this.fullCommand.get(0);
   }
 
   private List<String> getCommandArguments() {
-    if (fullCommand.isEmpty()) {
-      return fullCommand;
+    if (this.fullCommand.isEmpty()) {
+      return this.fullCommand;
     } else {
-      return fullCommand.subList(1, fullCommand.size());
+      return this.fullCommand.subList(1, this.fullCommand.size());
     }
   }
 }

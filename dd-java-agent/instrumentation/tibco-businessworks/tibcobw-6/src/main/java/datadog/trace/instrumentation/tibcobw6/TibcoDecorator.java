@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.tibcobw6;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_NODE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_VERSION;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -16,7 +17,7 @@ public class TibcoDecorator extends BaseDecorator {
   private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
   private static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
   private static final CharSequence APPNODE_NAME =
-      UTF8BytesString.create(System.getProperty("bw.appnode"));
+      UTF8BytesString.create(SystemProperties.get("bw.appnode"));
   private static final CharSequence BW_VERSION = bwVersion();
   public static final CharSequence TIBCO_PROCESS_OPERATION =
       UTF8BytesString.create("tibco.process");

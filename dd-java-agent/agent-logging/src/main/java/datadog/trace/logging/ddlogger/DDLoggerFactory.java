@@ -1,5 +1,7 @@
 package datadog.trace.logging.ddlogger;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Platform;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
@@ -99,14 +101,14 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
   private static boolean isFlagEnabled(
       final String systemProperty, final String envVar, final boolean defaultValue) {
-    String value = System.getProperty(systemProperty);
+    String value = SystemProperties.get(systemProperty);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = System.getenv(envVar);
+    value = EnvironmentVariables.get(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
