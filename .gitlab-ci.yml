@@ -9,6 +9,7 @@ stages:
   - build
   - shared-pipeline
   - publish
+  - publish-oci-images
   - benchmarks
   - macrobenchmarks
   - tests
@@ -879,6 +880,49 @@ requirements_json_test:
 
 package-oci:
   needs: [ build ]
+
+# "needs" parameters are taken from the one-pipeline template: https://github.com/DataDog/libdatadog-build/blob/main/templates/one-pipeline.yml
+# but with an additional dependency on the deploy_to_maven_central job.
+internal-publish-lib-init-tags:
+  stage: publish-oci-images
+  needs:
+    - job: deploy_to_maven_central
+    - job: generate-lib-init-pinned-tag-values
+      artifacts: true
+    - job: create-multiarch-lib-injection-image
+
+promote-oci-to-prod:
+  stage: publish-oci-images
+  needs:
+    - job: deploy_to_maven_central
+    - job: package-oci
+      artifacts: true
+    - job: oci-internal-publish
+      artifacts: true
+
+promote-oci-to-prod-beta:
+  stage: publish-oci-images
+  needs:
+    - job: package-oci
+      artifacts: true
+    - job: oci-internal-publish
+      artifacts: true
+
+promote-oci-to-staging:
+  stage: publish-oci-images
+  needs:
+    - job: package-oci
+      artifacts: true
+    - job: oci-internal-publish
+      artifacts: true
+
+publish-lib-init-pinned-tags:
+  stage: publish-oci-images
+  needs:
+    - job: deploy_to_maven_central
+    - job: generate-lib-init-pinned-tag-values
+      artifacts: true
+    - job: create-multiarch-lib-injection-image
 
 configure_system_tests:
   variables:
