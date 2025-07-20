@@ -109,7 +109,7 @@ public class StableConfigParser {
     if (value == null || operator == null) {
       return false;
     }
-    if (operator == "exists") {
+    if (operator.equals("exists")) {
       return true;
     }
     if (matches == null) {
@@ -146,7 +146,7 @@ public class StableConfigParser {
     operator = operator.toLowerCase();
     switch (origin.toLowerCase()) {
       case "language":
-        if (operator == "exists") {
+        if (operator.equals("exists")) {
           return false;
         }
         return matchOperator("java", operator, matches);

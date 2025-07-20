@@ -62,14 +62,40 @@ apm_configuration_rules:
     Files.delete(filePath)
   }
 
+  def "test parse and template"() {
+    when:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    then:
+    if (filePath == null) {
+      throw new AssertionError("Failed to create: " + filePath)
+    }
+
+    when:
+    String yaml = """
+    apm_configuration_rules:
+      - selectors:
+        - origin: process_arguments
+          key: "-Dtest_parse_and_template"
+          operator: exists
+        configuration:
+          DD_SERVICE: {{process_arguments['-Dtest_parse_and_template']}}
+"""
+    System.setProperty("test_parse_and_template", "myservice")
+    Files.write(filePath, yaml.getBytes())
+    StableConfigSource.StableConfig cfg = StableConfigParser.parse(filePath.toString())
+
+    then:
+    cfg.get("DD_SERVICE") == "myservice"
+  }
+
   def "test selectorMatch"() {
     when:
     // Env vars
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
     injectEnvConfig("DD_SERVICE", "mysvc")
     injectEnvConfig("DD_TAGS", "team:apm,component:web")
-    System.setProperty("arg1", "value1")
-  
+    System.setProperty("test_selectorMatch", "value1")
+
     def match = StableConfigParser.selectorMatch(origin, matches, operator, key)
 
     then:
@@ -102,10 +128,10 @@ apm_configuration_rules:
     "environment_variables" | []                    | "equals"               | null                   | false
     "environment_variables" | null                  | "equals"               | "DD_SERVICE"           | false
     "language"              | ["java"]              | null                   | ""                     | false
-    "process_arguments"     | null                  | "exists"               | "-Darg1"               | true
+    "process_arguments"     | null                  | "exists"               | "-Dtest_selectorMatch" | true
     "process_arguments"     | null                  | "exists"               | "-Darg2"               | false
-    "process_arguments"     | ["value1"]            | "equals"               | "-Darg1"               | true
-    "process_arguments"     | ["value2"]            | "equals"               | "-Darg1"               | false
+    "process_arguments"     | ["value1"]            | "equals"               | "-Dtest_selectorMatch" | true
+    "process_arguments"     | ["value2"]            | "equals"               | "-Dtest_selectorMatch" | false
   }
 
   def "test duplicate entries not allowed"() {
