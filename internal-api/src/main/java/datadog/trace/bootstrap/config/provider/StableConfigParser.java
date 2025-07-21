@@ -142,8 +142,8 @@ public class StableConfigParser {
     if (operator == null) {
       return false;
     }
-    operator = operator.toLowerCase();
-    switch (origin.toLowerCase()) {
+    operator = operator.toLowerCase(Locale.ROOT);
+    switch (origin.toLowerCase(Locale.ROOT)) {
       case "language":
         if ("exists".equals(operator)) {
           return false;
