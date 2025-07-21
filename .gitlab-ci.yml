@@ -852,10 +852,10 @@ test_deploy_artifacts_to_github:
     - gh auth status
     - export VERSION=TEST_VERSION
     - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
-    - gh release upload --clobber --repo DataDog/dd-trace-java vTEST_RELEASE_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java vTEST_RELEASE_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java vTEST_RELEASE_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java vTEST_RELEASE_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java v0 workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java v0 workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java v0 workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java v0 workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
 
   after_script:
     # Revoke the token after usage
