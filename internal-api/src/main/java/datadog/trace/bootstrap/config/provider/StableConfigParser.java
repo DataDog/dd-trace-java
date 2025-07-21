@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,23 +105,21 @@ public class StableConfigParser {
   }
 
   private static boolean matchOperator(String value, String operator, List<String> matches) {
-    // not sure if these are nullable, but the semantics makes sense
-    // and that will save us from a NPE
     if (value == null || operator == null) {
       return false;
     }
     if ("exist".equals(operator)) {
       return true;
     }
-    if (matches == null) {
+    if (matches.isEmpty()) {
       return false;
     }
-    value = value.toLowerCase();
+    value = value.toLowerCase(Locale.ROOT);
     for (String match : matches) {
       if (match == null) {
         continue;
       }
-      match = match.toLowerCase();
+      match = match.toLowerCase(Locale.ROOT);
       switch (operator) {
         case "equals":
           return value.equals(match);
@@ -146,7 +145,7 @@ public class StableConfigParser {
     operator = operator.toLowerCase();
     switch (origin.toLowerCase()) {
       case "language":
-        if (operator.equals("exists")) {
+        if ("exists".equals(operator)) {
           return false;
         }
         return matchOperator("java", operator, matches);
