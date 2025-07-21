@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -174,7 +175,7 @@ public final class AgentJar {
   }
 
   private static void checkProfilerEnv(final String[] args) throws Exception {
-    String tmpDir = args.length == 2 ? args[1] : System.getProperty("java.io.tmpdir");
+    String tmpDir = args.length == 2 ? args[1] : SystemProperties.get("java.io.tmpdir");
 
     installAgentCLI().getMethod("checkProfilerEnv", String.class).invoke(null, tmpDir);
   }

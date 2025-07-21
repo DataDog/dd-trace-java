@@ -3,9 +3,13 @@ package datadog.trace.bootstrap;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.FLEET;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.LOCAL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
@@ -13,8 +17,10 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -210,81 +216,18 @@ public class Agent {
       injectAgentArgsConfig(agentArgs);
     }
 
-    // Retro-compatibility for the old way to configure CI Visibility
-    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
-        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
-      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
-    }
+    configureCiVisibility(agentJarURL);
 
-    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
-    if (ciVisibilityEnabled) {
-      // if CI Visibility is enabled, all the other features are disabled by default
-      // unless the user had explicitly enabled them.
-      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
-
-      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
-
-      try {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
-            agentJarURL.toURI().toString());
-      } catch (URISyntaxException e) {
-        throw new IllegalArgumentException(
-            "Could not create URI from agent JAR URL: " + agentJarURL, e);
-      }
-    }
-
-    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
-    // not enabled
-    if (!ciVisibilityEnabled) {
-      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
-    }
-
-    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
-    if (dataJobsEnabled) {
-      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
-
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
-      // needed for e2e pipeline
-      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
-
-      if (Config.get().isDataJobsOpenLineageEnabled()) {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
-      }
-
-      String javaCommand = System.getProperty("sun.java.command");
-      String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
-      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
-        log.warn(
-            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
-            javaCommand,
-            dataJobsCommandPattern);
-        return;
-      }
+    // Halt agent start if DJM is enabled and is not successfully configure
+    if (!configureDataJobsMonitoring()) {
+      return;
     }
 
     if (!isSupportedAppSecArch()) {
       log.debug(
           "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
-          System.getProperty("os.name"),
-          System.getProperty("os.arch"));
+          SystemProperties.get("os.name"),
+          SystemProperties.get("os.arch"));
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
     }
 
@@ -444,6 +387,43 @@ public class Agent {
     StaticEventLogger.end("Agent.start");
   }
 
+  private static boolean configureDataJobsMonitoring() {
+    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
+    if (dataJobsEnabled) {
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
+
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if ("true".equals(ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_ENABLED)))) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
+
+      String javaCommand = String.join(" ", JavaVirtualMachine.getCommandArguments());
+      String dataJobsCommandPattern =
+          ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_COMMAND_PATTERN));
+      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
+        log.warn(
+            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
+            javaCommand,
+            dataJobsCommandPattern);
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static void injectAgentArgsConfig(String agentArgs) {
     try {
       final Class<?> agentArgsInjectorClass =
@@ -453,6 +433,45 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  private static void configureCiVisibility(URL agentJarURL) {
+    // Retro-compatibility for the old way to configure CI Visibility
+    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
+        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
+      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    }
+
+    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
+    if (ciVisibilityEnabled) {
+      // if CI Visibility is enabled, all the other features are disabled by default
+      // unless the user had explicitly enabled them.
+      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
+
+      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
+
+      try {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
+            agentJarURL.toURI().toString());
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(
+            "Could not create URI from agent JAR URL: " + agentJarURL, e);
+      }
+    }
+
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
     }
   }
 
@@ -950,7 +969,7 @@ public class Agent {
   }
 
   private static boolean isSupportedAppSecArch() {
-    final String arch = System.getProperty("os.arch");
+    final String arch = SystemProperties.get("os.arch");
     if (OperatingSystem.isWindows()) {
       // TODO: Windows bindings need to be built for x86
       return "amd64".equals(arch) || "x86_64".equals(arch);
@@ -1260,13 +1279,7 @@ public class Agent {
   }
 
   private static boolean isAwsLambdaRuntime() {
-    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
-    return val != null && !val.isEmpty();
-  }
-
-  private static ScopeListener createScopeListener(String className) throws Throwable {
-    return (ScopeListener)
-        AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
+    return !EnvironmentVariables.getOrDefault("AWS_LAMBDA_FUNCTION_NAME", "").isEmpty();
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {
@@ -1333,7 +1346,8 @@ public class Agent {
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
     setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
-    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
+    String simpleLoggerJsonEnabled = SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
+    if (simpleLoggerJsonEnabled != null && simpleLoggerJsonEnabled.equalsIgnoreCase("true")) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
@@ -1347,7 +1361,7 @@ public class Agent {
     } else {
       logLevel = ddGetProperty("dd.log.level");
       if (null == logLevel) {
-        logLevel = System.getenv("OTEL_LOG_LEVEL");
+        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
       }
     }
 
@@ -1361,8 +1375,8 @@ public class Agent {
   }
 
   private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
-      System.setProperty(property, value);
+    if (SystemProperties.get(property) == null && ddGetEnv(property) == null) {
+      SystemProperties.set(property, value);
     }
   }
 
@@ -1383,7 +1397,7 @@ public class Agent {
    */
   private static boolean isDebugMode() {
     final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+    final String tracerDebugLevelProp = SystemProperties.get(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
       return Boolean.parseBoolean(tracerDebugLevelProp);
@@ -1402,15 +1416,15 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureSystemProp);
+    String featureEnabled = SystemProperties.get(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
+      featureEnabled = getStableConfig(FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
+      featureEnabled = getStableConfig(LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1432,15 +1446,15 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
-    String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
+    String settingValue = getNullIfEmpty(SystemProperties.get(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(FLEET, featureConfigKey));
     }
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
     }
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(LOCAL, featureConfigKey));
     }
 
     // defaults to inactive
@@ -1489,7 +1503,7 @@ public class Agent {
    */
   private static boolean isAppUsingCustomLogManager(final EnumSet<Library> libraries) {
     final String tracerCustomLogManSysprop = "dd.app.customlogmanager";
-    final String customLogManagerProp = System.getProperty(tracerCustomLogManSysprop);
+    final String customLogManagerProp = SystemProperties.get(tracerCustomLogManSysprop);
     final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
 
     if (customLogManagerProp != null || customLogManagerEnv != null) {
@@ -1504,7 +1518,7 @@ public class Agent {
       return true; // Wildfly is known to set a custom log manager after startup.
     }
 
-    final String logManagerProp = System.getProperty("java.util.logging.manager");
+    final String logManagerProp = SystemProperties.get("java.util.logging.manager");
     if (logManagerProp != null) {
       log.debug("Prop - logging.manager: {}", logManagerProp);
       return true;
@@ -1521,7 +1535,7 @@ public class Agent {
    */
   private static boolean isAppUsingCustomJMXBuilder(final EnumSet<Library> libraries) {
     final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
-    final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
+    final String customJMXBuilderProp = SystemProperties.get(tracerCustomJMXBuilderSysprop);
     final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
 
     if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
@@ -1536,7 +1550,7 @@ public class Agent {
       return true; // Wildfly is known to set a custom JMX builder after startup.
     }
 
-    final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
+    final String jmxBuilderProp = SystemProperties.get("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
       log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
       return true;
@@ -1547,7 +1561,7 @@ public class Agent {
 
   /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
   private static String ddGetProperty(final String sysProp) {
-    String value = System.getProperty(sysProp);
+    String value = SystemProperties.get(sysProp);
     if (null == value) {
       value = ddGetEnv(sysProp);
     }
@@ -1561,7 +1575,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return System.getenv(toEnvVar(sysProp));
+    return EnvironmentVariables.get(toEnvVar(sysProp));
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
