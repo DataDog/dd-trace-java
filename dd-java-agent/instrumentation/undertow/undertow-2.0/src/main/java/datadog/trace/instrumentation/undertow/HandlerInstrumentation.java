@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
@@ -93,11 +94,12 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      final Context extractedContext = DECORATE.extract(exchange);
-      final AgentSpan span = DECORATE.startSpan(exchange, extractedContext).setMeasured(true);
-      scope = extractedContext.with(span).attach();
+      final Context parentContext = DECORATE.extract(exchange);
+      final Context context = DECORATE.startSpan("undertow", exchange, parentContext);
+      scope = context.attach();
+      final AgentSpan span = fromContext(context);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, exchange, exchange, extractedContext);
+      DECORATE.onRequest(span, exchange, exchange, parentContext);
 
       exchange.putAttachment(DD_UNDERTOW_CONTINUATION, captureSpan(span));
 

@@ -20,7 +20,7 @@ import scala.concurrent.Future;
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(
-      @Advice.Argument(value = 0, readOnly = false) Request req,
+      @Advice.Argument(value = 0, readOnly = false) Request<?> req,
       @Advice.Local("extractedContext") Context extractedContext) {
     final AgentSpan span;
     final ContextScope scope;
@@ -33,12 +33,13 @@ public class PlayAdvice {
     if (activeSpan() == null) {
       final Headers headers = req.headers();
       extractedContext = DECORATE.extract(headers);
-      span = DECORATE.startSpan(headers, extractedContext);
-      scope = extractedContext.with(span).attach();
+      final Context context = DECORATE.startSpan("play", headers, extractedContext);
+      span = spanFromContext(context);
+      scope = context.attach();
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
-      span = startSpan(PLAY_REQUEST);
+      span = startSpan("play", PLAY_REQUEST);
       scope = span.attach();
     }
 
@@ -60,7 +61,7 @@ public class PlayAdvice {
       @Advice.Local("extractedContext") Context extractedContext,
       @Advice.This final Object thisAction,
       @Advice.Thrown final Throwable throwable,
-      @Advice.Argument(0) final Request req,
+      @Advice.Argument(0) final Request<?> req,
       @Advice.Return(readOnly = false) final Future<Result> responseFuture) {
 
     if (playControllerScope == null) {
@@ -72,7 +73,7 @@ public class PlayAdvice {
     if (throwable == null) {
       responseFuture.onComplete(
           new RequestCompleteCallback(playControllerSpan),
-          ((Action) thisAction).executionContext());
+          ((Action<?>) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
       DECORATE.beforeFinish(playControllerSpan);
