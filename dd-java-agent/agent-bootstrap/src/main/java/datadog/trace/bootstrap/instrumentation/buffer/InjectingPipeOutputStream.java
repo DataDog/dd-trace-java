@@ -1,14 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.buffer;
 
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * A circular buffer with a lookbehind buffer of n bytes. The first time that the latest n bytes
- * matches the marker, a content is injected before.
+ * An OutputStream containing a circular buffer with a lookbehind buffer of n bytes. The first time
+ * that the latest n bytes matches the marker, a content is injected before.
  */
-public class InjectingPipeOutputStream extends FilterOutputStream {
+public class InjectingPipeOutputStream extends OutputStream {
   private final byte[] lookbehind;
   private int pos;
   private boolean bufferFilled;
@@ -18,10 +17,11 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   private int matchingPos = 0;
   private final Runnable onContentInjected;
   private final int bulkWriteThreshold;
+  private final OutputStream downstream;
 
   /**
    * @param downstream the delegate output stream
-   * @param marker the marker to find in the stream
+   * @param marker the marker to find in the stream. Must at least be one byte.
    * @param contentToInject the content to inject once before the marker if found.
    * @param onContentInjected callback called when and if the content is injected.
    */
@@ -30,7 +30,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
       final byte[] marker,
       final byte[] contentToInject,
       final Runnable onContentInjected) {
-    super(downstream);
+    this.downstream = downstream;
     this.marker = marker;
     this.lookbehind = new byte[marker.length];
     this.pos = 0;
@@ -42,12 +42,12 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   @Override
   public void write(int b) throws IOException {
     if (found) {
-      out.write(b);
+      downstream.write(b);
       return;
     }
 
     if (bufferFilled) {
-      out.write(lookbehind[pos]);
+      downstream.write(lookbehind[pos]);
     }
 
     lookbehind[pos] = (byte) b;
@@ -60,7 +60,7 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
     if (marker[matchingPos++] == b) {
       if (matchingPos == marker.length) {
         found = true;
-        out.write(contentToInject);
+        downstream.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
@@ -72,46 +72,48 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   }
 
   @Override
-  public void write(byte[] b, int off, int len) throws IOException {
+  public void write(byte[] array, int off, int len) throws IOException {
     if (found) {
-      out.write(b, off, len);
+      downstream.write(array, off, len);
       return;
     }
     if (len > bulkWriteThreshold) {
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
-      int idx = arrayContains(b, marker);
+      int idx = arrayContains(array, off, len, marker);
       if (idx >= 0) {
         // we have a full match. just write everything
         found = true;
         drain();
-        out.write(b, off, idx);
-        out.write(contentToInject);
+        downstream.write(array, off, idx);
+        downstream.write(contentToInject);
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        out.write(b, off + idx, len - idx);
+        downstream.write(array, off + idx, len - idx);
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
         // sequentially
         for (int i = off; i < off + marker.length - 1; i++) {
-          write(b[i]);
+          write(array[i]);
         }
         drain();
-        out.write(b, off + marker.length - 1, len - bulkWriteThreshold);
+        downstream.write(array, off + marker.length - 1, len - bulkWriteThreshold);
         for (int i = len - marker.length + 1; i < len; i++) {
-          write(b[i]);
+          write(array[i]);
         }
       }
     } else {
       // use slow path because the length to write is small and within the lookbehind buffer size
-      super.write(b, off, len);
+      for (int i = off; i < off + len; i++) {
+        write(array[i]);
+      }
     }
   }
 
-  private int arrayContains(byte[] array, byte[] search) {
-    for (int i = 0; i < array.length - search.length; i++) {
+  private int arrayContains(byte[] array, int off, int len, byte[] search) {
+    for (int i = off; i < len - search.length; i++) {
       if (array[i] == search[0]) {
         boolean found = true;
         int k = i;
@@ -133,10 +135,10 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   private void drain() throws IOException {
     if (bufferFilled) {
       for (int i = 0; i < lookbehind.length; i++) {
-        out.write(lookbehind[(pos + i) % lookbehind.length]);
+        downstream.write(lookbehind[(pos + i) % lookbehind.length]);
       }
     } else {
-      out.write(this.lookbehind, 0, pos);
+      downstream.write(this.lookbehind, 0, pos);
     }
     pos = 0;
     matchingPos = 0;
@@ -144,10 +146,15 @@ public class InjectingPipeOutputStream extends FilterOutputStream {
   }
 
   @Override
+  public void flush() throws IOException {
+    downstream.flush();
+  }
+
+  @Override
   public void close() throws IOException {
     if (!found) {
       drain();
     }
-    super.close();
+    downstream.close();
   }
 }

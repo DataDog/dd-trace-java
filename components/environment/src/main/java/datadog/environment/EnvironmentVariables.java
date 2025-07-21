@@ -16,7 +16,8 @@ public final class EnvironmentVariables {
    * Gets an environment variable value.
    *
    * @param name The environment variable name.
-   * @return The environment variable value, {@code null} if missing or can't be retrieved.
+   * @return The environment variable value, {@code null} if missing, can't be retrieved, or the
+   *     environment variable name is {@code null}.
    */
   public static @Nullable String get(String name) {
     return getOrDefault(name, null);
@@ -28,9 +29,13 @@ public final class EnvironmentVariables {
    * @param name The environment variable name.
    * @param defaultValue The default value to return if the environment variable is missing or can't
    *     be retrieved.
-   * @return The environment variable value, {@code defaultValue} if missing or can't be retrieved.
+   * @return The environment variable value, {@code defaultValue} if missing, can't be retrieved or
+   *     the environment variable name is {@code null}.
    */
   public static String getOrDefault(@Nonnull String name, String defaultValue) {
+    if (name == null) {
+      return defaultValue;
+    }
     try {
       String value = System.getenv(name);
       return value == null ? defaultValue : value;
