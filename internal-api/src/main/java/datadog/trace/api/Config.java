@@ -323,7 +323,6 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
@@ -1143,7 +1142,6 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
-  private final String dataJobsCommandPattern;
   private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
@@ -2535,7 +2533,6 @@ public class Config {
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
             DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
-    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -4385,10 +4382,6 @@ public class Config {
     return dataJobsOpenLineageEnabled;
   }
 
-  public String getDataJobsCommandPattern() {
-    return dataJobsCommandPattern;
-  }
-
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -5687,8 +5680,6 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
-        + ", dataJobsCommandPattern="
-        + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="
