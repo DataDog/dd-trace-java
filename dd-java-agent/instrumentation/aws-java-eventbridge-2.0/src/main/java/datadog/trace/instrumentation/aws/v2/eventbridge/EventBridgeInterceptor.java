@@ -2,18 +2,14 @@ package datadog.trace.instrumentation.aws.v2.eventbridge;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.BUS_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +85,9 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     // Inject context
     datadog.context.Context context = span;
     if (traceConfig().isDataStreamsEnabled()) {
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(eventBusName));
+      DataStreamsTags tags =
+          DataStreamsTags.createWithBus(DataStreamsTags.Direction.Outbound, eventBusName);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }
     defaultPropagator().inject(context, jsonBuilder, SETTER);
@@ -110,14 +108,5 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
 
     jsonBuilder.append('}');
     return jsonBuilder.toString();
-  }
-
-  private LinkedHashMap<String, String> getTags(String eventBusName) {
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(BUS_TAG, eventBusName);
-    sortedTags.put(TYPE_TAG, "bus");
-
-    return sortedTags;
   }
 }
