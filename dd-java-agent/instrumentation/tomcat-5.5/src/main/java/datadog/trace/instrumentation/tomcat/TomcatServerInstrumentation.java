@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
@@ -19,7 +20,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -123,21 +123,22 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final Context extractedContext = DECORATE.extract(req);
+      final Context parentContext = DECORATE.extract(req);
       // TODO: Migrate setting DD_EXTRACTED_CONTEXT_ATTRIBUTE from AgentSpanContext.Extracted to
       // Context
       req.setAttribute(
-          DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(extractedContext));
+          DD_EXTRACTED_CONTEXT_ATTRIBUTE, DECORATE.getExtractedSpanContext(parentContext));
 
-      final AgentSpan span = DECORATE.startSpan(req, extractedContext);
-      final ContextScope scope = extractedContext.with(span).attach();
+      final Context context = DECORATE.startSpan("tomcat", req, parentContext);
+      final ContextScope scope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
+      final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
 
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
-      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
     }
 

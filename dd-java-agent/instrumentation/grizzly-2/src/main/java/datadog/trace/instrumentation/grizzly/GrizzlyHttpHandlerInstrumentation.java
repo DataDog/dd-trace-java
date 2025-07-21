@@ -13,7 +13,6 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -74,15 +73,17 @@ public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracin
       }
 
       final Context parentContext = DECORATE.extract(request);
-      final AgentSpan span = DECORATE.startSpan(request, parentContext);
+      final Context context = DECORATE.startSpan("grizzly", request, parentContext);
+      final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
-      scope = parentContext.with(span).attach();
+      scope = context.attach();
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
-      request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
-      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+      request.setAttribute(
+          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {

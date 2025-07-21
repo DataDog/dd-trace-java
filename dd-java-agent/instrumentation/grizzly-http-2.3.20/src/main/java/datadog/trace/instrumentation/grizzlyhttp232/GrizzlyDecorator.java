@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -112,13 +114,14 @@ public class GrizzlyDecorator
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
-    Context context = DECORATE.extract(httpRequest);
-    AgentSpan span = DECORATE.startSpan(httpRequest, context);
-    ContextScope scope = context.with(span).attach();
+    Context parentContext = DECORATE.extract(httpRequest);
+    Context context = DECORATE.startSpan("grizzly", httpRequest, parentContext);
+    ContextScope scope = context.attach();
+    AgentSpan span = spanFromContext(context);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onRequest(span, httpRequest, httpRequest, context);
+    DECORATE.onRequest(span, httpRequest, httpRequest, parentContext);
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -74,11 +75,12 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
       ContextScope scope = null;
       try {
         if (span == null) {
-          final Context context = DECORATE.extract(exchange);
-          span = DECORATE.startSpan(exchange, context).setMeasured(true);
-          scope = context.with(span).attach();
+          final Context parentContext = DECORATE.extract(exchange);
+          final Context context = DECORATE.startSpan("undertow", exchange, parentContext);
+          span = fromContext(context);
+          scope = context.attach();
           DECORATE.afterStart(span);
-          DECORATE.onRequest(span, exchange, exchange, context);
+          DECORATE.onRequest(span, exchange, exchange, parentContext);
         }
         DECORATE.onError(span, throwable);
         // because we know that a http 400 will be thrown
