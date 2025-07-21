@@ -1,12 +1,14 @@
 package datadog.trace.bootstrap;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,37 +95,31 @@ public abstract class BootstrapInitializationTelemetry {
   public static final class JsonBased extends BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
-    private final Map<String, String> meta;
-    private final Map<String, List<String>> points;
+    private final Telemetry telemetry;
 
     // one way false to true
     private volatile boolean incomplete = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
-      this.meta = new LinkedHashMap<>();
-      this.points = new LinkedHashMap<>();
-
-      setMetaInfo("success", "success", "Successfully configured ddtrace package");
+      this.telemetry = new Telemetry();
     }
 
     @Override
     public void initMetaInfo(String attr, String value) {
-      synchronized (this.meta) {
-        this.meta.put(attr, value);
-      }
+      telemetry.setMetadata(attr, value);
     }
 
     @Override
     public void onAbort(String reasonCode) {
-      onPoint("library_entrypoint.abort", "reason:" + reasonCode);
+      onPoint("library_entrypoint.abort", singletonList("reason:" + reasonCode));
       markIncomplete();
-      setMetaInfo("abort", mapResultClass(reasonCode), reasonCode);
+      setResultMeta("abort", mapResultClass(reasonCode), reasonCode);
     }
 
     @Override
     public void onError(Throwable t) {
-      setMetaInfo("error", "internal_error", t.getMessage());
+      setResultMeta("error", "internal_error", t.getMessage());
 
       List<String> causes = new ArrayList<>();
 
@@ -141,13 +137,13 @@ public abstract class BootstrapInitializationTelemetry {
         causes = causes.subList(numCauses - maxTags, numCauses);
       }
 
-      onPoint("library_entrypoint.error", causes.toArray(new String[0]));
+      onPoint("library_entrypoint.error", causes);
     }
 
     @Override
     public void onError(String reasonCode) {
-      onPoint("library_entrypoint.error", "error_type:" + reasonCode);
-      setMetaInfo("error", mapResultClass(reasonCode), reasonCode);
+      onPoint("library_entrypoint.error", singletonList("error_type:" + reasonCode));
+      setResultMeta("error", mapResultClass(reasonCode), reasonCode);
     }
 
     private int maxTags() {
@@ -170,7 +166,7 @@ public abstract class BootstrapInitializationTelemetry {
       markIncomplete();
     }
 
-    private void setMetaInfo(String result, String resultClass, String resultReason) {
+    private void setResultMeta(String result, String resultClass, String resultReason) {
       initMetaInfo("result", result);
       initMetaInfo("result_class", resultClass);
       initMetaInfo("result_reason", resultReason);
@@ -193,10 +189,8 @@ public abstract class BootstrapInitializationTelemetry {
       }
     }
 
-    private void onPoint(String name, String... tags) {
-      synchronized (this.points) {
-        this.points.put(name, Arrays.asList(tags));
-      }
+    private void onPoint(String name, List<String> tags) {
+      telemetry.addPoint(name, tags);
     }
 
     @Override
@@ -207,15 +201,85 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void finish() {
       if (!this.incomplete) {
-        onPoint("library_entrypoint.complete");
+        onPoint("library_entrypoint.complete", emptyList());
       }
 
-      this.sender.send(meta, points);
+      this.sender.send(telemetry);
+    }
+  }
+
+  public static class Telemetry {
+    private final Map<String, String> metadata;
+    private final Map<String, List<String>> points;
+
+    public Telemetry() {
+      metadata = new LinkedHashMap<>();
+      points = new LinkedHashMap<>();
+
+      setResults("success", "success", "Successfully configured ddtrace package");
+    }
+
+    public void setMetadata(String name, String value) {
+      synchronized (metadata) {
+        metadata.put(name, value);
+      }
+    }
+
+    public void setResults(String result, String resultClass, String resultReason) {
+      synchronized (metadata) {
+        metadata.put("result", result);
+        metadata.put("result_class", resultClass);
+        metadata.put("result_reason", resultReason);
+      }
+    }
+
+    public void addPoint(String name, List<String> tags) {
+      synchronized (points) {
+        points.put(name, tags);
+      }
+    }
+
+    public byte[] json() {
+      try (JsonWriter writer = new JsonWriter()) {
+        writer.beginObject();
+        writer.name("metadata").beginObject();
+        synchronized (metadata) {
+          for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            writer.name(entry.getKey());
+            writer.value(entry.getValue());
+          }
+
+          metadata.clear();
+        }
+        writer.endObject();
+
+        writer.name("points").beginArray();
+        synchronized (points) {
+          for (Map.Entry<String, List<String>> entry : points.entrySet()) {
+            writer.beginObject();
+            writer.name("name").value(entry.getKey());
+            if (!entry.getValue().isEmpty()) {
+              writer.name("tags").beginArray();
+              for (String tag : entry.getValue()) {
+                writer.value(tag);
+              }
+              writer.endArray();
+            }
+            writer.endObject();
+          }
+
+          points.clear();
+        }
+        writer.endArray();
+        writer.endObject();
+
+        return writer.toByteArray();
+      }
     }
   }
 
   public interface JsonSender {
-    void send(Map<String, String> meta, Map<String, List<String>> points);
+    void send(Telemetry telemetry);
   }
 
   public static final class ForwarderJsonSender implements JsonSender {
@@ -226,8 +290,8 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void send(Map<String, String> meta, Map<String, List<String>> points) {
-      ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, meta, points);
+    public void send(Telemetry telemetry) {
+      ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, telemetry);
       t.setDaemon(true);
       t.start();
     }
@@ -235,15 +299,12 @@ public abstract class BootstrapInitializationTelemetry {
 
   public static final class ForwarderJsonSenderThread extends Thread {
     private final String forwarderPath;
-    private final Map<String, String> meta;
-    private final Map<String, List<String>> points;
+    private final Telemetry telemetry;
 
-    public ForwarderJsonSenderThread(
-        String forwarderPath, Map<String, String> meta, Map<String, List<String>> points) {
+    public ForwarderJsonSenderThread(String forwarderPath, Telemetry telemetry) {
       super("dd-forwarder-json-sender");
       this.forwarderPath = forwarderPath;
-      this.meta = meta;
-      this.points = points;
+      this.telemetry = telemetry;
     }
 
     @SuppressForbidden
@@ -253,7 +314,7 @@ public abstract class BootstrapInitializationTelemetry {
 
       // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
       try (final Closeable ignored = muteTracing()) {
-        byte[] payload = json();
+        byte[] payload = telemetry.json();
 
         Process process = builder.start();
         try (OutputStream out = process.getOutputStream()) {
@@ -262,39 +323,6 @@ public abstract class BootstrapInitializationTelemetry {
       } catch (Throwable e) {
         // We don't have a log manager here, so just print.
         System.err.println("Failed to send telemetry: " + e.getMessage());
-      }
-    }
-
-    private byte[] json() {
-      try (JsonWriter writer = new JsonWriter()) {
-        writer.beginObject();
-        writer.name("metadata").beginObject();
-        synchronized (this.meta) {
-          for (Map.Entry<String, String> entry : meta.entrySet()) {
-            writer.name(entry.getKey());
-            writer.value(entry.getValue());
-          }
-        }
-        writer.endObject();
-
-        writer.name("points").beginArray();
-        synchronized (this.points) {
-          for (Map.Entry<String, List<String>> entry : points.entrySet()) {
-            writer.beginObject();
-            writer.name("name").value(entry.getKey());
-            writer.name("tags").beginArray();
-            for (String tag : entry.getValue()) {
-              writer.value(tag);
-            }
-            writer.endArray();
-            writer.endObject();
-          }
-          this.points.clear();
-        }
-        writer.endArray();
-        writer.endObject();
-
-        return writer.toByteArray();
       }
     }
 

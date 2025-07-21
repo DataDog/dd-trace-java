@@ -1,6 +1,10 @@
 package datadog.trace.bootstrap
 
+import datadog.trace.bootstrap.BootstrapInitializationTelemetry.Telemetry
+import groovy.json.JsonBuilder
 import spock.lang.Specification
+
+import static java.nio.charset.StandardCharsets.UTF_8
 
 class BootstrapInitializationTelemetryTest extends Specification {
   Capture capture
@@ -29,8 +33,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("success", "success", "Successfully configured ddtrace package")
-    assertPoints(true, "library_entrypoint.complete", [])
+    assertJson("success", "success", "Successfully configured ddtrace package", [[name: "library_entrypoint.complete"]])
   }
 
   def "test non fatal error as text"() {
@@ -39,8 +42,10 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("error", "unknown", "some reason")
-    assertPoints(true, "library_entrypoint.error", ["error_type:some reason"])
+    assertJson("error", "unknown", "some reason", [
+      [name: "library_entrypoint.error", tags: ["error_type:some reason"]],
+      [name: "library_entrypoint.complete"]
+    ])
   }
 
   def "test non fatal error as exception"() {
@@ -49,8 +54,10 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("error", "internal_error", "non fatal error")
-    assertPoints(true, "library_entrypoint.error", ["error_type:java.lang.Exception"])
+    assertJson("error", "internal_error", "non fatal error", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
   }
 
   def "test abort"() {
@@ -59,8 +66,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("abort", resultClass, reasonCode)
-    assertPoints(false, "library_entrypoint.abort", ["reason:${reasonCode}"])
+    assertJson("abort", resultClass, reasonCode, [[name: "library_entrypoint.abort", tags: ["reason:${reasonCode}"]]])
 
     where:
     reasonCode            | resultClass
@@ -76,8 +82,7 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("error", "internal_error", "fatal error")
-    assertPoints(false, "library_entrypoint.error", ["error_type:java.lang.Exception"])
+    assertJson("error", "internal_error", "fatal error", [[name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]]])
   }
 
   def "test unwind root cause"() {
@@ -86,36 +91,30 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetry.finish()
 
     then:
-    assertMeta("error", "internal_error", "top cause")
-    assertPoints(true, "library_entrypoint.error", ["error_type:java.io.FileNotFoundException", "error_type:java.lang.Exception"])
+    assertJson("error", "internal_error", "top cause", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.io.FileNotFoundException", "error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
   }
 
-  def assertMeta(String result, String resultClass, String resultReason) {
-    def meta = capture.meta
+  private boolean assertJson(String result, String resultClass, String resultReason, List points) {
+    def expectedJson = """{"metadata":{"result":"${result}","result_class":"${resultClass}","result_reason":"${resultReason}"},"points":${new JsonBuilder(points)}}"""
+    def actualJson = capture.json()
 
-    assert meta.get("result") == result
-    assert meta.get("result_class") == resultClass
-    assert meta.get("result_reason") == resultReason
-
-    return true
-  }
-
-  def assertPoints(boolean complete, String point, List<String> tags) {
-    def points = capture.points
-
-    assert points.containsKey("library_entrypoint.complete") == complete
-    assert points.get(point) == tags
+    assert expectedJson == actualJson
 
     return true
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
-    Map<String, String> meta
-    Map<String, List<String>> points
+    Telemetry telemetry
 
-    void send(Map<String, String> meta, Map<String, List<String>> points) {
-      this.meta = meta
-      this.points = points
+    void send(Telemetry telemetry) {
+      this.telemetry = telemetry
+    }
+
+    String json() {
+      return new String(telemetry.json(), UTF_8)
     }
   }
 }
