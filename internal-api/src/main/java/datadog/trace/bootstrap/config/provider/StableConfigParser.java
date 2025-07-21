@@ -109,7 +109,7 @@ public class StableConfigParser {
     if (value == null || operator == null) {
       return false;
     }
-    if (operator.equals("exists")) {
+    if ("exist".equals(operator)) {
       return true;
     }
     if (matches == null) {
