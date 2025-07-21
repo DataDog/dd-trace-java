@@ -108,7 +108,7 @@ public class StableConfigParser {
     if (value == null || operator == null) {
       return false;
     }
-    if ("exist".equals(operator)) {
+    if ("exists".equals(operator)) {
       return true;
     }
     if (matches.isEmpty()) {
@@ -136,7 +136,7 @@ public class StableConfigParser {
     return false;
   }
 
-  // We do all of the case insensitivity modifications in this function, because each selector will
+  // We do all the case insensitivity modifications in this function, because each selector will
   // be viewed just once
   static boolean selectorMatch(String origin, List<String> matches, String operator, String key) {
     if (operator == null) {
