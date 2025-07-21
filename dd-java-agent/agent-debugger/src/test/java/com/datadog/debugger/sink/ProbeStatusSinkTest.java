@@ -33,11 +33,11 @@ class ProbeStatusSinkTest {
   private static final ProbeId PROBE_ID_NEW_VERSION = new ProbeId(PROBE_ID.getId(), 21);
   private static final ProbeId PROBE_ID2 = new ProbeId(UUID.randomUUID().toString(), 21);
   private static final String MESSAGE = "Foo";
-  private static final int DIAGNOSTICS_INTERVAL = 60 * 60; // in seconds = 1h
+  private static final double DIAGNOSTICS_INTERVAL = 60 * 60; // in seconds = 1h
   private static final Instant AFTER_INTERVAL_HAS_PASSED =
-      Instant.now().plus(Duration.ofSeconds(DIAGNOSTICS_INTERVAL + 5));
+      Instant.now().plus(Duration.ofSeconds((int) DIAGNOSTICS_INTERVAL + 5));
   private static final Instant BEFORE_INTERVAL_HAS_PASSED =
-      Instant.now().plus(Duration.ofSeconds(DIAGNOSTICS_INTERVAL - 5));
+      Instant.now().plus(Duration.ofSeconds((int) DIAGNOSTICS_INTERVAL - 5));
 
   @Mock private Config config;
 
