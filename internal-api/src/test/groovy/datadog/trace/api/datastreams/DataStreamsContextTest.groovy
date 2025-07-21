@@ -6,13 +6,13 @@ import spock.lang.Specification
 class DataStreamsContextTest extends Specification {
   def 'test constructor'() {
     setup:
-    def tags = new LinkedHashMap()
+    def tags = DataStreamsTags.EMPTY
 
     when:
     def dsmContext = DataStreamsContext.fromTags(tags)
 
     then:
-    dsmContext.sortedTags() == tags
+    dsmContext.tags() == tags
     dsmContext.defaultTimestamp() == 0
     dsmContext.payloadSizeBytes() == 0
     dsmContext.sendCheckpoint()
@@ -21,7 +21,7 @@ class DataStreamsContextTest extends Specification {
     dsmContext = DataStreamsContext.fromTagsWithoutCheckpoint(tags)
 
     then:
-    dsmContext.sortedTags() == tags
+    dsmContext.tags() == tags
     dsmContext.defaultTimestamp() == 0
     dsmContext.payloadSizeBytes() == 0
     !dsmContext.sendCheckpoint()
@@ -32,7 +32,7 @@ class DataStreamsContextTest extends Specification {
     dsmContext = DataStreamsContext.create(tags, timestamp, payloadSize)
 
     then:
-    dsmContext.sortedTags() == tags
+    dsmContext.tags() == tags
     dsmContext.defaultTimestamp() == timestamp
     dsmContext.payloadSizeBytes() == payloadSize
     dsmContext.sendCheckpoint()
@@ -40,7 +40,7 @@ class DataStreamsContextTest extends Specification {
 
   def 'test context store'() {
     setup:
-    def tags = new LinkedHashMap()
+    def tags = DataStreamsTags.EMPTY
 
     when:
     def dsmContext = DataStreamsContext.fromTags(tags)

@@ -2,19 +2,15 @@ package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkRequest;
@@ -106,12 +102,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
     return context.request();
   }
 
-  private LinkedHashMap<String, String> getTags(String snsTopicName) {
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TOPIC_TAG, snsTopicName);
-    sortedTags.put(TYPE_TAG, "sns");
-
-    return sortedTags;
+  private DataStreamsTags getTags(String snsTopicName) {
+    return DataStreamsTags.create("sns", DataStreamsTags.Direction.Outbound, snsTopicName);
   }
 }
