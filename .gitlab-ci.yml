@@ -191,6 +191,7 @@ default:
   after_script:
     - *cgroup_info
 
+# TODO: Add a pre-release check to see if the dd-octo-sts token is working.
 # Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
 # on the central publisher protal, it invalidates the old one. This checks prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
@@ -828,19 +829,39 @@ deploy_artifacts_to_github:
     - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
     - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
 
+# TODO: This is a temporary solution to test the dd-octo-sts token during the release process. We should remove the AWS SSM token retrieval method once the dd-octo-sts token is provably working.
   script:
-    - gh auth login --with-token < github-token.txt
-    - gh auth status  # Maybe helpful to have this output in logs?
-    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - |
+      deploy_to_github() {
+        gh auth login --with-token < github-token.txt
+        gh auth status
+        export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get the version
+        cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # upload two filenames
+        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+      }
+      
+      # Try using the dd-octo-sts token first. If it fails, then fall back to the AWS SSM token.
+      # Also track which token was used successfully.
+      if ! deploy_to_github; then
+        echo "Using dd-octo-sts token failed. Now proceeding with the original AWS SSM token retrieval method..."
+        echo "USED_DD_OCTO_STS_TOKEN=false" > github_token_source.env
+        aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
+        deploy_to_github
+      else
+        echo "Using dd-octo-sts token succeeded. Github release artifacts were uploaded successfully."
+        echo "USED_DD_OCTO_STS_TOKEN=true" > github_token_source.env
+      fi
 
   after_script:
-    # Revoke the token after usage
-    - dd-octo-sts revoke -t $(cat github-token.txt)
+    # Only revoke the dd-octo-sts token if it was successfully used
+    - source github_token_source.env
+    - |
+      if [ "$USED_DD_OCTO_STS_TOKEN" = "true" ]; then
+        dd-octo-sts revoke -t $(cat github-token.txt)
+      fi
 
   retry:
     max: 2
