@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.agent.SourceFileTrackingTransformer.MAX_QUEUE_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static utils.TestClassFileHelper.getClassFileBytes;
 
@@ -136,6 +137,22 @@ class SourceFileTrackingTransformerTest {
         getClassFileBytes(TopLevelHelper.class));
     sourceFileTrackingTransformer.flush();
     assertEquals(0, finder.getClassNamesBySourceFile().size());
+  }
+
+  @Test
+  void maxQueue() throws IllegalClassFormatException {
+    ClassesToRetransformFinder finder = new ClassesToRetransformFinder();
+    SourceFileTrackingTransformer sourceFileTrackingTransformer =
+        new SourceFileTrackingTransformer(finder);
+    for (int i = 0; i < MAX_QUEUE_SIZE + 10; i++) {
+      sourceFileTrackingTransformer.transform(
+          null,
+          getInternalName(TopLevelHelper.class),
+          null,
+          null,
+          getClassFileBytes(TopLevelHelper.class));
+    }
+    assertEquals(MAX_QUEUE_SIZE, sourceFileTrackingTransformer.getQueueSize());
   }
 
   private static void replaceInByteArray(byte[] buffer, byte[] oldBytes, byte[] newBytes) {
