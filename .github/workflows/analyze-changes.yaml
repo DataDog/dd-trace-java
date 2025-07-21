@@ -47,7 +47,7 @@ jobs:
       
       - name: Build dd-trace-java for creating the CodeQL database
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
@@ -93,7 +93,7 @@ jobs:
 
       - name: Build and publish artifacts locally
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
