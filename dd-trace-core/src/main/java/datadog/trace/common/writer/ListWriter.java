@@ -38,7 +38,14 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     for (DDSpan span : trace) {
       // This is needed to properly do all delayed processing to make this writer even
       // remotely realistic so the test actually test something
-      span.processTagsAndBaggage(MetadataConsumer.NO_OP);
+      span.processTagsAndBaggage(metadata -> {
+        // surface injected baggage metadata as span tags so they can be asserted
+        metadata.getBaggage().forEach((k, v) -> {
+          if (!k.startsWith("_dd.") && span.getTag(k) == null) {
+            span.setTag(k, v);
+          }
+        });
+      });
     }
 
     add(trace);

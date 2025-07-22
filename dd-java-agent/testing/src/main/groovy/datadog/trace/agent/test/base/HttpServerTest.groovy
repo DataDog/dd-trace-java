@@ -819,8 +819,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
