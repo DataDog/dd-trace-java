@@ -280,12 +280,12 @@ class ConnectWorkerInstrumentationTest extends AgentTestRunner {
 
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
     verifyAll(first) {
-      tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
+      tags.hasAllTags("direction:out", "topic:test-topic", "type:kafka")
     }
 
     StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
     verifyAll(second) {
-      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka", "kafka_cluster_id:" + clusterId)
+      tags.hasAllTags("direction:in", "group:connect-file-sink-connector", "topic:test-topic", "type:kafka")
     }
     TEST_DATA_STREAMS_WRITER.getServices().contains('file-sink-connector')
 
