@@ -124,11 +124,8 @@ class GithubActionsInfo implements CIProviderInfo {
         }
 
         Object number = pullRequest.get("number");
-        if (number != null) {
-          prNumber =
-              number instanceof Double
-                  ? String.valueOf(((Double) number).intValue())
-                  : String.valueOf(number);
+        if (number instanceof Number) {
+          prNumber = String.valueOf(((Number) number).intValue());
         }
       }
 
