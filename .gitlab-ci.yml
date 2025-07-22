@@ -25,10 +25,10 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.5" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/maven-central/"
   GRADLE_PLUGIN_PROXY: "http://artifactual.artifactual.all-clusters.local-dc.fabric.dog:8081/repository/gradle-plugin-portal-proxy/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v25.06-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|stable)$/
   PROFILE_TESTS:
@@ -137,9 +137,12 @@ default:
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
     CACHE_TYPE: lib #default
+    FF_USE_FASTZIP: "true"
+    CACHE_COMPRESSION_LEVEL: "slowest"
+
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
   cache:
-    - key: '$CI_SERVER_VERSION-$CACHE_TYPE' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+    - key: dependency-$CACHE_TYPE # Dependencies cache
       paths:
         # Cached dependencies and wrappers for gradle
         - .gradle/wrapper
@@ -148,8 +151,8 @@ default:
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
-        - '$CI_SERVER_VERSION-base'
-        - '$CI_SERVER_VERSION-lib'
+        - 'dependency-base'
+        - 'dependency-lib'
     - key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
       paths:
         - .gradle/caches/$GRADLE_VERSION
@@ -188,6 +191,7 @@ default:
   after_script:
     - *cgroup_info
 
+# TODO: Add a pre-release check to see if the dd-octo-sts token is working.
 # Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
 # on the central publisher protal, it invalidates the old one. This checks prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
@@ -200,11 +204,11 @@ pre-release-checks:
       allow_failure: false
   script:
     - |
-      SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-      SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
       # See https://central.sonatype.org/publish/publish-portal-api/
       # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$SONATYPE_USERNAME:$SONATYPE_PASSWORD" | base64)"
+      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
       if [ $? -ne 0 ]; then
         echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
         exit 1
@@ -768,8 +772,8 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
-# If the deploy_to_sonatype job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
-deploy_to_sonatype:
+# If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
+deploy_to_maven_central:
   extends: .gradle_build
   stage: publish
   needs: [ build ]
@@ -786,8 +790,8 @@ deploy_to_sonatype:
     - when: manual
       allow_failure: true
   script:
-    - export SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-    - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
@@ -797,64 +801,70 @@ deploy_to_sonatype:
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
 
-get_github_token:
+deploy_artifacts_to_github:
   stage: publish
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:v68058725-73f34e7-2025.06-1
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
-  
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
-
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-    #   when: on_success
-
-  script:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+  needs:
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
+      optional: true
+  before_script:
+    # Get token
     - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy dd-trace-java.release
-    - dd-octo-sts token --scope DataDog/dd-trace-java --policy dd-trace-java.release > github-token.txt
-    # DEBUG
-    - echo "Token file exists:" $(test -f github-token.txt && echo "YES" || echo "NO")
-    - echo "Token file size:" $(wc -c < github-token.txt) "bytes"
-    - echo "Token preview:" $(head -c 10 github-token.txt)...
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
+  script:
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+  retry:
+    max: 2
+    when: always
 
-  artifacts:
-    paths:
-      - github-token.txt
-    expire_in: 1 hour # tokens generated by dd-octo-sts only last for 1 hour
-
-deploy_artifacts_to_github:
+# This is the original job that uses the AWS SSM token retrieval method. Allow manual triggering in case the dd-octo-sts token is not working.
+# TODO: Remove this job once the dd-octo-sts token is provably working.
+deploy_artifacts_to_github_old:
   stage: publish
   image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
   rules:
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-  # Requires the deploy_to_sonatype job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+      when: manual
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
-    - job: deploy_to_sonatype
-      # The deploy_to_sonatype job is not run for release candidate versions
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
       optional: true
-    - job: get_github_token
-
   script:
-    # - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
-    # Debug token reception
-    - echo "Token file exists:" $(test -f github-token.txt && echo "YES" || echo "NO")
-    - echo "Token file size:" $(wc -c < github-token.txt) "bytes"
+    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
     - gh auth login --with-token < github-token.txt
     - gh auth status  # Maybe helpful to have this output in logs?
-    # - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-    # - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-    # - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
   retry:
     max: 2
     when: always
@@ -871,7 +881,7 @@ package-oci:
 
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,docker-ssi,lib-injection"
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:
   stage: generate-signing-key
