@@ -111,7 +111,7 @@ public class StableConfigParser {
     if ("exists".equals(operator)) {
       return true;
     }
-    if (matches.isEmpty()) {
+    if (matches == null || matches.isEmpty()) {
       return false;
     }
     value = value.toLowerCase(Locale.ROOT);
@@ -153,7 +153,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = System.getenv(key.toUpperCase());
+        String envValue = System.getenv(key.toUpperCase(Locale.ROOT));
         return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
@@ -229,7 +229,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar.toUpperCase());
+      String value = System.getenv(envVar.toUpperCase(Locale.ROOT));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
