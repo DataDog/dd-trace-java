@@ -131,8 +131,7 @@ public class CiVisibilityRepoServices {
       // if head sha present try to populate author, committer and message info through git client
       try {
         gitRepoUnshallow.unshallow(headSha);
-        CommitInfo commitInfo =
-            gitClient.getCommitInfo(headSha);
+        CommitInfo commitInfo = gitClient.getCommitInfo(headSha);
         return PullRequestInfo.merge(ciInfo, new PullRequestInfo(null, null, commitInfo, null));
       } catch (Exception ignored) {
       }

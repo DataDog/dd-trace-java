@@ -6,7 +6,6 @@ import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoBuilder;
-import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.git.tree.GitClient;
 import java.util.List;
 import javax.annotation.Nullable;

@@ -177,9 +177,9 @@ class GitClientTest extends Specification {
     commitInfo.committer.email == "noreply@github.com"
     commitInfo.committer.iso8601Date == "2021-02-26T19:32:13+01:00"
     commitInfo.fullMessage == "Adding Git information to test spans (#1242)\n\n" +
-      "* Initial basic GitInfo implementation.\r\n\r\n" +
-      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-      "* Changes based on the review."
+    "* Initial basic GitInfo implementation.\r\n\r\n" +
+    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+    "* Changes based on the review."
   }
 
   def "test get latest commits"() {
