@@ -3,8 +3,13 @@ package datadog.trace.bootstrap;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.Library.WILDFLY;
 import static datadog.trace.bootstrap.Library.detectLibraries;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.FLEET;
+import static datadog.trace.bootstrap.config.provider.StableConfigSource.LOCAL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
@@ -12,8 +17,10 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -21,11 +28,13 @@ import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.LlmObsConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -42,6 +51,7 @@ import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -54,6 +64,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -95,6 +106,9 @@ public class Agent {
     TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
     JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
     STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    CRASH_TRACKING(
+        CrashTrackingConfig.CRASH_TRACKING_ENABLED,
+        CrashTrackingConfig.CRASH_TRACKING_ENABLED_DEFAULT),
     PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
     APPSEC(AppSecConfig.APPSEC_ENABLED, false),
     IAST(IastConfig.IAST_ENABLED, false),
@@ -109,7 +123,9 @@ public class Agent {
     EXCEPTION_REPLAY(DebuggerConfig.EXCEPTION_REPLAY_ENABLED, false),
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
-    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -146,9 +162,11 @@ public class Agent {
   private static ClassLoader AGENT_CLASSLOADER = null;
 
   private static volatile Runnable PROFILER_INIT_AFTER_JMX = null;
+  private static volatile Runnable CRASHTRACKER_INIT_AFTER_JMX = null;
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
+  private static boolean crashTrackingEnabled = false;
   private static boolean appSecEnabled;
   private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
@@ -156,6 +174,8 @@ public class Agent {
   private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
+  private static boolean llmObsEnabled = false;
+  private static boolean llmObsAgentlessEnabled = false;
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean dynamicInstrumentationEnabled = false;
@@ -196,86 +216,24 @@ public class Agent {
       injectAgentArgsConfig(agentArgs);
     }
 
-    // Retro-compatibility for the old way to configure CI Visibility
-    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
-        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
-      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
-    }
+    configureCiVisibility(agentJarURL);
 
-    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
-    if (ciVisibilityEnabled) {
-      // if CI Visibility is enabled, all the other features are disabled by default
-      // unless the user had explicitly enabled them.
-      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
-
-      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
-
-      try {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
-            agentJarURL.toURI().toString());
-      } catch (URISyntaxException e) {
-        throw new IllegalArgumentException(
-            "Could not create URI from agent JAR URL: " + agentJarURL, e);
-      }
-    }
-
-    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
-    // not enabled
-    if (!ciVisibilityEnabled) {
-      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
-    }
-
-    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
-    if (dataJobsEnabled) {
-      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
-
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
-      // needed for e2e pipeline
-      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
-
-      if (Config.get().isDataJobsOpenLineageEnabled()) {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
-      }
-
-      String javaCommand = System.getProperty("sun.java.command");
-      String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
-      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
-        log.warn(
-            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
-            javaCommand,
-            dataJobsCommandPattern);
-        return;
-      }
+    // Halt agent start if DJM is enabled and is not successfully configure
+    if (!configureDataJobsMonitoring()) {
+      return;
     }
 
     if (!isSupportedAppSecArch()) {
       log.debug(
           "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
-          System.getProperty("os.name"),
-          System.getProperty("os.arch"));
+          SystemProperties.get("os.name"),
+          SystemProperties.get("os.arch"));
       setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
+    crashTrackingEnabled = isFeatureEnabled(AgentFeature.CRASH_TRACKING);
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
@@ -290,6 +248,25 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
+
+    // setup writers when llmobs is enabled to accomodate apm and llmobs
+    if (llmObsEnabled) {
+      // for llm obs spans, use agent proxy by default, apm spans will use agent writer
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+          WriterConstants.MULTI_WRITER_TYPE
+              + ":"
+              + WriterConstants.DD_INTAKE_WRITER_TYPE
+              + ","
+              + WriterConstants.DD_AGENT_WRITER_TYPE);
+      if (llmObsAgentlessEnabled) {
+        // use API writer only
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(TracerConfig.WRITER_TYPE),
+            WriterConstants.DD_INTAKE_WRITER_TYPE);
+      }
+    }
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -303,13 +280,7 @@ public class Agent {
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
         // deadlock.
         // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
-        PROFILER_INIT_AFTER_JMX =
-            new Runnable() {
-              @Override
-              public void run() {
-                startProfilingAgent(false, inst);
-              }
-            };
+        PROFILER_INIT_AFTER_JMX = () -> startProfilingAgent(false, inst);
       }
     }
 
@@ -322,6 +293,14 @@ public class Agent {
      * when it will happen after the class transformers were added.
      */
     AgentTaskScheduler.initialize();
+
+    // We need to run the crashtracking initialization after all the config has been resolved and
+    // task scheduler initialized
+    if (crashTrackingEnabled) {
+      StaticEventLogger.begin("crashtracking");
+      startCrashTracking();
+      StaticEventLogger.end("crashtracking");
+    }
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -408,6 +387,43 @@ public class Agent {
     StaticEventLogger.end("Agent.start");
   }
 
+  private static boolean configureDataJobsMonitoring() {
+    boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
+    if (dataJobsEnabled) {
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
+
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
+      // needed for e2e pipeline
+      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
+
+      if ("true".equals(ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_ENABLED)))) {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName("integration.spark-openlineage.enabled"), "true");
+      }
+
+      String javaCommand = String.join(" ", JavaVirtualMachine.getCommandArguments());
+      String dataJobsCommandPattern =
+          ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_COMMAND_PATTERN));
+      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
+        log.warn(
+            "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
+            javaCommand,
+            dataJobsCommandPattern);
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static void injectAgentArgsConfig(String agentArgs) {
     try {
       final Class<?> agentArgsInjectorClass =
@@ -417,6 +433,45 @@ public class Agent {
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
       log.error("Error injecting agent args config {}", agentArgs, ex);
+    }
+  }
+
+  private static void configureCiVisibility(URL agentJarURL) {
+    // Retro-compatibility for the old way to configure CI Visibility
+    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
+        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
+      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    }
+
+    ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
+    if (ciVisibilityEnabled) {
+      // if CI Visibility is enabled, all the other features are disabled by default
+      // unless the user had explicitly enabled them.
+      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
+      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
+
+      /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
+      setSystemPropertyDefault(
+          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
+
+      try {
+        setSystemPropertyDefault(
+            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
+            agentJarURL.toURI().toString());
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(
+            "Could not create URI from agent JAR URL: " + agentJarURL, e);
+      }
+    }
+
+    // Enable automatic fetching of git tags from datadog_git.properties only if CI Visibility is
+    // not enabled
+    if (!ciVisibilityEnabled) {
+      GitInfoProvider.INSTANCE.registerGitInfoBuilder(new EmbeddedGitInfoBuilder());
     }
   }
 
@@ -579,6 +634,7 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       // start before debugger to enable Failed Test Replay correctly
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLLMObs(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -716,6 +772,29 @@ public class Agent {
     StaticEventLogger.end("GlobalTracer");
   }
 
+  private static void startCrashTracking() {
+    if (isJavaVersionAtLeast(9)) {
+      // it is safe to initialize crashtracking early
+      // since it can take 100ms+ to initialize the native library we will defer the initialization
+      // ... unless we request early start with the debug config flag
+      boolean forceEarlyStart = CrashTrackingConfig.CRASH_TRACKING_START_EARLY_DEFAULT;
+      String forceEarlyStartStr =
+          ddGetProperty("dd." + CrashTrackingConfig.CRASH_TRACKING_START_EARLY);
+      if (forceEarlyStartStr != null) {
+        forceEarlyStart = Boolean.parseBoolean(forceEarlyStartStr);
+      }
+      if (forceEarlyStart) {
+        initializeCrashTrackingDefault();
+      } else {
+        AgentTaskScheduler.INSTANCE.execute(Agent::initializeCrashTrackingDefault);
+      }
+    } else {
+      // for Java 8 we are relying on JMX to give us the process PID
+      // we need to delay the crash tracking initialization until JMX is available
+      CRASHTRACKER_INIT_AFTER_JMX = Agent::initializeDelayedCrashTracking;
+    }
+  }
+
   private static void scheduleJmxStart(final int jmxStartDelay) {
     if (jmxStartDelay > 0) {
       AgentTaskScheduler.INSTANCE.scheduleWithJitter(
@@ -739,25 +818,41 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // error tracking initialization relies on JMX being available
-    initializeErrorTracking();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
+    if (crashTrackingEnabled && CRASHTRACKER_INIT_AFTER_JMX != null) {
+      try {
+        CRASHTRACKER_INIT_AFTER_JMX.run();
+      } finally {
+        CRASHTRACKER_INIT_AFTER_JMX = null;
+      }
+    }
     if (profilingEnabled) {
       registerDeadlockDetectionEvent();
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
-        if (getJmxStartDelay() == 0) {
-          log.debug("Waiting for profiler initialization");
-          AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-              PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
-        } else {
-          log.debug("Initializing profiler");
-          PROFILER_INIT_AFTER_JMX.run();
+        try {
+          /*
+          When getJmxStartDelay() is set to 0 we will attempt to initialize the JMX subsystem as soon as available.
+          But, this can cause issues with JFR as it needs some 'grace period' after JMX is ready. That's why we are
+          re-scheduling the profiler initialization code just a tad later.
+
+          If the jmx start delay is set, we are already delayed relative to the jmx init so we can just plainly
+          run the initialization code.
+          */
+          if (getJmxStartDelay() == 0) {
+            log.debug("Waiting for profiler initialization");
+            AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+                PROFILER_INIT_AFTER_JMX, 500, TimeUnit.MILLISECONDS);
+          } else {
+            log.debug("Initializing profiler");
+            PROFILER_INIT_AFTER_JMX.run();
+          }
+        } finally {
+          PROFILER_INIT_AFTER_JMX = null;
         }
-        PROFILER_INIT_AFTER_JMX = null;
       }
     }
   }
@@ -875,7 +970,7 @@ public class Agent {
   }
 
   private static boolean isSupportedAppSecArch() {
-    final String arch = System.getProperty("os.arch");
+    final String arch = SystemProperties.get("os.arch");
     if (OperatingSystem.isWindows()) {
       // TODO: Windows bindings need to be built for x86
       return "amd64".equals(arch) || "x86_64".equals(arch);
@@ -931,6 +1026,24 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void maybeStartLLMObs(Instrumentation inst, Class<?> scoClass, Object sco) {
+    if (llmObsEnabled) {
+      StaticEventLogger.begin("LLM Observability");
+
+      try {
+        final Class<?> llmObsSysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.llmobs.LLMObsSystem");
+        final Method llmObsInstallerMethod =
+            llmObsSysClass.getMethod("start", Instrumentation.class, scoClass);
+        llmObsInstallerMethod.invoke(null, inst, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting LLM Observability subsystem", e);
+      }
+
+      StaticEventLogger.end("LLM Observability");
     }
   }
 
@@ -999,16 +1112,63 @@ public class Agent {
     }
   }
 
-  private static void initializeErrorTracking() {
+  private static void initializeDelayedCrashTracking() {
+    initializeCrashTracking(true, isCrashTrackingAutoconfigEnabled());
+  }
+
+  private static void initializeDelayedCrashTrackingOnlyJmx() {
+    initializeCrashTracking(true, false);
+  }
+
+  private static void initializeCrashTrackingDefault() {
+    initializeCrashTracking(false, isCrashTrackingAutoconfigEnabled());
+  }
+
+  private static boolean isCrashTrackingAutoconfigEnabled() {
+    String enabledVal = ddGetProperty("dd." + CrashTrackingConfig.CRASH_TRACKING_ENABLE_AUTOCONFIG);
+    boolean enabled = CrashTrackingConfig.CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT;
+    if (enabledVal != null) {
+      enabled = Boolean.parseBoolean(enabledVal);
+    } else {
+      // If the property is not set, then we check if profiling is enabled
+      enabled = profilingEnabled;
+    }
+    return enabled;
+  }
+
+  private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
     if (JavaVirtualMachine.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
     }
+    log.debug("Initializing crashtracking");
     try {
-      Class<?> clz = AGENT_CLASSLOADER.loadClass("com.datadog.crashtracking.ScriptInitializer");
-      clz.getMethod("initialize").invoke(null);
+      Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
+      // first try to use the JVMAccess using the native library; unless `checkNative` is false
+      Boolean rslt =
+          checkNative && (Boolean) clz.getMethod("initialize", boolean.class).invoke(null, false);
+      if (!rslt) {
+        if (delayed) {
+          // already delayed initialization, so no need to reschedule it again
+          // just call initialize and force JMX
+          rslt = (Boolean) clz.getMethod("initialize", boolean.class).invoke(null, true);
+        } else {
+          // delayed initialization, so we need to reschedule it and mark as delayed but do not
+          // re-check the native library
+          CRASHTRACKER_INIT_AFTER_JMX = Agent::initializeDelayedCrashTrackingOnlyJmx;
+          rslt = null; // we will initialize it later
+        }
+      }
+      if (rslt == null) {
+        log.debug("Crashtracking initialization delayed until JMX is available");
+      } else if (rslt) {
+        log.debug("Crashtracking initialized");
+      } else {
+        log.debug(
+            SEND_TELEMETRY, "Crashtracking failed to initialize. No additional details available.");
+      }
     } catch (Throwable t) {
-      log.debug("Unable to initialize crash uploader", t);
+      log.debug(SEND_TELEMETRY, "Unable to initialize crashtracking", t);
     }
   }
 
@@ -1107,8 +1267,11 @@ public class Agent {
               }
             });
       }
-    } catch (final Throwable ex) {
-      log.error("Throwable thrown while starting profiling agent", ex);
+    } catch (final Throwable t) {
+      log.error(
+          SEND_TELEMETRY,
+          "Throwable thrown while starting profiling agent "
+              + Arrays.toString(t.getCause().getStackTrace()));
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
@@ -1117,13 +1280,7 @@ public class Agent {
   }
 
   private static boolean isAwsLambdaRuntime() {
-    String val = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
-    return val != null && !val.isEmpty();
-  }
-
-  private static ScopeListener createScopeListener(String className) throws Throwable {
-    return (ScopeListener)
-        AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
+    return !EnvironmentVariables.getOrDefault("AWS_LAMBDA_FUNCTION_NAME", "").isEmpty();
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {
@@ -1186,7 +1343,8 @@ public class Agent {
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
     setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
-    if (System.getProperty(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY).equalsIgnoreCase("true")) {
+    String simpleLoggerJsonEnabled = SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
+    if (simpleLoggerJsonEnabled != null && simpleLoggerJsonEnabled.equalsIgnoreCase("true")) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
@@ -1200,7 +1358,7 @@ public class Agent {
     } else {
       logLevel = ddGetProperty("dd.log.level");
       if (null == logLevel) {
-        logLevel = System.getenv("OTEL_LOG_LEVEL");
+        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
       }
     }
 
@@ -1214,8 +1372,8 @@ public class Agent {
   }
 
   private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
-      System.setProperty(property, value);
+    if (SystemProperties.get(property) == null && ddGetEnv(property) == null) {
+      SystemProperties.set(property, value);
     }
   }
 
@@ -1236,7 +1394,7 @@ public class Agent {
    */
   private static boolean isDebugMode() {
     final String tracerDebugLevelSysprop = "dd.trace.debug";
-    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+    final String tracerDebugLevelProp = SystemProperties.get(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
       return Boolean.parseBoolean(tracerDebugLevelProp);
@@ -1255,15 +1413,15 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureSystemProp);
+    String featureEnabled = SystemProperties.get(featureSystemProp);
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.FLEET, featureConfigKey);
+      featureEnabled = getStableConfig(FLEET, featureConfigKey);
     }
     if (featureEnabled == null) {
       featureEnabled = ddGetEnv(featureSystemProp);
     }
     if (featureEnabled == null) {
-      featureEnabled = getStableConfig(StableConfigSource.LOCAL, featureConfigKey);
+      featureEnabled = getStableConfig(LOCAL, featureConfigKey);
     }
 
     if (feature.isEnabledByDefault()) {
@@ -1285,15 +1443,15 @@ public class Agent {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
-    String settingValue = getNullIfEmpty(System.getProperty(featureSystemProp));
+    String settingValue = getNullIfEmpty(SystemProperties.get(featureSystemProp));
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.FLEET, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(FLEET, featureConfigKey));
     }
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureSystemProp));
     }
     if (settingValue == null) {
-      settingValue = getNullIfEmpty(getStableConfig(StableConfigSource.LOCAL, featureConfigKey));
+      settingValue = getNullIfEmpty(getStableConfig(LOCAL, featureConfigKey));
     }
 
     // defaults to inactive
@@ -1342,7 +1500,7 @@ public class Agent {
    */
   private static boolean isAppUsingCustomLogManager(final EnumSet<Library> libraries) {
     final String tracerCustomLogManSysprop = "dd.app.customlogmanager";
-    final String customLogManagerProp = System.getProperty(tracerCustomLogManSysprop);
+    final String customLogManagerProp = SystemProperties.get(tracerCustomLogManSysprop);
     final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
 
     if (customLogManagerProp != null || customLogManagerEnv != null) {
@@ -1357,7 +1515,7 @@ public class Agent {
       return true; // Wildfly is known to set a custom log manager after startup.
     }
 
-    final String logManagerProp = System.getProperty("java.util.logging.manager");
+    final String logManagerProp = SystemProperties.get("java.util.logging.manager");
     if (logManagerProp != null) {
       log.debug("Prop - logging.manager: {}", logManagerProp);
       return true;
@@ -1374,7 +1532,7 @@ public class Agent {
    */
   private static boolean isAppUsingCustomJMXBuilder(final EnumSet<Library> libraries) {
     final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
-    final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
+    final String customJMXBuilderProp = SystemProperties.get(tracerCustomJMXBuilderSysprop);
     final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
 
     if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
@@ -1389,7 +1547,7 @@ public class Agent {
       return true; // Wildfly is known to set a custom JMX builder after startup.
     }
 
-    final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
+    final String jmxBuilderProp = SystemProperties.get("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
       log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
       return true;
@@ -1400,7 +1558,7 @@ public class Agent {
 
   /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
   private static String ddGetProperty(final String sysProp) {
-    String value = System.getProperty(sysProp);
+    String value = SystemProperties.get(sysProp);
     if (null == value) {
       value = ddGetEnv(sysProp);
     }
@@ -1414,7 +1572,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return System.getenv(toEnvVar(sysProp));
+    return EnvironmentVariables.get(toEnvVar(sysProp));
   }
 
   private static boolean okHttpMayIndirectlyLoadJUL() {

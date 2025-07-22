@@ -36,9 +36,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
   protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
-  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpClient().sortedTags().collect { key, value ->
-    return key + ":" + value
-  }
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpClient().tags()
 
   @AutoCleanup
   @Shared
@@ -178,8 +176,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -221,8 +218,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -269,8 +265,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -293,6 +288,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 200
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method)
       }
@@ -303,8 +299,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -330,6 +325,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 500
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
       }
@@ -340,8 +336,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -368,6 +363,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     status == 401
     assertTraces(2) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, false, false, uri, 401, true)
       }
@@ -378,8 +374,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -412,8 +407,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -437,6 +431,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     // only one trace (client).
     assertTraces(1) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method, renameService)
       }
@@ -446,8 +441,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -480,6 +474,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     assertTraces(1) {
       sortSpansByStart()
       trace(size(3)) {
+        sortSpansByStart()
         basicSpan(it, "parent")
         clientSpan(it, span(0), method)
         basicSpan(it, "child", span(0))
@@ -490,8 +485,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
   }
@@ -538,8 +532,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -575,8 +568,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -610,8 +602,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -669,8 +660,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -719,6 +709,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     def thrownException = ex instanceof ExecutionException ? ex.cause : ex
     assertTraces(1) {
       trace(size(2)) {
+        sortSpansByStart()
         basicSpan(it, "parent", null, thrownException)
         clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }
@@ -753,8 +744,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -782,8 +772,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 
@@ -816,8 +805,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        getTags() == DSM_EDGE_TAGS
       }
     }
 

@@ -75,6 +75,12 @@ check-big-regressions:
       artifacts: true
   when: on_success
   tags: ["arch:amd64"]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
   # need to convert them
   script:

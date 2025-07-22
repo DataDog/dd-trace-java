@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
+import datadog.trace.api.git.GitUtils;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
@@ -125,13 +126,15 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
+   * @param parentOnly If only the parent commit should be unshallowed or the full {@code
+   *     latestCommitsSince}
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference)
+  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
@@ -149,13 +152,15 @@ public class ShellGitClient implements GitClient {
                   .trim();
 
           // refetch data from the server for the given period of time
-          if (remoteCommitReference != null) {
+          String depth =
+              parentOnly ? "--deepen=1" : String.format("--shallow-since='%s'", latestCommitsSince);
+          if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
             String headSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since=='%s'", latestCommitsSince),
+                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -166,7 +171,7 @@ public class ShellGitClient implements GitClient {
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                String.format("--shallow-since=='%s'", latestCommitsSince),
+                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
@@ -231,6 +236,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getRemoteUrl(String remoteName)
       throws IOException, TimeoutException, InterruptedException {
+    if (!GitUtils.isValidRef(remoteName)) {
+      return null;
+    }
     return executeCommand(
         Command.GET_REPOSITORY,
         () ->
@@ -274,6 +282,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public List<String> getTags(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return Collections.emptyList();
+    }
     return executeCommand(
         Command.OTHER,
         () -> {
@@ -302,6 +313,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getSha(String reference)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(reference)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -324,6 +338,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getFullMessage(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -346,6 +363,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorName(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -368,6 +388,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -390,6 +413,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getAuthorDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -412,6 +438,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterName(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -434,6 +463,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -456,6 +488,9 @@ public class ShellGitClient implements GitClient {
   @Override
   public String getCommitterDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return null;
+    }
     return executeCommand(
         Command.OTHER,
         () ->
@@ -601,6 +636,10 @@ public class ShellGitClient implements GitClient {
   public String getBaseCommitSha(
       @Nullable String baseBranch, @Nullable String settingsDefaultBranch)
       throws IOException, TimeoutException, InterruptedException {
+    if ((baseBranch != null && !GitUtils.isValidRef(baseBranch))
+        || (settingsDefaultBranch != null && !GitUtils.isValidRef(settingsDefaultBranch))) {
+      return null;
+    }
     return executeCommand(
         Command.BASE_COMMIT_SHA,
         () -> {
@@ -923,20 +962,23 @@ public class ShellGitClient implements GitClient {
   }
 
   /**
-   * Returns the merge base between to branches
+   * Returns the merge base between two commits or references
    *
-   * @param baseBranch Base branch. Must be remote, i.e. "origin/master"
-   * @param sourceBranch Source branch
-   * @return Merge base between the two branches
+   * @param base Base commit SHA or reference (HEAD, branch name, etc)
+   * @param source Source commit SHA or reference (HEAD, branch name, etc)
+   * @return Merge base between the two references
    */
-  String getMergeBase(String baseBranch, String sourceBranch)
+  public String getMergeBase(@Nullable String base, @Nullable String source)
       throws IOException, InterruptedException, TimeoutException {
+    if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
+      return null;
+    }
     try {
       return commandExecutor
-          .executeCommand(IOUtils::readFully, "git", "merge-base", baseBranch, sourceBranch)
+          .executeCommand(IOUtils::readFully, "git", "merge-base", base, source)
           .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug("Error calculating common ancestor for {} and {}", baseBranch, sourceBranch, e);
+      LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
     }
     return null;
   }
@@ -956,10 +998,10 @@ public class ShellGitClient implements GitClient {
   @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
       throws IOException, TimeoutException, InterruptedException {
-    if (Strings.isBlank(baseCommit)) {
+    if (Strings.isBlank(baseCommit) || !GitUtils.isValidCommitSha(baseCommit)) {
       LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
-    } else if (Strings.isNotBlank(targetCommit)) {
+    } else if (Strings.isNotBlank(targetCommit) && GitUtils.isValidCommitSha(targetCommit)) {
       return executeCommand(
           Command.DIFF,
           () ->
@@ -1041,7 +1083,7 @@ public class ShellGitClient implements GitClient {
     @Override
     public GitClient create(@Nullable String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      if (repoRoot != null) {
+      if (repoRoot != null && GitUtils.isValidPath(repoRoot)) {
         ShellGitClient client =
             new ShellGitClient(
                 metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);

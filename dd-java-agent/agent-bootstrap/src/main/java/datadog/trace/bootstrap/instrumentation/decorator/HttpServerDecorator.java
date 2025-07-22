@@ -4,7 +4,6 @@ import static datadog.context.Context.root;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -57,6 +56,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+  public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
@@ -118,30 +118,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return AgentTracer.get();
   }
 
-  /** Deprecated. Use {@link #extractContext(REQUEST_CARRIER)} instead. */
-  public AgentSpanContext.Extracted extract(REQUEST_CARRIER carrier) {
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null == carrier || null == getter) {
-      return null;
-    }
-    return extractContextAndGetSpanContext(carrier, getter);
-  }
-
-  /**
-   * Will be renamed to #extract(REQUEST_CARRIER) when refactoring of instrumentations is complete
-   */
-  public Context extractContext(REQUEST_CARRIER carrier) {
+  public Context extract(REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (null == carrier || null == getter) {
       return root();
     }
     return Propagators.defaultPropagator().extract(root(), carrier, getter);
-  }
-
-  /** Deprecated. Use {@link #startSpan(Object, Context)} instead. */
-  @Deprecated
-  public AgentSpan startSpan(REQUEST_CARRIER carrier, AgentSpanContext.Extracted context) {
-    return startSpan("http-server", carrier, context);
   }
 
   public AgentSpan startSpan(

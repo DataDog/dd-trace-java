@@ -4,7 +4,6 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.Platform
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.Strings
 import java.nio.file.FileVisitResult
@@ -27,14 +26,10 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
-import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
-@IgnoreIf(reason = "Failing on Java 24. Skip until we have a fix.", value = {
-  Platform.isJavaVersionAtLeast(24)
-})
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
@@ -46,7 +41,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
   private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
-  private static final int PROCESS_TIMEOUT_SECS = 120
+  private static final int DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS = 120
+  private static final int PROCESS_TIMEOUT_SECS = 60
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
@@ -62,6 +58,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   def "test #projectName, v#mavenVersion"() {
+    println "Starting: ${projectName} ${mavenVersion}"
     Assumptions.assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
       "Current JVM " + Jvm.current.javaVersion + " is not compatible with minimum required version " + minSupportedJavaVersion)
 
@@ -245,6 +242,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
     copyFolder(projectResourcesPath, projectHome)
+
+    def sharedSettingsPath = Paths.get(this.getClass().getClassLoader().getResource("settings.mirror.xml").toURI())
+    Files.copy(sharedSettingsPath, projectHome.resolve("settings.mirror.xml"))
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
@@ -293,9 +293,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand, Map<String, String> additionalEnvVars = [:]) {
     def processBuilder = createProcessBuilder(mvnCommand, false, false, [], additionalEnvVars)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = runProcess(processBuilder.start())
-      if (exitCode == 0) {
-        return
+      try {
+        def exitCode = runProcess(processBuilder.start(), DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS)
+        if (exitCode == 0) {
+          return
+        }
+      } catch (TimeoutException e) {
+        LOGGER.warn("Failed dependency resolution with exception: ", e)
       }
     }
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
@@ -309,15 +313,15 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return runProcess(processBuilder.start())
   }
 
-  private static runProcess(Process p) {
+  private static runProcess(Process p, int timeout_secs = PROCESS_TIMEOUT_SECS) {
     StreamConsumer errorGobbler = new StreamConsumer(p.getErrorStream(), "ERROR")
     StreamConsumer outputGobbler = new StreamConsumer(p.getInputStream(), "OUTPUT")
     outputGobbler.start()
     errorGobbler.start()
 
-    if (!p.waitFor(PROCESS_TIMEOUT_SECS, TimeUnit.SECONDS)) {
+    if (!p.waitFor(timeout_secs, TimeUnit.SECONDS)) {
       p.destroyForcibly()
-      throw new TimeoutException("Instrumented process failed to exit within $PROCESS_TIMEOUT_SECS")
+      throw new TimeoutException("Instrumented process failed to exit within $timeout_secs seconds")
     }
 
     return p.exitValue()
@@ -332,7 +336,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     command.addAll(jvmArguments(runWithAgent, setServiceName, additionalAgentArgs))
     command.addAll((String[]) ["-jar", mavenRunnerShadowJar])
     command.addAll(programArguments())
-    command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.xml".toString()])
+
+    if (System.getenv().get("MAVEN_REPOSITORY_PROXY") != null) {
+      command.addAll(["-s", "${projectHome.toAbsolutePath()}/settings.mirror.xml".toString()])
+    }
     command.addAll(mvnCommand)
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -362,6 +369,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       "-Duser.dir=${projectHome.toAbsolutePath()}".toString(),
       "-Dmaven.mainClass=org.apache.maven.cli.MavenCli".toString(),
       "-Dmaven.multiModuleProjectDirectory=${projectHome.toAbsolutePath()}".toString(),
+      "-Dmaven.artifact.threads=10",
     ]
     if (runWithAgent) {
       if (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_PARENT") != null) {

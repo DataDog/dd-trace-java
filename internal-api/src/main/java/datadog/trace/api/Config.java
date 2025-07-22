@@ -60,6 +60,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
@@ -120,6 +121,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
@@ -282,6 +285,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
@@ -320,7 +324,6 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
@@ -370,6 +373,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
@@ -464,6 +468,21 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
+import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
+import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
+import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
+import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
+import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
+import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
+import static datadog.trace.api.config.RumConfig.RUM_SERVICE;
+import static datadog.trace.api.config.RumConfig.RUM_SESSION_REPLAY_SAMPLE_RATE;
+import static datadog.trace.api.config.RumConfig.RUM_SESSION_SAMPLE_RATE;
+import static datadog.trace.api.config.RumConfig.RUM_SITE;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_LONG_TASKS;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_RESOURCES;
+import static datadog.trace.api.config.RumConfig.RUM_TRACK_USER_INTERACTION;
+import static datadog.trace.api.config.RumConfig.RUM_VERSION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ADD_SPAN_POINTERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
@@ -623,6 +642,8 @@ import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.rum.RumInjectorConfig;
+import datadog.trace.api.rum.RumInjectorConfig.PrivacyLevel;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -936,6 +957,7 @@ public class Config {
   private final int iastDbRowsToTaint;
 
   private final boolean llmObsAgentlessEnabled;
+  private final String llmObsAgentlessUrl;
   private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
@@ -1050,6 +1072,7 @@ public class Config {
   private final boolean debuggerCodeOriginEnabled;
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
+  private final boolean debuggerSourceFileTrackingEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1121,7 +1144,6 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
-  private final String dataJobsCommandPattern;
   private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
@@ -1158,6 +1180,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+
   private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
@@ -1194,7 +1217,11 @@ public class Config {
 
   private final boolean jdkSocketEnabled;
 
+  private final boolean optimizedMapEnabled;
   private final int stackTraceLengthLimit;
+
+  private final boolean rumEnabled;
+  private final RumInjectorConfig rumInjectorConfig;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1759,7 +1786,9 @@ public class Config {
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     // Enable tracer computed trace metrics by default for Azure Functions
-    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
+    tracerMetricsEnabled =
+        configProvider.getBoolean(
+            TRACE_STATS_COMPUTATION_ENABLED, azureFunctions, TRACER_METRICS_ENABLED);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -2093,6 +2122,22 @@ public class Config {
         configProvider.getBoolean(LLMOBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
     llmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
 
+    final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
+    URI parsedLLMObsUri = null;
+    if (llmObsAgentlessUrlStr != null && !llmObsAgentlessUrlStr.isEmpty()) {
+      try {
+        parsedLLMObsUri = new URL(llmObsAgentlessUrlStr).toURI();
+      } catch (MalformedURLException | URISyntaxException ex) {
+        log.error(
+            "Cannot parse LLM Observability agentless URL '{}', skipping", llmObsAgentlessUrlStr);
+      }
+    }
+    if (parsedLLMObsUri != null) {
+      llmObsAgentlessUrl = llmObsAgentlessUrlStr;
+    } else {
+      llmObsAgentlessUrl = null;
+    }
+
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
 
@@ -2389,6 +2434,9 @@ public class Config {
         configProvider.getInteger(
             DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
             DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
+    debuggerSourceFileTrackingEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
@@ -2489,7 +2537,6 @@ public class Config {
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
             DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
-    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2674,6 +2721,9 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
+    this.optimizedMapEnabled =
+        configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
             ? 5000 // EVP limit
@@ -2681,7 +2731,36 @@ public class Config {
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
+    this.rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
+    this.rumInjectorConfig = parseRumConfig(configProvider);
+
     log.debug("New instance: {}", this);
+  }
+
+  private RumInjectorConfig parseRumConfig(ConfigProvider configProvider) {
+    if (!this.rumEnabled) {
+      return null;
+    }
+    try {
+      return new RumInjectorConfig(
+          configProvider.getString(RUM_APPLICATION_ID),
+          configProvider.getString(RUM_CLIENT_TOKEN),
+          configProvider.getString(RUM_SITE),
+          configProvider.getString(RUM_SERVICE),
+          configProvider.getString(RUM_ENVIRONMENT),
+          configProvider.getInteger(RUM_MAJOR_VERSION, DEFAULT_RUM_MAJOR_VERSION),
+          configProvider.getString(RUM_VERSION),
+          configProvider.getBoolean(RUM_TRACK_USER_INTERACTION),
+          configProvider.getBoolean(RUM_TRACK_RESOURCES),
+          configProvider.getBoolean(RUM_TRACK_LONG_TASKS),
+          configProvider.getEnum(RUM_DEFAULT_PRIVACY_LEVEL, PrivacyLevel.class, null),
+          configProvider.getFloat(RUM_SESSION_SAMPLE_RATE),
+          configProvider.getFloat(RUM_SESSION_REPLAY_SAMPLE_RATE),
+          configProvider.getString(RUM_REMOTE_CONFIGURATION_ID));
+    } catch (IllegalArgumentException e) {
+      log.warn("Unable to configure RUM injection", e);
+      return null;
+    }
   }
 
   /**
@@ -3548,6 +3627,10 @@ public class Config {
     return llmObsAgentlessEnabled;
   }
 
+  public String getLlMObsAgentlessUrl() {
+    return llmObsAgentlessUrl;
+  }
+
   public String getLlmObsMlApp() {
     return llmObsMlApp;
   }
@@ -4000,6 +4083,10 @@ public class Config {
     return distributedDebuggerEnabled;
   }
 
+  public boolean isDebuggerSourceFileTrackingEnabled() {
+    return debuggerSourceFileTrackingEnabled;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
@@ -4316,10 +4403,6 @@ public class Config {
     return dataJobsOpenLineageEnabled;
   }
 
-  public String getDataJobsCommandPattern() {
-    return dataJobsCommandPattern;
-  }
-
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -4328,15 +4411,19 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isOptimizedMapEnabled() {
+    return optimizedMapEnabled;
+  }
+
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, Object> getLocalRootSpanTags() {
+  public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
-    result.putAll(runtimeTags);
+
+    final TagMap result = TagMap.fromMap(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
@@ -4357,7 +4444,7 @@ public class Config {
 
     result.putAll(getProcessIdTag());
 
-    return Collections.unmodifiableMap(result);
+    return result.freeze();
   }
 
   public WellKnownTags getWellKnownTags() {
@@ -4654,6 +4741,13 @@ public class Config {
     }
   }
 
+  public String getFinalLLMObsUrl() {
+    if (llmObsAgentlessEnabled) {
+      return "https://llmobs-intake." + site + "/api/v2/llmobs";
+    }
+    return null;
+  }
+
   public String getFinalCrashTrackingTelemetryUrl() {
     if (crashTrackingAgentless) {
       // when agentless crashTracking is turned on we send directly to our intake
@@ -4931,6 +5025,14 @@ public class Config {
 
   public int getCloudPayloadTaggingMaxTags() {
     return cloudPayloadTaggingMaxTags;
+  }
+
+  public boolean isRumEnabled() {
+    return this.rumEnabled;
+  }
+
+  public RumInjectorConfig getRumInjectorConfig() {
+    return this.rumInjectorConfig;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(
@@ -5599,8 +5701,6 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
-        + ", dataJobsCommandPattern="
-        + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="
@@ -5613,6 +5713,10 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
+        + ", rumEnabled="
+        + rumEnabled
+        + ", rumInjectorConfig="
+        + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + '}';
   }
 }

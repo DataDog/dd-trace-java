@@ -321,7 +321,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   @Override
   public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment) throws IOException {
+      TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
+      throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST)
@@ -338,9 +339,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                 "ci_app_libraries_tests_request",
                 new TestManagementDto(
                     tracerEnvironment.getRepositoryUrl(),
-                    tracerEnvironment.getCommitMessage(),
+                    commitMessage,
                     tracerEnvironment.getConfigurations().getTestBundle(),
-                    tracerEnvironment.getSha())));
+                    commitSha)));
     String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     TestManagementTestsDto testManagementTestsDto =

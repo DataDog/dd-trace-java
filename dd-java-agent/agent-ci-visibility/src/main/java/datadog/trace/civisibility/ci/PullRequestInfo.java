@@ -1,25 +1,28 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.util.Strings;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 
 public class PullRequestInfo {
 
-  public static final PullRequestInfo EMPTY = new PullRequestInfo(null, null, null, null);
+  public static final PullRequestInfo EMPTY =
+      new PullRequestInfo(null, null, CommitInfo.NOOP, null);
 
   private final String pullRequestBaseBranch;
   private final String pullRequestBaseBranchSha;
-  private final String gitCommitHeadSha;
+  @Nonnull private final CommitInfo gitCommitHead;
   private final String pullRequestNumber;
 
   public PullRequestInfo(
       String pullRequestBaseBranch,
       String pullRequestBaseBranchSha,
-      String gitCommitHeadSha,
+      @Nonnull CommitInfo gitCommitHead,
       String pullRequestNumber) {
     this.pullRequestBaseBranch = pullRequestBaseBranch;
     this.pullRequestBaseBranchSha = pullRequestBaseBranchSha;
-    this.gitCommitHeadSha = gitCommitHeadSha;
+    this.gitCommitHead = gitCommitHead;
     this.pullRequestNumber = pullRequestNumber;
   }
 
@@ -31,25 +34,26 @@ public class PullRequestInfo {
     return pullRequestBaseBranchSha;
   }
 
-  public String getGitCommitHeadSha() {
-    return gitCommitHeadSha;
+  @Nonnull
+  public CommitInfo getGitCommitHead() {
+    return gitCommitHead;
   }
 
   public String getPullRequestNumber() {
     return pullRequestNumber;
   }
 
-  public boolean isNotEmpty() {
-    return Strings.isNotBlank(pullRequestBaseBranch)
-        || Strings.isNotBlank(pullRequestBaseBranchSha)
-        || Strings.isNotBlank(gitCommitHeadSha)
-        || Strings.isNotBlank(pullRequestNumber);
+  public boolean isEmpty() {
+    return Strings.isBlank(pullRequestBaseBranch)
+        && Strings.isBlank(pullRequestBaseBranchSha)
+        && gitCommitHead.isEmpty()
+        && Strings.isBlank(pullRequestNumber);
   }
 
   public boolean isComplete() {
     return Strings.isNotBlank(pullRequestBaseBranch)
         && Strings.isNotBlank(pullRequestBaseBranchSha)
-        && Strings.isNotBlank(gitCommitHeadSha)
+        && gitCommitHead.isComplete()
         && Strings.isNotBlank(pullRequestNumber);
   }
 
@@ -68,9 +72,7 @@ public class PullRequestInfo {
         Strings.isNotBlank(info.pullRequestBaseBranchSha)
             ? info.pullRequestBaseBranchSha
             : fallback.pullRequestBaseBranchSha,
-        Strings.isNotBlank(info.gitCommitHeadSha)
-            ? info.gitCommitHeadSha
-            : fallback.gitCommitHeadSha,
+        CommitInfo.merge(info.gitCommitHead, fallback.gitCommitHead),
         Strings.isNotBlank(info.pullRequestNumber)
             ? info.pullRequestNumber
             : fallback.pullRequestNumber);
@@ -87,14 +89,14 @@ public class PullRequestInfo {
     PullRequestInfo that = (PullRequestInfo) o;
     return Objects.equals(pullRequestBaseBranch, that.pullRequestBaseBranch)
         && Objects.equals(pullRequestBaseBranchSha, that.pullRequestBaseBranchSha)
-        && Objects.equals(gitCommitHeadSha, that.gitCommitHeadSha)
+        && Objects.equals(gitCommitHead, that.gitCommitHead)
         && Objects.equals(pullRequestNumber, that.pullRequestNumber);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        pullRequestBaseBranch, pullRequestBaseBranchSha, gitCommitHeadSha, pullRequestNumber);
+        pullRequestBaseBranch, pullRequestBaseBranchSha, gitCommitHead, pullRequestNumber);
   }
 
   @Override
@@ -107,7 +109,7 @@ public class PullRequestInfo {
         + pullRequestBaseBranchSha
         + '\''
         + ", commitSHA='"
-        + gitCommitHeadSha
+        + gitCommitHead
         + '\''
         + ", prNumber='"
         + pullRequestNumber
