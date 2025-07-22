@@ -1,12 +1,10 @@
-
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import test.TestConnection
 import test.TestDatabaseMetaData
 import test.TestStatement
 
-class SQLServerInjectionForkedTest extends AgentTestRunner {
+class OracleInjectionForkedTest extends AgentTestRunner {
 
   @Override
   void configurePreAgent() {
@@ -16,14 +14,14 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
     injectSysConfig("service.name", "my_service_name")
   }
 
-  static query = "SELECT 1"
-  static serviceInjection = "ddps='my_service_name',dddbs='sqlserver',ddh='localhost',dddb='testdb'"
+  static query = "SELECT 1 FROM DUAL"
+  static serviceInjection = "ddps='my_service_name',dddbs='oracle',ddh='localhost',dddb='testdb'"
 
-  def "SQL Server no trace injection with full propagation mode"() {
+  def "Oracle no trace injection with full propagation mode"() {
     setup:
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
-    metadata.setURL("jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=testdb;")
+    metadata.setURL("jdbc:oracle:thin:@localhost:1521:testdb")
     connection.setMetaData(metadata)
 
     when:
@@ -31,7 +29,7 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
     statement.executeQuery(query)
 
     then:
-    // Should only have service metadata, not traceparent, because SQL Server uses CONTEXT_INFO
+    // Should only have service metadata, not traceparent, because Oracle uses V$SESSION.ACTION
     assert statement.sql == "/*${serviceInjection}*/ ${query}"
     // Verify that the SQL does NOT contain traceparent
     assert !statement.sql.contains("traceparent")
