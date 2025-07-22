@@ -144,8 +144,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-          edgeTags.size() == 3
+          tags.hasAllTags("direction:" + dsmDirection, "topic:mytopic", "type:sns")
         }
       }
       verifyAll {
@@ -243,8 +242,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-          edgeTags.size() == 3
+          tags.hasAllTags("direction:" + dsmDirection, "topic:mytopic", "type:sns")
         }
       }
       verifyAll {

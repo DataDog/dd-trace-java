@@ -1,14 +1,20 @@
 package datadog.trace.bootstrap;
 
 import datadog.json.JsonWriter;
+import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
+  private static final int DEFAULT_MAX_TAGS = 5;
+
   /** Returns a singleton no op instance of initialization telemetry */
   public static BootstrapInitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
@@ -88,15 +94,16 @@ public abstract class BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
     private final List<String> meta;
-    private final List<String> points;
+    private final Map<String, List<String>> points;
 
     // one way false to true
     private volatile boolean incomplete = false;
+    private volatile boolean error = false;
 
     JsonBased(JsonSender sender) {
       this.sender = sender;
       this.meta = new ArrayList<>();
-      this.points = new ArrayList<>();
+      this.points = new LinkedHashMap<>();
     }
 
     @Override
@@ -111,11 +118,45 @@ public abstract class BootstrapInitializationTelemetry {
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
       markIncomplete();
+      setMetaInfo("abort", mapResultClass(reasonCode), reasonCode);
     }
 
     @Override
     public void onError(Throwable t) {
-      onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
+      error = true;
+      setMetaInfo("error", "internal_error", t.getMessage());
+
+      List<String> causes = new ArrayList<>();
+
+      Throwable cause = t.getCause();
+      while (cause != null) {
+        causes.add("error_type:" + cause.getClass().getName());
+        cause = cause.getCause();
+      }
+      causes.add("error_type:" + t.getClass().getName());
+
+      // Limit the number of tags to avoid overpopulating the JSON payload.
+      int maxTags = maxTags();
+      int numCauses = causes.size();
+      if (numCauses > maxTags) {
+        causes = causes.subList(numCauses - maxTags, numCauses);
+      }
+
+      onPoint("library_entrypoint.error", causes);
+    }
+
+    private int maxTags() {
+      String maxTags = EnvironmentVariables.get("DD_TELEMETRY_FORWARDER_MAX_TAGS");
+
+      if (maxTags != null) {
+        try {
+          return Integer.parseInt(maxTags);
+        } catch (Throwable ignore) {
+          // Ignore and return default value.
+        }
+      }
+
+      return DEFAULT_MAX_TAGS;
     }
 
     @Override
@@ -126,13 +167,41 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void onError(String reasonCode) {
+      error = true;
       onPoint("library_entrypoint.error", "error_type:" + reasonCode);
+      setMetaInfo("error", mapResultClass(reasonCode), reasonCode);
+    }
+
+    private void setMetaInfo(String result, String resultClass, String resultReason) {
+      initMetaInfo("result", result);
+      initMetaInfo("result_class", resultClass);
+      initMetaInfo("result_reason", resultReason);
+    }
+
+    private String mapResultClass(String reasonCode) {
+      if (reasonCode == null) {
+        return "success";
+      }
+
+      switch (reasonCode) {
+        case "already_initialized":
+          return "already_instrumented";
+        case "other-java-agents":
+          return "incompatible_library";
+        case "jdk_tool":
+          return "unsupported_binary";
+        default:
+          return "unknown";
+      }
     }
 
     private void onPoint(String name, String tag) {
+      onPoint(name, Collections.singletonList(tag));
+    }
+
+    private void onPoint(String name, List<String> tags) {
       synchronized (this.points) {
-        this.points.add(name);
-        this.points.add(tag);
+        this.points.put(name, tags);
       }
     }
 
@@ -143,6 +212,10 @@ public abstract class BootstrapInitializationTelemetry {
 
     @Override
     public void finish() {
+      if (!this.incomplete && !this.error) {
+        setMetaInfo("success", "success", "Successfully configured ddtrace package");
+      }
+
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
@@ -156,10 +229,14 @@ public abstract class BootstrapInitializationTelemetry {
 
         writer.name("points").beginArray();
         synchronized (this.points) {
-          for (int i = 0; i + 1 < this.points.size(); i = i + 2) {
+          for (Map.Entry<String, List<String>> entry : points.entrySet()) {
             writer.beginObject();
-            writer.name("name").value(this.points.get(i));
-            writer.name("tags").beginArray().value(this.points.get(i + 1)).endArray();
+            writer.name("name").value(entry.getKey());
+            writer.name("tags").beginArray();
+            for (String tag : entry.getValue()) {
+              writer.value(tag);
+            }
+            writer.endArray();
             writer.endObject();
           }
           this.points.clear();

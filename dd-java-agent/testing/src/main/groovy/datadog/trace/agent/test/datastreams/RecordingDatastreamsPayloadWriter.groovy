@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.datastreams
 
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.core.datastreams.DatastreamsPayloadWriter
 import datadog.trace.core.datastreams.StatsBucket
 import datadog.trace.core.datastreams.StatsGroup
@@ -16,7 +17,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   private final List<StatsGroup> groups = []
 
   @SuppressWarnings('UnusedPrivateField')
-  private final Set<String> backlogs = []
+  private final Set<DataStreamsTags> backlogs = []
 
   private final Set<String> serviceNameOverrides = []
 
@@ -28,8 +29,8 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     data.each { this.@groups.addAll(it.groups) }
     for (StatsBucket bucket : data) {
       if (bucket.backlogs != null) {
-        for (Map.Entry<List<String>, Long> backlog : bucket.backlogs) {
-          this.@backlogs.add(backlog.toString())
+        for (Map.Entry<DataStreamsTags, Long> backlog : bucket.backlogs) {
+          this.@backlogs.add(backlog.getKey())
         }
       }
     }
@@ -47,7 +48,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     Collections.unmodifiableList(new ArrayList<>(this.@groups))
   }
 
-  synchronized List<String> getBacklogs() {
+  synchronized List<DataStreamsTags> getBacklogs() {
     Collections.unmodifiableList(new ArrayList<>(this.@backlogs))
   }
 
