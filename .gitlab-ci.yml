@@ -805,64 +805,66 @@ deploy_artifacts_to_github:
   stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
-
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
-
   rules:
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
-
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
     - job: deploy_to_maven_central
       # The deploy_to_maven_central job is not run for release candidate versions
       optional: true
-
   before_script:
-    # Get a token
+    # Get token
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
     - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
-
-# TODO: This is a temporary solution to test the dd-octo-sts token during the release process. We should remove the AWS SSM token retrieval method once the dd-octo-sts token is provably working.
   script:
-    - |
-      deploy_to_github() {
-        gh auth login --with-token < github-token.txt
-        gh auth status
-        export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get the version
-        cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # upload two filenames
-        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-        gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
-      }
-      
-      # Try using the dd-octo-sts token first. If it fails, then fall back to the AWS SSM token.
-      # Also track which token was used successfully.
-      if ! deploy_to_github; then
-        echo "Using dd-octo-sts token failed. Now proceeding with the original AWS SSM token retrieval method..."
-        echo "USED_DD_OCTO_STS_TOKEN=false" > github_token_source.env
-        aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
-        deploy_to_github
-      else
-        echo "Using dd-octo-sts token succeeded. Github release artifacts were uploaded successfully."
-        echo "USED_DD_OCTO_STS_TOKEN=true" > github_token_source.env
-      fi
-
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
   after_script:
-    # Only revoke the dd-octo-sts token if it was successfully used
-    - source github_token_source.env
-    - |
-      if [ "$USED_DD_OCTO_STS_TOKEN" = "true" ]; then
-        dd-octo-sts revoke -t $(cat github-token.txt)
-      fi
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+  retry:
+    max: 2
+    when: always
 
+# This is the original job that uses the AWS SSM token retrieval method. Allow manual triggering in case the dd-octo-sts token is not working.
+# TODO: Remove this job once the dd-octo-sts token is provably working.
+deploy_artifacts_to_github_old:
+  stage: publish
+  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+  needs:
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
+      optional: true
+  script:
+    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
   retry:
     max: 2
     when: always
