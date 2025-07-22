@@ -247,7 +247,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "type:kafka"
           )
       }
-      def sorted = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort()
+      def sorted = new ArrayList<DataStreamsTags>(TEST_DATA_STREAMS_WRITER.backlogs).sort({it.type+it.partition})
       verifyAll(sorted) {
         size() == 2
         get(0).hasAllTags("consumer_group:sender",
