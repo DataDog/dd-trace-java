@@ -193,6 +193,7 @@ default:
   after_script:
     - *cgroup_info
 
+# TODO: Add a pre-release check to see if the dd-octo-sts token is working.
 # Checks and fail early if central credentials are incorrect, indeed, when a new token is generated
 # on the central publisher protal, it invalidates the old one. This checks prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
@@ -804,12 +805,52 @@ deploy_to_maven_central:
 
 deploy_artifacts_to_github:
   stage: publish
-  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   rules:
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+  needs:
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
+      optional: true
+  before_script:
+    # Get token
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
+  script:
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+  retry:
+    max: 2
+    when: always
+
+# This is the original job that uses the AWS SSM token retrieval method. Allow manual triggering in case the dd-octo-sts token is not working.
+# TODO: Remove this job once the dd-octo-sts token is provably working.
+deploy_artifacts_to_github_old:
+  stage: publish
+  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
   needs:
