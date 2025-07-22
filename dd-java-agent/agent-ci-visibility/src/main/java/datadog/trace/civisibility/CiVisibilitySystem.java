@@ -102,7 +102,7 @@ public class CiVisibilitySystem {
       }
 
       if (executionSettings.isFailedTestReplayEnabled()) {
-        // TODO
+        config.setCiVisibilityFailedTestReplayEnabled(true);
       }
 
       CiVisibilityCoverageServices.Child coverageServices =

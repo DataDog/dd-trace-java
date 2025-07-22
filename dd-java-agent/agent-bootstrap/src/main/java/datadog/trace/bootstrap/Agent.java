@@ -577,6 +577,7 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
+      // start before debugger to enable Failed Test Replay correctly
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
@@ -1151,10 +1152,6 @@ public class Agent {
         && isExplicitlyDisabled(DebuggerConfig.EXCEPTION_REPLAY_ENABLED)
         && isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)
         && isExplicitlyDisabled(DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED)) {
-      return;
-    }
-    if (!remoteConfigEnabled) {
-      log.warn("Cannot enable Dynamic Instrumentation because Remote Configuration is not enabled");
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);

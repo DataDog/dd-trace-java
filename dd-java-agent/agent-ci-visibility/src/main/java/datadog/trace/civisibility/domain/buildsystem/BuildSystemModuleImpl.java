@@ -193,9 +193,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       propagatedSystemProperties.put(
           Strings.propertyNameToSystemPropertyName(DebuggerConfig.EXCEPTION_REPLAY_ENABLED),
           "true");
-      propagatedSystemProperties.put(
-          Strings.propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED),
-          "true");
     }
 
     // explicitly disable build instrumentation in child processes,

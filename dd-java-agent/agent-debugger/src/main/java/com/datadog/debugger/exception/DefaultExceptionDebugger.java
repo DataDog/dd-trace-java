@@ -74,7 +74,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
-    if (t instanceof Error && !Config.get().isCiVisibilityEnabled()) {
+    // CIVIS Failed Test Replay acts on errors
+    if (t instanceof Error && !Config.get().isCiVisibilityFailedTestReplayEnabled()) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Skip handling error: {}", t.toString());
       }
@@ -98,7 +99,6 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     if (exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
       ThrowableState state = exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
-        LOGGER.info("Unable to find state for throwable: {}", innerMostException.toString());
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;
       }
@@ -114,8 +114,9 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
             exceptionProbeManager.createProbesForException(
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
-          LOGGER.info("Creating probes for: {}", t.getMessage());
-          if (Config.get().isCiVisibilityEnabled()) {
+          if (Config.get().isCiVisibilityFailedTestReplayEnabled()) {
+              // Assume Exception Replay is working under Failed Test Replay logic,
+              // instrumentation applied sync for immediate test retries
              applyExceptionConfiguration(fingerprint);
           } else {
             AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
@@ -158,7 +159,6 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
                 }
               });
     }
-    LOGGER.info("Processing exception snapshot for: {}", t.getMessage());
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
     int maxSnapshotSize = Math.min(snapshots.size(), maxCapturedFrames);
@@ -197,7 +197,6 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         DebuggerAgent.getSink().addSnapshot(snapshot);
       }
       snapshotAssigned = true;
-      LOGGER.info("Capture for {}: {}", t.getMessage(), snapshots.get(i).getVariables());
     }
     if (snapshotAssigned) {
       state.markAsSnapshotSent();

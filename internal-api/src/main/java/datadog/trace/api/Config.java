@@ -1003,7 +1003,7 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
-  private final boolean ciVisibilityFailedTestReplayEnabled;
+  private boolean ciVisibilityFailedTestReplayEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -3840,6 +3840,10 @@ public class Config {
     return ciVisibilityFailedTestReplayEnabled;
   }
 
+  public void setCiVisibilityFailedTestReplayEnabled(boolean enabled) {
+    ciVisibilityFailedTestReplayEnabled = enabled;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -3961,7 +3965,7 @@ public class Config {
   }
 
   public boolean isDebuggerExceptionEnabled() {
-    return debuggerExceptionEnabled;
+    return debuggerExceptionEnabled || ciVisibilityFailedTestReplayEnabled;
   }
 
   public int getDebuggerMaxExceptionPerSecond() {
@@ -4009,13 +4013,7 @@ public class Config {
   }
 
   private String getFinalDebuggerBaseUrl() {
-    if (isCiVisibilityEnabled() && isCiVisibilityAgentlessEnabled()) {
-      String agentlessUrl = getCiVisibilityAgentlessUrl();
-      if (Strings.isNotBlank(agentlessUrl)) {
-        return agentlessUrl;
-      }
-      return "https://http-intake.logs." + getSite();
-    } else if (agentUrl.startsWith("unix:")) {
+    if (agentUrl.startsWith("unix:")) {
       // provide placeholder agent URL, in practice we'll be tunnelling over UDS
       return "http://" + agentHost + ":" + agentPort;
     } else {
@@ -4024,7 +4022,16 @@ public class Config {
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
+      // Used in Failed Test Replay agentless
+      String agentlessUrl = getCiVisibilityAgentlessUrl();
+      if (Strings.isBlank(agentlessUrl)) {
+        agentlessUrl = "https://http-intake.logs." + getSite();
+      }
+      return agentlessUrl + "/api/v2/logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    }
   }
 
   public String getFinalDebuggerSymDBUrl() {
