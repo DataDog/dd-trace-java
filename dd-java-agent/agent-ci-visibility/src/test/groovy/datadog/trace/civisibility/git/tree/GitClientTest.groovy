@@ -70,7 +70,7 @@ class GitClientTest extends Specification {
     upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
   }
 
-  def "test unshallow: sha-#remoteSha parentOnly-#parentOnly"() {
+  def "test unshallow: sha-#remoteSha fetchOnlyCommit-#fetchOnlyCommit"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
@@ -84,7 +84,7 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow(remoteSha, parentOnly)
+    gitClient.unshallow(remoteSha, fetchOnlyCommit)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
@@ -93,11 +93,11 @@ class GitClientTest extends Specification {
     commits.size() == numCommits
 
     where:
-    remoteSha      | parentOnly | isShallow | numCommits
-    GitClient.HEAD | false      | false     | 10
-    null           | false      | false     | 10
-    GitClient.HEAD | true       | true      | 2
-    null           | true       | true      | 2
+    remoteSha                                  | fetchOnlyCommit | isShallow | numCommits
+    GitClient.HEAD                             | false           | false     | 10
+    null                                       | false           | false     | 10
+    "f4377e97f10c2d58696192b170b2fef2a8464b04" | true            | true      | 1
+    null                                       | true            | false     | 10
   }
 
   def "test get git folder"() {

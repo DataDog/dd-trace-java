@@ -129,55 +129,46 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
-   * @param parentOnly If only the parent commit should be unshallowed or the full {@code
-   *     latestCommitsSince}
+   * @param onlyFetchCommit Only fetch the specific commit provided.
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
+  public void unshallow(@Nullable String remoteCommitReference, boolean onlyFetchCommit)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
         () -> {
-          String remote =
-              commandExecutor
-                  .executeCommand(
-                      IOUtils::readFully,
-                      "git",
-                      "config",
-                      "--default",
-                      "origin",
-                      "--get",
-                      "clone.defaultRemoteName")
-                  .trim();
+          String remote = getRemoteName();
 
           // refetch data from the server for the given period of time
-          String depth =
-              parentOnly ? "--deepen=1" : String.format("--shallow-since='%s'", latestCommitsSince);
           if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
-            String headSha = getSha(remoteCommitReference);
+            String onlyFetchCommitArg =
+                onlyFetchCommit
+                    ? "--no-write-fetch-head"
+                    : String.format("--shallow-since='%s'", latestCommitsSince);
+            String commitSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
+                onlyFetchCommitArg,
                 remote,
-                headSha);
+                commitSha);
           } else {
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
                 "git",
                 "fetch",
-                depth,
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
+                String.format("--shallow-since='%s'", latestCommitsSince),
                 remote);
           }
 
