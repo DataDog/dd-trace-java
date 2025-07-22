@@ -42,6 +42,7 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     then:
     pullRequestInfo.getPullRequestBaseBranch() == "base-ref"
     pullRequestInfo.getPullRequestBaseBranchSha() == "52e0974c74d41160a03d59ddc73bb9f5adab054b"
-    pullRequestInfo.getGitCommitHead().getSha() == "df289512a51123083a8e6931dd6f57bb3883d4c4"
+    pullRequestInfo.getHeadCommit().getSha() == "df289512a51123083a8e6931dd6f57bb3883d4c4"
+    pullRequestInfo.getPullRequestNumber() == "1"
   }
 }

@@ -109,6 +109,7 @@ class GithubActionsInfo implements CIProviderInfo {
 
       String baseSha = null;
       String headSha = null;
+      String prNumber = null;
 
       Map<String, Object> pullRequest = (Map<String, Object>) eventJson.get("pull_request");
       if (pullRequest != null) {
@@ -121,9 +122,17 @@ class GithubActionsInfo implements CIProviderInfo {
         if (base != null) {
           baseSha = (String) base.get("sha");
         }
+
+        Object number = pullRequest.get("number");
+        if (number != null) {
+          prNumber =
+              number instanceof Double
+                  ? String.valueOf(((Double) number).intValue())
+                  : String.valueOf(number);
+        }
       }
 
-      return new PullRequestInfo(baseRef, baseSha, new CommitInfo(headSha), null);
+      return new PullRequestInfo(baseRef, baseSha, new CommitInfo(headSha), prNumber);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
