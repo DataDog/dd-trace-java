@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -167,7 +168,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
         // Specific GraalVM versions have different flags for enabling JFR
         // We don't want to drag in internal-api via Platform class, so we just read the system
         // property directly
-        String version = System.getProperty("java.specification.version");
+        String version = SystemProperties.getOrDefault("java.specification.version", "");
         if (version.startsWith("17")) {
           args[oldLength++] = "-H:EnableMonitoringFeatures=jfr";
         } else {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.relocate.api.IOLogger;
@@ -75,7 +76,7 @@ public class JfrCliHelperTest {
   }
 
   private boolean hasJfr() {
-    return Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"));
+    return Files.exists(Paths.get(SystemProperties.get("java.home"), "bin", "jfr"));
   }
 
   private RecordingData mockRecordingData() throws IOException {

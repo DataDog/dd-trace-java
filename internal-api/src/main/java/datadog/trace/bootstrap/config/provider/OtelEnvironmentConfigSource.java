@@ -14,7 +14,10 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
+import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.telemetry.OtelEnvMetricCollector;
@@ -141,12 +144,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
     String ddValue = getDatadogProperty(ddSysProp);
     if (null != ddValue) {
-      String otelEnvVar = Strings.toEnvVar(otelSysProp);
-      log.warn(
-          "Both {} and {} are set, ignoring {}",
-          Strings.toEnvVar(ddSysProp),
-          otelEnvVar,
-          otelEnvVar);
+      String otelEnvVar = toEnvVar(otelSysProp);
+      log.warn("Both {} and {} are set, ignoring {}", toEnvVar(ddSysProp), otelEnvVar, otelEnvVar);
       otelEnvMetricCollector.setHidingOtelEnvVarMetric(
           Strings.toEnvVarLowerCase(otelSysProp), Strings.toEnvVarLowerCase(ddSysProp));
       return null;
@@ -186,9 +185,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * <p>Checks system properties and environment variables.
    */
   private static String getProperty(String sysProp) {
-    String value = System.getProperty(sysProp);
+    String value = SystemProperties.get(sysProp);
     if (null == value) {
-      value = System.getenv(Strings.toEnvVar(sysProp));
+      value = EnvironmentVariables.get(toEnvVar(sysProp));
     }
     return value;
   }
@@ -204,8 +203,10 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private static Properties loadOtelConfigFile() {
     String path = getProperty("otel.javaagent.configuration-file");
     if (null != path && !path.isEmpty()) {
-      if (path.charAt(0) == '~') {
-        path = System.getProperty("user.home") + path.substring(1);
+      // Inflate '~' prefix as home folder
+      String home;
+      if (path.charAt(0) == '~' && (home = SystemProperties.get("user.home")) != null) {
+        path = home + path.substring(1);
       }
       File file = new File(path);
       if (file.exists()) {

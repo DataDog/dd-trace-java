@@ -144,6 +144,7 @@ public class CiVisibilityServices {
 
   @Nonnull
   private static CiEnvironment buildCiEnvironment(Config config, SharedCommunicationObjects sco) {
+    CiEnvironment localEnvironment = CiEnvironmentImpl.local();
     String remoteEnvVarsProviderUrl = config.getCiVisibilityRemoteEnvVarsProviderUrl();
     if (remoteEnvVarsProviderUrl != null) {
       String remoteEnvVarsProviderKey = config.getCiVisibilityRemoteEnvVarsProviderKey();
@@ -151,10 +152,9 @@ public class CiVisibilityServices {
           new CiEnvironmentImpl(
               getRemoteEnvironment(
                   remoteEnvVarsProviderUrl, remoteEnvVarsProviderKey, sco.okHttpClient));
-      CiEnvironment localEnvironment = new CiEnvironmentImpl(System.getenv());
       return new CompositeCiEnvironment(remoteEnvironment, localEnvironment);
     } else {
-      return new CiEnvironmentImpl(System.getenv());
+      return localEnvironment;
     }
   }
 

@@ -5,6 +5,7 @@ import static com.datadog.appsec.ddwaf.WAFResultData.Rule;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.ddwaf.Waf;
+import datadog.environment.SystemProperties;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -42,11 +43,11 @@ public class StandardizedLogging {
             + "AppSec could not start. No security activities will be collected. "
             + "Please contact support at https://docs.datadoghq.com/help/ for help. "
             + "Host information: operating_system: {}, libc: {}, arch: {}, runtime: {} {}",
-        System.getProperty("os.name"),
+        SystemProperties.get("os.name"),
         libc,
-        System.getProperty("os.arch"),
-        System.getProperty("java.vm.vendor"),
-        System.getProperty("java.version"));
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("java.vm.vendor"),
+        SystemProperties.get("java.version"));
   }
 
   // C4:

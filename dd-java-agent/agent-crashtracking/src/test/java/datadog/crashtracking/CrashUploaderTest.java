@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
 import datadog.crashtracking.dto.CrashLog;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
@@ -184,7 +185,7 @@ public class CrashUploaderTest {
     assertEquals(ENV, event.get("application").get("env").asText());
     assertEquals("jvm", event.get("application").get("language_name").asText());
     assertEquals(
-        System.getProperty("java.version", "unknown"),
+        SystemProperties.getOrDefault("java.version", "unknown"),
         event.get("application").get("language_version").asText());
     assertEquals(SERVICE, event.get("application").get("service_name").asText());
     assertEquals(VERSION, event.get("application").get("service_version").asText());

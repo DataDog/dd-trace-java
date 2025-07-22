@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
@@ -49,9 +50,12 @@ public final class OkHttpUtils {
 
   private static final String DD_API_KEY = "DD-API-KEY";
 
-  private static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
-  private static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
-  private static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
+  private static final String JAVA_VERSION =
+      SystemProperties.getOrDefault("java.version", "unknown");
+  private static final String JAVA_VM_NAME =
+      SystemProperties.getOrDefault("java.vm.name", "unknown");
+  private static final String JAVA_VM_VENDOR =
+      SystemProperties.getOrDefault("java.vm.vendor", "unknown");
 
   public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
     return buildHttpClient(url, null, null, timeoutMillis);

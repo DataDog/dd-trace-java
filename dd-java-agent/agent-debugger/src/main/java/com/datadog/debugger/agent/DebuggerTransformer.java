@@ -25,6 +25,7 @@ import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.ExceptionHelper;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -89,7 +90,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
-  public static Path DUMP_PATH = Paths.get(System.getProperty(JAVA_IO_TMPDIR), "debugger");
+  public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
