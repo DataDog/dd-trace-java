@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -61,6 +62,10 @@ public interface GitClient {
 
   @Nullable
   String getCommitterDate(String commit) throws IOException, TimeoutException, InterruptedException;
+
+  @Nonnull
+  CommitInfo getCommitInfo(String commit)
+      throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
   List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException;

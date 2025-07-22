@@ -6,7 +6,9 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitUtils;
+import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
@@ -43,6 +45,7 @@ public class ShellGitClient implements GitClient {
       Arrays.asList("release/", "hotfix/");
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
+  private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
@@ -497,6 +500,49 @@ public class ShellGitClient implements GitClient {
             commandExecutor
                 .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%cI", commit)
                 .trim());
+  }
+
+  /**
+   * Returns commit information for the provided commit
+   *
+   * @param commit Commit SHA or reference (HEAD, branch name, etc) to check
+   * @return commit info (sha, author info, committer info, full message)
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   *     finish
+   */
+  @Nonnull
+  @Override
+  public CommitInfo getCommitInfo(String commit)
+      throws IOException, InterruptedException, TimeoutException {
+    if (GitUtils.isNotValidCommit(commit)) {
+      return CommitInfo.NOOP;
+    }
+    return executeCommand(
+        Command.OTHER,
+        () -> {
+          String info =
+              commandExecutor
+                  .executeCommand(
+                      IOUtils::readFully,
+                      "git",
+                      "show",
+                      commit,
+                      "-s",
+                      "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B")
+                  .trim();
+          String[] fields = COMMIT_INFO_SPLIT.split(info);
+          if (fields.length < 8) {
+            LOGGER.error("Could not parse commit info: {}", info);
+            return CommitInfo.NOOP;
+          }
+          return new CommitInfo(
+              fields[0],
+              new PersonInfo(fields[1], fields[2], fields[3]),
+              new PersonInfo(fields[4], fields[5], fields[6]),
+              fields[7]);
+        });
   }
 
   /**

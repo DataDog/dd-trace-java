@@ -94,10 +94,10 @@ class GitClientTest extends Specification {
 
     where:
     remoteSha      | parentOnly | isShallow | numCommits
-    GitClient.HEAD | false      | false      | 10
-    null           | false      | false      | 10
-    GitClient.HEAD | true       | true     | 2
-    null           | true       | true     | 2
+    GitClient.HEAD | false      | false     | 10
+    null           | false      | false     | 10
+    GitClient.HEAD | true       | true      | 2
+    null           | true       | true      | 2
   }
 
   def "test get git folder"() {
@@ -245,6 +245,28 @@ class GitClientTest extends Specification {
 
     then:
     authorDate == "2021-02-26T19:32:13+01:00"
+  }
+
+  def "test get commit info"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def gitClient = givenGitClient()
+    def commitInfo = gitClient.getCommitInfo(GitClient.HEAD)
+
+    then:
+    commitInfo.sha == "5b6f3a6dab5972d73a56dff737bd08d995255c08"
+    commitInfo.author.name == "Tony Redondo"
+    commitInfo.author.email == "tony.redondo@datadoghq.com"
+    commitInfo.author.iso8601Date == "2021-02-26T19:32:13+01:00"
+    commitInfo.committer.name == "GitHub"
+    commitInfo.committer.email == "noreply@github.com"
+    commitInfo.committer.iso8601Date == "2021-02-26T19:32:13+01:00"
+    commitInfo.fullMessage == "Adding Git information to test spans (#1242)\n\n" +
+    "* Initial basic GitInfo implementation.\r\n\r\n" +
+    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+    "* Changes based on the review."
   }
 
   def "test get latest commits"() {

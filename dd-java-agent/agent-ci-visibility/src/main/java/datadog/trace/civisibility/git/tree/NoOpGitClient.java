@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -106,6 +107,12 @@ public class NoOpGitClient implements GitClient {
   @Override
   public String getCommitterDate(String commit) {
     return null;
+  }
+
+  @Nonnull
+  @Override
+  public CommitInfo getCommitInfo(String commit) {
+    return CommitInfo.NOOP;
   }
 
   @Nonnull
