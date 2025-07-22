@@ -1,5 +1,7 @@
 package datadog.trace.api.datastreams;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.util.FNV64Hash;
 import java.util.Objects;
 
@@ -11,6 +13,7 @@ public class DataStreamsTags {
   }
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
+  private static final DDCache<String, byte[]> TAG_BYTES = DDCaches.newFixedSizeCache(128);
 
   private long hash;
   private long aggregationHash;
@@ -51,7 +54,7 @@ public class DataStreamsTags {
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
 
-  private static volatile ThreadLocal<String> serviceNameOverride;
+  private static ThreadLocal<String> serviceNameOverride;
   private static volatile long baseHash;
 
   public static byte[] longToBytes(long val) {
@@ -336,7 +339,7 @@ public class DataStreamsTags {
     if (DataStreamsTags.serviceNameOverride != null) {
       String val = DataStreamsTags.serviceNameOverride.get();
       if (val != null) {
-        this.hash = FNV64Hash.continueHash(this.hash, val, FNV64Hash.Version.v1);
+        this.hash = FNV64Hash.continueHash(this.hash, getTagBytes(val), FNV64Hash.Version.v1);
       }
     }
 
@@ -345,7 +348,7 @@ public class DataStreamsTags {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
-        this.hash = FNV64Hash.continueHash(this.hash, tag, FNV64Hash.Version.v1);
+        this.hash = FNV64Hash.continueHash(this.hash, getTagBytes(tag), FNV64Hash.Version.v1);
       }
     }
 
@@ -356,7 +359,7 @@ public class DataStreamsTags {
       if (tag != null) {
         this.nonNullSize++;
         this.aggregationHash =
-            FNV64Hash.continueHash(this.aggregationHash, tag, FNV64Hash.Version.v1);
+            FNV64Hash.continueHash(this.aggregationHash, getTagBytes(tag), FNV64Hash.Version.v1);
       }
     }
 
@@ -366,7 +369,8 @@ public class DataStreamsTags {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
-        this.completeHash = FNV64Hash.continueHash(this.completeHash, tag, FNV64Hash.Version.v1);
+        this.completeHash =
+            FNV64Hash.continueHash(this.completeHash, getTagBytes(tag), FNV64Hash.Version.v1);
       }
     }
   }
@@ -477,6 +481,10 @@ public class DataStreamsTags {
 
   public long getHash() {
     return hash;
+  }
+
+  private byte[] getTagBytes(String tag) {
+    return TAG_BYTES.computeIfAbsent(tag, String::getBytes);
   }
 
   public long getAggregationHash() {
