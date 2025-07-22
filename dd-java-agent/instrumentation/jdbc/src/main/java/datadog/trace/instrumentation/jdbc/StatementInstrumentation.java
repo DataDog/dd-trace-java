@@ -123,8 +123,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
               span.setTag(DBM_TRACE_INJECTED, true);
             }
           }
-          // For SQL Server and Oracle, trace context is propagated via context_info and v$session.action
-          // respectively, so we should not also inject it into SQL comments to avoid duplication
+          // For SQL Server and Oracle, trace context is propagated via
+          // context_info and v$session.action respectively.
+          // we should not also inject it into SQL comments to avoid duplication
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
           sql =
               SQLCommenter.inject(
