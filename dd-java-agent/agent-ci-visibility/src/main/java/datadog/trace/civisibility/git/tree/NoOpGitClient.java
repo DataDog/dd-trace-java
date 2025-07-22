@@ -67,48 +67,6 @@ public class NoOpGitClient implements GitClient {
     return null;
   }
 
-  @Nullable
-  @Override
-  public String getFullMessage(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorName(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorEmail(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorDate(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterName(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterEmail(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterDate(String commit) {
-    return null;
-  }
-
   @Nonnull
   @Override
   public CommitInfo getCommitInfo(String commit) {

@@ -41,28 +41,6 @@ public interface GitClient {
   @Nullable
   String getSha(String reference) throws IOException, TimeoutException, InterruptedException;
 
-  @Nullable
-  String getFullMessage(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorName(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorEmail(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getAuthorDate(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterName(String commit) throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterEmail(String commit)
-      throws IOException, TimeoutException, InterruptedException;
-
-  @Nullable
-  String getCommitterDate(String commit) throws IOException, TimeoutException, InterruptedException;
-
   @Nonnull
   CommitInfo getCommitInfo(String commit)
       throws IOException, TimeoutException, InterruptedException;

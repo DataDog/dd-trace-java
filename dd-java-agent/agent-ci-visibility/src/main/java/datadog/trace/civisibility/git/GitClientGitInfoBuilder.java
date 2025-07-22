@@ -39,20 +39,7 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
       List<String> tags = gitClient.getTags(GitClient.HEAD);
       String tag = !tags.isEmpty() ? tags.iterator().next() : null;
 
-      String currentCommitSha = gitClient.getSha(GitClient.HEAD);
-      String fullMessage = gitClient.getFullMessage(GitClient.HEAD);
-
-      String authorName = gitClient.getAuthorName(GitClient.HEAD);
-      String authorEmail = gitClient.getAuthorEmail(GitClient.HEAD);
-      String authorDate = gitClient.getAuthorDate(GitClient.HEAD);
-      PersonInfo author = new PersonInfo(authorName, authorEmail, authorDate);
-
-      String committerName = gitClient.getCommitterName(GitClient.HEAD);
-      String committerEmail = gitClient.getCommitterEmail(GitClient.HEAD);
-      String committerDate = gitClient.getCommitterDate(GitClient.HEAD);
-      PersonInfo committer = new PersonInfo(committerName, committerEmail, committerDate);
-
-      CommitInfo commitInfo = new CommitInfo(currentCommitSha, author, committer, fullMessage);
+      CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD);
       return new GitInfo(remoteUrl, branch, tag, commitInfo);
 
     } catch (Exception e) {

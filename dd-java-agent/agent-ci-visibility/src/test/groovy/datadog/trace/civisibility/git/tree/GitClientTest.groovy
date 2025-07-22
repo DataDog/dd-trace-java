@@ -160,93 +160,6 @@ class GitClientTest extends Specification {
     sha == "5b6f3a6dab5972d73a56dff737bd08d995255c08"
   }
 
-  def "test get full message"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def message = gitClient.getFullMessage(GitClient.HEAD)
-
-    then:
-    message == "Adding Git information to test spans (#1242)\n\n" +
-    "* Initial basic GitInfo implementation.\r\n\r\n" +
-    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-    "* Changes based on the review."
-  }
-
-  def "test get author name"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorName = gitClient.getAuthorName(GitClient.HEAD)
-
-    then:
-    authorName == "Tony Redondo"
-  }
-
-  def "test get author email"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorEmail = gitClient.getAuthorEmail(GitClient.HEAD)
-
-    then:
-    authorEmail == "tony.redondo@datadoghq.com"
-  }
-
-  def "test get author date"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorDate = gitClient.getAuthorDate(GitClient.HEAD)
-
-    then:
-    authorDate == "2021-02-26T19:32:13+01:00"
-  }
-
-  def "test get committer name"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorName = gitClient.getCommitterName(GitClient.HEAD)
-
-    then:
-    authorName == "GitHub"
-  }
-
-  def "test get committer email"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorEmail = gitClient.getCommitterEmail(GitClient.HEAD)
-
-    then:
-    authorEmail == "noreply@github.com"
-  }
-
-  def "test get committer date"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorDate = gitClient.getCommitterDate(GitClient.HEAD)
-
-    then:
-    authorDate == "2021-02-26T19:32:13+01:00"
-  }
-
   def "test get commit info"() {
     given:
     givenGitRepo()
@@ -264,9 +177,9 @@ class GitClientTest extends Specification {
     commitInfo.committer.email == "noreply@github.com"
     commitInfo.committer.iso8601Date == "2021-02-26T19:32:13+01:00"
     commitInfo.fullMessage == "Adding Git information to test spans (#1242)\n\n" +
-    "* Initial basic GitInfo implementation.\r\n\r\n" +
-    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-    "* Changes based on the review."
+      "* Initial basic GitInfo implementation.\r\n\r\n" +
+      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+      "* Changes based on the review."
   }
 
   def "test get latest commits"() {
