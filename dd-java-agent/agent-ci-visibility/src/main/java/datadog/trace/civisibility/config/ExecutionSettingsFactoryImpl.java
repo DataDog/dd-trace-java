@@ -396,12 +396,12 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return Collections.emptyMap();
     }
     try {
-      if (Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getSha())
-          && Strings.isNotBlank(pullRequestInfo.getGitCommitHead().getFullMessage())) {
+      if (Strings.isNotBlank(pullRequestInfo.getHeadCommit().getSha())
+          && Strings.isNotBlank(pullRequestInfo.getHeadCommit().getFullMessage())) {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment,
-            pullRequestInfo.getGitCommitHead().getSha(),
-            pullRequestInfo.getGitCommitHead().getFullMessage());
+            pullRequestInfo.getHeadCommit().getSha(),
+            pullRequestInfo.getHeadCommit().getFullMessage());
       } else {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment, tracerEnvironment.getSha(), tracerEnvironment.getCommitMessage());
@@ -429,8 +429,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               gitClient.getBaseCommitSha(pullRequestInfo.getPullRequestBaseBranch(), defaultBranch);
         }
 
-        Diff diff =
-            gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getGitCommitHead().getSha());
+        Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());
         if (diff != null) {
           return diff;
         }

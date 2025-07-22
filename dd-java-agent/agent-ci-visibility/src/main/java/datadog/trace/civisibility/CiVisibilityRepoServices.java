@@ -126,7 +126,7 @@ public class CiVisibilityRepoServices {
 
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo = PullRequestInfo.merge(userInfo, ciProviderInfo.buildPullRequestInfo());
-    String headSha = ciInfo.getGitCommitHead().getSha();
+    String headSha = ciInfo.getHeadCommit().getSha();
     if (Strings.isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
       try {
