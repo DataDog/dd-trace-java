@@ -41,8 +41,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final String JAVAC_PLUGIN_VERSION = Config.get().ciVisibilityCompilerPluginVersion
   private static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
-  private static final int DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS = 400
-  private static final int PROCESS_TIMEOUT_SECS = 120
+  private static final int DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS = 120
+  private static final int PROCESS_TIMEOUT_SECS = 60
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5
 
@@ -293,9 +293,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private void retryUntilSuccessfulOrNoAttemptsLeft(List<String> mvnCommand, Map<String, String> additionalEnvVars = [:]) {
     def processBuilder = createProcessBuilder(mvnCommand, false, false, [], additionalEnvVars)
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = runProcess(processBuilder.start(), DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS)
-      if (exitCode == 0) {
-        return
+      try {
+        def exitCode = runProcess(processBuilder.start(), DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS)
+        if (exitCode == 0) {
+          return
+        }
+      } catch (TimeoutException e) {
+        LOGGER.warn("Failed dependency resolution with exception: ", e)
       }
     }
     throw new AssertionError((Object) "Tried $DEPENDENCIES_DOWNLOAD_RETRIES times to execute $mvnCommand and failed")
