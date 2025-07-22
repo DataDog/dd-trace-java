@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
+import datadog.trace.core.Metadata
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import groovy.json.JsonOutput
@@ -780,6 +781,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test baggage span tags are properly added"() {
     setup:
+    def recordedBaggageTags = [:]
+    TEST_WRITER.metadataConsumer = { Metadata md ->
+      md.baggage.forEach { k, v ->
+        // record non-internal baggage sent to agent as trace metadata
+        if (!k.startsWith("_dd.")) {
+          recordedBaggageTags.put(k, v)
+        }
+      }
+    }
     // Use default configuration for TRACE_BAGGAGE_TAG_KEYS (user.id, session.id, account.id)
     def baggageHeader = "user.id=test-user,session.id=test-session,account.id=test-account,language=en"
     def request = request(SUCCESS, 'GET', null)
@@ -799,12 +809,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       trace(spanCount(SUCCESS)) {
         sortSpansByStart()
         // Verify baggage tags are added for default configured keys only
-        serverSpan(it, null, null, 'GET', SUCCESS, [
-          "baggage.user.id": "test-user",
-          "baggage.session.id": "test-session",
-          "baggage.account.id": "test-account"
-          // "baggage.language" should NOT be present since it's not in default config
-        ])
+        serverSpan(it, null, null, 'GET', SUCCESS)
         if (hasHandlerSpan()) {
           handlerSpan(it)
         }
@@ -814,6 +819,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
+    recordedBaggageTags == [
+      "baggage.user.id": "test-user",
+      "baggage.session.id": "test-session",
+      "baggage.account.id": "test-account"
+      // "baggage.language" should NOT be present since it's not in default config
+    ]
 
     and:
     if (isDataStreamsEnabled()) {
