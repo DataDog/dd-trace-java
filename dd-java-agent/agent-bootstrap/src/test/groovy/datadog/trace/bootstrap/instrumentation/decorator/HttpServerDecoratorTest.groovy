@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
-import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
@@ -30,7 +29,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
-import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -567,55 +565,5 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     int getReqHeaderDoneCount() {
       return reqHeaderDoneCount
     }
-  }
-
-  def "test setBaggageTags default"() {
-    setup:
-    def tags = [:]
-
-    when:
-    def tagContext = new TagContext()
-    HttpServerDecorator.setBaggageTags(tagContext, ["user.id": "doggo", "account.id": "test", "session.id": "1234", "region": "us -east - 1"])
-    tagContext.tags.fillMap(tags)
-
-    then:
-    tags == ["baggage.user.id": "doggo", "baggage.account.id": "test", "baggage.session.id": "1234"]
-  }
-
-  def "test setBaggageTags does not overwrite"() {
-    setup:
-    def tags = [:]
-
-    when:
-    def tagContext = new TagContext()
-    tagContext.putTag("baggage.account.id", "staging")
-    HttpServerDecorator.setBaggageTags(tagContext, ["user.id": "doggo", "account.id": "test", "session.id": "1234", "region": "us -east - 1"])
-    tagContext.tags.fillMap(tags)
-
-    then:
-    tags == ["baggage.user.id": "doggo", "baggage.account.id": "staging", "baggage.session.id": "1234"]
-  }
-
-  def "test setBaggageTags with different configurations"() {
-    setup:
-    injectSysConfig(TRACE_BAGGAGE_TAG_KEYS, baggageTagKeysConfig)
-    def tags = [:]
-
-    when:
-    def tagContext = new TagContext()
-    HttpServerDecorator.setBaggageTags(tagContext, ["user.id": "doggo", "foo": "bar", "language": "en"])
-    tagContext.tags.fillMap(tags)
-
-    then:
-    tags == expectedTags
-
-    where:
-    baggageTagKeysConfig | expectedTags
-    "*"                  | ["baggage.user.id": "doggo", "baggage.foo": "bar", "baggage.language": "en"]
-    " "                  | [:]
-    "system.id"          | [:]
-    "user.id"            | ["baggage.user.id": "doggo"]
-    "foo"                | ["baggage.foo": "bar"]
-    "user.id,foo"        | ["baggage.user.id": "doggo", "baggage.foo": "bar"]
   }
 }

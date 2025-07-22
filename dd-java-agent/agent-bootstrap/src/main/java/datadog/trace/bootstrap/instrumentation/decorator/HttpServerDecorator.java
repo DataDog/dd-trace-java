@@ -26,7 +26,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -38,7 +37,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -151,17 +149,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   public AgentSpanContext.Extracted getExtractedSpanContext(Context context) {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
-    AgentSpanContext.Extracted extractedContext = null;
-    if (extractedSpan != null) {
-      extractedContext = (AgentSpanContext.Extracted) extractedSpan.context();
-      if (extractedContext instanceof TagContext) {
-        Baggage baggage = Baggage.fromContext(context);
-        if (baggage != null) {
-          setBaggageTags((TagContext) extractedContext, baggage.asMap());
-        }
-      }
-    }
-    return extractedContext;
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
   }
 
   public AgentSpan onRequest(
@@ -654,26 +642,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(mappedKey, value);
       }
       return true;
-    }
-  }
-
-  static void setBaggageTags(TagContext tagContext, Map<String, String> baggage) {
-    List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
-    if (baggageTagKeys.isEmpty()) {
-      return;
-    }
-    for (String key : baggageTagKeys) {
-      if ("*".equals(key)) {
-        // If the key is "*", we add all baggage items
-        for (Map.Entry<String, String> entry : baggage.entrySet()) {
-          tagContext.putTagIfAbsent("baggage." + entry.getKey(), entry.getValue());
-        }
-        break;
-      }
-      String value = baggage.get(key);
-      if (value != null) {
-        tagContext.putTagIfAbsent("baggage." + key, value);
-      }
     }
   }
 }
