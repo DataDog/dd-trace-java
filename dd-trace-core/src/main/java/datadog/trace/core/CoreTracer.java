@@ -59,6 +59,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
@@ -1591,6 +1592,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final long spanId;
       final long parentSpanId;
       final Map<String, String> baggage;
+      final Baggage w3cBaggage;
       final TraceCollector parentTraceCollector;
       final int samplingPriority;
       final CharSequence origin;
@@ -1645,6 +1647,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         traceId = ddsc.getTraceId();
         parentSpanId = ddsc.getSpanId();
         baggage = ddsc.getBaggageItems();
+        w3cBaggage = null;
         parentTraceCollector = ddsc.getTraceCollector();
         samplingPriority = PrioritySampling.UNSET;
         origin = null;
@@ -1706,6 +1709,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           coreTagsNeedsIntercept = true; // maybe intercept isn't needed?
           origin = tc.getOrigin();
           baggage = tc.getBaggage();
+          w3cBaggage = tc.getW3CBaggage();
           requestContextDataAppSec = tc.getRequestContextDataAppSec();
           requestContextDataIast = tc.getRequestContextDataIast();
           ciVisibilityContextData = tc.getCiVisibilityContextData();
@@ -1715,6 +1719,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           coreTagsNeedsIntercept = false;
           origin = null;
           baggage = null;
+          w3cBaggage = null;
           requestContextDataAppSec = null;
           requestContextDataIast = null;
           ciVisibilityContextData = null;
@@ -1805,6 +1810,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               samplingPriority,
               origin,
               baggage,
+              w3cBaggage,
               errorFlag,
               spanType,
               tagsSize,

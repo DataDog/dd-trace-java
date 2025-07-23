@@ -7,7 +7,10 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.util.PercentEscaper;
 import datadog.trace.core.util.PercentEscaper.Escaped;
 import java.io.UnsupportedEncodingException;
@@ -109,7 +112,21 @@ public class BaggagePropagator implements Propagator {
     }
     BaggageExtractor baggageExtractor = new BaggageExtractor();
     visitor.forEachKeyValue(carrier, baggageExtractor);
-    return baggageExtractor.extracted == null ? context : context.with(baggageExtractor.extracted);
+    Baggage baggage = baggageExtractor.extracted;
+    if (baggage == null) {
+      return context;
+    }
+
+    // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
+    AgentSpan extractedSpan = AgentSpan.fromContext(context);
+    if (extractedSpan != null) {
+      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      if (extractedSpanContext instanceof TagContext) {
+        ((TagContext) extractedSpanContext).setW3CBaggage(baggage);
+      }
+    }
+
+    return context.with(baggage);
   }
 
   private class BaggageExtractor implements BiConsumer<String, String> {
