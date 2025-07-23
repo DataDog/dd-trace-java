@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
   private static final Logger logger = LoggerFactory.getLogger(ProfilerSettingsSupport.class);
+  private static final String STACKDEPTH_KEY = "stackdepth=";
+  private static final int DEFAULT_JFR_STACKDEPTH = 64;
 
   protected static final class ProfilerActivationSetting {
     public enum Ssi {
@@ -200,9 +202,9 @@ public abstract class ProfilerSettingsSupport {
             .findFirst()
             .orElse(null);
     if (value != null) {
-      int start = value.indexOf("stackdepth=");
+      int start = value.indexOf(STACKDEPTH_KEY);
       if (start != -1) {
-        start += "stackdepth=".length();
+        start += STACKDEPTH_KEY.length();
         int end = value.indexOf(',', start);
         if (end == -1) {
           end = value.length();
@@ -214,7 +216,7 @@ public abstract class ProfilerSettingsSupport {
         }
       }
     }
-    return 64; // default stack depth if not set in JFR options
+    return DEFAULT_JFR_STACKDEPTH; // default stack depth if not set in JFR options
   }
 
   private static String getServiceInjection(ConfigProvider configProvider) {
