@@ -27,7 +27,7 @@ public class JFRAccessTest {
   void testJPMSJFRAccess() throws Exception {
     // For Java 9 and above, the JFR access requires instrumentation in order to patch the module
     // access
-    assumeTrue(isJavaVersionAtLeast(9) && !isJ9() && !isOracleJDK8());
+    assumeTrue(isJavaVersionAtLeast(9) && !isJ9());
 
     // just do a sanity check that it is possible to instantiate the class and call
     // 'setStackDepth()'
