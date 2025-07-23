@@ -221,6 +221,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
+      long parentHash = pathwayContext.getHash();
+      log.debug("Data streams checkpoint - parent hash: {}", parentHash);
       pathwayContext.setCheckpoint(context, this::add);
     }
   }
