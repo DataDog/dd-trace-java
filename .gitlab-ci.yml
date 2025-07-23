@@ -7,8 +7,8 @@ include:
 
 stages:
   - build
-  - shared-pipeline
   - publish
+  - shared-pipeline
   - benchmarks
   - macrobenchmarks
   - tests
