@@ -631,6 +631,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.ConfigHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
@@ -1197,6 +1198,8 @@ public class Config {
   private final long tracePostProcessingTimeout;
 
   private final boolean telemetryDebugRequestsEnabled;
+
+  private final boolean configInversionStrict;
 
   private final boolean agentlessLogSubmissionEnabled;
   private final int agentlessLogSubmissionQueueSize;
@@ -1994,6 +1997,8 @@ public class Config {
             TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
             DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
+
+    configInversionStrict = ConfigHelper.isConfigInversionStrict();
 
     appSecReportingInband =
         configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
@@ -3463,6 +3468,10 @@ public class Config {
 
   public boolean isClientIpEnabled() {
     return clientIpEnabled;
+  }
+
+  public boolean isConfigInversionStrict() {
+    return configInversionStrict;
   }
 
   public ProductActivation getAppSecActivation() {
@@ -5192,7 +5201,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = ConfigHelper.getEnvironmentVariable(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
@@ -5616,6 +5625,8 @@ public class Config {
         + grpcClientErrorStatuses
         + ", clientIpEnabled="
         + clientIpEnabled
+        + ", configInversionStrict="
+        + configInversionStrict
         + ", appSecReportingInband="
         + appSecReportingInband
         + ", appSecRulesFile='"

@@ -1,0 +1,11 @@
+{
+  "supportedConfigurations": {
+    "DD_AGENT_HOST": ["A"]
+  },
+  "aliases": {
+    "DD_AGENT_HOST": ["DD_TRACE_AGENT_HOSTNAME"]
+  },
+  "deprecated": {
+    "OLD_KEY": "NEW_KEY"
+  }
+}

@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.environment.ConfigHelper;
 import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
@@ -156,7 +157,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = System.getenv(key.toUpperCase());
+        String envValue = ConfigHelper.getEnvironmentVariable(key.toUpperCase());
         if (envValue == null) {
           return false;
         }
@@ -249,7 +250,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar.toUpperCase());
+      String value = ConfigHelper.getEnvironmentVariable(envVar.toUpperCase());
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
