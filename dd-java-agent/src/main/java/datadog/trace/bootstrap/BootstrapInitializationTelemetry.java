@@ -279,6 +279,10 @@ public abstract class BootstrapInitializationTelemetry {
     }
   }
 
+  /**
+   * Declare telemetry as {@code Object} to avoid issue with double class loading from different
+   * classloaders.
+   */
   public interface JsonSender {
     void send(Object telemetry);
   }
