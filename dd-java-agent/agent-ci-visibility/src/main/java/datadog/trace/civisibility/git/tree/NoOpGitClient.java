@@ -30,6 +30,11 @@ public class NoOpGitClient implements GitClient {
     // no op
   }
 
+  @Override
+  public void fetchCommit(String remoteCommitReference) {
+    // no op
+  }
+
   @Nullable
   @Override
   public String getGitFolder() {

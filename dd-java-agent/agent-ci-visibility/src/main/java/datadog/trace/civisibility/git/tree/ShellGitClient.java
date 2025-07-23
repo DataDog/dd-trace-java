@@ -206,22 +206,21 @@ public class ShellGitClient implements GitClient {
   /**
    * Fetches provided commit object from the server.
    *
-   * @param commitReference Commit to fetch from the remote repository
+   * @param remoteCommitReference Commit to fetch from the remote repository
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    */
   @Override
-  public void fetchCommit(String commitReference)
+  public void fetchCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidRef(commitReference)) {
+    if (!GitUtils.isValidRef(remoteCommitReference)) {
       return;
     }
     executeCommand(
         Command.OTHER,
         () -> {
           String remote = getRemoteName();
-
           commandExecutor.executeCommand(
               ShellCommandExecutor.OutputParser.IGNORE,
               "git",
@@ -231,7 +230,7 @@ public class ShellGitClient implements GitClient {
               "--recurse-submodules=no",
               "--no-write-fetch-head",
               remote,
-              commitReference);
+              remoteCommitReference);
 
           return (Void) null;
         });
