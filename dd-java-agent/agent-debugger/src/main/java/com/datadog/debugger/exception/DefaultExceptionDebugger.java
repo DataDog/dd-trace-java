@@ -115,9 +115,9 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
                 throwable.getStackTrace(), chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
           if (Config.get().isCiVisibilityFailedTestReplayEnabled()) {
-              // Assume Exception Replay is working under Failed Test Replay logic,
-              // instrumentation applied sync for immediate test retries
-             applyExceptionConfiguration(fingerprint);
+            // Assume Exception Replay is working under Failed Test Replay logic,
+            // instrumentation applied sync for immediate test retries
+            applyExceptionConfiguration(fingerprint);
           } else {
             AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
           }

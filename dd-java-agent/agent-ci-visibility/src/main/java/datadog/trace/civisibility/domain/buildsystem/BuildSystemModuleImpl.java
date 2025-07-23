@@ -14,7 +14,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;

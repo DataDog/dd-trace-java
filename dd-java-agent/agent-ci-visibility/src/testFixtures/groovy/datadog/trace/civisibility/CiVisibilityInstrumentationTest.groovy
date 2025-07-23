@@ -96,6 +96,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
+    injectSysConfig(CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED, "true")
   }
 
   private static final class Settings {
@@ -112,6 +113,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     private volatile boolean earlyFlakinessDetectionEnabled
     private volatile boolean impactedTestsDetectionEnabled
     private volatile boolean testManagementEnabled
+    private volatile boolean failedTestReplayEnabled
   }
 
   private final Settings settings = new Settings()
@@ -233,6 +235,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       settings.itrEnabled,
       settings.flakyRetryEnabled,
       settings.impactedTestsDetectionEnabled,
+      settings.failedTestReplayEnabled,
       earlyFlakinessDetectionSettings,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,
@@ -344,6 +347,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   def givenImpactedTestsDetectionEnabled(boolean impactedTestsDetectionEnabled) {
     settings.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
+  }
+
+  def givenFailedTestReplayEnabled(boolean failedTestReplayEnabled) {
+    settings.failedTestReplayEnabled = failedTestReplayEnabled
   }
 
   def assertSpansData(String testcaseName, Map<String, String> replacements = [:], List<String> ignoredTags = []) {

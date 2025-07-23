@@ -2296,7 +2296,7 @@ public class Config {
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
     ciVisibilityFailedTestReplayEnabled =
-        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
