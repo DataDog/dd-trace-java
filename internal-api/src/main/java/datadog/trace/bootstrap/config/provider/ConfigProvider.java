@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.CONFIG_INVERSION_STRICT;
 
+import datadog.environment.ConfigHelper;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
@@ -374,9 +376,14 @@ public final class ConfigProvider {
   }
 
   public static ConfigProvider createDefault() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    ConfigProvider minimalProvider =
+        new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
+
+    // TODO: Set default value to false before merging
+    ConfigHelper.setConfigInversionStrict(
+        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+
+    Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
@@ -398,10 +405,14 @@ public final class ConfigProvider {
   }
 
   public static ConfigProvider withoutCollector() {
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+    ConfigProvider minimalProvider =
+        new ConfigProvider(
+            false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
+    // TODO: Set default value to false before merging
+    ConfigHelper.setConfigInversionStrict(
+        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+
+    Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           false,
@@ -426,12 +437,17 @@ public final class ConfigProvider {
 
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
-    Properties configProperties =
-        loadConfigurationFile(
-            new ConfigProvider(
-                new SystemPropertiesConfigSource(),
-                new EnvironmentConfigSource(),
-                providedConfigSource));
+    ConfigProvider minimalProvider =
+        new ConfigProvider(
+            new SystemPropertiesConfigSource(),
+            new EnvironmentConfigSource(),
+            providedConfigSource);
+
+    // TODO: Set default value to false before merging
+    ConfigHelper.setConfigInversionStrict(
+        minimalProvider.getBoolean(CONFIG_INVERSION_STRICT, true));
+
+    Properties configProperties = loadConfigurationFile(minimalProvider);
     if (configProperties.isEmpty()) {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
