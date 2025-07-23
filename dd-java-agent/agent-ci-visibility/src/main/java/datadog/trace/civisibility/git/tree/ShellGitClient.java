@@ -161,15 +161,13 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
-   * @param unshallowUntilCommit Only unshallow up until the commit provided, or use the time limit
-   *     configured if not. Ignored if no reference is provided.
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean unshallowUntilCommit)
+  public void unshallow(@Nullable String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
@@ -177,14 +175,7 @@ public class ShellGitClient implements GitClient {
           String remote = getRemoteName();
 
           // refetch data from the server for the given period of time
-          if (remoteCommitReference != null) {
-            if (!GitUtils.isValidRef(remoteCommitReference)) {
-              return (Void) null;
-            }
-            String boundaryArg =
-                unshallowUntilCommit
-                    ? "--no-write-fetch-head"
-                    : String.format("--shallow-since='%s'", latestCommitsSince);
+          if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
             String commitSha = getSha(remoteCommitReference);
             commandExecutor.executeCommand(
                 ShellCommandExecutor.OutputParser.IGNORE,
@@ -193,7 +184,7 @@ public class ShellGitClient implements GitClient {
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
-                boundaryArg,
+                String.format("--shallow-since='%s'", latestCommitsSince),
                 remote,
                 commitSha);
           } else {
@@ -207,6 +198,40 @@ public class ShellGitClient implements GitClient {
                 String.format("--shallow-since='%s'", latestCommitsSince),
                 remote);
           }
+
+          return (Void) null;
+        });
+  }
+
+  /**
+   * Fetches provided commit object from the server.
+   *
+   * @param commitReference Commit to fetch from the remote repository
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   */
+  @Override
+  public void fetchCommit(String commitReference)
+      throws IOException, TimeoutException, InterruptedException {
+    if (!GitUtils.isValidRef(commitReference)) {
+      return;
+    }
+    executeCommand(
+        Command.OTHER,
+        () -> {
+          String remote = getRemoteName();
+
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              "git",
+              "fetch",
+              "--update-shallow",
+              "--filter=blob:none",
+              "--recurse-submodules=no",
+              "--no-write-fetch-head",
+              remote,
+              commitReference);
 
           return (Void) null;
         });

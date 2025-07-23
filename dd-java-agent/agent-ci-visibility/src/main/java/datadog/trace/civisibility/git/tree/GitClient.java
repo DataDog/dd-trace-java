@@ -20,7 +20,10 @@ public interface GitClient {
   boolean isCommitPresent(String commitReference)
       throws IOException, TimeoutException, InterruptedException;
 
-  void unshallow(@Nullable String remoteCommitReference, boolean unshallowUntilCommit)
+  void unshallow(@Nullable String remoteCommitReference)
+      throws IOException, TimeoutException, InterruptedException;
+
+  void fetchCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable

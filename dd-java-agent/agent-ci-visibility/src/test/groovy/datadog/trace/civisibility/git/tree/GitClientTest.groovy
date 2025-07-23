@@ -84,41 +84,35 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow(remoteSha, false)
+    gitClient.unshallow(remoteSha)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
     then:
-    shallow == isShallow
-    commits.size() == numCommits
+    !shallow
+    commits.size() == 10
 
     where:
-    remoteSha      | isShallow | numCommits
-    GitClient.HEAD | false     | 10
-    null           | false     | 10
+    remoteSha << [GitClient.HEAD, null]
   }
 
-  def "test unshallow using commit as boundary"() {
+  def "test commit fetch"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
     when:
     def commit = "f4377e97f10c2d58696192b170b2fef2a8464b04"
     def gitClient = givenGitClient()
-    def shallow = gitClient.isShallow()
     def isPresent = gitClient.isCommitPresent(commit)
 
     then:
-    shallow
     !isPresent
 
     when:
-    gitClient.unshallow(commit, true)
-    shallow = gitClient.isShallow()
+    gitClient.fetchCommit(commit)
     isPresent = gitClient.isCommitPresent(commit)
 
     then:
-    shallow
     isPresent
   }
 
