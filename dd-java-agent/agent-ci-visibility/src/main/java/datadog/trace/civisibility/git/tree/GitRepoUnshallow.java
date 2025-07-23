@@ -20,14 +20,27 @@ public class GitRepoUnshallow {
     this.gitClient = gitClient;
   }
 
-  public synchronized boolean unshallow(@Nullable String commit)
+  /**
+   * Unshallows git repo up to a specific boundary commit, if provided, or up to the time limit
+   * configured in the git client if not.
+   *
+   * @param boundaryCommitSha used as boundary for the unshallowing if provided.
+   * @return false if unshallowing is not enabled or unnecessary, true otherwise
+   */
+  public synchronized boolean unshallow(@Nullable String boundaryCommitSha)
       throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }
 
     long unshallowStart = System.currentTimeMillis();
-    if (commit == null) {
+    if (boundaryCommitSha != null) {
+      try {
+        gitClient.unshallow(boundaryCommitSha, true);
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        LOGGER.debug("Could not unshallow to specific boundary {}", boundaryCommitSha, e);
+      }
+    } else {
       try {
         gitClient.unshallow(GitClient.HEAD, false);
       } catch (ShellCommandExecutor.ShellCommandFailedException e) {
@@ -44,12 +57,6 @@ public class GitRepoUnshallow {
             "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
             e);
         gitClient.unshallow(null, false);
-      }
-    } else {
-      try {
-        gitClient.unshallow(commit, true);
-      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-        LOGGER.debug("Could not unshallow specific commit {}", commit, e);
       }
     }
     LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);

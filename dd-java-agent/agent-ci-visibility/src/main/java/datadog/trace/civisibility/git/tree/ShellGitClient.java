@@ -129,14 +129,15 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
-   * @param onlyFetchCommit Only fetch the specific commit provided.
+   * @param shallowUntilCommit Only unshallow up until the commit provided, or use the time limit
+   *     configured if not. Ignored if no reference is provided.
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
    * @throws InterruptedException If current thread was interrupted while waiting for Git command to
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean onlyFetchCommit)
+  public void unshallow(@Nullable String remoteCommitReference, boolean shallowUntilCommit)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
@@ -144,9 +145,12 @@ public class ShellGitClient implements GitClient {
           String remote = getRemoteName();
 
           // refetch data from the server for the given period of time
-          if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
-            String onlyFetchCommitArg =
-                onlyFetchCommit
+          if (remoteCommitReference != null) {
+            if (!GitUtils.isValidRef(remoteCommitReference)) {
+              return (Void) null;
+            }
+            String boundaryArg =
+                shallowUntilCommit
                     ? "--no-write-fetch-head"
                     : String.format("--shallow-since='%s'", latestCommitsSince);
             String commitSha = getSha(remoteCommitReference);
@@ -157,7 +161,7 @@ public class ShellGitClient implements GitClient {
                 "--update-shallow",
                 "--filter=blob:none",
                 "--recurse-submodules=no",
-                onlyFetchCommitArg,
+                boundaryArg,
                 remote,
                 commitSha);
           } else {
