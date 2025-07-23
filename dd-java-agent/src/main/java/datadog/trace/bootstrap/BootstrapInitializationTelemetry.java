@@ -239,7 +239,8 @@ public abstract class BootstrapInitializationTelemetry {
       }
     }
 
-    public byte[] json() {
+    @Override
+    public String toString() {
       try (JsonWriter writer = new JsonWriter()) {
         writer.beginObject();
         writer.name("metadata").beginObject();
@@ -273,13 +274,13 @@ public abstract class BootstrapInitializationTelemetry {
         writer.endArray();
         writer.endObject();
 
-        return writer.toByteArray();
+        return writer.toString();
       }
     }
   }
 
   public interface JsonSender {
-    void send(Telemetry telemetry);
+    void send(Object telemetry);
   }
 
   public static final class ForwarderJsonSender implements JsonSender {
@@ -290,7 +291,7 @@ public abstract class BootstrapInitializationTelemetry {
     }
 
     @Override
-    public void send(Telemetry telemetry) {
+    public void send(Object telemetry) {
       ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, telemetry);
       t.setDaemon(true);
       t.start();
@@ -299,9 +300,9 @@ public abstract class BootstrapInitializationTelemetry {
 
   public static final class ForwarderJsonSenderThread extends Thread {
     private final String forwarderPath;
-    private final Telemetry telemetry;
+    private final Object telemetry;
 
-    public ForwarderJsonSenderThread(String forwarderPath, Telemetry telemetry) {
+    public ForwarderJsonSenderThread(String forwarderPath, Object telemetry) {
       super("dd-forwarder-json-sender");
       this.forwarderPath = forwarderPath;
       this.telemetry = telemetry;
@@ -314,7 +315,7 @@ public abstract class BootstrapInitializationTelemetry {
 
       // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
       try (final Closeable ignored = muteTracing()) {
-        byte[] payload = telemetry.json();
+        byte[] payload = telemetry.toString().getBytes();
 
         Process process = builder.start();
         try (OutputStream out = process.getOutputStream()) {

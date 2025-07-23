@@ -1,10 +1,7 @@
 package datadog.trace.bootstrap
 
-import datadog.trace.bootstrap.BootstrapInitializationTelemetry.Telemetry
 import groovy.json.JsonBuilder
 import spock.lang.Specification
-
-import static java.nio.charset.StandardCharsets.UTF_8
 
 class BootstrapInitializationTelemetryTest extends Specification {
   Capture capture
@@ -107,14 +104,14 @@ class BootstrapInitializationTelemetryTest extends Specification {
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {
-    Telemetry telemetry
+    Object telemetry
 
-    void send(Telemetry telemetry) {
+    void send(Object telemetry) {
       this.telemetry = telemetry
     }
 
     String json() {
-      return new String(telemetry.json(), UTF_8)
+      return telemetry.toString()
     }
   }
 }
