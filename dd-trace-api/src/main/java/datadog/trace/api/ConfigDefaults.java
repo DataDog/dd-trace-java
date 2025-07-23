@@ -84,6 +84,8 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
+  static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
+      Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 

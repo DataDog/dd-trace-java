@@ -26,6 +26,8 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   private Filter filter = ACCEPT_ALL;
 
+  private MetadataConsumer metadataConsumer = MetadataConsumer.NO_OP;
+
   public List<DDSpan> firstTrace() {
     return get(0);
   }
@@ -38,7 +40,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     for (DDSpan span : trace) {
       // This is needed to properly do all delayed processing to make this writer even
       // remotely realistic so the test actually test something
-      span.processTagsAndBaggage(MetadataConsumer.NO_OP);
+      span.processTagsAndBaggage(metadataConsumer);
     }
 
     add(trace);
@@ -115,6 +117,11 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
    */
   public void setFilter(Filter filter) {
     this.filter = filter;
+  }
+
+  /** Set a {@link MetadataConsumer} to capture what trace metadata would be sent to the agent. */
+  public void setMetadataConsumer(MetadataConsumer metadataConsumer) {
+    this.metadataConsumer = metadataConsumer;
   }
 
   private boolean isReported(DDSpan span) {

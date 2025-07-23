@@ -5,6 +5,7 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -23,6 +24,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -76,6 +78,8 @@ public class DDSpanContext
 
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
+
+  private final Baggage w3cBaggage;
 
   // Not Shared with other span contexts
   private final DDTraceId traceId;
@@ -187,6 +191,7 @@ public class DDSpanContext
         samplingPriority,
         origin,
         baggageItems,
+        null,
         errorFlag,
         spanType,
         tagsSize,
@@ -233,6 +238,7 @@ public class DDSpanContext
         samplingPriority,
         origin,
         baggageItems,
+        null,
         errorFlag,
         spanType,
         tagsSize,
@@ -279,6 +285,7 @@ public class DDSpanContext
         samplingPriority,
         origin,
         baggageItems,
+        null,
         errorFlag,
         spanType,
         tagsSize,
@@ -304,6 +311,7 @@ public class DDSpanContext
       final int samplingPriority,
       final CharSequence origin,
       final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
@@ -331,6 +339,7 @@ public class DDSpanContext
     } else {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
+    this.w3cBaggage = w3cBaggage;
 
     this.requestContextDataAppSec = requestContextDataAppSec;
     this.requestContextDataIast = requestContextDataIast;
@@ -926,6 +935,9 @@ public class DDSpanContext
       Map<String, String> baggageItemsWithPropagationTags;
       if (injectBaggageAsTags) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+        if (w3cBaggage != null) {
+          injectW3CBaggageTags(baggageItemsWithPropagationTags);
+        }
         propagationTags.fillTagMap(baggageItemsWithPropagationTags);
       } else {
         baggageItemsWithPropagationTags = propagationTags.createTagMap();
@@ -945,6 +957,27 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization()));
+    }
+  }
+
+  void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
+    List<String> baggageTagKeys = Config.get().getTraceBaggageTagKeys();
+    if (baggageTagKeys.isEmpty()) {
+      return;
+    }
+    Map<String, String> w3cBaggageItems = w3cBaggage.asMap();
+    for (String key : baggageTagKeys) {
+      if ("*".equals(key)) {
+        // If the key is "*", we add all baggage items
+        for (Map.Entry<String, String> entry : w3cBaggageItems.entrySet()) {
+          baggageItemsWithPropagationTags.put("baggage." + entry.getKey(), entry.getValue());
+        }
+        break;
+      }
+      String value = w3cBaggageItems.get(key);
+      if (value != null) {
+        baggageItemsWithPropagationTags.put("baggage." + key, value);
+      }
     }
   }
 
