@@ -1,7 +1,7 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
@@ -9,16 +9,16 @@ import jdk.jfr.Event;
 import jdk.jfr.EventType;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
-import jdk.jfr.Period;
 import jdk.jfr.StackTrace;
 
 @Name("datadog.AggregatedSmapEntry")
 @Label("Aggregated Smap Entry")
 @Description("Entry for the entries from the smaps file aggregated by NMT category")
 @Category("Datadog")
-@Period("beginChunk")
 @StackTrace(false)
 public class AggregatedSmapEntryEvent extends Event {
+  private static final EventType TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
+
   @Label("NMT Category")
   private final String nmtCategory;
 
@@ -31,26 +31,12 @@ public class AggregatedSmapEntryEvent extends Event {
     this.rss = rss;
   }
 
-  public static void emit() {
-    if (EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
-      HashMap<String, Long> aggregatedSmapEntries = new HashMap<>();
-      List<? extends Event> collectedEvents = SmapEntryFactory.collectEvents();
-      // A single entry should only be expected for the error cases
-      if (collectedEvents.size() > 1) {
-        collectedEvents.forEach(
-            entry -> {
-              aggregatedSmapEntries.merge(
-                  ((SmapEntryEvent) entry).getNmtCategory(),
-                  ((SmapEntryEvent) entry).getRss(),
-                  Long::sum);
-            });
-        aggregatedSmapEntries.forEach(
-            (nmtCategory, rss) -> {
-              new AggregatedSmapEntryEvent(nmtCategory, rss).commit();
-            });
-      } else {
-        collectedEvents.forEach(Event::commit);
-      }
+  static void emit(List<SmapEntryEvent> events) {
+    if (TYPE.isEnabled()) {
+      events.stream()
+          .collect(Collectors.groupingBy(e -> e.nmtCategory, Collectors.summingLong(e -> e.rss)))
+          .forEach(
+              (category, totalRss) -> new AggregatedSmapEntryEvent(category, totalRss).commit());
     }
   }
 }
