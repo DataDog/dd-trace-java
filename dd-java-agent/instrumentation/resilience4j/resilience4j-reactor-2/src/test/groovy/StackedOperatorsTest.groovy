@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator
 import io.github.resilience4j.reactor.retry.RetryOperator
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryConfig
@@ -9,26 +11,26 @@ import reactor.core.scheduler.Schedulers
 
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
-class RetryTest extends AgentTestRunner {
+class StackedOperatorsTest extends AgentTestRunner {
 
-  def "decorateCompletionStage retry twice on error"() {
+  def "test stacked operators retry(circuitbreaker(retry(circuitbreaker)))"() {
     setup:
-    ConnectableFlux<String> connection = Flux//.just("foo", "bar")
-      //      .<String>error(new IllegalStateException("error"), true)
-      //      .map { serviceCall(it) }
+    ConnectableFlux<String> connection = Flux
       .just("abc", "def")
-      //      .map({ serviceCall(it)})
-      .map({ serviceCallErr(it, new IllegalStateException("error"))})
+      .map({ serviceCall(it)})
+      //      .map({ serviceCallErr(it, new IllegalStateException("error"))})
       //      .transformDeferred(RetryOperator.of(Retry.of("R2", RetryConfig.custom().maxAttempts(3).build())))
-      //      .transformDeferred(RetryOperator.of(Retry.of("R1", RetryConfig.custom().maxAttempts(3).build())))
+      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C2")))
+      .transformDeferred(RetryOperator.of(Retry.of("R1", RetryConfig.custom().maxAttempts(3).build())))
+      .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C1"))) // TODO test various combination of stacked operators
       .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
       .publishOn(Schedulers.boundedElastic())
       .publish()
 
     when:
-    connection.subscribe {
-      runnableUnderTrace("child-" + it) {} // won't show up because of errors upstream
-    }
+    //    connection.subscribe {
+    //      runnableUnderTrace("child-" + it) {} // won't show up because of errors upstream
+    //    }
 
     runnableUnderTrace("parent", {
       connection.connect()
@@ -36,7 +38,7 @@ class RetryTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(4) {
+      trace(7) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -49,16 +51,40 @@ class RetryTest extends AgentTestRunner {
           errored false
         }
         span(2) {
-          operationName "serviceCallErr/abc"
+          operationName "C1"
           childOf span(1)
           errored false
         }
-        // second attempt span under the retry span
         span(3) {
-          operationName "serviceCallErr/abc"
-          childOf span(1)
+          operationName "R1"
+          childOf span(2)
           errored false
         }
+        span(4) {
+          operationName "C2"
+          childOf span(3)
+          errored false
+        }
+        span(5) {
+          operationName "serviceCall/abc"
+          childOf span(4)
+          errored false
+        }
+        span(6) {
+          operationName "serviceCall/def"
+          childOf span(4)
+          errored false
+        }
+        //        span(5) {
+        //          operationName "child-abc"
+        //          childOf span(4)
+        //          errored false
+        //        }
+        //        span(5) {
+        //          operationName "child-def"
+        //          childOf span(4)
+        //          errored false
+        //        }
       }
     }
   }

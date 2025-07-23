@@ -116,7 +116,7 @@ class RetryTest extends AgentTestRunner {
     def executor = Executors.newSingleThreadExecutor()
     when:
     Supplier<CompletionStage<String>> supplier = Decorators
-      .ofCompletionStage {
+      .<String>ofCompletionStage {
         CompletableFuture.supplyAsync({
           serviceCallErr(new IllegalStateException("error"))
         }, executor)

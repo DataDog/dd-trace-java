@@ -1,16 +1,22 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
 @AutoService(InstrumenterModule.class)
@@ -45,16 +51,34 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
         CircuitBreakerOperatorInstrumentation.class.getName() + "$ApplyAdvice");
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    final Map<String, String> ret = new HashMap<>();
+    //    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
+    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
+    return ret;
+  }
+
   public static class ApplyAdvice {
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
+        @Advice.Argument(value = 0, readOnly = false) Publisher<?> source,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result,
         @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
-
       if (result instanceof Flux) {
-        result =
-            ReactorHelper.wrapFlux(
-                (Flux<?>) result, CircuitBreakerDecorator.DECORATE, circuitBreaker);
+        AgentSpan span = startSpan(circuitBreaker.getName());
+
+        Flux<?> flux = (Flux<?>) result;
+
+        Flux<?> newResult = flux.doFinally(ReactorHelper.beforeFinish(span));
+
+        // for the circuit breaker publisher we should only assign a span to the source publisher,
+        // which is just enough
+        // whereas for the retry we shouldn't attach to the source because it's reused
+        // TODO test if it will work with an open circuit breaker
+        InstrumentationContext.get(Publisher.class, AgentSpan.class).putIfAbsent(source, span);
+        result = newResult;
       } // TODO mono
     }
   }
