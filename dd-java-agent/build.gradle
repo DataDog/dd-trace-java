@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 description = 'dd-java-agent'
@@ -83,6 +83,16 @@ ext.generalShadowJarConfig = {
   exclude '**/com/kenai/jffi/Init.class'
   relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
 
+  // Minimize and relocate the airlift compressor dependency for ZSTD
+  exclude '**/io/airlift/compress/bzip2/**'
+  exclude '**/io/airlift/compress/deflate/**'
+  exclude '**/io/airlift/compress/gzip/**'
+  exclude '**/io/airlift/compress/hadoop/**'
+  exclude '**/io/airlift/compress/lz4/**'
+  exclude '**/io/airlift/compress/lzo/**'
+  exclude '**/io/airlift/compress/snappy/**'
+  relocate 'io.airlift', 'datadog.io.airlift'
+
   final String projectName = "${project.name}"
 
   // Prevents conflict with other instances, but doesn't relocate instrumentation
@@ -156,6 +166,7 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
+includeSubprojShadowJar ':dd-java-agent:agent-llmobs', 'llm-obs'
 includeSubprojShadowJar ':dd-java-agent:agent-logs-intake', 'logs-intake'
 includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
 
@@ -164,7 +175,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
-  it.destinationDirectory.set(file("${project.buildDir}/shared-lib"))
+  it.destinationDirectory.set(project.layout.buildDirectory.dir("shared-lib"))
   // Add a classifier so we don't confuse the jar file with the normal shadow jar
   archiveClassifier = 'shared'
   it.dependencies {
@@ -182,7 +193,7 @@ includeShadowJar(sharedShadowJar, 'shared')
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
   configurations = [project.configurations.traceShadowInclude]
-  it.destinationDirectory.set(file("${project.buildDir}/trace-lib"))
+  it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
   archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
@@ -240,7 +251,8 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 
 dependencies {
   implementation project(path: ':components:json')
-  implementation project(path: ':components:cli')
+  // Depend on the bootstrap-specific shadow configuration to avoid having the same component reused by both bootstrap and agent
+  implementation project(path: ':components:environment', configuration: 'shadow')
   modules {
     module("com.squareup.okio:okio") {
       replacedBy("com.datadoghq.okio:okio") // embed our patched fork
@@ -254,12 +266,16 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation project(':utils:test-agent-utils:decoder')
+
   testImplementation libs.bundles.test.logging
   testImplementation libs.guava
   testImplementation libs.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
+  shadowInclude project(path: ':components:environment', configuration: 'shadow')
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
@@ -295,6 +311,9 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
+    transitive = false
+  }
+  sharedShadowInclude project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow'), {
     transitive = false
   }
   traceShadowInclude project(':dd-trace-core')

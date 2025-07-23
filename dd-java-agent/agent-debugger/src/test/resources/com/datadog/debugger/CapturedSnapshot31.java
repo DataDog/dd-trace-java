@@ -21,9 +21,30 @@ public class CapturedSnapshot31 {
     if ("duplicateLocalDifferentScope".equals(arg)) {
       return new CapturedSnapshot31().duplicateLocalDifferentScope(arg);
     }
+    if ("mixingIntAndLong".equals(arg)) {
+      return new CapturedSnapshot31().mixingIntAndLong(arg);
+    }
+    if ("mixingIntAndChar".equals(arg)) {
+      return new CapturedSnapshot31().mixingIntAndChar(arg);
+    }
+    if ("sameSlotAndTypeDifferentName".equals(arg)) {
+      return new CapturedSnapshot31().sameSlotAndTypeDifferentName(arg);
+    }
+    if ("mixingIntAndRefType".equals(arg)) {
+      return new CapturedSnapshot31().mixingIntAndRefType(arg);
+    }
+    if ("sameSlotAndNameOneReturn".equals(arg)) {
+      return new CapturedSnapshot31().sameSlotAndNameOneReturn(arg);
+    }
     return 0;
   }
 
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //            0      46     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      46     1   arg   Ljava/lang/String;
+  //           20      26     2 varStr   Ljava/lang/String;
+  //           44       2     3   len   I
   private int uncaughtException(String arg) {
     String varStr = arg + "foo";
     if (varStr.endsWith("foo")) {
@@ -70,6 +91,12 @@ public class CapturedSnapshot31 {
     return localVarL0;
   }
 
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //           41       6     2    ex   Ljava/lang/IllegalStateException;
+  //           48       6     2    ex   Ljava/lang/IllegalArgumentException;
+  //            0      54     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      54     1   arg   Ljava/lang/String;
   private int caughtException(String arg) {
     try {
       if ("illegalState".equals(arg)) {
@@ -115,6 +142,12 @@ public class CapturedSnapshot31 {
     return subStr.length();
   }
 
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //           20      37     2    ch   C
+  //           83      48     5    ch   C
+  //            0     142     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0     142     1   arg   Ljava/lang/String;
   private int duplicateLocalDifferentScope(String arg) {
     if (arg == null) {
       return 0;
@@ -133,5 +166,109 @@ public class CapturedSnapshot31 {
       }
       return arg.length();
     }
+  }
+
+  //  LocalVariableTable:
+//        Start  Length  Slot  Name   Signature
+//            7       7     2     i   I
+//           10       4     3     j   I
+//           19      25     4     i   I
+//           16      31     2     l   J
+//            0      47     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+//            0      47     1   arg   Ljava/lang/String;
+//
+// when hoisting j local var we will extend the range and then overlap to the l range. But longs
+// are occupying two slots, so we need to consider l having slot 2 and 3 and prevent j to be hoisted
+  private int mixingIntAndLong(String arg) {
+    if (arg == null) {
+      int i = 42;
+      int j = 84;
+      return i + j;
+    } else {
+      long l = 0;
+      for (int i = 0; i < arg.length(); i++) {
+        l += arg.charAt(i);
+      }
+      return (int) l;
+    }
+  }
+
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //            7       2     2     i   I
+  //           12       2     2     c   C
+  //            0      14     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      14     1   arg   Ljava/lang/String;
+  //
+  // when hoisting c local var we will extend the range and then overlap to the i range. But chars
+  // are considered at bytecode level as ints. BUT chars are unsigned shorts and treating them as
+  // signed int can lead to unexpected results (cf Character.valueOf(char) with negative value)
+  private int mixingIntAndChar(String arg) {
+    if (arg != null) {
+      int i = -327;
+      return i;
+    } else {
+      char c = 'a';
+      return (int)c;
+    }
+  }
+
+
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //            9       2     2     i   I
+  //           19       5     2     o   Ljava/lang/Object;
+  //            0      24     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      24     1   arg   Ljava/lang/String;
+  private int mixingIntAndRefType(String arg) {
+    if (arg != null) {
+      int i = arg.length();
+      return i;
+    } else {
+      Object o = new Object();
+      return o.hashCode();
+    }
+  }
+
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //           13       5     2     p   Ljava/lang/Object;
+  //           26       5     2     r   Ljava/lang/Object;
+  //           39       5     2     o   Ljava/lang/Object;
+  //            0      44     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      44     1   arg   Ljava/lang/String;
+  private int sameSlotAndTypeDifferentName(String arg) {
+    if (arg != null) {
+      if (arg.length() > 0) {
+        Object p = arg;
+        return arg.length();
+      } else {
+        Object r = new Object();
+        return r.hashCode();
+      }
+    } else {
+      Object o = new Object();
+      return o.hashCode();
+    }
+  }
+
+  //  LocalVariableTable:
+  //        Start  Length  Slot  Name   Signature
+  //            6       5     3     o   Ljava/lang/String;
+  //           11       3     2 result   I
+  //           22       5     3     o   Ljava/lang/Object;
+  //            0      29     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+  //            0      29     1   arg   Ljava/lang/String;
+  //           27       2     2 result   I
+  private int sameSlotAndNameOneReturn(String arg) {
+    int result;
+    if (arg != null) {
+      String o = arg;
+      result = arg.length();
+    } else {
+      Object o = new Object();
+      result = o.hashCode();
+    }
+    return result;
   }
 }

@@ -12,10 +12,11 @@ public class OTWithAgentApplication {
   public static void main(final String[] args) throws InterruptedException {
     final Tracer tracer = GlobalTracer.get();
 
-    ApiVerification.verifyInterceptors(datadog.trace.api.GlobalTracer.get());
+    boolean throwError = args != null && args.length > 0 && Boolean.parseBoolean(args[0]);
+    ApiVerification.verifyInterceptors(datadog.trace.api.GlobalTracer.get(), throwError);
 
     final Span span = tracer.buildSpan("someOperation").start();
-    try (final Scope scope = tracer.activateSpan(span)) {
+    try (final Scope ignored = tracer.activateSpan(span)) {
       span.setTag(DDTags.SERVICE_NAME, "someService");
       // Verify that the returned object is wrapped correctly.
       Span root = (Span) ((MutableSpan) tracer.activeSpan()).getLocalRootSpan();

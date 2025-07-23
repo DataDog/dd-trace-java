@@ -53,7 +53,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
-  private static final String CHANGED_FILES_URI = "ci/tests/diffs";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
   private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
   private static final String TEST_MANAGEMENT_TESTS_URI = "test/libraries/test-management/tests";
@@ -68,7 +67,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementDto>> testManagementRequestAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
-  private final JsonAdapter<EnvelopeDto<ChangedFiles>> changedFilesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> RandomUtils.randomUUID().toString());
@@ -119,11 +117,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, EnvelopeDto.class, TestManagementTestsDto.class);
     testManagementTestsResponseAdapter = moshi.adapter(testManagementTestsResponseType);
-
-    ParameterizedType changedFilesResponseAdapterType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, ChangedFiles.class);
-    changedFilesResponseAdapter = moshi.adapter(changedFilesResponseAdapterType);
   }
 
   @Override
@@ -326,7 +319,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   @Override
   public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment) throws IOException {
+      TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
+      throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST)
@@ -343,9 +337,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                 "ci_app_libraries_tests_request",
                 new TestManagementDto(
                     tracerEnvironment.getRepositoryUrl(),
-                    tracerEnvironment.getCommitMessage(),
+                    commitMessage,
                     tracerEnvironment.getConfigurations().getTestBundle(),
-                    tracerEnvironment.getSha())));
+                    commitSha)));
     String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     TestManagementTestsDto testManagementTestsDto =
@@ -414,37 +408,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         testManagementTestsCount);
 
     return testsByTypeByModule;
-  }
-
-  @Override
-  public ChangedFiles getChangedFiles(TracerEnvironment tracerEnvironment) throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST)
-            .requestErrors(CiVisibilityCountMetric.IMPACTED_TESTS_DETECTION_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_REQUEST_MS)
-            .responseBytes(CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_BYTES)
-            .build();
-
-    String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_tests_diffs_request", tracerEnvironment));
-    String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
-    ChangedFiles changedFiles =
-        backendApi.post(
-            CHANGED_FILES_URI,
-            requestBody,
-            is ->
-                changedFilesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            telemetryListener,
-            false);
-
-    int filesCount = changedFiles.getFiles().size();
-    LOGGER.debug("Received {} changed files", filesCount);
-    metricCollector.add(
-        CiVisibilityDistributionMetric.IMPACTED_TESTS_DETECTION_RESPONSE_FILES, filesCount);
-    return changedFiles;
   }
 
   private static final class EnvelopeDto<T> {

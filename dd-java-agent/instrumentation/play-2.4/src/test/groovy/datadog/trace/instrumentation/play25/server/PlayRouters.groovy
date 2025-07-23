@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play25.server
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.transform.CompileStatic
@@ -130,7 +129,7 @@ class PlayRouters {
         ->
         JsonNode json = body().asJson()
         controller(BODY_JSON) {
-          Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+          Results.status(BODY_JSON.status, json)
         }
       } as Supplier)
       .build()
@@ -253,7 +252,7 @@ class PlayRouters {
         CompletableFuture.supplyAsync({
           ->
           controller(BODY_JSON) {
-            Results.status(BODY_JSON.status, new ObjectMapper().writeValueAsString(json))
+            Results.status(BODY_JSON.status, json)
           }
         }, execContext)
       } as Supplier)

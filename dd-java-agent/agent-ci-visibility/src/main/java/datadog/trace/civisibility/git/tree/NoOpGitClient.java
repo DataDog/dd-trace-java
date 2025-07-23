@@ -20,7 +20,7 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public void unshallow(@Nullable String remoteCommitReference) {
+  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly) {
     // no op
   }
 
@@ -123,6 +123,18 @@ public class NoOpGitClient implements GitClient {
 
   @Override
   public Path createPackFiles(List<String> objectHashes) {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  public String getBaseCommitSha(@Nullable String baseBranch, @Nullable String defaultBranch) {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  public String getMergeBase(@Nullable String base, @Nullable String source) {
     return null;
   }
 

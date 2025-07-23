@@ -17,7 +17,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
   int port = PortUtils.randomOpenPort()
 
   @Shared
-  RedisServer redisServer = RedisServer.builder()
+  RedisServer redisServer = RedisServer.newRedisServer()
   // bind to localhost to avoid firewall popup
   .setting("bind 127.0.0.1")
   // set max memory to avoid problems in CI
@@ -35,7 +35,7 @@ abstract class Jedis40ClientTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    println "Using redis: $redisServer.args"
+    println "Using redis: $redisServer.@args"
     redisServer.start()
   }
 

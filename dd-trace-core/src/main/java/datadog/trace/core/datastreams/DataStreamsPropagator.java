@@ -1,13 +1,15 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.context.Context.root;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
@@ -17,26 +19,21 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.io.IOException;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class DataStreamsPropagator implements Propagator {
   private final DataStreamsMonitoring dataStreamsMonitoring;
-  private final Supplier<TraceConfig> traceConfigSupplier;
   private final TimeSource timeSource;
   private final long hashOfKnownTags;
   private final ThreadLocal<String> serviceNameOverride;
 
   public DataStreamsPropagator(
       DataStreamsMonitoring dataStreamsMonitoring,
-      Supplier<TraceConfig> traceConfigSupplier,
       TimeSource timeSource,
       long hashOfKnownTags,
       ThreadLocal<String> serviceNameOverride) {
     this.dataStreamsMonitoring = dataStreamsMonitoring;
-    this.traceConfigSupplier = traceConfigSupplier;
     this.timeSource = timeSource;
     this.hashOfKnownTags = hashOfKnownTags;
     this.serviceNameOverride = serviceNameOverride;
@@ -45,13 +42,13 @@ public class DataStreamsPropagator implements Propagator {
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
     // TODO Pathway context needs to be stored into its own context element instead of span context
-    AgentSpan span = AgentSpan.fromContext(context);
-    DataStreamsContext dsmContext = DataStreamsContext.fromContext(context);
+    AgentSpan span;
     PathwayContext pathwayContext;
-    if (span == null
-        || dsmContext == null
+    DataStreamsContext dsmContext;
+    if ((span = AgentSpan.fromContext(context)) == null
         || (pathwayContext = span.context().getPathwayContext()) == null
-        || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+        || (dsmContext = DataStreamsContext.fromContext(context)) == null
+        || !traceConfig().isDataStreamsEnabled()) {
       return;
     }
 
@@ -69,12 +66,12 @@ public class DataStreamsPropagator implements Propagator {
     try {
       String encodedContext = pathwayContext.encode();
       if (encodedContext != null) {
-        //        LOGGER.debug("Injecting pathway context {}", pathwayContext);
+        // LOGGER.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
         return true;
       }
     } catch (IOException e) {
-      //      LOGGER.debug("Unable to set encode pathway context", e);
+      // LOGGER.debug("Unable to set encode pathway context", e);
     }
     return false;
   }
@@ -82,18 +79,18 @@ public class DataStreamsPropagator implements Propagator {
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
     // TODO Pathway context needs to be stored into its own context element instead of span context
-    // Get span context to store pathway context into
-    TagContext spanContext = getSpanContextOrNull(context);
     PathwayContext pathwayContext;
     // Ensure if DSM is enabled and look for pathway context
-    if (isDsmEnabled(spanContext)
+    if (traceConfig().isDataStreamsEnabled()
         && (pathwayContext = extractDsmPathwayContext(carrier, visitor)) != null) {
-      // Store pathway context into span context
+      // Get span context to store pathway context into
+      TagContext spanContext = getSpanContextOrNull(context);
       if (spanContext == null) {
         spanContext = new TagContext();
-        AgentSpan span = AgentSpan.fromSpanContext(spanContext);
-        context = Context.root().with(span);
+        AgentSpan span = fromSpanContext(spanContext);
+        context = root().with(span);
       }
+      // Store pathway context into span context
       spanContext.withPathwayContext(pathwayContext);
     }
     return context;
@@ -107,14 +104,6 @@ public class DataStreamsPropagator implements Propagator {
       return (TagContext) extractedSpanContext;
     }
     return null;
-  }
-
-  private boolean isDsmEnabled(@Nullable TagContext tagContext) {
-    TraceConfig traceConfig = tagContext == null ? null : tagContext.getTraceConfig();
-    if (traceConfig == null) {
-      traceConfig = this.traceConfigSupplier.get();
-    }
-    return traceConfig.isDataStreamsEnabled();
   }
 
   private <C> PathwayContext extractDsmPathwayContext(C carrier, CarrierVisitor<C> visitor) {

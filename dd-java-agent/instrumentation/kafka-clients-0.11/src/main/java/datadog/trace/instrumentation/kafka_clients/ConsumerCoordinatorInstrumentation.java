@@ -2,20 +2,15 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.core.datastreams.TagsProcessor.CONSUMER_GROUP_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.PARTITION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -105,17 +100,15 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         if (entry.getKey() == null || entry.getValue() == null) {
           continue;
         }
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(CONSUMER_GROUP_TAG, consumerGroup);
-        if (clusterId != null) {
-          sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
-        }
-        sortedTags.put(PARTITION_TAG, String.valueOf(entry.getKey().partition()));
-        sortedTags.put(TOPIC_TAG, entry.getKey().topic());
-        sortedTags.put(TYPE_TAG, "kafka_commit");
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .trackBacklog(sortedTags, entry.getValue().offset());
+
+        DataStreamsTags tags =
+            DataStreamsTags.createWithPartition(
+                "kafka_commit",
+                entry.getKey().topic(),
+                String.valueOf(entry.getKey().partition()),
+                clusterId,
+                consumerGroup);
+        AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
       }
     }
 

@@ -6,6 +6,7 @@ import java.util.Collection;
 public interface ConfigurationAcceptor {
   enum Source {
     REMOTE_CONFIG,
+    LOCAL_FILE,
     CODE_ORIGIN,
     EXCEPTION
   }

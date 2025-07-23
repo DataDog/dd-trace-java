@@ -6,6 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
 import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -43,11 +44,28 @@ public class MainVerticle extends AbstractVerticle {
                     .putHeader("content-type", "text/plain")
                     .end(randomFactorial().toString()));
 
+    router
+        .route("/api_security/sampling/:status_code")
+        .handler(
+            ctx ->
+                ctx.response()
+                    .setStatusCode(Integer.parseInt(ctx.request().getParam("status_code")))
+                    .end("EXECUTED"));
+
+    router.route("/api_security/response").handler(BodyHandler.create());
+    router
+        .route("/api_security/response")
+        .handler(
+            ctx -> {
+              ctx.response().setStatusCode(200);
+              ctx.json(ctx.getBodyAsJson());
+            });
+
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(
             req -> {
-              if (req.path().startsWith("/routes")) {
+              if (req.path().startsWith("/routes") || req.path().startsWith("/api_security")) {
                 router.handle(req);
               } else {
                 req.response()

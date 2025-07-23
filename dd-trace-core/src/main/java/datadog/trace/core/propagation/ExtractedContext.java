@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -44,7 +45,7 @@ public class ExtractedContext extends TagContext {
       final CharSequence origin,
       final long endToEndStartTime,
       final Map<String, String> baggage,
-      final Map<String, String> tags,
+      final TagMap tags,
       final HttpHeaders httpHeaders,
       final PropagationTags propagationTags,
       final TraceConfig traceConfig,
@@ -62,6 +63,36 @@ public class ExtractedContext extends TagContext {
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
     this.propagationTags = propagationTags;
+  }
+
+  /*
+   * DQH - kept for testing purposes only
+   */
+  @Deprecated
+  public ExtractedContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final int samplingPriority,
+      final CharSequence origin,
+      final long endToEndStartTime,
+      final Map<String, String> baggage,
+      final Map<String, Object> tags,
+      final HttpHeaders httpHeaders,
+      final PropagationTags propagationTags,
+      final TraceConfig traceConfig,
+      final TracePropagationStyle propagationStyle) {
+    this(
+        traceId,
+        spanId,
+        samplingPriority,
+        origin,
+        endToEndStartTime,
+        baggage,
+        tags == null ? null : TagMap.fromMap(tags),
+        httpHeaders,
+        propagationTags,
+        traceConfig,
+        propagationStyle);
   }
 
   @Override

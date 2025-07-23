@@ -1,14 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static java.util.Collections.emptyMap;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
-import java.util.Map;
 
 class NoopSpan extends ImmutableSpan implements AgentSpan {
   static final NoopSpan INSTANCE = new NoopSpan();
@@ -81,8 +79,8 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
   }
 
   @Override
-  public Map<String, Object> getTags() {
-    return emptyMap();
+  public TagMap getTags() {
+    return TagMap.EMPTY;
   }
 
   @Override

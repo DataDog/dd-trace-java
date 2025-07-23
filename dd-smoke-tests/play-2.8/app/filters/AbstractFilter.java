@@ -7,7 +7,6 @@ import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
-import javax.inject.*;
 import play.libs.concurrent.HttpExecutionContext;
 import play.mvc.*;
 

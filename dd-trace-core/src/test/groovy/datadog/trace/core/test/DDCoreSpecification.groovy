@@ -70,6 +70,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       prioritySampling,
       null,
       [:],
+      null,
       false,
       spanType,
       0,

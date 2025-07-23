@@ -27,6 +27,27 @@ class ContextPreservingInstrumentationTest extends AgentTestRunner {
     assertParentChildTrace()
   }
 
+  def "capturedContext without an active span"() {
+    when:
+    runInSeparateThread {
+      try (def _ = asyncContextProvider.captureContext().attachContext()) {
+        childSpan()
+      }
+    }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "child"
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "wrapBiConsumer"() {
     setup:
     def parent = startParentContext()

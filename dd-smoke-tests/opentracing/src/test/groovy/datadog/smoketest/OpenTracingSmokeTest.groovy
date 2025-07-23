@@ -9,8 +9,6 @@ import static java.util.concurrent.TimeUnit.SECONDS
 abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation, plus request, plus some extra
   public static final int TIMEOUT_SECS = 30
-  // Timeout for individual requests
-  public static final int REQUEST_TIMEOUT = 5
 
   List<String> baseCommand() {
     List<String> command = new ArrayList<>()
@@ -48,6 +46,18 @@ class OTWithAgentTest extends OpenTracingSmokeTest {
   ProcessBuilder createProcessBuilder() {
     List<String> command = baseCommand()
     command.add(OTWithAgentApplication.name)
+
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(new File(buildDirectory))
+  }
+}
+
+class OTWithAgentAssertionErrorTest extends OpenTracingSmokeTest {
+  @Override
+  ProcessBuilder createProcessBuilder() {
+    List<String> command = baseCommand()
+    command.add(OTWithAgentApplication.name)
+    command.add("true")
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))

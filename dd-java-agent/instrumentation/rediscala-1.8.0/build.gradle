@@ -54,7 +54,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
 
   testImplementation group: 'com.github.etaty', name: 'rediscala_2.11', version: '1.8.0'
-  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+  testImplementation group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3'
 
   latestDepTestImplementation group: 'com.github.etaty', name: 'rediscala_2.11', version: '+'
 }

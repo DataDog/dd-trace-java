@@ -28,8 +28,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
         "-Ddd.writer.type=DDAgentWriter"
-      ] as String[]
-      , ["30000"] as String[]
+      ]
+      , ["30000"]
       , [:]
       , System.getProperty("java.class.path"))
 
@@ -64,8 +64,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.jmxfetch.start-delay=0",
         "-Ddd.jmxfetch.statsd.host=example.local",
         "-Ddd.writer.type=DDAgentWriter"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true)
 
@@ -89,8 +89,8 @@ class JMXFetchTest extends Specification {
         "-Ddd.trace.debug=true",
         "-Ddd.writer.type=DDAgentWriter"
       ]
-      + configSettings as String[]
-      , "" as String[]
+      + configSettings as List<CharSequence>
+      , []
       , [:]
       , new PrintStream(testOutput))
 

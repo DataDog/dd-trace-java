@@ -1,3 +1,7 @@
+ext {
+  // Quarkus is only supported up to Java 21: https://github.com/quarkusio/quarkus
+  maxJavaVersionForTests = JavaVersion.VERSION_21
+}
 
 apply from: "$rootDir/gradle/java.gradle"
 

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.ToLongFunction;
 
 /** Represents any value of the expression language */
 public interface Value<T> {
@@ -63,6 +64,11 @@ public interface Value<T> {
         throw new UnsupportedOperationException("Cannot convert value from type: " + typeName);
       }
       value = toString.apply(value);
+    }
+    if (WellKnownClasses.isLongPrimitive(typeName)) {
+      ToLongFunction<Object> longPrimitiveValueFunction =
+          WellKnownClasses.getLongPrimitiveValueFunction(typeName);
+      value = longPrimitiveValueFunction.applyAsLong(value);
     }
     if (value instanceof Boolean) {
       return new BooleanValue((Boolean) value);

@@ -1,6 +1,6 @@
 package com.datadog.profiling.controller.jfr;
 
-import datadog.trace.api.Platform;
+import datadog.environment.JavaVirtualMachine;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -24,7 +24,7 @@ public class JPMSJFRAccess extends JFRAccess {
 
     @Override
     public JFRAccess create(Instrumentation inst) {
-      if (!Platform.isJ9() && Platform.isJavaVersionAtLeast(9)) {
+      if (!JavaVirtualMachine.isJ9() && JavaVirtualMachine.isJavaVersionAtLeast(9)) {
         try {
           return new JPMSJFRAccess(inst);
         } catch (Exception e) {

@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.play24;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -12,6 +16,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
+import java.util.function.BiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -19,6 +26,7 @@ import scala.Option;
 
 public class PlayHttpServerDecorator
     extends HttpServerDecorator<Request, Request, Result, Headers> {
+  private static final Logger LOG = LoggerFactory.getLogger(PlayHttpServerDecorator.class);
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
@@ -88,9 +96,41 @@ public class PlayHttpServerDecorator
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
+        dispatchRoute(span, path);
       }
     }
     return span;
+  }
+
+  /**
+   * Play does not set the http.route in the local root span so we need to store it in the context
+   * for API security
+   */
+  private void dispatchRoute(final AgentSpan span, final String route) {
+    try {
+      final RequestContext ctx = span.getRequestContext();
+      if (ctx == null) {
+        return;
+      }
+      // Send event to AppSec provider
+      final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+      if (cbp != null) {
+        final BiConsumer<RequestContext, String> cb = cbp.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
+        }
+      }
+      // Send event to IAST provider
+      final CallbackProvider cbpIast = tracer().getCallbackProvider(RequestContextSlot.IAST);
+      if (cbpIast != null) {
+        final BiConsumer<RequestContext, String> cb = cbpIast.getCallback(EVENTS.httpRoute());
+        if (cb != null) {
+          cb.accept(ctx, route);
+        }
+      }
+    } catch (final Throwable t) {
+      LOG.debug("Failed to dispatch route", t);
+    }
   }
 
   @Override

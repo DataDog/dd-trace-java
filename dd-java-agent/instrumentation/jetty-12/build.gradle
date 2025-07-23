@@ -29,7 +29,9 @@ addTestSuiteForDir('ee9Test', 'test/ee9')
 addTestSuiteExtendingForDir('ee9LatestDepTest', 'latestDepTest', 'test/ee9')
 // ee10
 addTestSuiteForDir('ee10Test', 'test/ee10')
+addTestSuiteExtendingForDir('ee10ForkedTest', 'ee10Test', 'test/ee10')
 addTestSuiteExtendingForDir('ee10LatestDepTest', 'latestDepTest', 'test/ee10')
+addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'test/ee10')
 
 [compileMain_java17Java, compileTestJava].each {
   it.configure {

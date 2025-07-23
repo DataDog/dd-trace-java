@@ -698,6 +698,7 @@
       "BITRISE_BUILD_SLUG": "bitrise-pipeline-id",
       "BITRISE_BUILD_URL": "https://bitrise-build-url.com//",
       "BITRISE_GIT_MESSAGE": "bitrise-git-commit-message",
+      "BITRISE_PULL_REQUEST": 42,
       "BITRISE_TRIGGERED_WORKFLOW_ID": "bitrise-pipeline-name",
       "GIT_CLONE_COMMIT_HASH": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123"
     },
@@ -709,7 +710,8 @@
       "ci.provider.name": "bitrise",
       "git.commit.message": "bitrise-git-commit-message",
       "git.commit.sha": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
-      "git.pull_request.base_branch": "target-branch"
+      "git.pull_request.base_branch": "target-branch",
+      "pr.number": "42"
     }
   ]
 ]

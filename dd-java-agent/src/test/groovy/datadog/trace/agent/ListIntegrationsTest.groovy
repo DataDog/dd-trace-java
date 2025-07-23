@@ -13,8 +13,8 @@ class ListIntegrationsTest extends Specification {
     def testOutput = new ByteArrayOutputStream()
     expect:
     IntegrationTestUtils.runOnSeparateJvm(AgentJar.name
-      , [] as String[]
-      , ["-li"] as String[]
+      , []
+      , ["-li"]
       , [:]
       , new PrintStream(testOutput)) == 0
     !new String(testOutput.toByteArray()).contains("ERROR")

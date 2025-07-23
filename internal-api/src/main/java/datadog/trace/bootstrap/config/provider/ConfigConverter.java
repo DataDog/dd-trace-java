@@ -318,6 +318,12 @@ final class ConfigConverter {
                     "Illegal tag starting with non letter for key '" + key + "'");
               }
             } else {
+              // If wildcard exists, we do not allow other header mappings
+              if (key.charAt(0) == '*') {
+                map.clear();
+                map.put(key, defaultPrefix);
+                return;
+              }
               if (Character.isLetter(key.charAt(0))) {
                 value = defaultPrefix + Strings.normalizedHeaderTag(key);
               } else {

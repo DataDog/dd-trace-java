@@ -1,5 +1,6 @@
 package datadog.trace.api.git;
 
+import datadog.trace.util.Strings;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
@@ -48,9 +49,25 @@ public class PersonInfo {
   }
 
   public boolean isEmpty() {
-    return (name == null || name.isEmpty())
-        && (email == null || email.isEmpty())
-        && (iso8601Date == null || iso8601Date.isEmpty());
+    return Strings.isBlank(name) && Strings.isBlank(email) && Strings.isBlank(iso8601Date);
+  }
+
+  public boolean isComplete() {
+    return Strings.isNotBlank(name) && Strings.isNotBlank(email) && Strings.isNotBlank(iso8601Date);
+  }
+
+  /**
+   * Merges info by completing the empty information fields with the fallback's
+   *
+   * @param info Base person info
+   * @param fallback Fallback person info
+   * @return Completed person info
+   */
+  public static PersonInfo merge(final PersonInfo info, final PersonInfo fallback) {
+    return new PersonInfo(
+        Strings.isNotBlank(info.name) ? info.name : fallback.name,
+        Strings.isNotBlank(info.email) ? info.email : fallback.email,
+        Strings.isNotBlank(info.iso8601Date) ? info.iso8601Date : fallback.iso8601Date);
   }
 
   @Override

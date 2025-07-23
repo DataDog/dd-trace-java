@@ -1,5 +1,7 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
@@ -10,10 +12,16 @@ import datadog.trace.common.writer.ddintake.DDEvpProxyApi
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
-
+import groovy.json.JsonBuilder
 import java.util.stream.Collectors
-
-import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
+import okhttp3.Call
+import okhttp3.HttpUrl
+import okhttp3.MediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody
 
 class WriterFactoryTest extends DDSpecification {
 
@@ -27,19 +35,30 @@ class WriterFactoryTest extends DDSpecification {
     config.isCiVisibilityEnabled() >> true
     config.isCiVisibilityCodeCoverageEnabled() >> false
 
-    def agentFeaturesDiscovery = Mock(DDAgentFeaturesDiscovery)
-    agentFeaturesDiscovery.getEvpProxyEndpoint() >> DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
-    agentFeaturesDiscovery.supportsContentEncodingHeadersWithEvpProxy() >> evpProxySupportsCompression
+    // Mock agent info response
+    def response = buildHttpResponse(hasEvpProxy, evpProxySupportsCompression, HttpUrl.parse(config.agentUrl + "/info"))
 
+    // Mock HTTP client that simulates delayed response for async feature discovery
+    def mockCall = Mock(Call)
+    def mockHttpClient = Mock(OkHttpClient)
+    mockCall.execute() >> {
+      // Add a delay
+      sleep(400)
+      return response
+    }
+    mockHttpClient.newCall(_ as Request) >> mockCall
+
+    // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
-    sharedComm.setFeaturesDiscovery(agentFeaturesDiscovery)
+    sharedComm.okHttpClient = mockHttpClient
+    sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
     sharedComm.createRemaining(config)
 
     def sampler = Mock(Sampler)
 
     when:
-    agentFeaturesDiscovery.supportsEvpProxy() >> hasEvpProxy
     config.ciVisibilityAgentlessEnabled >> isCiVisibilityAgentlessEnabled
+
     def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, HealthMetrics.NO_OP, configuredType)
 
     def apis
@@ -76,5 +95,29 @@ class WriterFactoryTest extends DDSpecification {
     "not-found"                                | true        | false                       | false                          | DDIntakeWriter       | [DDEvpProxyApi]    | false
     "not-found"                                | false       | false                       | true                           | DDIntakeWriter       | [DDIntakeApi]      | true
     "not-found"                                | false       | false                       | false                          | DDAgentWriter        | [DDAgentApi]       | false
+  }
+
+  Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
+    def endpoints = []
+    if (hasEvpProxy && evpProxySupportsCompression) {
+      endpoints = [DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT]
+    } else if (hasEvpProxy) {
+      endpoints = [DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT]
+    } else {
+      endpoints = [DDAgentFeaturesDiscovery.V4_ENDPOINT]
+    }
+
+    def response = [
+      "version" : "7.40.0",
+      "endpoints"  : endpoints,
+    ]
+
+    def builder = new Response.Builder()
+      .code(200)
+      .message("OK")
+      .protocol(Protocol.HTTP_1_1)
+      .request(new Request.Builder().url(agentUrl.resolve("/info")).build())
+      .body(ResponseBody.create(MediaType.parse("application/json"), new JsonBuilder(response).toString()))
+    return builder.build()
   }
 }

@@ -135,32 +135,36 @@ class ConfigConverterTest extends DDSpecification {
 
   def "test parseMapWithOptionalMappings"() {
     when:
-    def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", "", lowercaseKeys)
+    def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", defaultPrefix, lowercaseKeys)
 
     then:
     result == expected
 
     where:
-    mapString                     | expected                               | lowercaseKeys
-    "header1:one,header2:two"     | [header1: "one", header2: "two"]       | false
-    "header1:one, header2:two"    | [header1: "one", header2: "two"]       | false
-    "header1,header2:two"         | [header1: "header1", header2: "two"]   | false
-    "Header1:one,header2:two"     | [header1: "one", header2: "two"]       | true
-    "\"header1:one,header2:two\"" | ["\"header1": "one", header2: "two\""] | true
-    "header1"                     | [header1: "header1"]                   | true
-    ",header1:tag"                | [header1: "tag"]                       | true
-    "header1:tag,"                | [header1: "tag"]                       | true
-    "header:tag:value"            | [header: "tag:value"]                  | true
-    ""                            | [:]                                    | true
-    null                          | [:]                                    | true
-
+    mapString                     | expected                               | lowercaseKeys | defaultPrefix
+    "header1:one,header2:two"     | [header1: "one", header2: "two"]       | false         | ""
+    "header1:one, header2:two"    | [header1: "one", header2: "two"]       | false         | ""
+    "header1,header2:two"         | [header1: "header1", header2: "two"]   | false         | ""
+    "Header1:one,header2:two"     | [header1: "one", header2: "two"]       | true          | ""
+    "\"header1:one,header2:two\"" | ["\"header1": "one", header2: "two\""] | true          | ""
+    "header1"                     | [header1: "header1"]                   | true          | ""
+    ",header1:tag"                | [header1: "tag"]                       | true          | ""
+    "header1:tag,"                | [header1: "tag"]                       | true          | ""
+    "header:tag:value"            | [header: "tag:value"]                  | true          | ""
+    ""                            | [:]                                    | true          | ""
+    null                          | [:]                                    | true          | ""
+    // Test for wildcard header tags
+    "*"                           | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
+    "*:"                          | [:]                                    | true          | "datadog.response.headers"
+    "*,header1:tag"               | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
+    "header1:tag,*"               | ["*":"datadog.response.headers."]      | true          | "datadog.response.headers"
     // logs warning: Illegal key only tag starting with non letter '1header'
-    "1header,header2:two"         | [:]                                    | true
+    "1header,header2:two"         | [:]                                    | true          | ""
     // logs warning: Illegal tag starting with non letter for key 'header'
-    "header::tag"                 | [:]                                    | true
+    "header::tag"                 | [:]                                    | true          | ""
     // logs warning: Illegal empty key at position 0
-    ":tag"                        | [:]                                    | true
+    ":tag"                        | [:]                                    | true          | ""
     // logs warning: Illegal empty key at position 11
-    "header:tag,:tag"             | [:]                                    | true
+    "header:tag,:tag"             | [:]                                    | true          | ""
   }
 }

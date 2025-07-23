@@ -17,6 +17,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -172,14 +173,12 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:out", "topic:somequeue", "type:sqs")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
       }
     }
 
@@ -629,8 +628,7 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == -2734507826469073289 }
 
     verifyAll(first) {
-      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-      edgeTags.size() == 3
+      tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
     }
 
     cleanup:
@@ -659,8 +657,7 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
     verifyAll(first) {
-      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-      edgeTags.size() == 3
+      tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
     }
 
     cleanup:
@@ -690,8 +687,10 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
     StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
     verifyAll(first) {
-      edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-      edgeTags.size() == 3
+      tags.direction == DataStreamsTags.DIRECTION_TAG + ":in"
+      tags.topic == DataStreamsTags.TOPIC_TAG + ":somequeue"
+      tags.type == DataStreamsTags.TYPE_TAG + ":sqs"
+      tags.nonNullSize() == 3
     }
 
     cleanup:

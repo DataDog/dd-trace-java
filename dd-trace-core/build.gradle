@@ -37,6 +37,8 @@ excludedClassesCoverage += [
   // Interface with an empty defender method
   'datadog.trace.core.propagation.HttpCodec.Extractor',
   'datadog.trace.core.flare.*',
+  'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper',
+  'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper.PayloadV1',
   // FIXME(DSM): test coverage needed
   'datadog.trace.core.datastreams.DataStreamContextInjector',
   'datadog.trace.common.sampling.TraceSamplingRules.RuleAdapter',

@@ -1,18 +1,27 @@
 package com.datadog.appsec.event.data
 
 import com.datadog.appsec.gateway.AppSecRequestContext
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.test.util.DDSpecification
+import groovy.json.JsonBuilder
+import groovy.json.JsonOutput
 import spock.lang.Shared
 
 import java.nio.CharBuffer
 
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS
+import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE
 import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
 class ObjectIntrospectionSpecification extends DDSpecification {
 
   @Shared
   protected static final ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get()
+
+  @Shared
+  protected static final MAPPER = new ObjectMapper()
 
   AppSecRequestContext ctx = Mock(AppSecRequestContext)
 
@@ -317,5 +326,178 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     1 * ctx.setWafTruncated()
     1 * wafMetricCollector.wafInputTruncated(true, false, false)
     1 * listener.onTruncation()
+  }
+
+  void 'jackson node types comprehensive coverage'() {
+    when:
+    final result = convert(input, ctx)
+
+    then:
+    result == expected
+
+    where:
+    input                                          || expected
+    MAPPER.readTree('null')                        || null
+    MAPPER.readTree('true')                        || true
+    MAPPER.readTree('false')                       || false
+    MAPPER.readTree('42')                          || 42
+    MAPPER.readTree('3.14')                        || 3.14
+    MAPPER.readTree('"hello"')                     || 'hello'
+    MAPPER.readTree('[]')                          || []
+    MAPPER.readTree('{}')                          || [:]
+    MAPPER.readTree('[1, 2, 3]')                   || [1, 2, 3]
+    MAPPER.readTree('{"key": "value"}')            || [key: 'value']
+  }
+
+  void 'jackson nested structures'() {
+    when:
+    final result = convert(input, ctx)
+
+    then:
+    result == expected
+
+    where:
+    input                                          || expected
+    MAPPER.readTree('{"a": {"b": {"c": 123}}}')    || [a: [b: [c: 123]]]
+    MAPPER.readTree('[[[1, 2]], [[3, 4]]]')        || [[[1, 2]], [[3, 4]]]
+    MAPPER.readTree('{"arr": [1, null, true]}')    || [arr: [1, null, true]]
+    MAPPER.readTree('[{"x": 1}, {"y": 2}]')        || [[x: 1], [y: 2]]
+  }
+
+  void 'jackson edge cases'() {
+    when:
+    final result = convert(input, ctx)
+
+    then:
+    result == expected
+
+    where:
+    input                                          || expected
+    MAPPER.readTree('""')                          || ''
+    MAPPER.readTree('0')                           || 0
+    MAPPER.readTree('-1')                          || -1
+    MAPPER.readTree('9223372036854775807')         || 9223372036854775807L  // Long.MAX_VALUE
+    MAPPER.readTree('1.7976931348623157E308')      || 1.7976931348623157E308d  // Double.MAX_VALUE
+    MAPPER.readTree('{"": "empty_key"}')           || ['': 'empty_key']
+    MAPPER.readTree('{"null_value": null}')        || [null_value: null]
+  }
+
+  void 'jackson string truncation'() {
+    setup:
+    final longString = 'A' * (MAX_STRING_SIZE + 1)
+    final jsonInput = '{"long": "' + longString + '"}'
+
+    when:
+    final result = convert(MAPPER.readTree(jsonInput), ctx)
+
+    then:
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(true, false, false)
+    result["long"].length() <= MAX_STRING_SIZE
+  }
+
+  void 'jackson with deep nesting triggers depth limit'() {
+    setup:
+    // Create deeply nested JSON
+    final json = JsonOutput.toJson(
+    (1..(MAX_DEPTH + 1)).inject([:], { result, i -> [("child_$i".toString()) : result] })
+    )
+
+    when:
+    final result = convert(MAPPER.readTree(json), ctx)
+
+    then:
+    // Should truncate at max depth and set truncation flag
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, false, true)
+    countNesting(result as Map, 0) <= MAX_DEPTH
+  }
+
+  void 'jackson with large arrays triggers element limit'() {
+    setup:
+    // Create large array
+    final largeArray = (1..(MAX_ELEMENTS + 1)).toList()
+    final json = new JsonBuilder(largeArray).toString()
+
+    when:
+    final result = convert(MAPPER.readTree(json), ctx) as List
+
+    then:
+    // Should truncate and set truncation flag
+    1 * ctx.setWafTruncated()
+    1 * wafMetricCollector.wafInputTruncated(false, true, false)
+    result.size() <= MAX_ELEMENTS
+  }
+
+  void 'jackson number type variations'() {
+    when:
+    final result = convert(input, ctx)
+
+    then:
+    result == expected
+
+    where:
+    input                                          || expected
+    MAPPER.readTree('0')                           || 0
+    MAPPER.readTree('1')                           || 1
+    MAPPER.readTree('-1')                          || -1
+    MAPPER.readTree('1.0')                         || 1.0
+    MAPPER.readTree('1.5')                         || 1.5
+    MAPPER.readTree('-1.5')                        || -1.5
+    MAPPER.readTree('1e10')                        || 1e10
+    MAPPER.readTree('1.23e-4')                     || 1.23e-4
+  }
+
+  void 'jackson special string values'() {
+    when:
+    final result = convert(input, ctx)
+
+    then:
+    result == expected
+
+    where:
+    input                                          || expected
+    MAPPER.readTree('"\\n"')                       || '\n'
+    MAPPER.readTree('"\\t"')                       || '\t'
+    MAPPER.readTree('"\\r"')                       || '\r'
+    MAPPER.readTree('"\\\\"')                      || '\\'
+    MAPPER.readTree('"\\"quotes\\""')              || '"quotes"'
+    MAPPER.readTree('"unicode: \\u0041"')          || 'unicode: A'
+  }
+
+  void 'iterable json objects'() {
+    setup:
+    final map = [name: 'This is just a test', list: [1, 2, 3, 4, 5]]
+
+    when:
+    final result = convert(new IterableJsonObject(map), ctx)
+
+    then:
+    result == map
+  }
+
+  private static int countNesting(final Map<String, Object>object, final int levels) {
+    if (object.isEmpty()) {
+      return levels
+    }
+    final child = object.values().first()
+    if (child == null) {
+      return levels
+    }
+    return countNesting(object.values().first() as Map, levels + 1)
+  }
+
+  private static class IterableJsonObject implements Iterable<Map.Entry<String, Object>> {
+
+    private final Map<String, Object> map
+
+    IterableJsonObject(Map<String, Object> map) {
+      this.map = map
+    }
+
+    @Override
+    Iterator<Map.Entry<String, Object>> iterator() {
+      return map.entrySet().iterator()
+    }
   }
 }

@@ -40,7 +40,7 @@ abstract class CITagsProviderTest extends Specification {
   def "test ci provider info is set properly: #ciSpec.providerName #ciSpec.idx #ciSpec.testCaseName"() {
     setup:
     ciSpec.env.each {
-      environmentVariables.set(it.key, it.value)
+      environmentVariables.set(it.key, it.value.toString())
       if (it.key == "HOME") {
         System.setProperty("user.home", it.value)
       }

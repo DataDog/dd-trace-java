@@ -12,8 +12,8 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.function.BiPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,81 +104,61 @@ public class StableConfigParser {
     return true; // Return true if all selectors match
   }
 
-  private static boolean validOperatorForLanguageOrigin(String operator) {
-    operator = operator.toLowerCase();
-    // "exists" is not valid
-    switch (operator) {
-      case "equals":
-      case "starts_with":
-      case "ends_with":
-      case "contains":
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  private static boolean checkEnvMatches(
-      List<String> values, List<String> matches, BiPredicate<String, String> compareFunc) {
-    // envValue shouldn't be null, but doing an extra check to avoid NullPointerException on
-    // compareFunc.test
-    if (values == null) {
+  private static boolean matchOperator(String value, String operator, List<String> matches) {
+    if (value == null || operator == null) {
       return false;
     }
+    if ("exists".equals(operator)) {
+      return true;
+    }
+    if (matches == null || matches.isEmpty()) {
+      return false;
+    }
+    value = value.toLowerCase(Locale.ROOT);
     for (String match : matches) {
       if (match == null) {
         continue;
       }
-      for (String value : values) {
-        if (compareFunc.test(value, match.toLowerCase())) {
-          return true;
-        }
+      match = match.toLowerCase(Locale.ROOT);
+      switch (operator) {
+        case "equals":
+          return value.equals(match);
+        case "starts_with":
+          return value.startsWith(match);
+        case "ends_with":
+          return value.endsWith(match);
+        case "contains":
+          return value.contains(match);
+        default:
+          return false;
       }
     }
     return false;
   }
 
-  // We do all of the case insensitivity modifications in this function, because each selector will
+  // We do all the case insensitivity modifications in this function, because each selector will
   // be viewed just once
   static boolean selectorMatch(String origin, List<String> matches, String operator, String key) {
-    switch (origin.toLowerCase()) {
+    if (operator == null) {
+      return false;
+    }
+    operator = operator.toLowerCase(Locale.ROOT);
+    switch (origin.toLowerCase(Locale.ROOT)) {
       case "language":
-        if (!validOperatorForLanguageOrigin(operator)) {
+        if ("exists".equals(operator)) {
           return false;
         }
-        for (String entry : matches) {
-          // loose match on any reference to "*java*"
-          if (entry.toLowerCase().contains("java")) {
-            return true;
-          }
-        }
+        return matchOperator("java", operator, matches);
       case "environment_variables":
         if (key == null) {
           return false;
         }
-        String envValue = System.getenv(key.toUpperCase());
-        if (envValue == null) {
+        String envValue = System.getenv(key.toUpperCase(Locale.ROOT));
+        return matchOperator(envValue, operator, matches);
+      case "process_arguments":
+        if (key == null) {
           return false;
         }
-        envValue = envValue.toLowerCase();
-        switch (operator.toLowerCase()) {
-          case "exists":
-            // We don't care about the value
-            return true;
-          case "equals":
-            return checkEnvMatches(
-                Collections.singletonList(envValue), matches, String::equalsIgnoreCase);
-          case "starts_with":
-            return checkEnvMatches(
-                Collections.singletonList(envValue), matches, String::startsWith);
-          case "ends_with":
-            return checkEnvMatches(Collections.singletonList(envValue), matches, String::endsWith);
-          case "contains":
-            return checkEnvMatches(Collections.singletonList(envValue), matches, String::contains);
-          default:
-            return false;
-        }
-      case "process_arguments":
         // TODO: flesh out the meaning of each operator for process_arguments
         if (!key.startsWith("-D")) {
           log.warn(
@@ -186,8 +166,8 @@ public class StableConfigParser {
               key);
           return false;
         }
-        // Cut the -D prefix
-        return System.getProperty(key.substring(2)) != null;
+        String argValue = System.getProperty(key.substring(2));
+        return matchOperator(argValue, operator, matches);
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
         return false;
@@ -249,7 +229,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar.toUpperCase());
+      String value = System.getenv(envVar.toUpperCase(Locale.ROOT));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }

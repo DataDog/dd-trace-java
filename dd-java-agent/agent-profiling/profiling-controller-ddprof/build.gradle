@@ -23,13 +23,12 @@ excludedClassesCoverage += [
 dependencies {
   api libs.slf4j
   api project(':internal-api')
-  implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
+  api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation project(':dd-java-agent:agent-profiling')
 }
 

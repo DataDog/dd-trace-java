@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -199,12 +200,13 @@ public class ProbeConditionTest {
   }
 
   @Test
-  void stringPrimitives() throws IOException {
+  void primitives() throws IOException {
     ProbeCondition probeCondition = loadFromResource("/test_conditional_10.json");
     Map<String, Object> args = new HashMap<>();
     args.put("uuid", UUID.fromString("a3cbe9e7-edd3-4bef-8e5b-59bfcb04cf91"));
     args.put("duration", Duration.ofSeconds(42));
     args.put("clazz", "foo".getClass());
+    args.put("now", new Date(1700000000000L)); // 2023-11-14T00:00:00Z
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null);
     assertTrue(probeCondition.execute(ctx));
   }

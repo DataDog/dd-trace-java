@@ -208,7 +208,7 @@ public class ExceptionProbeInstrumentationTest {
 
   @Test
   @DisabledIf(
-      value = "datadog.trace.api.Platform#isJ9",
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();

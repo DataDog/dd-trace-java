@@ -116,7 +116,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   def startTestAgentContainer() {
     //noinspection GrDeprecatedAPIUsage Use FixedHostPortGenericContainer against deprecation because we need to know the exposed to configure the tracer at start
-    def agentContainer = new FixedHostPortGenericContainer("ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0")
+    def agentContainer = new FixedHostPortGenericContainer("ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.27.1")
       .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
       .withEnv("ENABLED_CHECKS", "trace_count_header,meta_tracer_version_header,trace_content_length")
       .waitingFor(Wait.forHttp("/test/traces"))

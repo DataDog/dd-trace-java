@@ -6,7 +6,9 @@ import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import datadog.trace.instrumentation.servlet3.HtmlRumServlet
 import datadog.trace.instrumentation.servlet3.TestServlet3
+import datadog.trace.instrumentation.servlet3.XmlRumServlet
 import groovy.servlet.AbstractHttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
@@ -167,8 +169,8 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.throwsException) {
       ["error.message": "${endpoint.body}",
-        "error.type": { it == Exception.name || it == InputMismatchException.name },
-        "error.stack": String]
+        "error.type"   : { it == Exception.name || it == InputMismatchException.name },
+        "error.stack"  : String]
     } else {
       Collections.emptyMap()
     }
@@ -233,6 +235,19 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   }
 }
 
+class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
+  @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler servletContextHandler) {
+    super.setupServlets(servletContextHandler)
+    addServlet(servletContextHandler, "/gimme-html", HtmlRumServlet)
+    addServlet(servletContextHandler, "/gimme-xml", XmlRumServlet)
+  }
+}
 
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
 
@@ -260,6 +275,7 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
 class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
 
 }
+
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 
   @Override
@@ -586,16 +602,16 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     client.newCall(request).execute()
 
     then:
-    1 *  appModule.onRealPath(_)
-    1 *  appModule.checkSessionTrackingModes(_)
+    1 * appModule.onRealPath(_)
+    1 * appModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
     client.newCall(request).execute()
 
     then: //Only call once per application context
-    0 *  appModule.onRealPath(_)
-    0 *  appModule.checkSessionTrackingModes(_)
+    0 * appModule.onRealPath(_)
+    0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
 

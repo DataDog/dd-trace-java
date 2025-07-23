@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
 import io.netty.util.concurrent.DefaultEventExecutorGroup
-import io.netty.util.concurrent.Future
 import io.netty.util.concurrent.GenericProgressiveFutureListener
+import io.netty.util.concurrent.ProgressiveFuture
 import io.netty.util.concurrent.ProgressivePromise
 import spock.lang.Shared
 
@@ -61,15 +61,12 @@ class NettyProgressivePromiseTest extends AbstractPromiseTest<ProgressivePromise
     when:
     runUnderTrace("parent") {
       def listeners = iterations.collect { int i ->
-        return new GenericProgressiveFutureListener<Future<?>>() {
-
-            @Override
-            void operationComplete(Future<?> future) throws Exception {
+        return new GenericProgressiveFutureListener<ProgressiveFuture<?>>() {
+            void operationComplete(ProgressiveFuture<?> future) throws Exception {
               runUnderTrace("listen$i") {}
             }
 
-            @Override
-            void operationProgressed(Future<?> future, long progress, long total) throws Exception {
+            void operationProgressed(ProgressiveFuture<?> future, long progress, long total) throws Exception {
               runUnderTrace("progress$i") {}
             }
           }

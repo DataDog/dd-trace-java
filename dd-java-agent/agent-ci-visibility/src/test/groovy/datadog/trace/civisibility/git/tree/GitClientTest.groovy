@@ -1,17 +1,17 @@
 package datadog.trace.civisibility.git.tree
 
-import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import static datadog.trace.civisibility.TestUtils.lines
+
+import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.git.GitObject
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor
-import datadog.communication.util.IOUtils
-import spock.lang.Specification
-import spock.lang.TempDir
-
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-
-import static datadog.trace.civisibility.TestUtils.lines
+import java.util.stream.Collectors
+import spock.lang.Specification
+import spock.lang.TempDir
 
 class GitClientTest extends Specification {
 
@@ -70,7 +70,7 @@ class GitClientTest extends Specification {
     upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
   }
 
-  def "test unshallow: #remoteSha"() {
+  def "test unshallow: sha-#remoteSha parentOnly-#parentOnly"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
@@ -84,16 +84,20 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow(remoteSha)
+    gitClient.unshallow(remoteSha, parentOnly)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
     then:
-    !shallow
-    commits.size() == 10
+    shallow == isShallow
+    commits.size() == numCommits
 
     where:
-    remoteSha << [GitClient.HEAD, null]
+    remoteSha      | parentOnly | isShallow | numCommits
+    GitClient.HEAD | false      | false      | 10
+    null           | false      | false      | 10
+    GitClient.HEAD | true       | true     | 2
+    null           | true       | true     | 2
   }
 
   def "test get git folder"() {
@@ -166,9 +170,9 @@ class GitClientTest extends Specification {
 
     then:
     message == "Adding Git information to test spans (#1242)\n\n" +
-      "* Initial basic GitInfo implementation.\r\n\r\n" +
-      "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-      "* Changes based on the review."
+    "* Initial basic GitInfo implementation.\r\n\r\n" +
+    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
+    "* Changes based on the review."
   }
 
   def "test get author name"() {
@@ -329,6 +333,162 @@ class GitClientTest extends Specification {
     ]
   }
 
+  def "test remove remote prefix"() {
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.removeRemotePrefix(branchName, remoteName) == expected
+
+    where:
+    branchName                 | remoteName | expected
+    "origin/main"              | "origin"   | "main"
+    "upstream/master"          | "upstream" | "master"
+    "origin/feature/test"      | "origin"   | "feature/test"
+    "main"                     | "origin"   | "main"
+    "upstream/main"            | "origin"   | "upstream/main"
+    "upstream/bad_origin/main" | "origin"   | "upstream/bad_origin/main"
+    ""                         | "origin"   | ""
+  }
+
+  def "test branch equals"() {
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.branchesEquals(branchA, branchB, remoteName) == expected
+
+    where:
+    branchA        | branchB       | remoteName | expected
+    "main"         | "main"        | "origin"   | true
+    "upsteam/main" | "main"        | "upsteam"  | true
+    "origin/main"  | "origin/main" | "origin"   | true
+    "main"         | "master"      | "origin"   | false
+    "upsteam/main" | "origin/main" | "origin"   | false
+  }
+
+  def "test base like branch match"() {
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.isBaseLikeBranch(branchName, remoteName) == expected
+
+    where:
+    branchName            | remoteName | expected
+    "main"                | "origin"   | true
+    "master"              | "origin"   | true
+    "preprod"             | "origin"   | true
+    "prod"                | "origin"   | true
+    "dev"                 | "origin"   | true
+    "development"         | "origin"   | true
+    "trunk"               | "origin"   | true
+    "release/v1.0"        | "origin"   | true
+    "release/2023.1"      | "origin"   | true
+    "hotfix/critical"     | "origin"   | true
+    "hotfix/bug-123"      | "origin"   | true
+    "origin/main"         | "origin"   | true
+    "origin/master"       | "origin"   | true
+    "upstream/main"       | "upstream" | true
+    "feature/test"        | "origin"   | false
+    "bugfix/issue-123"    | "origin"   | false
+    "update/dependencies" | "origin"   | false
+    "my-feature-branch"   | "origin"   | false
+    ""                    | "origin"   | false
+    "main-backup"         | "origin"   | false
+    "maintenance"         | "origin"   | false
+  }
+
+  def "test is default branch"() {
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.isDefaultBranch(branch, defaultBranch, remoteName) == expected
+
+    where:
+    branch            | defaultBranch | remoteName | expected
+    "main"            | "main"        | "origin"   | true
+    "master"          | "master"      | "origin"   | true
+    "origin/main"     | "main"        | "origin"   | true
+    "upstream/master" | "master"      | "upstream" | true
+    "feature/test"    | "main"        | "origin"   | false
+    "origin/feature"  | "main"        | "origin"   | false
+    "main"            | "master"      | "origin"   | false
+    "main"            | null          | "origin"   | false
+  }
+
+  def "test get remote name"() {
+    givenGitRepo(repoPath)
+    def gitClient = givenGitClient()
+
+    expect:
+    gitClient.getRemoteName() == remoteName
+
+    where:
+    repoPath                                 | remoteName
+    "ci/git/impacted/ghub_actions_clone/git" | "origin" // get remote from upstream
+    "ci/git/impacted/source_repo/git"        | "origin" // no upstream configured for branch
+    "ci/git/with_pack/git"                   | "origin" // ambiguous '@{upstream}' argument
+  }
+
+  def "test detect default branch"() {
+    given:
+    givenGitRepo("ci/git/impacted/source_repo/git")
+    def gitClient = givenGitClient()
+
+    when:
+    def defaultBranch = gitClient.detectDefaultBranch("origin")
+
+    then:
+    defaultBranch == "master"
+  }
+
+  def "test compute branch metrics"() {
+    given:
+    givenGitRepo("ci/git/impacted/source_repo/git")
+    def gitClient = givenGitClient()
+
+    when:
+    def metrics = gitClient.computeBranchMetrics(["origin/master"], "feature")
+
+    then:
+    metrics == [new ShellGitClient.BaseBranchMetric("origin/master", 0, 1)]
+  }
+
+  def "test sort base branches candidates"() {
+    def gitClient = givenGitClient()
+    def sortedMetrics = gitClient.sortBaseBranchCandidates(metrics, "main", "origin")
+    def sortedBranches = sortedMetrics.collect(m -> m.branch)
+
+    expect:
+    sortedBranches == expectedOrder
+
+    where:
+    metrics                                                     | expectedOrder
+    [
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 1),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["master", "main", "origin/main"]
+    [
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 2),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
+    []                                                          | []
+  }
+
+  def "test get base branch sha: #testcaseName"() {
+    givenGitRepos(["ci/git/impacted/repo_origin", "ci/git/impacted/$repoName"])
+    def gitClient = givenGitClient(repoName)
+
+    expect:
+    gitClient.getBaseCommitSha(baseBranch, null) == expected
+
+    where:
+    testcaseName                                 | repoName             | baseBranch | expected
+    "base branch provided"                       | "source_repo"        | "master"   | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "base branch not provided"                   | "source_repo"        | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "fresh clone with remote cloned into master" | "new_clone"          | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
+    "no remote clone"                            | "no_remote"          | null       | null
+    "Github Actions style clone"                 | "ghub_actions_clone" | null       | "15567afb8426f72157c523d49dd49c24d6fe855e"
+  }
+
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
   }
@@ -336,12 +496,36 @@ class GitClientTest extends Specification {
   private void givenGitRepo(String resourceName) {
     def gitFolder = Paths.get(getClass().getClassLoader().getResource(resourceName).toURI())
     def tempGitFolder = tempDir.resolve(GIT_FOLDER)
-    Files.createDirectories(tempGitFolder)
-    IOUtils.copyFolder(gitFolder, tempGitFolder)
+    copyFolder(gitFolder, tempGitFolder)
+  }
+
+  private void givenGitRepos(List<String> resourceDirs) {
+    def resources = resourceDirs.stream().map(dir -> Paths.get(getClass().getClassLoader().getResource(dir).toURI())).collect(Collectors.toList())
+    for (def resource : resources) {
+      def gitFolder = resource.resolve("git")
+      def destFolder = tempDir.resolve(resource.getFileName())
+      if (Files.isDirectory(gitFolder)) {
+        // repos with git/ folder
+        def tempGitFolder = destFolder.resolve(GIT_FOLDER)
+        copyFolder(gitFolder, tempGitFolder)
+      } else {
+        // dirs with no git/ folder, i.e. a remote
+        copyFolder(resource, destFolder)
+      }
+    }
+  }
+
+  private static void copyFolder(Path src, Path dest) {
+    Files.createDirectories(dest)
+    IOUtils.copyFolder(src, dest)
+  }
+
+  private givenGitClient(String tempRelPath) {
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+    new ShellGitClient(metricCollector, tempDir.resolve(tempRelPath).toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
   }
 
   private givenGitClient() {
-    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    new ShellGitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
+    givenGitClient("")
   }
 }

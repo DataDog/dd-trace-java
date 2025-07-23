@@ -16,7 +16,7 @@ public interface GitClient {
 
   boolean isShallow() throws IOException, TimeoutException, InterruptedException;
 
-  void unshallow(@Nullable String remoteCommitReference)
+  void unshallow(@Nullable String remoteCommitReference, boolean parentOnly)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
@@ -70,6 +70,14 @@ public interface GitClient {
       throws IOException, TimeoutException, InterruptedException;
 
   Path createPackFiles(List<String> objectHashes)
+      throws IOException, TimeoutException, InterruptedException;
+
+  @Nullable
+  String getBaseCommitSha(@Nullable String baseBranch, @Nullable String defaultBranch)
+      throws IOException, TimeoutException, InterruptedException;
+
+  @Nullable
+  String getMergeBase(@Nullable String base, @Nullable String source)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable

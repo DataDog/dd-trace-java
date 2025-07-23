@@ -360,10 +360,12 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     @Override
     public void advice(final String owner, final String name, final String descriptor) {
       if (isSuperCall) {
-        // append this to the stack after super call
-        mv.visitIntInsn(Opcodes.ALOAD, 0);
+        mv.visitIntInsn(Opcodes.ALOAD, 0); // append this to the stack after super call
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
+        mv.visitInsn(Opcodes.POP); // pop the result of the advice call
+      } else {
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
       }
-      mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
     }
 
     @Override

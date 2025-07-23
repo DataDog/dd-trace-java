@@ -21,8 +21,8 @@ class LogLevelTest extends Specification {
         "-Ddd.trace.debug=false",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 1
   }
@@ -35,8 +35,8 @@ class LogLevelTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -48,8 +48,8 @@ class LogLevelTest extends Specification {
         "-Ddd.trace.debug=false",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["DD_TRACE_DEBUG": "true"]
       , true) == 1
   }
@@ -61,8 +61,8 @@ class LogLevelTest extends Specification {
         "-Ddd.trace.debug=true",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , [:]
       , true) == 0
   }
@@ -71,8 +71,8 @@ class LogLevelTest extends Specification {
   def "DD_TRACE_DEBUG is true"() {
     expect:
     IntegrationTestUtils.runOnSeparateJvm(LogLevelChecker.getName()
-      , ["-Ddd.jmxfetch.enabled=false", "-Ddd.trace.enabled=false"] as String[]
-      , "" as String[]
+      , ["-Ddd.jmxfetch.enabled=false", "-Ddd.trace.enabled=false"]
+      , []
       , ["DD_TRACE_DEBUG": "true"]
       , true) == 0
   }
@@ -84,8 +84,8 @@ class LogLevelTest extends Specification {
         "-Ddd.trace.debug=true",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["DD_TRACE_DEBUG": "false"]
       , true) == 0
   }
@@ -98,8 +98,8 @@ class LogLevelTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["DD_TRACE_DEBUG": "false"]
       , true) == 0
   }
@@ -111,8 +111,8 @@ class LogLevelTest extends Specification {
         "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
         "-Ddd.jmxfetch.enabled=false",
         "-Ddd.trace.enabled=false"
-      ] as String[]
-      , "" as String[]
+      ]
+      , []
       , ["DD_TRACE_DEBUG": "true"]
       , true) == 1
   }

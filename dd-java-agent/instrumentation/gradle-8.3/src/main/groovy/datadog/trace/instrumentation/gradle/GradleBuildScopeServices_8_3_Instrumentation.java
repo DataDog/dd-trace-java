@@ -11,8 +11,8 @@ import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.gradle.internal.service.DefaultServiceRegistry;
 import org.gradle.internal.service.ServiceRegistry;
-import org.gradle.internal.service.scopes.BuildScopeServices;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterModule.CiVisibility
@@ -55,10 +55,15 @@ public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterMo
   public static class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterConstructor(
-        @Advice.This final BuildScopeServices buildScopeServices,
+        @Advice.This final DefaultServiceRegistry buildScopeServices,
         @Advice.Argument(0) final ServiceRegistry parentServices) {
       CiVisibilityGradleListenerInjector_8_3.injectCiVisibilityGradleListener(
           buildScopeServices, parentServices);
     }
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
   }
 }

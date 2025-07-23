@@ -45,6 +45,7 @@ import scala.collection.Iterable;
 import scala.collection.Iterator;
 import scala.collection.Seq;
 import scala.compat.java8.JFunction1;
+import scala.math.BigDecimal;
 import scala.xml.Elem;
 import scala.xml.Node;
 import scala.xml.NodeSeq;
@@ -277,7 +278,11 @@ public class BodyParserHelpers {
     log.warn(logMessage, e);
   }
 
-  private static Object jsValueToJavaObject(JsValue value, int maxRecursion) {
+  public static Object jsValueToJavaObject(JsValue value) {
+    return jsValueToJavaObject(value, MAX_RECURSION);
+  }
+
+  public static Object jsValueToJavaObject(JsValue value, int maxRecursion) {
     if (value == null || maxRecursion <= 0) {
       return null;
     }
@@ -285,7 +290,9 @@ public class BodyParserHelpers {
     if (value instanceof JsString) {
       return ((JsString) value).value();
     } else if (value instanceof JsNumber) {
-      return ((JsNumber) value).value();
+      // migrate away from scala types
+      final BigDecimal number = ((JsNumber) value).value();
+      return number == null ? null : number.bigDecimal();
     } else if (value instanceof JsBoolean) {
       return ((JsBoolean) value).value();
     } else if (value instanceof JsObject) {

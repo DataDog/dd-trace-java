@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.play26.server
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.transform.CompileStatic
 import play.BuiltInComponents
 import play.api.libs.json.JsValue
-import play.api.libs.json.Json$
 import play.api.mvc.AnyContent
 import play.libs.concurrent.HttpExecution
 import play.mvc.Http
@@ -150,7 +150,7 @@ class PlayRouters {
         ->
         controller(BODY_JSON) {
           JsValue json = body().asJson().get()
-          Results.status(BODY_JSON.status, Json$.MODULE$.stringify(json))
+          Results.status(BODY_JSON.status, new ObjectMapper().readTree(json.toString()))
         }
       } as Supplier)
       .POST(BODY_XML.path).routeTo({
@@ -286,7 +286,7 @@ class PlayRouters {
         CompletableFuture.supplyAsync({
           ->
           controller(BODY_JSON) {
-            Results.status(BODY_JSON.status, Json$.MODULE$.stringify(json))
+            Results.status(BODY_JSON.status, new ObjectMapper().readTree(json.toString()))
           }
         }, execContext)
       } as Supplier)

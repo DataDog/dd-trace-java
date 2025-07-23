@@ -312,6 +312,28 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
   }
 
+  static final int HTTP_ROUTE_ID = 26;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_ROUTE = new ET<>("http.route", HTTP_ROUTE_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, String>> httpRoute() {
+    return (EventType<BiConsumer<RequestContext, String>>) HTTP_ROUTE;
+  }
+
+  static final int RESPONSE_BODY_ID = 27;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_BODY = new ET<>("response.body", RESPONSE_BODY_ID);
+  /**
+   * The original response body object used by the framework before being serialized to the response
+   */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Object, Flow<Void>>> responseBody() {
+    return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) RESPONSE_BODY;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

@@ -15,7 +15,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'biz.paluch.redis', name: 'lettuce', version: '4.0.Final'
 
-  testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+  testImplementation group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3'
   testImplementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.0.Final'
 
   latestDepTestImplementation group: 'biz.paluch.redis', name: 'lettuce', version: '4.+'

@@ -1,5 +1,5 @@
 plugins {
-  id "scala"
+  id 'scala'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

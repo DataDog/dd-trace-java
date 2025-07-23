@@ -35,11 +35,6 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return null; // bootstrap type
   }

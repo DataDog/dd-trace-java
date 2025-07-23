@@ -4,13 +4,12 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
-import java.util.LinkedHashMap;
 
 public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public static final NoopDataStreamsMonitoring INSTANCE = new NoopDataStreamsMonitoring();
 
   @Override
-  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {}
+  public void trackBacklog(DataStreamsTags tags, long value) {}
 
   @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}

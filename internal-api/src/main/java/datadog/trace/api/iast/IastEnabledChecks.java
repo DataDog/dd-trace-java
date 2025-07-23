@@ -1,7 +1,7 @@
 package datadog.trace.api.iast;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,7 @@ public abstract class IastEnabledChecks {
 
   public static boolean isMajorJavaVersionAtLeast(final String version) {
     try {
-      return Platform.isJavaVersionAtLeast(Integer.parseInt(version));
+      return JavaVirtualMachine.isJavaVersionAtLeast(Integer.parseInt(version));
     } catch (final Exception e) {
       LOGGER.error(
           "Error checking major java version {}, expect some call sites to be disabled",

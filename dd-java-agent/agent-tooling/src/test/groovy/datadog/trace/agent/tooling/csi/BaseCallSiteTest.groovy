@@ -54,7 +54,7 @@ class BaseCallSiteTest extends DDSpecification {
         advices
         .computeIfAbsent(owner, t -> [:])
         .computeIfAbsent(method, m -> [:])
-        .put(descriptor, advice)
+        .put(descriptor, Advices.TypedAdvice.withType(advice, type))
       }
       addHelpers(_ as String[]) >> {
         Collections.addAll(helpers, it[0] as String[])
@@ -82,6 +82,9 @@ class BaseCallSiteTest extends DDSpecification {
       }
       getHelpers() >> {
         helpers as String[]
+      }
+      typeOf(_ as CallSiteAdvice) >> {
+        ((Advices.TypedAdvice) it[0]).type
       }
     }
   }

@@ -10,6 +10,7 @@ import ratpack.exec.Promise
 import ratpack.form.Form
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.HandlerDecorator
+import static ratpack.jackson.Jackson.json
 
 import java.nio.charset.StandardCharsets
 
@@ -142,7 +143,8 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
             } then {endpoint ->
               controller(endpoint) {
                 context.parse(Map).then { map ->
-                  response.status(BODY_JSON.status).send('text/plain', "{\"a\":\"${map['a']}\"}")
+                  response.status(BODY_JSON.status)
+                  context.render(json(map))
                 }
               }
             }

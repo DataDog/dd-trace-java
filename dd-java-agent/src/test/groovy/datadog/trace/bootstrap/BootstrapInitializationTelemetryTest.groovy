@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap
 
+import groovy.json.JsonBuilder
 import spock.lang.Specification
 
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -26,19 +27,47 @@ class BootstrapInitializationTelemetryTest extends Specification {
     initTelemetryProxy.setAdaptee(initTelemetry)
 
     this.initTelemetry = initTelemetryProxy
+    this.initTelemetry.initMetaInfo("runtime_name", "java")
+    this.initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
     this.capture = capture
+  }
+
+  def "test success"() {
+    when:
+    initTelemetry.finish()
+
+    then:
+    capture.json() == json("success", "success", "Successfully configured ddtrace package",
+      [[name: "library_entrypoint.complete"]])
   }
 
   def "real example"() {
     when:
-    initTelemetry.initMetaInfo("runtime_name", "java")
-    initTelemetry.initMetaInfo("runtime_version", "1.8.0_382")
-
     initTelemetry.onError(new Exception("foo"))
     initTelemetry.finish()
 
     then:
-    capture.json() == '{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382"},"points":[{"name":"library_entrypoint.error","tags":["error_type:java.lang.Exception"]},{"name":"library_entrypoint.complete"}]}'
+    capture.json() == json("error", "internal_error", "foo", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
+  }
+
+  def "test abort"() {
+    when:
+    initTelemetry.onAbort(reasonCode)
+    initTelemetry.finish()
+
+    then:
+    capture.json() == json("abort", resultClass, reasonCode,
+      [[name: "library_entrypoint.abort", tags: ["reason:${reasonCode}"]]])
+
+    where:
+    reasonCode            | resultClass
+    "jdk_tool"            | "unsupported_binary"
+    "already_initialized" | "already_instrumented"
+    "other-java-agents"   | "incompatible_library"
+    "foo"                 | "unknown"
   }
 
   def "trivial completion check"() {
@@ -65,6 +94,8 @@ class BootstrapInitializationTelemetryTest extends Specification {
 
     then:
     !capture.json().contains("library_entrypoint.complete")
+    capture.json() == json("error", "internal_error", "foo",
+      [[name: "library_entrypoint.error", tags: ["error_type:java.lang.Exception"]]])
   }
 
   def "incomplete on abort"() {
@@ -74,6 +105,22 @@ class BootstrapInitializationTelemetryTest extends Specification {
 
     then:
     !capture.json().contains("library_entrypoint.complete")
+  }
+
+  def "unwind root cause"() {
+    when:
+    initTelemetry.onError(new Exception("top cause", new FileNotFoundException("root cause")))
+    initTelemetry.finish()
+
+    then:
+    capture.json() == json("error", "internal_error", "top cause", [
+      [name: "library_entrypoint.error", tags: ["error_type:java.io.FileNotFoundException", "error_type:java.lang.Exception"]],
+      [name: "library_entrypoint.complete"]
+    ])
+  }
+
+  private static String json(String result, String resultClass, String resultReason, List points) {
+    return """{"metadata":{"runtime_name":"java","runtime_version":"1.8.0_382","result":"${result}","result_class":"${resultClass}","result_reason":"${resultReason}"},"points":${new JsonBuilder(points)}}"""
   }
 
   static class Capture implements BootstrapInitializationTelemetry.JsonSender {

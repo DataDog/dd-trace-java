@@ -2,7 +2,6 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
-import datadog.trace.civisibility.diff.FileDiff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit4.MUnitTracingListener
 import datadog.trace.instrumentation.junit4.MUnitUtils
@@ -77,8 +76,6 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName            | tests              | prDiff
     "test-succeed"          | [TestSucceedMUnit] | LineDiff.EMPTY
-    "test-succeed"          | [TestSucceedMUnit] | new FileDiff(new HashSet())
-    "test-succeed-impacted" | [TestSucceedMUnit] | new FileDiff(new HashSet([DUMMY_SOURCE_PATH]))
     "test-succeed"          | [TestSucceedMUnit] | new LineDiff([(DUMMY_SOURCE_PATH): lines()])
     "test-succeed-impacted" | [TestSucceedMUnit] | new LineDiff([(DUMMY_SOURCE_PATH): lines(DUMMY_TEST_METHOD_START)])
   }

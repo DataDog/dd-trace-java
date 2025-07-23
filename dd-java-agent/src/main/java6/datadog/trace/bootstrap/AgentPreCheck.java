@@ -11,6 +11,8 @@ import java.lang.reflect.Method;
 
 /** Special lightweight pre-main class that skips installation on incompatible JVMs. */
 public class AgentPreCheck {
+  public static final int MIN_JAVA_VERSION = 8;
+
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
   }
@@ -55,7 +57,11 @@ public class AgentPreCheck {
             + "\","
             + "\"tracer_version\":\""
             + agentVersion
-            + "\"},"
+            + "\","
+            + "\"result\":\"abort\","
+            + "\"result_class\":\"unknown\","
+            + "\"result_reason\":\"incompatible_runtime\""
+            + "},"
             + "\"points\":[{"
             + "\"name\":\"library_entrypoint.abort\","
             + "\"tags\":[\"reason:incompatible_runtime\"]"
@@ -87,7 +93,7 @@ public class AgentPreCheck {
   static boolean compatible(String javaVersion, String javaHome, PrintStream output) {
     int majorJavaVersion = parseJavaMajorVersion(javaVersion);
 
-    if (majorJavaVersion >= 8) {
+    if (majorJavaVersion >= MIN_JAVA_VERSION) {
       return true;
     }
 

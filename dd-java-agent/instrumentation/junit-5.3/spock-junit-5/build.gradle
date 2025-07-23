@@ -7,7 +7,7 @@ muzzle {
     group = 'org.spockframework'
     module = 'spock-core'
     versions = "[2.0-groovy-${spockGroovyVersion},)"
-    extraDependency "org.junit.platform:junit-platform-launcher:1.9.2"
+    extraDependency "org.junit.platform:junit-platform-launcher:1.12.0"
   }
 }
 
@@ -22,7 +22,7 @@ dependencies {
 
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 
-  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
+  testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.12.0'
   testImplementation group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
 
   // Broken from 2.4: https://datadoghq.atlassian.net/browse/AIDM-163
@@ -31,7 +31,7 @@ dependencies {
 
 configurations.matching({ it.name.startsWith('test') }).each({
   it.resolutionStrategy {
-    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
+    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.12.0'
     force group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
   }
 })

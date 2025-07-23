@@ -67,7 +67,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
     public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpRequestMessage request,
         @Advice.Argument(1) final ExecutionContext context) {
-      final Context extractedContext = DECORATE.extractContext(request);
+      final Context extractedContext = DECORATE.extract(request);
       final AgentSpan span = DECORATE.startSpan(request, extractedContext);
       DECORATE.afterStart(span, context.getFunctionName());
       DECORATE.onRequest(span, request, request, extractedContext);

@@ -43,8 +43,9 @@ public final class OkHttpUtils {
   private static final String DATADOG_META_LANG_INTERPRETER = "Datadog-Meta-Lang-Interpreter";
   private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
       "Datadog-Meta-Lang-Interpreter-Vendor";
-  private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
+  public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
+  public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
 
   private static final String DD_API_KEY = "DD-API-KEY";
 

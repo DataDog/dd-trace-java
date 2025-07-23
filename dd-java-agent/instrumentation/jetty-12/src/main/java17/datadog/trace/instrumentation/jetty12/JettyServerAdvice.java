@@ -27,12 +27,12 @@ public class JettyServerAdvice {
         }
       }
 
-      final Context extractedContext = JettyDecorator.DECORATE.extractContext(req);
-      final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, extractedContext);
-      try (final ContextScope scope = extractedContext.with(span).attach()) {
+      final Context context = JettyDecorator.DECORATE.extract(req);
+      final AgentSpan span = JettyDecorator.DECORATE.startSpan(req, context);
+      try (final ContextScope scope = context.with(span).attach()) {
         span.setMeasured(true);
         JettyDecorator.DECORATE.afterStart(span);
-        JettyDecorator.DECORATE.onRequest(span, req, req, extractedContext);
+        JettyDecorator.DECORATE.onRequest(span, req, req, context);
 
         req.setAttribute(DD_SPAN_ATTRIBUTE, span);
         req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

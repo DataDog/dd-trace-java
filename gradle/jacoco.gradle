@@ -1,14 +1,14 @@
-apply plugin: "jacoco"
+apply plugin: 'jacoco'
 
 jacoco {
-  toolVersion = "0.8.5"
+  toolVersion = '0.8.13'
 }
 
 tasks.register('forkedTestJacocoData') {
-  dependsOn "forkedTest"
+  dependsOn 'forkedTest'
 
   doLast {
-    if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
+    if (layout.buildDirectory.file('jacoco/forkedTest.exec').get().asFile.exists()) {
       jacocoTestReport {
         executionData(forkedTest)
       }
@@ -24,19 +24,19 @@ tasks.named('jacocoTestReport').configure {
   reports {
     xml.required = true
     csv.required = false
-    html.destination file("${buildDir}/reports/jacoco/")
+    html.outputLocation = layout.buildDirectory.dir('reports/jacoco')
   }
 }
 
-if (!project.ext.hasProperty("excludedClassesCoverage")) {
+if (!project.ext.hasProperty('excludedClassesCoverage')) {
   project.ext.excludedClassesCoverage = []
 }
 
-if (!project.ext.hasProperty("excludedClassesBranchCoverage")) {
+if (!project.ext.hasProperty('excludedClassesBranchCoverage')) {
   project.ext.excludedClassesBranchCoverage = []
 }
 
-if (!project.ext.hasProperty("excludedClassesInstructionCoverage")) {
+if (!project.ext.hasProperty('excludedClassesInstructionCoverage')) {
   project.ext.excludedClassesInstructionCoverage = []
 }
 
@@ -74,7 +74,7 @@ afterEvaluate {
     }
 
     // Disable verification if skipTests property was specified
-    onlyIf { !project.rootProject.hasProperty("skipTests") }
+    onlyIf { !project.rootProject.hasProperty('skipTests') }
   }
 
   tasks.named('jacocoTestCoverageVerification').configure {

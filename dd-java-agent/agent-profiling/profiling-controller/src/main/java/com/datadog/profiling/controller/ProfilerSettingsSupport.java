@@ -2,8 +2,8 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -206,7 +206,7 @@ public abstract class ProfilerSettingsSupport {
 
   private String getSELinuxStatus() {
     String value = "Not present";
-    if (Platform.isLinux()) {
+    if (OperatingSystem.isLinux()) {
       try (final TraceScope scope = AgentTracer.get().muteTracing()) {
         ProcessBuilder pb = new ProcessBuilder("getenforce");
         Process process = pb.start();
@@ -247,7 +247,7 @@ public abstract class ProfilerSettingsSupport {
 
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";
-    if (Platform.isLinux()) {
+    if (OperatingSystem.isLinux()) {
       Path perfEventsParanoid = Paths.get("/proc/sys/kernel/perf_event_paranoid");
       try {
         if (Files.exists(perfEventsParanoid)) {
