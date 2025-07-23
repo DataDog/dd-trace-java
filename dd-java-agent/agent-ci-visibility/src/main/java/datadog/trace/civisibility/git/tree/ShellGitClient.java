@@ -100,6 +100,38 @@ public class ShellGitClient implements GitClient {
   }
 
   /**
+   * Checks whether the provided reference object is present or not.
+   *
+   * @param commitReference to check presence of
+   * @return {@code true} if object is present, {@code false} otherwise
+   * @throws IOException If an error was encountered while writing command input or reading output
+   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
+   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
+   */
+  @Override
+  public boolean isCommitPresent(String commitReference)
+      throws IOException, TimeoutException, InterruptedException {
+    if (!GitUtils.isValidRef(commitReference)) {
+      return false;
+    }
+    return executeCommand(
+        Command.OTHER,
+        () -> {
+          try {
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                "git",
+                "cat-file",
+                "-e",
+                commitReference + "^{commit}");
+            return true;
+          } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+            return false;
+          }
+        });
+  }
+
+  /**
    * Returns the SHA of the head commit of the upstream (remote tracking) branch for the currently
    * checked-out local branch. If the local branch is not tracking any remote branches, a {@link
    * datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException} exception
@@ -129,7 +161,7 @@ public class ShellGitClient implements GitClient {
    *
    * @param remoteCommitReference The commit to fetch from the remote repository, so local repo will
    *     be updated with this commit and its ancestors. If {@code null}, everything will be fetched.
-   * @param shallowUntilCommit Only unshallow up until the commit provided, or use the time limit
+   * @param unshallowUntilCommit Only unshallow up until the commit provided, or use the time limit
    *     configured if not. Ignored if no reference is provided.
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
@@ -137,7 +169,7 @@ public class ShellGitClient implements GitClient {
    *     finish
    */
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean shallowUntilCommit)
+  public void unshallow(@Nullable String remoteCommitReference, boolean unshallowUntilCommit)
       throws IOException, TimeoutException, InterruptedException {
     executeCommand(
         Command.UNSHALLOW,
@@ -150,7 +182,7 @@ public class ShellGitClient implements GitClient {
               return (Void) null;
             }
             String boundaryArg =
-                shallowUntilCommit
+                unshallowUntilCommit
                     ? "--no-write-fetch-head"
                     : String.format("--shallow-since='%s'", latestCommitsSince);
             String commitSha = getSha(remoteCommitReference);

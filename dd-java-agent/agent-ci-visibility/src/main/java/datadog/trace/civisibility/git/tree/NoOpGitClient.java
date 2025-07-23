@@ -21,7 +21,12 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean shallowUntilCommit) {
+  public boolean isCommitPresent(String commitReference) {
+    return false;
+  }
+
+  @Override
+  public void unshallow(@Nullable String remoteCommitReference, boolean unshallowUntilCommit) {
     // no op
   }
 

@@ -22,14 +22,17 @@ public class GitRepoUnshallow {
 
   /**
    * Unshallows git repo up to a specific boundary commit, if provided, or up to the time limit
-   * configured in the git client if not.
+   * configured in the git client if not. Won't perform an unshallow action when a boundary is
+   * provided and the object is already present, or if the repository is already unshallowed.
    *
    * @param boundaryCommitSha used as boundary for the unshallowing if provided.
    * @return false if unshallowing is not enabled or unnecessary, true otherwise
    */
   public synchronized boolean unshallow(@Nullable String boundaryCommitSha)
       throws IOException, InterruptedException, TimeoutException {
-    if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
+    if (!config.isCiVisibilityGitUnshallowEnabled()
+        || (boundaryCommitSha != null && gitClient.isCommitPresent(boundaryCommitSha))
+        || !gitClient.isShallow()) {
       return false;
     }
 

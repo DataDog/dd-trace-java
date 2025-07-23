@@ -70,7 +70,7 @@ class GitClientTest extends Specification {
     upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
   }
 
-  def "test unshallow: sha-#remoteSha fetchOnlyCommit-#fetchOnlyCommit"() {
+  def "test unshallow: sha-#remoteSha"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
@@ -84,7 +84,7 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow(remoteSha, fetchOnlyCommit)
+    gitClient.unshallow(remoteSha, false)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
@@ -93,11 +93,33 @@ class GitClientTest extends Specification {
     commits.size() == numCommits
 
     where:
-    remoteSha                                  | fetchOnlyCommit | isShallow | numCommits
-    GitClient.HEAD                             | false           | false     | 10
-    null                                       | false           | false     | 10
-    "f4377e97f10c2d58696192b170b2fef2a8464b04" | true            | true      | 1
-    null                                       | true            | false     | 10
+    remoteSha      | isShallow | numCommits
+    GitClient.HEAD | false     | 10
+    null           | false     | 10
+  }
+
+  def "test unshallow using commit as boundary"() {
+    given:
+    givenGitRepo("ci/git/shallow/git")
+
+    when:
+    def commit = "f4377e97f10c2d58696192b170b2fef2a8464b04"
+    def gitClient = givenGitClient()
+    def shallow = gitClient.isShallow()
+    def isPresent = gitClient.isCommitPresent(commit)
+
+    then:
+    shallow
+    !isPresent
+
+    when:
+    gitClient.unshallow(commit, true)
+    shallow = gitClient.isShallow()
+    isPresent = gitClient.isCommitPresent(commit)
+
+    then:
+    shallow
+    isPresent
   }
 
   def "test get git folder"() {
