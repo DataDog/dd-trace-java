@@ -37,8 +37,8 @@ final class SmapEntryCache {
 
   private static final Logger log = LoggerFactory.getLogger(SmapEntryCache.class);
 
-  private static final String VSYSCALL_START_ADDRESS_STR = "ffffffffff600000";
   private static final long VSYSCALL_START_ADDRESS = 0xffffffffff600000L;
+  private static final String VSYSCALL_START_ADDRESS_STR = Long.toHexString(VSYSCALL_START_ADDRESS);
   private static final Path SMAPS_PATH = Paths.get("/proc/self/smaps");
 
   private final Object[] events = new Object[] {new ArrayList<>(), new ArrayList<>()};
