@@ -123,9 +123,9 @@ class GithubActionsInfo implements CIProviderInfo {
           baseSha = (String) base.get("sha");
         }
 
-        Object number = pullRequest.get("number");
-        if (number instanceof Number) {
-          prNumber = String.valueOf(((Number) number).intValue());
+        Double number = (Double) pullRequest.get("number");
+        if (number != null) {
+          prNumber = String.valueOf(number.intValue());
         }
       }
 
