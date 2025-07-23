@@ -17,13 +17,7 @@ public interface GitClient {
 
   boolean isShallow() throws IOException, TimeoutException, InterruptedException;
 
-  boolean isCommitPresent(String commitReference)
-      throws IOException, TimeoutException, InterruptedException;
-
   void unshallow(@Nullable String remoteCommitReference)
-      throws IOException, TimeoutException, InterruptedException;
-
-  void fetchCommit(String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nullable
@@ -48,7 +42,7 @@ public interface GitClient {
   String getSha(String reference) throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
-  CommitInfo getCommitInfo(String commit)
+  CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull

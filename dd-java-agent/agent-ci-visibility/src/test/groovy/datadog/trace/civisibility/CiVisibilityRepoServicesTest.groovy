@@ -59,7 +59,7 @@ class CiVisibilityRepoServicesTest extends Specification {
 
     def gitClient = Stub(GitClient)
     gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getPullRequestBaseBranchSha()
-    gitClient.getCommitInfo("sourceSha") >> expectedInfo.getHeadCommit()
+    gitClient.getCommitInfo("sourceSha", true) >> expectedInfo.getHeadCommit()
 
     expect:
     CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, gitClient, repoUnshallow) == expectedInfo

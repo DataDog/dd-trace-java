@@ -100,38 +100,6 @@ public class ShellGitClient implements GitClient {
   }
 
   /**
-   * Checks whether the provided reference object is present or not.
-   *
-   * @param commitReference to check presence of
-   * @return {@code true} if object is present, {@code false} otherwise
-   * @throws IOException If an error was encountered while writing command input or reading output
-   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
-   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
-   */
-  @Override
-  public boolean isCommitPresent(String commitReference)
-      throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidRef(commitReference)) {
-      return false;
-    }
-    return executeCommand(
-        Command.OTHER,
-        () -> {
-          try {
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                "git",
-                "cat-file",
-                "-e",
-                commitReference + "^{commit}");
-            return true;
-          } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
-            return false;
-          }
-        });
-  }
-
-  /**
    * Returns the SHA of the head commit of the upstream (remote tracking) branch for the currently
    * checked-out local branch. If the local branch is not tracking any remote branches, a {@link
    * datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException} exception
@@ -198,39 +166,6 @@ public class ShellGitClient implements GitClient {
                 String.format("--shallow-since='%s'", latestCommitsSince),
                 remote);
           }
-
-          return (Void) null;
-        });
-  }
-
-  /**
-   * Fetches provided commit object from the server.
-   *
-   * @param remoteCommitReference Commit to fetch from the remote repository
-   * @throws IOException If an error was encountered while writing command input or reading output
-   * @throws TimeoutException If timeout was reached while waiting for Git command to finish
-   * @throws InterruptedException If current thread was interrupted while waiting for Git command to
-   */
-  @Override
-  public void fetchCommit(String remoteCommitReference)
-      throws IOException, TimeoutException, InterruptedException {
-    if (!GitUtils.isValidRef(remoteCommitReference)) {
-      return;
-    }
-    executeCommand(
-        Command.OTHER,
-        () -> {
-          String remote = getRemoteName();
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              "git",
-              "fetch",
-              "--update-shallow",
-              "--filter=blob:none",
-              "--recurse-submodules=no",
-              "--no-write-fetch-head",
-              remote,
-              remoteCommitReference);
 
           return (Void) null;
         });
@@ -378,10 +313,58 @@ public class ShellGitClient implements GitClient {
                 .trim());
   }
 
+  /** Checks whether the provided reference object is present or not. */
+  private boolean isCommitPresent(String commitReference)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(commitReference)) {
+      return false;
+    }
+    return executeCommand(
+        Command.OTHER,
+        () -> {
+          try {
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                "git",
+                "cat-file",
+                "-e",
+                commitReference + "^{commit}");
+            return true;
+          } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+            return false;
+          }
+        });
+  }
+
+  /** Fetches provided commit object from the server. */
+  private void fetchCommit(String remoteCommitReference)
+      throws IOException, TimeoutException, InterruptedException {
+    if (GitUtils.isNotValidCommit(remoteCommitReference)) {
+      return;
+    }
+    executeCommand(
+        Command.FETCH_COMMIT,
+        () -> {
+          String remote = getRemoteName();
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              "git",
+              "fetch",
+              "--filter=blob:none",
+              "--recurse-submodules=no",
+              "--no-write-fetch-head",
+              remote,
+              remoteCommitReference);
+
+          return (Void) null;
+        });
+  }
+
   /**
    * Returns commit information for the provided commit
    *
    * @param commit Commit SHA or reference (HEAD, branch name, etc) to check
+   * @param fetchIfNotPresent If the commit should be fetched from server if not present locally
    * @return commit info (sha, author info, committer info, full message)
    * @throws IOException If an error was encountered while writing command input or reading output
    * @throws TimeoutException If timeout was reached while waiting for Git command to finish
@@ -390,24 +373,37 @@ public class ShellGitClient implements GitClient {
    */
   @Nonnull
   @Override
-  public CommitInfo getCommitInfo(String commit)
+  public CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, InterruptedException, TimeoutException {
     if (GitUtils.isNotValidCommit(commit)) {
       return CommitInfo.NOOP;
     }
+    if (fetchIfNotPresent) {
+      boolean isPresent = isCommitPresent(commit);
+      if (!isPresent) {
+        fetchCommit(commit);
+      }
+    }
     return executeCommand(
         Command.OTHER,
         () -> {
-          String info =
-              commandExecutor
-                  .executeCommand(
-                      IOUtils::readFully,
-                      "git",
-                      "show",
-                      commit,
-                      "-s",
-                      "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B")
-                  .trim();
+          String info = "";
+          try {
+            info =
+                commandExecutor
+                    .executeCommand(
+                        IOUtils::readFully,
+                        "git",
+                        "show",
+                        commit,
+                        "-s",
+                        "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B")
+                    .trim();
+          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            LOGGER.error("Failed to fetch commit info", e);
+            return CommitInfo.NOOP;
+          }
+
           String[] fields = COMMIT_INFO_SPLIT.split(info);
           if (fields.length < 8) {
             LOGGER.error("Could not parse commit info: {}", info);

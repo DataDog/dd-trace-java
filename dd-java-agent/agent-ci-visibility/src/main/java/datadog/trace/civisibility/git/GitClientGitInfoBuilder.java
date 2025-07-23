@@ -38,7 +38,7 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
       List<String> tags = gitClient.getTags(GitClient.HEAD);
       String tag = !tags.isEmpty() ? tags.iterator().next() : null;
 
-      CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD);
+      CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD, false);
       return new GitInfo(remoteUrl, branch, tag, commitInfo);
 
     } catch (Exception e) {

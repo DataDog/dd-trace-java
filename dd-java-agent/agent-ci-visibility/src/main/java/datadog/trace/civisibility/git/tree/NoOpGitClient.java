@@ -21,17 +21,7 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public boolean isCommitPresent(String commitReference) {
-    return false;
-  }
-
-  @Override
   public void unshallow(@Nullable String remoteCommitReference) {
-    // no op
-  }
-
-  @Override
-  public void fetchCommit(String remoteCommitReference) {
     // no op
   }
 
@@ -79,7 +69,7 @@ public class NoOpGitClient implements GitClient {
 
   @Nonnull
   @Override
-  public CommitInfo getCommitInfo(String commit) {
+  public CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent) {
     return CommitInfo.NOOP;
   }
 
