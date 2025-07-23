@@ -105,6 +105,42 @@ class JvmOptionsTest {
     assertEquals(expectedArguments.jvmOptions, result.jvmOptions, "Failed to get JVM options");
   }
 
+  @MethodSource
+  private static Stream<Arguments> procFsCmdLine() {
+    // spotless:off
+    return Stream.of(
+        arguments(
+            "No arguments",
+            new String[0],
+            emptyList()
+        ),
+        arguments(
+            "Native image launcher",
+            new String[]{"native-image-launcher", "-Xmx512m"},
+            singletonList("-Xmx512m")
+        ),
+        arguments(
+            "Java with JAR and options",
+            new String[]{"java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"},
+            asList("-Xmx512m", "-Xms256m", "-jar", "app.jar")
+        ),
+        arguments(
+            "Java from class and options",
+            new String[]{"java", "-Xmx512m", "-Xms256m", "-cp", "app.jar", "Main"},
+            asList("-Xmx512m", "-Xms256m", "-cp", "app.jar", "Main")
+        ));
+    // spotless:on
+  }
+
+  @ParameterizedTest(name = "[{index}] {0}")
+  @MethodSource("procFsCmdLine")
+  void testFindVmOptionsWithProcFsCmdLine(
+      String useCase, String[] procfsCmdline, List<String> expected) throws Exception {
+    JvmOptions vmOptions = new JvmOptions();
+    List<String> found = vmOptions.findVmOptions(procfsCmdline);
+    assertEquals(expected, found);
+  }
+
   private void skipJdkJavaOptionsOnJava8(Map<String, String> environmentVariables) {
     assumeTrue(
         JavaVirtualMachine.isJavaVersionAtLeast(9)

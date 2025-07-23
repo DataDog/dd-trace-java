@@ -15,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.StringTokenizer;
 
 /** Fetches and captures the JVM options. */
@@ -41,28 +40,35 @@ class JvmOptions {
     return null;
   }
 
-  @SuppressForbidden // Class.forName() as backup
   private List<String> findVmOptions() {
+    return findVmOptions(PROCFS_CMDLINE);
+  }
+
+  @SuppressForbidden // Class.forName() as backup
+  // Visible for testing
+  List<String> findVmOptions(String[] procfsCmdline) {
     // Try ProcFS on Linux
-    if (PROCFS_CMDLINE != null) {
+    // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
+    // executable
+    if (procfsCmdline != null) {
+      // Create list of VM options
+      List<String> vmOptions = new ArrayList<>();
       // Start at 1 to skip "java" command itself
       int index = 1;
       // Look for main class or "-jar", end of VM options
-      for (; index < PROCFS_CMDLINE.length; index++) {
-        if (!PROCFS_CMDLINE[index].startsWith("-") || "-jar".equals(PROCFS_CMDLINE[index])) {
-          break;
+      // Simultaneously, collect all arguments in the VM options
+      for (; index < procfsCmdline.length; index++) {
+        String argument = procfsCmdline[index];
+        if (argument.startsWith("@")) {
+          vmOptions.addAll(getArgumentsFromFile(argument));
+        } else {
+          vmOptions.add(argument);
         }
-      }
-      // Create list of VM options
-      List<String> vmOptions = new ArrayList<>(asList(PROCFS_CMDLINE).subList(1, index + 1));
-      ListIterator<String> iterator = vmOptions.listIterator();
-      while (iterator.hasNext()) {
-        String vmOption = iterator.next();
-        if (vmOption.startsWith("@")) {
-          iterator.remove();
-          for (String argument : getArgumentsFromFile(vmOption)) {
-            iterator.add(argument);
+        if (!argument.startsWith("-") || "-jar".equals(argument)) {
+          if (index + 1 < procfsCmdline.length) {
+            vmOptions.add(procfsCmdline[index + 1]); // jar file or the main class
           }
+          break;
         }
       }
       // Insert JDK_JAVA_OPTIONS at the start if present and supported
