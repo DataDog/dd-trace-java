@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -77,7 +77,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
         if (span == null) {
           final Context parentContext = DECORATE.extract(exchange);
           final Context context = DECORATE.startSpan("undertow", exchange, parentContext);
-          span = fromContext(context);
+          span = spanFromContext(context);
           scope = context.attach();
           DECORATE.afterStart(span);
           DECORATE.onRequest(span, exchange, exchange, parentContext);

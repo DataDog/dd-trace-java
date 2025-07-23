@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
@@ -109,7 +108,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, parentContext);
       final Context context = DECORATE.startSpan("liberty", request, parentContext);
       scope = context.attach();
-      final AgentSpan span = fromContext(context);
+      final AgentSpan span = spanFromContext(context);
       if (Config.get().isJeeSplitByDeployment()) {
         final IWebAppDispatcherContext dispatcherContext = request.getWebAppDispatcherContext();
         if (dispatcherContext != null) {

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty40.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
