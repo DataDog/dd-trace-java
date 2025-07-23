@@ -77,6 +77,7 @@ tasks.register('checkEnvironmentVariablesUsage') {
       include '**/src/main/java/**/*.java'
 
       // Exclude specific files (relative to projectDir)
+      exclude '**/build/**'
       exclude 'components/environment/src/main/java/datadog/environment/ConfigHelper.java'
     }
 
@@ -92,11 +93,11 @@ tasks.register('checkEnvironmentVariablesUsage') {
     }
 
     if (!matches.isEmpty()) {
-      println "\n❌ Found forbidden usages of EnvironmentVariables.get(...):"
+      println "\nFound forbidden usages of EnvironmentVariables.get(...):"
       matches.each { println it }
       throw new GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
     } else {
-      println "✅ No forbidden EnvironmentVariables.get(...) usages found in src/main/java."
+      println "No forbidden EnvironmentVariables.get(...) usages found in src/main/java."
     }
   }
 }

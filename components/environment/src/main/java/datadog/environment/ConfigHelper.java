@@ -7,7 +7,15 @@ import java.util.Map;
 
 @SuppressForbidden
 public class ConfigHelper {
-  // Parse the supported-configurations JSON once using ParseSupportedConfigurations.
+  private static boolean configInversionStrict;
+
+  public static void setConfigInversionStrict(boolean configInversionStrict) {
+    ConfigHelper.configInversionStrict = configInversionStrict;
+  }
+
+  public static boolean isConfigInversionStrict() {
+    return configInversionStrict;
+  }
 
   public static Map<String, String> getEnvironmentVariables() {
     Map<String, String> env = System.getenv();
@@ -52,7 +60,8 @@ public class ConfigHelper {
     if ((name.startsWith("DD_")
             || name.startsWith("OTEL_")
             || GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(name))
-        && !GeneratedSupportedConfigurations.SUPPORTED.contains(name)) {
+        && !GeneratedSupportedConfigurations.SUPPORTED.contains(name)
+        && configInversionStrict) {
       System.err.println(
           "Warning: Missing environment variable " + name + " from supported-configurations.json.");
     }
