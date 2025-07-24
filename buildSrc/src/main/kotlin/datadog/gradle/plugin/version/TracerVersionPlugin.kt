@@ -7,6 +7,7 @@ import org.gradle.api.logging.Logging
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.kotlin.dsl.property
+import java.io.File
 import javax.inject.Inject
 
 class TracerVersionPlugin @Inject constructor(
@@ -18,10 +19,10 @@ class TracerVersionPlugin @Inject constructor(
     if (targetProject.rootProject != targetProject) {
       throw IllegalStateException("Only root project can apply plugin")
     }
+    targetProject.extensions.create("tracerVersion", TracerVersionExtension::class.java)
+    val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
-    val extension = targetProject.extensions.create("tracerVersion", TracerVersionExtension::class.java)
     val versionProvider = versionProvider(targetProject, extension)
-
     targetProject.allprojects {
       version = versionProvider
     }
@@ -31,19 +32,28 @@ class TracerVersionPlugin @Inject constructor(
     targetProject: Project,
     extension: TracerVersionExtension
   ): String {
-    val workingDirectory = targetProject.projectDir
+    val repoWorkingDirectory = targetProject.rootDir
 
-    val buildVersion: String = if (!workingDirectory.resolve(".git").exists()) {
+    val buildVersion: String = if (!repoWorkingDirectory.resolve(".git").exists()) {
+      // Not a git repository
       extension.defaultVersion.get()
     } else {
-      providerFactory.of(GitDescribeValueSource::class.java) {
-        parameters {
-          this.tagVersionPrefix.set(extension.tagVersionPrefix)
-          this.showDirty.set(extension.detectDirty)
-          this.workingDirectory.set(workingDirectory)
+      providerFactory.zip(
+        gitDescribeProvider(extension, repoWorkingDirectory),
+        gitCurrentBranchProvider(repoWorkingDirectory)
+      ) { describeString, currentBranch ->
+        toTracerVersion(describeString, extension) {
+          when {
+            currentBranch.startsWith("release/v") -> {
+              logger.info("Incrementing patch because release branch : $currentBranch")
+              nextPatchVersion()
+            }
+            else -> {
+              logger.info("Incrementing patch")
+              nextMinorVersion()
+            }
+          }
         }
-      }.map {
-        toTracerVersion(it.trim(), extension)
       }.get()
     }
 
@@ -51,7 +61,44 @@ class TracerVersionPlugin @Inject constructor(
     return buildVersion
   }
 
-  private fun toTracerVersion(describeString: String, extension: TracerVersionExtension): String {
+  private fun gitCurrentBranchProvider(
+    repoWorkingDirectory: File
+  ) = providerFactory.of(GitCommandValueSource::class.java) {
+    parameters {
+      gitCommand.addAll(
+        "git",
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+      )
+      workingDirectory.set(repoWorkingDirectory)
+    }
+  }
+
+  private fun gitDescribeProvider(
+    extension: TracerVersionExtension,
+    repoWorkingDirectory: File
+  ) = providerFactory.of(GitCommandValueSource::class.java) {
+    parameters {
+      val tagPrefix = extension.tagVersionPrefix.get()
+      gitCommand.addAll(
+        "git",
+        "describe",
+        "--abbrev=8",
+        "--tags",
+        "--first-parent",
+        "--match=$tagPrefix[0-9].[0-9]*.[0-9]",
+      )
+
+      if (extension.detectDirty.get()) {
+        gitCommand.add("--dirty")
+      }
+
+      workingDirectory.set(repoWorkingDirectory)
+    }
+  }
+
+  private fun toTracerVersion(describeString: String, extension: TracerVersionExtension, nextVersion: Version.() -> Version): String {
     logger.info("Git describe output: {}", describeString)
 
     val tagPrefix = extension.tagVersionPrefix.get()
@@ -63,7 +110,7 @@ class TracerVersionPlugin @Inject constructor(
     val hasLaterCommits = describeTrailer.isNotBlank()
     val version = Version.parse(lastTagVersion).let {
       if (hasLaterCommits) {
-        it.nextMinorVersion()
+        it.nextVersion()
       } else {
         it
       }
