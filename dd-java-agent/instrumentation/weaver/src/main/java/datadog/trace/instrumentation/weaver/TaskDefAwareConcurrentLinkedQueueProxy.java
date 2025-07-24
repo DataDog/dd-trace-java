@@ -8,7 +8,8 @@ public final class TaskDefAwareConcurrentLinkedQueueProxy<T> extends ConcurrentL
   private final TaskDef taskDef;
   private final ConcurrentLinkedQueue<T> delegate;
 
-  public TaskDefAwareConcurrentLinkedQueueProxy(TaskDef taskDef, ConcurrentLinkedQueue<T> delegate) {
+  public TaskDefAwareConcurrentLinkedQueueProxy(
+      TaskDef taskDef, ConcurrentLinkedQueue<T> delegate) {
     super();
     this.taskDef = taskDef;
     this.delegate = delegate;
