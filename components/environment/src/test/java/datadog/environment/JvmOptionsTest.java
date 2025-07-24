@@ -8,15 +8,23 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.environment.CommandLineHelper.Result;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -122,12 +130,37 @@ class JvmOptionsTest {
         arguments(
             "Java with JAR and options",
             new String[]{"java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"},
-            asList("-Xmx512m", "-Xms256m", "-jar", "app.jar")
+            asList("-Xmx512m", "-Xms256m")
         ),
         arguments(
             "Java from class and options",
             new String[]{"java", "-Xmx512m", "-Xms256m", "-cp", "app.jar", "Main"},
-            asList("-Xmx512m", "-Xms256m", "-cp", "app.jar", "Main")
+            asList("-Xmx512m", "-Xms256m", "-cp", "app.jar")
+        ),
+        arguments(
+            "Java from class and options, mixed",
+            new String[]{"java", "-Xms256m", "-cp", "app.jar", "-Xmx512m", "Main"},
+            asList("-Xms256m", "-cp", "app.jar", "-Xmx512m")
+        ),
+        arguments(
+            "Args from file",
+            new String[]{"java", "-Dargfile.prop=test", "-verbose:class", argFile("carriage-return-separated"), "-jar", "app.jar"},
+            flatten("-Dargfile.prop=test", "-verbose:class", expectedArsFromArgFile("carriage-return-separated"))
+        ),
+        arguments(
+            "Args from file",
+            new String[]{"java", "-Dargfile.prop=test", "-verbose:class", argFile("new-line-separated"), "-jar", "app.jar"},
+            flatten("-Dargfile.prop=test", "-verbose:class", expectedArsFromArgFile("new-line-separated"))
+        ),
+        arguments(
+            "Args from file",
+            new String[]{"java", "-Dargfile.prop=test", "-verbose:class", argFile("space-separated"), "-jar", "app.jar"},
+            flatten("-Dargfile.prop=test", "-verbose:class", expectedArsFromArgFile("space-separated"))
+        ),
+        arguments(
+            "Args from file",
+            new String[]{"java", "-Dargfile.prop=test", "-verbose:class", argFile("tab-separated"), "-jar", "app.jar"},
+            flatten("-Dargfile.prop=test", "-verbose:class", expectedArsFromArgFile("tab-separated"))
         ));
     // spotless:on
   }
@@ -156,5 +189,37 @@ class JvmOptionsTest {
       env.put(keysAndValues[i], keysAndValues[i + 1]);
     }
     return env;
+  }
+
+  private static String argFile(String name) {
+    return "@src/test/resources/argfiles/" + name + ".txt";
+  }
+
+  private static List<String> expectedArsFromArgFile(String name) {
+    List<String> arguments = new ArrayList<>();
+    try (InputStream stream =
+            requireNonNull(
+                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        arguments.add(line);
+      }
+    } catch (IOException e) {
+      Assertions.fail("Failed to read expected args from " + name + "argfile", e);
+    }
+    return arguments;
+  }
+
+  private static List<String> flatten(Object... values) {
+    List<String> result = new ArrayList<>();
+    for (Object value : values) {
+      if (value instanceof Collection) {
+        result.addAll((Collection<? extends String>) value);
+      } else {
+        result.add(value.toString());
+      }
+    }
+    return result;
   }
 }

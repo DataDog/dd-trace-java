@@ -55,20 +55,29 @@ class JvmOptions {
       List<String> vmOptions = new ArrayList<>();
       // Start at 1 to skip "java" command itself
       int index = 1;
-      // Look for main class or "-jar", end of VM options
+      // Look for first self-standing argument that is not prefixed with "-" or end of VM options
+      // Skip "-jar" and the jar file
       // Simultaneously, collect all arguments in the VM options
       for (; index < procfsCmdline.length; index++) {
         String argument = procfsCmdline[index];
         if (argument.startsWith("@")) {
           vmOptions.addAll(getArgumentsFromFile(argument));
         } else {
-          vmOptions.add(argument);
-        }
-        if (!argument.startsWith("-") || "-jar".equals(argument)) {
-          if (index + 1 < procfsCmdline.length) {
-            vmOptions.add(procfsCmdline[index + 1]); // jar file or the main class
+          if ("-jar".equals(argument)) {
+            // skip "-jar" and the jar file
+            index++;
+            continue;
+          } else if ("-cp".equals(argument)) {
+            // slurp '-cp' and the classpath
+            vmOptions.add(argument);
+            if (index + 1 < procfsCmdline.length) {
+              argument = procfsCmdline[++index];
+            }
+          } else if (!argument.startsWith("-")) {
+            // end of VM options
+            break;
           }
-          break;
+          vmOptions.add(argument);
         }
       }
       // Insert JDK_JAVA_OPTIONS at the start if present and supported
