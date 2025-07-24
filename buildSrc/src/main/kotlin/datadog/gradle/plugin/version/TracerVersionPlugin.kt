@@ -22,6 +22,10 @@ class TracerVersionPlugin @Inject constructor(
     targetProject.extensions.create("tracerVersion", TracerVersionExtension::class.java)
     val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
+    extension.detectDirty.set(
+      providerFactory.environmentVariable("CI").map { it != "true" }.orElse(true)
+    )
+
     val versionProvider = versionProvider(targetProject, extension)
     targetProject.allprojects {
       version = versionProvider
@@ -125,7 +129,7 @@ class TracerVersionPlugin @Inject constructor(
       }
 
       if (describeTrailer.endsWith("-dirty")) {
-        append("-dirty")
+        append(if (extension.useSnapshot.get()) "-DIRTY" else "-dirty")
       }
     }
   }
@@ -138,6 +142,5 @@ class TracerVersionPlugin @Inject constructor(
     val useSnapshot = objectFactory.property(Boolean::class)
       .convention(true)
     val detectDirty = objectFactory.property(Boolean::class)
-      .convention(false)
   }
 }
