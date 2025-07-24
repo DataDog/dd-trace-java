@@ -12,17 +12,17 @@ public class PullRequestInfo {
 
   private final String pullRequestBaseBranch;
   private final String pullRequestBaseBranchSha;
-  @Nonnull private final CommitInfo gitCommitHead;
+  @Nonnull private final CommitInfo headCommit;
   private final String pullRequestNumber;
 
   public PullRequestInfo(
       String pullRequestBaseBranch,
       String pullRequestBaseBranchSha,
-      @Nonnull CommitInfo gitCommitHead,
+      @Nonnull CommitInfo headCommit,
       String pullRequestNumber) {
     this.pullRequestBaseBranch = pullRequestBaseBranch;
     this.pullRequestBaseBranchSha = pullRequestBaseBranchSha;
-    this.gitCommitHead = gitCommitHead;
+    this.headCommit = headCommit;
     this.pullRequestNumber = pullRequestNumber;
   }
 
@@ -35,8 +35,8 @@ public class PullRequestInfo {
   }
 
   @Nonnull
-  public CommitInfo getGitCommitHead() {
-    return gitCommitHead;
+  public CommitInfo getHeadCommit() {
+    return headCommit;
   }
 
   public String getPullRequestNumber() {
@@ -46,14 +46,14 @@ public class PullRequestInfo {
   public boolean isEmpty() {
     return Strings.isBlank(pullRequestBaseBranch)
         && Strings.isBlank(pullRequestBaseBranchSha)
-        && gitCommitHead.isEmpty()
+        && headCommit.isEmpty()
         && Strings.isBlank(pullRequestNumber);
   }
 
   public boolean isComplete() {
     return Strings.isNotBlank(pullRequestBaseBranch)
         && Strings.isNotBlank(pullRequestBaseBranchSha)
-        && gitCommitHead.isComplete()
+        && headCommit.isComplete()
         && Strings.isNotBlank(pullRequestNumber);
   }
 
@@ -72,7 +72,7 @@ public class PullRequestInfo {
         Strings.isNotBlank(info.pullRequestBaseBranchSha)
             ? info.pullRequestBaseBranchSha
             : fallback.pullRequestBaseBranchSha,
-        CommitInfo.merge(info.gitCommitHead, fallback.gitCommitHead),
+        CommitInfo.merge(info.headCommit, fallback.headCommit),
         Strings.isNotBlank(info.pullRequestNumber)
             ? info.pullRequestNumber
             : fallback.pullRequestNumber);
@@ -89,14 +89,14 @@ public class PullRequestInfo {
     PullRequestInfo that = (PullRequestInfo) o;
     return Objects.equals(pullRequestBaseBranch, that.pullRequestBaseBranch)
         && Objects.equals(pullRequestBaseBranchSha, that.pullRequestBaseBranchSha)
-        && Objects.equals(gitCommitHead, that.gitCommitHead)
+        && Objects.equals(headCommit, that.headCommit)
         && Objects.equals(pullRequestNumber, that.pullRequestNumber);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        pullRequestBaseBranch, pullRequestBaseBranchSha, gitCommitHead, pullRequestNumber);
+        pullRequestBaseBranch, pullRequestBaseBranchSha, headCommit, pullRequestNumber);
   }
 
   @Override
@@ -108,8 +108,8 @@ public class PullRequestInfo {
         + ", baseSHA='"
         + pullRequestBaseBranchSha
         + '\''
-        + ", commitSHA='"
-        + gitCommitHead
+        + ", headCommit='"
+        + headCommit
         + '\''
         + ", prNumber='"
         + pullRequestNumber
