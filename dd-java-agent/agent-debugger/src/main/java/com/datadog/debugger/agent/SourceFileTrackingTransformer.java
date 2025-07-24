@@ -4,7 +4,10 @@ import static com.datadog.debugger.util.ClassFileHelper.removeExtension;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.util.ClassFileHelper;
+import com.datadog.debugger.util.ClassNameFiltering;
+import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
@@ -26,6 +29,8 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
   private final AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
   private AgentTaskScheduler.Scheduled<Runnable> scheduled;
+  // this field MUST only be used in flush() calling thread
+  private ClassNameFiltering classNameFilter;
 
   public SourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
     this.finder = finder;
@@ -42,6 +47,11 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   }
 
   void flush() {
+    if (classNameFilter == null) {
+      // init class name filter once here to parse the config in background thread and avoid
+      // startup latency on main thread. The field classNameFilter MUST only be used in this thread
+      classNameFilter = new ClassNameFiltering(Config.get());
+    }
     if (queue.isEmpty()) {
       return;
     }
@@ -71,6 +81,10 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   }
 
   private void registerSourceFile(String className, byte[] classfileBuffer) {
+    String javaClassName = Strings.getClassName(className);
+    if (classNameFilter.isExcluded(javaClassName)) {
+      return;
+    }
     String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
     if (sourceFile == null) {
       return;

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.diff.LineDiff;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -20,7 +21,7 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public void unshallow(@Nullable String remoteCommitReference, boolean parentOnly) {
+  public void unshallow(@Nullable String remoteCommitReference) {
     // no op
   }
 
@@ -66,46 +67,10 @@ public class NoOpGitClient implements GitClient {
     return null;
   }
 
-  @Nullable
+  @Nonnull
   @Override
-  public String getFullMessage(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorName(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorEmail(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getAuthorDate(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterName(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterEmail(String commit) {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public String getCommitterDate(String commit) {
-    return null;
+  public CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent) {
+    return CommitInfo.NOOP;
   }
 
   @Nonnull

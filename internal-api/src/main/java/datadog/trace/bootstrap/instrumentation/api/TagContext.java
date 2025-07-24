@@ -32,6 +32,7 @@ public class TagContext implements AgentSpanContext.Extracted {
   private PathwayContext pathwayContext;
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
+  private Baggage w3cBaggage;
   private final int samplingPriority;
   private final TraceConfig traceConfig;
   private final TracePropagationStyle propagationStyle;
@@ -187,6 +188,14 @@ public class TagContext implements AgentSpanContext.Extracted {
   @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return baggage.entrySet();
+  }
+
+  public final Baggage getW3CBaggage() {
+    return w3cBaggage;
+  }
+
+  public void setW3CBaggage(Baggage w3cBaggage) {
+    this.w3cBaggage = w3cBaggage;
   }
 
   @Override
