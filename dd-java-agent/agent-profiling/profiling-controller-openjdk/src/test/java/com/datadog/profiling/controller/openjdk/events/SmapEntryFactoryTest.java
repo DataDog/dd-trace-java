@@ -25,20 +25,27 @@ public class SmapEntryFactoryTest {
                 Objects.requireNonNull(
                     SmapEntryFactory.class.getResourceAsStream(
                         "/smap/annotated_regions_" + javaVersion + ".txt"))))) {
+
+      long sentinel = 0x1000000420000000L;
       String line = null;
       Set<String> descs = new HashSet<>();
+      boolean sentinelFound = false;
+
       while ((line = br.readLine()) != null) {
         SmapEntryCache.AnnotatedRegion region =
             SmapEntryCache.fromAnnotatedEntry(line, javaVersion);
         if (line.startsWith("0x")) {
           assertNotNull(region);
           descs.add(region.description);
+          sentinelFound |= region.startAddress == sentinel;
         }
       }
+      assertTrue(sentinelFound, "Sentinel address not found");
       assertTrue(descs.contains("JAVAHEAP"), "JAVAHEAP not found");
       assertTrue(descs.contains("GC"), "GC not found");
       assertTrue(descs.contains("META"), "META not found");
       assertTrue(descs.contains("STACK"), "STACK not found");
+      assertTrue(descs.contains("UNDEFINED"), "UNDEFINED not found");
     }
   }
 

@@ -30,6 +30,7 @@ file:            file mapped, if mapping is not anonymous
 
 from               to                        vsize prot          rss      hugetlb pgsz notes            info                                  file
 ========================================================================================================================================================================
+0x1000000420000000-0x100000043b000000   452984832  rw-p     00000000            0 4K   com              JAVAHEAP
 0x0000000448800000-0x000000049d800000   1426063360 rw-p   1425514496            0 4K   com              JAVAHEAP                              -
 0x000000049d800000-0x0000000800000000  14537457664 ---p            0            0 4K   -                JAVAHEAP                              -
 0x0000561c39706000-0x0000561c39707000         4096 r--p         4096            0 4K   com              -                                     /home/bits/.sdkman/candidates/java/24.0.2-librca/bin/java

@@ -66,10 +66,7 @@ final class SmapEntryCache {
   public List<SmapEntryEvent> getEvents() {
     long prevTimestamp = lastTimestamp;
     long thisTimestamp = System.nanoTime();
-    // 500ms should be enough not to recollect the data when both single and aggregated events are
-    // enabled
-    // Also, this is short enough to avoid having stalled smap data reported
-    if (thisTimestamp - prevTimestamp > 500_000_000L) {
+    if (thisTimestamp - prevTimestamp > ttl) {
       if (UPDATER.compareAndSet(this, prevTimestamp, thisTimestamp)) {
         int currentIdx = INDEX_UPDATER.updateAndGet(this, x -> (x + 1) % 2);
         List<SmapEntryEvent> eventList = (List<SmapEntryEvent>) events[currentIdx];
@@ -92,14 +89,16 @@ final class SmapEntryCache {
       // Java 24-25
       // 0x0000000448800000-0x000000049d800000   1426063360 rw-p   1425514496 0 4K com  JAVAHEAP
 
+      // unify the format of address range for Java 23 and 24+
+      line = line.replace(" - ", "-");
       boolean isVsyscall =
           line.startsWith("0x" + VSYSCALL_START_ADDRESS_STR); // can't be parsed to Long safely(?)
       long startAddress = -1;
       int dashIndex = line.indexOf('-');
       if (dashIndex > 0) {
-        startAddress = isVsyscall ? -0x1000 - 1 : Long.decode(line.substring(0, dashIndex - 1));
+        startAddress = isVsyscall ? -0x1000 - 1 : Long.decode(line.substring(0, dashIndex));
         String description = extractElement(line, descIndex, dashIndex + 1);
-        if (description == null || description.isEmpty()) {
+        if (description == null || description.isEmpty() || "-".equals(description)) {
           return new AnnotatedRegion(startAddress, "UNDEFINED");
         } else if (description.startsWith("STACK")) {
           return new AnnotatedRegion(startAddress, "STACK");
@@ -139,7 +138,7 @@ final class SmapEntryCache {
         wsCount++;
       }
     }
-    return wsCount == index ? line.substring(fromIndex, tillIndex).trim() : null;
+    return wsCount <= index ? line.substring(fromIndex, tillIndex).trim() : null;
   }
 
   private static boolean isSmapHeader(String line) {
