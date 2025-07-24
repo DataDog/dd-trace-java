@@ -881,12 +881,7 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
       final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
-    } catch (final NoSuchMethodException
-        | NoClassDefFoundError
-        | ClassNotFoundException
-        | UnsupportedClassVersionError
-        | IllegalAccessException
-        | InvocationTargetException ignored) {
+    } catch (final Exception ignored) {
       log.debug("Smap entry scraping not supported");
     }
   }
