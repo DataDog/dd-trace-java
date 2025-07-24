@@ -25,6 +25,8 @@ tasks.register('logEnvVarUsages') {
 
     def javaFiles = fileTree("$projectDir") {
       include '**/src/main/java/**/*.java'
+
+      exclude '**/dd-smoke-tests/**'
     }
 
     def unsupportedTokensFound = []
