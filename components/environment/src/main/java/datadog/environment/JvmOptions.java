@@ -15,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.StringTokenizer;
 
 /** Fetches and captures the JVM options. */
@@ -41,28 +40,44 @@ class JvmOptions {
     return null;
   }
 
-  @SuppressForbidden // Class.forName() as backup
   private List<String> findVmOptions() {
+    return findVmOptions(PROCFS_CMDLINE);
+  }
+
+  @SuppressForbidden // Class.forName() as backup
+  // Visible for testing
+  List<String> findVmOptions(String[] procfsCmdline) {
     // Try ProcFS on Linux
-    if (PROCFS_CMDLINE != null) {
+    // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
+    // executable
+    if (procfsCmdline != null) {
+      // Create list of VM options
+      List<String> vmOptions = new ArrayList<>();
       // Start at 1 to skip "java" command itself
       int index = 1;
-      // Look for main class or "-jar", end of VM options
-      for (; index < PROCFS_CMDLINE.length; index++) {
-        if (!PROCFS_CMDLINE[index].startsWith("-") || "-jar".equals(PROCFS_CMDLINE[index])) {
-          break;
-        }
-      }
-      // Create list of VM options
-      List<String> vmOptions = new ArrayList<>(asList(PROCFS_CMDLINE).subList(1, index + 1));
-      ListIterator<String> iterator = vmOptions.listIterator();
-      while (iterator.hasNext()) {
-        String vmOption = iterator.next();
-        if (vmOption.startsWith("@")) {
-          iterator.remove();
-          for (String argument : getArgumentsFromFile(vmOption)) {
-            iterator.add(argument);
+      // Look for first self-standing argument that is not prefixed with "-" or end of VM options
+      // Skip "-jar" and the jar file
+      // Simultaneously, collect all arguments in the VM options
+      for (; index < procfsCmdline.length; index++) {
+        String argument = procfsCmdline[index];
+        if (argument.startsWith("@")) {
+          vmOptions.addAll(getArgumentsFromFile(argument));
+        } else {
+          if ("-jar".equals(argument)) {
+            // skip "-jar" and the jar file
+            index++;
+            continue;
+          } else if ("-cp".equals(argument)) {
+            // slurp '-cp' and the classpath
+            vmOptions.add(argument);
+            if (index + 1 < procfsCmdline.length) {
+              argument = procfsCmdline[++index];
+            }
+          } else if (!argument.startsWith("-")) {
+            // end of VM options
+            break;
           }
+          vmOptions.add(argument);
         }
       }
       // Insert JDK_JAVA_OPTIONS at the start if present and supported
