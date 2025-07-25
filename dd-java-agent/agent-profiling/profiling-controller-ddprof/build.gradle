@@ -23,6 +23,7 @@ excludedClassesCoverage += [
 dependencies {
   api libs.slf4j
   api project(':internal-api')
+  api project(':utils:version-utils')
   api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')

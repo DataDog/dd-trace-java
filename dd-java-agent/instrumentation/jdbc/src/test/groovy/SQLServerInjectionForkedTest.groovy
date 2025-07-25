@@ -19,7 +19,7 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
   static query = "SELECT 1"
   static serviceInjection = "ddps='my_service_name',dddbs='sqlserver',ddh='localhost',dddb='testdb'"
 
-  def "SQL Server no trace injection with full"() {
+  def "SQL Server no trace injection with full propagation mode"() {
     setup:
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
@@ -31,6 +31,9 @@ class SQLServerInjectionForkedTest extends AgentTestRunner {
     statement.executeQuery(query)
 
     then:
+    // Should only have service metadata, not traceparent, because SQL Server uses CONTEXT_INFO
     assert statement.sql == "/*${serviceInjection}*/ ${query}"
+    // Verify that the SQL does NOT contain traceparent
+    assert !statement.sql.contains("traceparent")
   }
 }
