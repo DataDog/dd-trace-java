@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.azurefunctions;
+package datadog.trace.instrumentation.azure.functions;
 
 import com.microsoft.azure.functions.HttpRequestMessage;
 import com.microsoft.azure.functions.HttpResponseMessage;

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
@@ -10,12 +11,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class DatadogWrapperHelper {
   public static ContextScope createSpan(final HttpRequest request) {
-    final Context context = DECORATE.extract(request);
-    final AgentSpan span = DECORATE.startSpan(request, context);
+    final Context parentContext = DECORATE.extract(request);
+    final Context context = DECORATE.startSpan("akka-http", request, parentContext);
+    final AgentSpan span = fromContext(context);
     DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request, request, context);
+    DECORATE.onRequest(span, request, request, parentContext);
 
-    return context.with(span).attach();
+    return context.attach();
   }
 
   public static void finishSpan(final AgentSpan span, final HttpResponse response) {
