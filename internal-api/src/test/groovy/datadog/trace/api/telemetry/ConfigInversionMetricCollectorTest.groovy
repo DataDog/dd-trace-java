@@ -25,4 +25,17 @@ class ConfigInversionMetricCollectorTest extends DDSpecification {
     metric.tags.size() == 1
     metric.tags[0] == 'config_name:DD_UNKNOWN_FEATURE'
   }
+
+  def "should not emit metric when supported env var is used"() {
+    setup:
+    def collector = ConfigInversionMetricCollector.getInstance()
+
+    when:
+    ConfigInversionMetricCollectorTestHelper.checkAndEmitUnsupported("DD_ENV")
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+
+    then:
+    metrics.isEmpty()
+  }
 }
