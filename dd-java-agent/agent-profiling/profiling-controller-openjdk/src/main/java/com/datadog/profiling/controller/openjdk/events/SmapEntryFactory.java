@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.openjdk.events;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.lang.management.ManagementFactory;
@@ -21,14 +22,27 @@ public class SmapEntryFactory {
 
   private static final AtomicBoolean REGISTERED = new AtomicBoolean();
 
-  private static final EventType SMAP_ENTRY_EVENT_TYPE =
-      EventType.getEventType(SmapEntryEvent.class);
-  private static final EventType AGGREGATED_SMAP_ENTRY_EVENT_TYPE =
-      EventType.getEventType(AggregatedSmapEntryEvent.class);
+  private static final EventType SMAP_ENTRY_EVENT_TYPE;
+  private static final EventType AGGREGATED_SMAP_ENTRY_EVENT_TYPE;
 
   private static final SmapEntryCache SMAP_ENTRY_CACHE = new SmapEntryCache(Duration.ofMillis(500));
 
+  static {
+    if (!JavaVirtualMachine.isJ9() && !JavaVirtualMachine.isOracleJDK8()) {
+      SMAP_ENTRY_EVENT_TYPE = EventType.getEventType(SmapEntryEvent.class);
+      AGGREGATED_SMAP_ENTRY_EVENT_TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
+    } else {
+      SMAP_ENTRY_EVENT_TYPE = null;
+      AGGREGATED_SMAP_ENTRY_EVENT_TYPE = null;
+    }
+  }
+
   public static void registerEvents() {
+    if (SMAP_ENTRY_EVENT_TYPE == null || AGGREGATED_SMAP_ENTRY_EVENT_TYPE == null) {
+      // JFR is not available
+      return;
+    }
+
     // Make sure the periodic event is registered only once
     if (REGISTERED.compareAndSet(false, true) && OperatingSystem.isLinux()) {
       try {

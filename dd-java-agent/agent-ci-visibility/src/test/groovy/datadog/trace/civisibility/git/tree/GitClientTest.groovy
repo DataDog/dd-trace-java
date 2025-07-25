@@ -3,6 +3,7 @@ package datadog.trace.civisibility.git.tree
 import static datadog.trace.civisibility.TestUtils.lines
 
 import datadog.communication.util.IOUtils
+import datadog.trace.api.git.CommitInfo
 import datadog.trace.civisibility.git.GitObject
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
@@ -70,7 +71,7 @@ class GitClientTest extends Specification {
     upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
   }
 
-  def "test unshallow: sha-#remoteSha parentOnly-#parentOnly"() {
+  def "test unshallow: sha-#remoteSha"() {
     given:
     givenGitRepo("ci/git/shallow/git")
 
@@ -84,20 +85,16 @@ class GitClientTest extends Specification {
     commits.size() == 1
 
     when:
-    gitClient.unshallow(remoteSha, parentOnly)
+    gitClient.unshallow(remoteSha)
     shallow = gitClient.isShallow()
     commits = gitClient.getLatestCommits()
 
     then:
-    shallow == isShallow
-    commits.size() == numCommits
+    !shallow
+    commits.size() == 10
 
     where:
-    remoteSha      | parentOnly | isShallow | numCommits
-    GitClient.HEAD | false      | false      | 10
-    null           | false      | false      | 10
-    GitClient.HEAD | true       | true     | 2
-    null           | true       | true     | 2
+    remoteSha << [GitClient.HEAD, null]
   }
 
   def "test get git folder"() {
@@ -160,91 +157,30 @@ class GitClientTest extends Specification {
     sha == "5b6f3a6dab5972d73a56dff737bd08d995255c08"
   }
 
-  def "test get full message"() {
+  def "test get commit info with fetching"() {
     given:
-    givenGitRepo()
+    givenGitRepo("ci/git/shallow/git")
 
     when:
+    def commit = "f4377e97f10c2d58696192b170b2fef2a8464b04"
     def gitClient = givenGitClient()
-    def message = gitClient.getFullMessage(GitClient.HEAD)
+    def commitInfo = gitClient.getCommitInfo(commit, false)
 
     then:
-    message == "Adding Git information to test spans (#1242)\n\n" +
-    "* Initial basic GitInfo implementation.\r\n\r\n" +
-    "* Adds Author, Committer and Message git parser.\r\n\r\n" +
-    "* Changes based on the review."
-  }
-
-  def "test get author name"() {
-    given:
-    givenGitRepo()
+    commitInfo == CommitInfo.NOOP
 
     when:
-    def gitClient = givenGitClient()
-    def authorName = gitClient.getAuthorName(GitClient.HEAD)
+    commitInfo = gitClient.getCommitInfo(commit, true)
 
     then:
-    authorName == "Tony Redondo"
-  }
-
-  def "test get author email"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorEmail = gitClient.getAuthorEmail(GitClient.HEAD)
-
-    then:
-    authorEmail == "tony.redondo@datadoghq.com"
-  }
-
-  def "test get author date"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorDate = gitClient.getAuthorDate(GitClient.HEAD)
-
-    then:
-    authorDate == "2021-02-26T19:32:13+01:00"
-  }
-
-  def "test get committer name"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorName = gitClient.getCommitterName(GitClient.HEAD)
-
-    then:
-    authorName == "GitHub"
-  }
-
-  def "test get committer email"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorEmail = gitClient.getCommitterEmail(GitClient.HEAD)
-
-    then:
-    authorEmail == "noreply@github.com"
-  }
-
-  def "test get committer date"() {
-    given:
-    givenGitRepo()
-
-    when:
-    def gitClient = givenGitClient()
-    def authorDate = gitClient.getCommitterDate(GitClient.HEAD)
-
-    then:
-    authorDate == "2021-02-26T19:32:13+01:00"
+    commitInfo.sha == commit
+    commitInfo.author.name == "sullis"
+    commitInfo.author.email == "github@seansullivan.com"
+    commitInfo.author.iso8601Date == "2023-05-30T07:07:35-07:00"
+    commitInfo.committer.name == "GitHub"
+    commitInfo.committer.email == "noreply@github.com"
+    commitInfo.committer.iso8601Date == "2023-05-30T07:07:35-07:00"
+    commitInfo.fullMessage == "brotli4j 1.12.0 (#1592)"
   }
 
   def "test get latest commits"() {
