@@ -2,13 +2,39 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 
 import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.StructuredTaskScope
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static java.time.Instant.now
 
 class StructuredConcurrencyTest extends AgentTestRunner {
+  ScheduledExecutorService scheduler
+  ScheduledFuture<?> threadDumpTask
+
+  def setup() {
+    scheduler = Executors.newSingleThreadScheduledExecutor()
+
+    threadDumpTask = scheduler.schedule({
+      println "=== Thread Dump Triggered at ${new Date()} ==="
+      Thread.getAllStackTraces().each { thread, stack ->
+        println "Thread: ${thread.name}, daemon: ${thread.daemon}"
+        stack.each { println "\tat ${it}" }
+      }
+      println "==============================================="
+    }, 7, TimeUnit.MINUTES)
+  }
+
+  def cleanup() {
+    threadDumpTask?.cancel(false)
+    scheduler?.shutdownNow()
+  }
+
+
   /**
    * Tests the structured task scope with a single task.
    */
