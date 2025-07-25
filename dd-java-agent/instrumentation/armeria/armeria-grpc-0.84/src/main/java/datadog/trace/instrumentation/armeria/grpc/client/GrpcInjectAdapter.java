@@ -12,7 +12,7 @@ public final class GrpcInjectAdapter implements CarrierSetter<Metadata> {
   @Override
   public void set(final Metadata carrier, final String key, final String value) {
     Metadata.Key<String> metadataKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
-    if(!key.startsWith("ot-baggage-*") || !carrier.containsKey(metadataKey)){
+    if (!key.startsWith("ot-baggage-") || !carrier.containsKey(metadataKey)) {
       carrier.put(metadataKey, value);
     }
   }
