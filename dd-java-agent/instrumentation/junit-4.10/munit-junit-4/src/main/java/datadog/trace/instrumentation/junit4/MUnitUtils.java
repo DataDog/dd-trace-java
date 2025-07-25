@@ -27,6 +27,7 @@ public abstract class MUnitUtils {
           LibraryCapability.ATR,
           LibraryCapability.EFD,
           LibraryCapability.IMPACTED,
+          LibraryCapability.FTR,
           LibraryCapability.QUARANTINE,
           LibraryCapability.ATTEMPT_TO_FIX);
 

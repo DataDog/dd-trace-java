@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.FailFastTestOrderEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.FlakyTestRetriesEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderDiscrepant;
 import datadog.trace.api.civisibility.telemetry.tag.GitProviderExpected;
@@ -53,7 +54,8 @@ public enum CiVisibilityCountMetric {
       Provider.class,
       AutoInjected.class,
       AgentlessLogSubmissionEnabled.class,
-      FailFastTestOrderEnabled.class),
+      FailFastTestOrderEnabled.class,
+      FailedTestReplayEnabled.SessionMetric.class),
   /** The number of events created */
   EVENT_CREATED(
       "event_created",
@@ -84,6 +86,7 @@ public enum CiVisibilityCountMetric {
       IsRetry.class,
       HasFailedAllRetries.class,
       RetryReason.class,
+      FailedTestReplayEnabled.TestMetric.class,
       IsRum.class,
       BrowserDriver.class),
   /** The number of successfully collected code coverages that are empty */
@@ -138,6 +141,7 @@ public enum CiVisibilityCountMetric {
       ImpactedTestsDetectionEnabled.class,
       KnownTestsEnabled.class,
       TestManagementEnabled.class,
+      FailedTestReplayEnabled.SettingsMetric.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),

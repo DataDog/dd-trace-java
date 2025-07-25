@@ -130,7 +130,8 @@ public abstract class AbstractTestSession {
         config.isAgentlessLogSubmissionEnabled() ? AgentlessLogSubmissionEnabled.TRUE : null,
         CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())
             ? FailFastTestOrderEnabled.TRUE
-            : null);
+            : null,
+        null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);
