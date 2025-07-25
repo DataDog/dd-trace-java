@@ -60,6 +60,7 @@ workflow:
       - "11"
       - "17"
       - "21"
+      - "25"
       - "stable"
       - "semeru11"
       - "oracle8"
