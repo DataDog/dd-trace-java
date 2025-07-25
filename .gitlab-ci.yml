@@ -68,6 +68,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
+    CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
 # These blocks emulate "parallel" by including it in the matrix
