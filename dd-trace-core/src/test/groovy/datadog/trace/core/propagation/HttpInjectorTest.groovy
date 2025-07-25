@@ -218,6 +218,35 @@ class HttpInjectorTest extends DDCoreSpecification {
     style << [DATADOG, TRACECONTEXT, HAYSTACK]
   }
 
+  def "inject ot-baggage-* in http headers only once"() {
+    setup:
+    Config config = Mock(Config)
+    def baggage = [
+      'k1': 'v1',
+      'k2': 'v2',
+    ]
+    def mapping = baggage.keySet().collectEntries { [(it):it]} as Map<String, String>
+    def injector = HttpCodec.createInjector(config, [DATADOG, TRACECONTEXT].toSet(), mapping)
+    def traceId = DDTraceId.ONE
+    def spanId = 2
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext = mockedContext(tracer, traceId, spanId, UNSET, null, baggage)
+    final Map<String, String> carrier = Mock()
+    mockedContext.beginEndToEnd()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put('k1', 'v1')
+    1 * carrier.put('k2', 'v2')
+    1 * carrier.put('ot-baggage-t0', "${(long) (mockedContext.endToEndStartTime / 1000000L)}")
+
+    cleanup:
+    tracer.close()
+  }
+
   static DDSpanContext mockedContext(CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority, String origin, Map<String, String> baggage) {
     return new DDSpanContext(
       traceId,
