@@ -14,6 +14,7 @@ import java.util.Collections;
 import sbt.testing.TaskDef;
 import weaver.Result;
 import weaver.TestOutcome;
+import weaver.framework.RunEvent;
 import weaver.framework.SuiteFinished;
 import weaver.framework.SuiteStarted;
 import weaver.framework.TestFinished;
@@ -39,6 +40,19 @@ public class DatadogWeaverReporter {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();
       TEST_EVENTS_HANDLER = null;
+    }
+  }
+
+  public static void processEvent(Object event, TaskDef taskDef) {
+    if (event instanceof RunEvent) {
+      // handle event here, using taskDef reference to get suite details
+      if (event instanceof SuiteStarted) {
+        onSuiteStart((SuiteStarted) event);
+      } else if (event instanceof SuiteFinished) {
+        onSuiteFinish((SuiteFinished) event);
+      } else if (event instanceof TestFinished) {
+        onTestFinished((TestFinished) event, taskDef);
+      }
     }
   }
 
