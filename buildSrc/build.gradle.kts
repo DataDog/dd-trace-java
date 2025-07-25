@@ -25,6 +25,10 @@ gradlePlugin {
       id = "call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
+    create("tracer-version-plugin") {
+      id = "tracer-version"
+      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
   }
 }
 
@@ -41,6 +45,8 @@ dependencies {
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
+
+  implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
