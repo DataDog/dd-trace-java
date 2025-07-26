@@ -151,6 +151,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
@@ -323,7 +324,6 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
@@ -584,6 +584,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH;
@@ -824,6 +825,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final List<String> traceBaggageTagKeys;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1143,7 +1145,6 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
-  private final String dataJobsCommandPattern;
   private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
@@ -1696,6 +1697,11 @@ public class Config {
         // If we have a new setting, we log a warning
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
+
+      // Parse the baggage tag keys configuration
+      traceBaggageTagKeys =
+          configProvider.getList(TRACE_BAGGAGE_TAG_KEYS, DEFAULT_TRACE_BAGGAGE_TAG_KEYS);
+
       // Now we can check if we should pick the default injection/extraction
 
       tracePropagationStylesToExtract =
@@ -2535,7 +2541,6 @@ public class Config {
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
             DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
-    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2967,6 +2972,10 @@ public class Config {
 
   public Map<String, String> getBaggageMapping() {
     return baggageMapping;
+  }
+
+  public List<String> getTraceBaggageTagKeys() {
+    return traceBaggageTagKeys;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -4385,10 +4394,6 @@ public class Config {
     return dataJobsOpenLineageEnabled;
   }
 
-  public String getDataJobsCommandPattern() {
-    return dataJobsCommandPattern;
-  }
-
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -5377,6 +5382,8 @@ public class Config {
         + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
+        + ", traceBaggageTagKeys="
+        + traceBaggageTagKeys
         + ", tracePropagationStylesToExtract="
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
@@ -5687,8 +5694,6 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
-        + ", dataJobsCommandPattern="
-        + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="

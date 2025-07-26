@@ -4,13 +4,18 @@ import static com.datadog.debugger.util.ClassFileHelper.removeExtension;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.util.ClassFileHelper;
+import com.datadog.debugger.util.ClassNameFiltering;
+import datadog.trace.api.Config;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,11 +26,18 @@ import org.slf4j.LoggerFactory;
  */
 public class SourceFileTrackingTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFileTrackingTransformer.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
+  static final int MAX_QUEUE_SIZE = 4096;
 
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final ClassesToRetransformFinder finder;
   private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
   private final AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
+  private final AtomicInteger queueSize = new AtomicInteger(0);
   private AgentTaskScheduler.Scheduled<Runnable> scheduled;
+  // this field MUST only be used in flush() calling thread
+  private ClassNameFiltering classNameFilter;
 
   public SourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
     this.finder = finder;
@@ -42,17 +54,31 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   }
 
   void flush() {
+    if (classNameFilter == null) {
+      // init class name filter once here to parse the config in background thread and avoid
+      // startup latency on main thread. The field classNameFilter MUST only be used in this thread
+      classNameFilter = new ClassNameFiltering(Config.get());
+    }
     if (queue.isEmpty()) {
       return;
     }
-    int size = queue.size();
+    int itemCount = 0;
     long start = System.nanoTime();
     SourceFileItem item;
     while ((item = queue.poll()) != null) {
+      queueSize.decrementAndGet();
       registerSourceFile(item.className, item.classfileBuffer);
+      itemCount++;
     }
     LOGGER.debug(
-        "flushing {} source file items in {}ms", size, (System.nanoTime() - start) / 1_000_000);
+        "flushing {} source file items in {}ms, totalentries: {}",
+        itemCount,
+        (System.nanoTime() - start) / 1_000_000,
+        finder.getClassNamesBySourceFile().size());
+  }
+
+  int getQueueSize() {
+    return queueSize.get();
   }
 
   @Override
@@ -66,11 +92,20 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
     if (className == null) {
       return null;
     }
+    if (queueSize.get() >= MAX_QUEUE_SIZE) {
+      ratelimitedLogger.warn("SourceFile Tracking queue full, dropping class: {}", className);
+      return null;
+    }
     queue.add(new SourceFileItem(className, classfileBuffer));
+    queueSize.incrementAndGet();
     return null;
   }
 
   private void registerSourceFile(String className, byte[] classfileBuffer) {
+    String javaClassName = Strings.getClassName(className);
+    if (classNameFilter.isExcluded(javaClassName)) {
+      return;
+    }
     String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
     if (sourceFile == null) {
       return;

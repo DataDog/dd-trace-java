@@ -9,6 +9,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
@@ -160,8 +161,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     Collection<StatsGroup> groups = bucket.getGroups();
     packer.startArray(groups.size());
     for (StatsGroup group : groups) {
-      boolean firstNode = group.getEdgeTags().isEmpty();
-
+      boolean firstNode = group.getTags().nonNullSize() == 0;
       packer.startMap(firstNode ? 5 : 6);
 
       /* 1 */
@@ -187,26 +187,34 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (!firstNode) {
         /* 6 */
         packer.writeUTF8(EDGE_TAGS);
-        packer.startArray(group.getEdgeTags().size());
-        for (String tag : group.getEdgeTags()) {
-          packer.writeString(tag, null);
-        }
+        writeDataStreamsTags(group.getTags(), packer);
       }
     }
   }
 
-  private void writeBacklogs(Collection<Map.Entry<List<String>, Long>> backlogs, Writable packer) {
+  private void writeBacklogs(
+      Collection<Map.Entry<DataStreamsTags, Long>> backlogs, Writable packer) {
     packer.writeUTF8(BACKLOGS);
     packer.startArray(backlogs.size());
-    for (Map.Entry<List<String>, Long> entry : backlogs) {
+    for (Map.Entry<DataStreamsTags, Long> entry : backlogs) {
       packer.startMap(2);
+
       packer.writeUTF8(BACKLOG_TAGS);
-      packer.startArray(entry.getKey().size());
-      for (String tag : entry.getKey()) {
-        packer.writeString(tag, null);
-      }
+      writeDataStreamsTags(entry.getKey(), packer);
+
       packer.writeUTF8(BACKLOG_VALUE);
       packer.writeLong(entry.getValue());
+    }
+  }
+
+  private void writeDataStreamsTags(DataStreamsTags tags, Writable packer) {
+    packer.startArray(tags.nonNullSize());
+
+    for (int i = 0; i < tags.size(); i++) {
+      String val = tags.tagByIndex(i);
+      if (val != null) {
+        packer.writeString(val, null);
+      }
     }
   }
 }

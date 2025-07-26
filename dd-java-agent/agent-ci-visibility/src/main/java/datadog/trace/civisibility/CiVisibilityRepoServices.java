@@ -6,7 +6,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfoProvider;
-import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
@@ -127,23 +126,11 @@ public class CiVisibilityRepoServices {
 
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo = PullRequestInfo.merge(userInfo, ciProviderInfo.buildPullRequestInfo());
-    if (Strings.isNotBlank(ciInfo.getGitCommitHead().getSha())) {
+    String headSha = ciInfo.getHeadCommit().getSha();
+    if (Strings.isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
       try {
-        gitRepoUnshallow.unshallow(true);
-        String headSha = ciInfo.getGitCommitHead().getSha();
-        PersonInfo authorInfo =
-            new PersonInfo(
-                gitClient.getAuthorName(headSha),
-                gitClient.getAuthorEmail(headSha),
-                gitClient.getAuthorDate(headSha));
-        PersonInfo committerInfo =
-            new PersonInfo(
-                gitClient.getCommitterName(headSha),
-                gitClient.getCommitterEmail(headSha),
-                gitClient.getCommitterDate(headSha));
-        CommitInfo commitInfo =
-            new CommitInfo(headSha, authorInfo, committerInfo, gitClient.getFullMessage(headSha));
+        CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
         return PullRequestInfo.merge(ciInfo, new PullRequestInfo(null, null, commitInfo, null));
       } catch (Exception ignored) {
       }
