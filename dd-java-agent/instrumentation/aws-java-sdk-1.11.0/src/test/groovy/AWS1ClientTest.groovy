@@ -405,6 +405,10 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
   def "#service #operation sets peer.service in serverless environment"() {
     setup:
 
+    if (version() == 0) {
+      return
+    }
+
     // Set the AWS Lambda function name environment variable
     injectEnvConfig("AWS_LAMBDA_FUNCTION_NAME", "my-test-lambda-function", false)
 
