@@ -136,6 +136,9 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: macrobenchmarks
   needs: ["check-slo-breaches"]
-  when: always
+  rules:
+    - if: $POPULATE_CACHE
+      when: never
+    - when: always
   variables:
     CHANNEL: "apm-release-platform"
