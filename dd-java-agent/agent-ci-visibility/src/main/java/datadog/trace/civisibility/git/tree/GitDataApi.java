@@ -102,7 +102,7 @@ public class GitDataApi {
     RequestBody packFileBody = RequestBody.create(OCTET_STREAM, packFileContents);
 
     String packFileName = packFile.getFileName().toString();
-    String packFileNameWithoutRandomPrefix = packFileName.substring(packFileName.indexOf("-") + 1);
+    String packFileNameWithoutRandomPrefix = packFileName.substring(packFileName.indexOf('-') + 1);
 
     RequestBody requestBody =
         new MultipartBody.Builder()
