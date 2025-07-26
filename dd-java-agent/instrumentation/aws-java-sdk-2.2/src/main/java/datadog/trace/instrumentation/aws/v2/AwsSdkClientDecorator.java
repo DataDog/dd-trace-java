@@ -209,13 +209,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     }
 
     // Set peer.service based on environment for serverless functions
-    String serverlessFunction = System.getenv("AWS_LAMBDA_FUNCTION_NAME");
-    if (serverlessFunction != null && !serverlessFunction.isEmpty()) {
+    if (Config.get().isAwsServerless()) {
       URI uri = httpRequest.getUri();
       String hostname = uri.getHost();
       if (uri.getPort() != -1) {
         hostname = hostname + ":" + uri.getPort();
       }
+
       span.setTag(Tags.PEER_SERVICE, hostname);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     }

@@ -421,6 +421,116 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     cleanup:
     server.close()
   }
+
+  def "#service #operation sets peer.service in serverless environment"() {
+    setup:
+
+    if (version() == 0) {
+      return
+    }
+
+    // Set the AWS Lambda function name environment variable
+    injectEnvConfig("AWS_LAMBDA_FUNCTION_NAME", "my-test-lambda-function", false)
+
+    // Create client with mocked endpoint
+    def client = builder
+      .endpointOverride(server.address)
+      .region(Region.US_EAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+
+    // Set response body
+    responseBody.set(body)
+
+    when:
+    // Make the request
+    def response = call.call(client)
+
+    if (response instanceof Future) {
+      response = response.get()
+    }
+
+    // Wait for traces to be written
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    response != null
+
+    // Verify the trace
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
+          resourceName "$service.$operation"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          parent()
+          tags {
+            defaultTags(false, true)
+
+            // AWS specific tags
+            "aws.service" service
+            "aws_service" service
+            "aws.operation" operation
+            "aws.agent" "java-aws-sdk"
+            "aws.requestId" requestId
+
+            // HTTP tags
+            "$Tags.HTTP_METHOD" method
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_URL" String
+
+            // Peer tags
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.COMPONENT" "java-aws-sdk"
+
+            // Service-specific tags
+            if (service == "S3") {
+              "aws.bucket.name" "test-bucket"
+              "bucketname" "test-bucket"
+            } else if (service == "Sqs" && operation == "CreateQueue") {
+              "aws.queue.name" "test-queue"
+              "queuename" "test-queue"
+            } else if (service == "Sqs" && operation == "SendMessage") {
+              "aws.queue.url" "test-queue-url"
+            } else if (service == "Sns" && operation == "Publish") {
+              "aws.topic.name" "test-topic"
+              "topicname" "test-topic"
+            } else if (service == "DynamoDb") {
+              "aws.table.name" "test-table"
+              "tablename" "test-table"
+            } else if (service == "Kinesis") {
+              "aws.stream.name" "test-stream"
+              "streamname" "test-stream"
+            }
+
+            urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
+
+            // Test specific peer service assertions in serverless
+            "peer.service" "${server.address.host}:${server.address.port}"
+            "_dd.peer.service.source" "peer.service"
+          }
+        }
+      }
+    }
+
+    cleanup:
+    // Clean up the environment variable
+    removeEnvConfig("AWS_LAMBDA_FUNCTION_NAME", false)
+
+    where:
+    service    | operation      | method | path                  | builder                  | call                                                                                                              | body                                                                                                                               | requestId
+    "S3"       | "CreateBucket" | "PUT"  | "/test-bucket"        | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("test-bucket").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
+    "Sqs"      | "CreateQueue"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("test-queue").build()) }                              | """<CreateQueueResponse><CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/test-queue</QueueUrl></CreateQueueResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></CreateQueueResponse>""" | "test-request-id"
+    "Sqs"      | "SendMessage"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("test-queue-url").messageBody("test").build()) }       | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "test-request-id"
+    "Sns"      | "Publish"      | "POST" | "/"                   | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:test-topic").message("test").build()) }     | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>""" | "test-request-id"
+    "DynamoDb" | "CreateTable"  | "POST" | "/"                   | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("test-table").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
+    "Kinesis"  | "DeleteStream" | "POST" | "/"                   | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("test-stream").build()) }                          | ""                                                                                                                                 | "UNKNOWN"
+  }
 }
 
 class Aws2ClientV0ForkedTest extends Aws2ClientTest {

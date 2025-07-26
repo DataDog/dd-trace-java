@@ -401,6 +401,85 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     cleanup:
     server.close()
   }
+
+  def "#service #operation sets peer.service in serverless environment"() {
+    setup:
+
+    // Set the AWS Lambda function name environment variable
+    injectEnvConfig("AWS_LAMBDA_FUNCTION_NAME", "my-test-lambda-function", false)
+
+    // Set response body
+    responseBody.set(body)
+    if (jsonPointerStr != null) {
+      jsonPointer.set(jsonPointerStr)
+    }
+
+    when:
+    // Make the request
+    def response = call.call(client)
+
+    // Wait for traces to be written
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    response != null
+
+    // Verify the trace
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService(service, operation)
+          operationName expectedOperation(service, operation)
+          resourceName "$service.$operation"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.HTTP_URL" "$server.address/"
+            "$Tags.HTTP_METHOD" method
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "aws.service" { it.contains(service) }
+            "aws_service" { it.contains(service.toLowerCase()) }
+            "aws.endpoint" "$server.address"
+            "aws.operation" "${operation}Request"
+            "aws.agent" "java-aws-sdk"
+
+            // Service-specific tags
+            for (def addedTag : additionalTags) {
+              "$addedTag.key" "$addedTag.value"
+            }
+
+            // Test specific peer service assertions in serverless
+            "peer.service" "${server.address.host}:${server.address.port}"
+            "_dd.peer.service.source" "peer.service"
+
+            defaultTags(false, true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    // Clean up the environment variable
+    removeEnvConfig("AWS_LAMBDA_FUNCTION_NAME", false)
+    if (jsonPointerStr != null) {
+      jsonPointer.set(null)
+    }
+
+    where:
+    service      | operation      | method | path                  | client                                                                                                                                             | call                                                                                                              | additionalTags                                                                                                    | body                                                                                                                               | jsonPointerStr
+    "S3"         | "CreateBucket" | "PUT"  | "/test-bucket/"       | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.createBucket("test-bucket") }                                                                            | ["aws.bucket.name": "test-bucket", "bucketname": "test-bucket"]                                                  | ""                                                                                                                                 | null
+    "SQS"        | "CreateQueue"  | "POST" | "/"                   | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.createQueue(new CreateQueueRequest("test-queue")) }                                                      | ["aws.queue.name": "test-queue", "queuename": "test-queue"]                                                      | """<CreateQueueResponse><CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/test-queue</QueueUrl></CreateQueueResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></CreateQueueResponse>""" | "/CreateQueueResponse/CreateQueueResult"
+    "SQS"        | "SendMessage"  | "POST" | "/test-queue-url"     | AmazonSQSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.sendMessage(new SendMessageRequest("test-queue-url", "test")) }                                          | ["aws.queue.url": "test-queue-url"]                                                                              | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "/SendMessageResponse/SendMessageResult"
+    "SNS"        | "Publish"      | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:test-topic", "test")) }                                     | ["aws.topic.name": "test-topic", "topicname": "test-topic"]                                                      | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>"""     | "/PublishResponse/PublishResult"
+    "DynamoDBv2" | "CreateTable"  | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("test-table", null)) }                                                | ["aws.table.name": "test-table", "tablename": "test-table"]                                                      | ""                                                                                                                                 | null
+    "Kinesis"    | "DeleteStream" | "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("test-stream")) }                                   | ["aws.stream.name": "test-stream", "streamname": "test-stream"]                                                  | ""                                                                                                                                 | null
+  }
 }
 
 class AWS1ClientV0Test extends AWS1ClientTest {
