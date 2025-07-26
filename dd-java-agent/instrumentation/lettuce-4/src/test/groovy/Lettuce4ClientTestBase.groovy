@@ -8,6 +8,11 @@ import datadog.trace.agent.test.utils.PortUtils
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
@@ -31,6 +36,9 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
   @Shared
   RedisServer redisServer
+
+  ScheduledExecutorService scheduler
+  ScheduledFuture<?> threadDumpTask
 
   @Shared
   Map<String, String> testHashMap = [
@@ -61,6 +69,18 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
+    scheduler = Executors.newSingleThreadScheduledExecutor()
+
+    threadDumpTask = scheduler.schedule({
+      println "=== Thread Dump Triggered at ${new Date()} ==="
+      Thread.getAllStackTraces().each { thread, stack ->
+        println "Thread: ${thread.name}, daemon: ${thread.daemon}"
+        stack.each { println "\tat ${it}" }
+      }
+      println "==============================================="
+    }, 7, TimeUnit.MINUTES)
+
+
     redisServer.start()
 
     redisClient = RedisClient.create(embeddedDbUri)
@@ -79,6 +99,9 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   }
 
   def cleanup() {
+    threadDumpTask?.cancel(false)
+    scheduler?.shutdownNow()
+
     connection.close()
     redisClient.shutdown()
     redisServer.stop()
