@@ -142,7 +142,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       }
       DataStreamsTags tags =
           DataStreamsTags.createWithClusterId(
-              "" + "kafka", DataStreamsTags.Direction.Outbound, record.topic(), clusterId);
+              "kafka", DataStreamsTags.Direction.Outbound, record.topic(), clusterId);
       try {
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
