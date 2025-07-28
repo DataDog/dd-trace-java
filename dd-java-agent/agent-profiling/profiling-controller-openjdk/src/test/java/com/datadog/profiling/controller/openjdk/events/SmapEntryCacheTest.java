@@ -18,7 +18,8 @@ class SmapEntryCacheTest {
     assumeTrue(OperatingSystem.isLinux());
     // We need at least Java 22 for the annotated regions
     assumeTrue(JavaVirtualMachine.isJavaVersionAtLeast(22));
-    SmapEntryCache smapEntryCache = new SmapEntryCache(Duration.ofHours(1)); // set up a really long expiration duration
+    SmapEntryCache smapEntryCache =
+        new SmapEntryCache(Duration.ofHours(1)); // set up a really long expiration duration
     List<SmapEntryEvent> events1 = smapEntryCache.getEvents();
     List<SmapEntryEvent> events2 = smapEntryCache.getEvents();
     // the cache is using double buffered event list so we can use identity comparison
