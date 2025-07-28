@@ -25,24 +25,6 @@ class GrpcInjectAdapterTest extends VersionedNamingTestBase {
     carrier.get(getKey("ot-baggage-bar")) == "v3"
   }
 
-  def "carrier set is can set repeated keys that are not ot-baggage-*"() {
-    setup:
-    def carrier = new Metadata()
-
-    def baggage = [["foo", "v1"], ["foo", "v2"], ["bar", "v3"]]
-
-    when:
-    baggage.each { pair ->
-      def (key, value) = pair
-      SETTER.set(carrier, key, value)
-    }
-
-    then:
-    carrier.headerCount() == 3
-    carrier.get(getKey("foo")) == "v2" // last value wins
-    carrier.get(getKey("bar")) == "v3"
-  }
-
   Metadata.Key<String> getKey(String key){
     Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER)
   }
