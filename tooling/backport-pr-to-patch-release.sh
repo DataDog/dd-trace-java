@@ -57,23 +57,43 @@ if [ -z "$PR_COMMITS" ]; then
     echo "PR $PR_NUMBER does not exist"
     exit 1
 fi
-# Check PR does not contain merge commit
-echo "- Checking PR does not contain merge commit"
+# Check all individual commits are still present
+USE_MERGE_COMMIT=0
+echo "- Checking all individual commits are still present"
 for PR_COMMIT in $PR_COMMITS; do
-    PARENT_COUNT=$(git rev-list --parents -n 1 "$PR_COMMIT" | wc -w)
-    if [ "$PARENT_COUNT" -gt 2 ]; then
-        echo "PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
-        echo "Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
-        echo "PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
-        echo -n "Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
-        read -r ANSWER
-        if [ "$ANSWER" == "y" ]; then
-            PR_COMMITS=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
-        else
-            exit 1
-        fi
+    if ! git cat-file -e "$PR_COMMIT"; then
+        echo "Commit $PR_COMMIT from PR $PR_NUMBER is no longer present in the repository."
+        echo "This can happen when PR is squashed and remote branch is removed afterwards, original commits can be garbage collected."
+        USE_MERGE_COMMIT=1
+        break
     fi
 done
+if [ $USE_MERGE_COMMIT -eq 0 ]; then
+    # Check PR does not contain merge commit
+    echo "- Checking PR does not contain merge commit"
+    for PR_COMMIT in $PR_COMMITS; do
+        PARENT_COUNT=$(git rev-list --parents -n 1 "$PR_COMMIT" 2>/dev/null | wc -w)
+        if [ "$PARENT_COUNT" -gt 2 ]; then
+            echo "PR $PR_NUMBER contains a merge commit: $PR_COMMIT"
+            echo "Merge commit changes: https://github.com/DataDog/dd-trace-java/commit/${PR_COMMIT}"
+            echo "PR commit list: https://github.com/DataDog/dd-trace-java/pull/${PR_NUMBER}/commits"
+            USE_MERGE_COMMIT=1
+            break
+        fi
+    done
+fi
+# Ask to use merge commit rather than individual commits
+if [ $USE_MERGE_COMMIT -eq 1 ]; then
+    echo -n "Would you like to cherry-pick the PR ${PR_NUMBER} merge commit instead of each of its commits individually? (y/n) "
+    read -r ANSWER
+    if [ "$ANSWER" == "y" ]; then
+        PR_COMMITS=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+    else
+        echo "Aborting. Please back-port the PR manually then."
+        exit 1
+    fi
+fi
+# Fetch PR details
 PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
 PR_LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
 
