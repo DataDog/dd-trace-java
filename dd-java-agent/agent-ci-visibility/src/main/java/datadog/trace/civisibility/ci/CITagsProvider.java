@@ -31,6 +31,7 @@ public class CITagsProvider {
         .withCiPipelineName(ciInfo.getCiPipelineName())
         .withCiStageName(ciInfo.getCiStageName())
         .withCiJobName(ciInfo.getCiJobName())
+        .withCiJobId(ciInfo.getCiJobId())
         .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
         .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
         .withCiJorUrl(ciInfo.getCiJobUrl())
@@ -90,6 +91,10 @@ public class CITagsProvider {
 
     public CITagsBuilder withCiStageName(final String ciStageName) {
       return putTagValue(Tags.CI_STAGE_NAME, ciStageName);
+    }
+
+    public CITagsBuilder withCiJobId(final String ciJobId) {
+      return putTagValue(Tags.CI_JOB_ID, ciJobId);
     }
 
     public CITagsBuilder withCiJobName(final String ciJobName) {
