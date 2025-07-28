@@ -882,7 +882,7 @@ package-oci:
 
 # Verify Maven Central deployment is publicly available before publishing OCI images
 verify_maven_central_deployment:
-  image: curlimages/curl:8.15.0  # minimum docker image for curling: https://hub.docker.com/r/curlimages/curl
+  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
   # needs: [ deploy_to_maven_central ]
   rules:
