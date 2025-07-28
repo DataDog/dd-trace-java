@@ -29,6 +29,9 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
+  // Health metrics telemetry collector (set by CoreTracer)
+  private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
+
   RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
     boolean rumEnabled = instrumenterConfig.isRumEnabled();
     RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
@@ -121,5 +124,24 @@ public final class RumInjector {
       return null;
     }
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
+  }
+
+  public static void setTelemetryCollector(RumTelemetryCollector collector) {
+    telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
+  }
+
+  // report that the RUM injector succeeded in injecting the SDK in an HTTP response
+  public static void reportInjectionSucceed() {
+    telemetryCollector.onInjectionSucceed();
+  }
+
+  // report that the RUM injector failed to inject the SDK in an HTTP response
+  public static void reportInjectionFailed() {
+    telemetryCollector.onInjectionFailed();
+  }
+
+  // report that the RUM injector skipped injecting the SDK in an HTTP response
+  public static void reportInjectionSkipped() {
+    telemetryCollector.onInjectionSkipped();
   }
 }
