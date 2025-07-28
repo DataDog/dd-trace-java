@@ -894,13 +894,13 @@ verify_maven_central_deployment:
       allow_failure: true
   script:
     - |
-      export VERSION=1.51.2 # hardcoded VERSION for testing
+      export VERSION=1.51.3 # hardcoded VERSION for testing (should fail)
       # export VERSION=${CI_COMMIT_TAG##v}
       MAVEN_URL="https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
       echo "Checking URL: $MAVEN_URL"
       # Wait 30 min for the release to be available
       TRY=0
-      MAX_TRIES=60
+      MAX_TRIES=2
       DELAY=30
       while [ $TRY -lt $MAX_TRIES ]; do
         if curl -s -I "$MAVEN_URL" | grep -q "^HTTP/.* 200"; then
