@@ -39,7 +39,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
         }
         writer.write("==============================================\n")
       }
-    }, 7, TimeUnit.MINUTES)
+    }, 1, TimeUnit.MILLISECONDS)
   }
 
   def cleanup() {

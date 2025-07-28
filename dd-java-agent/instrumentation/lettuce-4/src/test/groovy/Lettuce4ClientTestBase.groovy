@@ -91,7 +91,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
         }
         writer.write("==============================================\n")
       }
-    }, 7, TimeUnit.MINUTES)
+    }, 1, TimeUnit.MILLISECONDS)
 
     redisServer.start()
 
