@@ -90,6 +90,7 @@ class AzurePipelinesInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(AZURE_PR_TARGET_BRANCH)),
         null,
+        null,
         CommitInfo.NOOP,
         environment.get(AZURE_PR_NUMBER));
   }

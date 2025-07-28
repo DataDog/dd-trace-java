@@ -131,7 +131,8 @@ public class CiVisibilityRepoServices {
       // if head sha present try to populate author, committer and message info through git client
       try {
         CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
-        return PullRequestInfo.merge(ciInfo, new PullRequestInfo(null, null, commitInfo, null));
+        return PullRequestInfo.merge(
+            ciInfo, new PullRequestInfo(null, null, null, commitInfo, null));
       } catch (Exception ignored) {
       }
     }
@@ -145,6 +146,7 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
             config.getGitPullRequestBaseBranchSha(),
+            null,
             new CommitInfo(config.getGitCommitHeadSha()),
             null);
 
@@ -164,6 +166,7 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             null,
             mergeBase,
+            null,
             new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
             null);
 

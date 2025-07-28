@@ -41,6 +41,7 @@ public class CITagsProvider {
         .withAdditionalTags(ciInfo.getAdditionalTags())
         .withPullRequestBaseBranch(pullRequestInfo)
         .withPullRequestBaseBranchSha(pullRequestInfo)
+        .withPullRequestBaseBranchHeadSha(pullRequestInfo)
         .withGitCommitHeadSha(pullRequestInfo)
         .withGitCommitHeadAuthorName(pullRequestInfo)
         .withGitCommitHeadAuthorEmail(pullRequestInfo)
@@ -130,13 +131,16 @@ public class CITagsProvider {
     }
 
     public CITagsBuilder withPullRequestBaseBranch(final PullRequestInfo pullRequestInfo) {
-      return putTagValue(
-          Tags.GIT_PULL_REQUEST_BASE_BRANCH, pullRequestInfo.getPullRequestBaseBranch());
+      return putTagValue(Tags.GIT_PULL_REQUEST_BASE_BRANCH, pullRequestInfo.getBaseBranch());
     }
 
     public CITagsBuilder withPullRequestBaseBranchSha(final PullRequestInfo pullRequestInfo) {
+      return putTagValue(Tags.GIT_PULL_REQUEST_BASE_BRANCH_SHA, pullRequestInfo.getBaseBranchSha());
+    }
+
+    public CITagsBuilder withPullRequestBaseBranchHeadSha(final PullRequestInfo pullRequestInfo) {
       return putTagValue(
-          Tags.GIT_PULL_REQUEST_BASE_BRANCH_SHA, pullRequestInfo.getPullRequestBaseBranchSha());
+          Tags.GIT_PULL_REQUEST_BASE_BRANCH_HEAD_SHA, pullRequestInfo.getBaseBranchHeadSha());
     }
 
     public CITagsBuilder withGitCommitHeadSha(final PullRequestInfo pullRequestInfo) {

@@ -85,6 +85,7 @@ class BuildkiteInfo implements CIProviderInfo {
       return new PullRequestInfo(
           normalizeBranch(environment.get(BUILDKITE_PULL_REQUEST_BASE_BRANCH)),
           null,
+          null,
           CommitInfo.NOOP,
           environment.get(BUILDKITE_PULL_REQUEST_NUMBER));
     }
