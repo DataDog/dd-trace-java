@@ -20,12 +20,25 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     scheduler = Executors.newSingleThreadScheduledExecutor()
 
     threadDumpTask = scheduler.schedule({
-      println "=== Thread Dump Triggered at ${new Date()} ==="
-      Thread.getAllStackTraces().each { thread, stack ->
-        println "Thread: ${thread.name}, daemon: ${thread.daemon}"
-        stack.each { println "\tat ${it}" }
+      File reportDir = new File("build/reports")
+
+      // Ensure the directory exists
+      if (!reportDir.exists()) {
+        reportDir.mkdirs()
       }
-      println "==============================================="
+
+      // Define the file path
+      File reportFile = new File(reportDir, String.format("thread-dump-%d.log", System.currentTimeMillis()))
+
+      // Write to the file
+      try (FileWriter writer = new FileWriter(reportFile)) {
+        writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+        Thread.getAllStackTraces().each { thread, stack ->
+          writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+          stack.each { writer.write("\tat ${it}\n") }
+        }
+        writer.write("==============================================\n")
+      }
     }, 7, TimeUnit.MINUTES)
   }
 
@@ -46,12 +59,12 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     when:
     runUnderTrace("parent") {
       def task = taskScope.fork(new Callable<Boolean>() {
-          @Trace(operationName = "child")
-          @Override
-          Boolean call() throws Exception {
-            return true
-          }
-        })
+        @Trace(operationName = "child")
+        @Override
+        Boolean call() throws Exception {
+          return true
+        }
+      })
       taskScope.joinUntil(now() + 10) // Wait for 10 seconds at maximum
       result = task.get()
     }

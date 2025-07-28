@@ -61,25 +61,37 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.newRedisServer()
-      // bind to localhost to avoid firewall popup
-      .setting("bind " + HOST)
-      // set max memory to avoid problems in CI
-      .setting("maxmemory 128M")
-      .port(port).build()
+    // bind to localhost to avoid firewall popup
+    .setting("bind " + HOST)
+    // set max memory to avoid problems in CI
+    .setting("maxmemory 128M")
+    .port(port).build()
   }
 
   def setup() {
     scheduler = Executors.newSingleThreadScheduledExecutor()
 
     threadDumpTask = scheduler.schedule({
-      println "=== Thread Dump Triggered at ${new Date()} ==="
-      Thread.getAllStackTraces().each { thread, stack ->
-        println "Thread: ${thread.name}, daemon: ${thread.daemon}"
-        stack.each { println "\tat ${it}" }
-      }
-      println "==============================================="
-    }, 7, TimeUnit.MINUTES)
+      File reportDir = new File("build/reports")
 
+      // Ensure the directory exists
+      if (!reportDir.exists()) {
+        reportDir.mkdirs()
+      }
+
+      // Define the file path
+      File reportFile = new File(reportDir, String.format("thread-dump-%d.log", System.currentTimeMillis()))
+
+      // Write to the file
+      try (FileWriter writer = new FileWriter(reportFile)) {
+        writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+        Thread.getAllStackTraces().each { thread, stack ->
+          writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+          stack.each { writer.write("\tat ${it}\n") }
+        }
+        writer.write("==============================================\n")
+      }
+    }, 7, TimeUnit.MINUTES)
 
     redisServer.start()
 
