@@ -74,6 +74,7 @@ public class StableConfigParser {
             return new StableConfigSource.StableConfig(configId, mergedConfigMap);
           }
         }
+        log.debug("No matching rule found in stable configuration file {}", filePath);
       }
       // If configs were found in apm_configuration_default, use them
       if (!configMap.isEmpty()) {
