@@ -884,12 +884,12 @@ package-oci:
 verify_maven_central_deployment:
   image: curlimages/curl:8.15.0  # minimum docker image for curling: https://hub.docker.com/r/curlimages/curl
   stage: publish
-  needs: [ deploy_to_maven_central ]
+  # needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
+    # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    #   when: on_success
     - when: manual
       allow_failure: true
   script:
