@@ -601,7 +601,7 @@ agent_integration_tests:
     GRADLE_TARGET: "traceAgentTest"
     CACHE_TYPE: "base"
   services:
-    - name: datadog/agent:7.34.0
+    - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
       alias: local-agent
       variables:
         DD_APM_ENABLED: "true"
