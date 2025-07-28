@@ -69,8 +69,8 @@ Download and install JDK versions 8, 11, 17, 21 and 24, and GraalVM 17 for your 
   ```shell
   brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu graalvm/tap/graalvm-ce-java17
   ```
-* Identify your local version of graalvm:
-  ```shell
+* Identify your local version of GraalVM:
+  ```
   ls /Library/Java/JavaVirtualMachines | grep graalvm
   ```
   Example: `graalvm-ce-java17-22.3.1`
