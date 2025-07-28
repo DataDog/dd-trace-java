@@ -57,6 +57,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     def result = false
 
     when:
+    Thread.sleep(100)
     runUnderTrace("parent") {
       def task = taskScope.fork(new Callable<Boolean>() {
         @Trace(operationName = "child")
