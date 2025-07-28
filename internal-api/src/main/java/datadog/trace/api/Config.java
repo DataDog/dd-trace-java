@@ -4647,7 +4647,7 @@ public class Config {
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
     String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
-    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf('+');
 
     // The subscription ID of the site instance in Azure App Services
     String subscriptionId = null;
