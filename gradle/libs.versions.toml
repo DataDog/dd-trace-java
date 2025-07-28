@@ -51,14 +51,14 @@ ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 asmcommons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
 dogstatsd = { module = "com.datadoghq:java-dogstatsd-client", version.ref = "dogstatsd" }
-jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket" }
+jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
 
 cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.ref = "cafe_crypto" }
 cafe-crypto-curve25519 = { module = "cafe.cryptography:curve25519-elisabeth", version.ref = "cafe_crypto" }
 
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 # aircompressor v3 requires Java 22
-aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2' }
+aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2'}
 
 # Testing
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
