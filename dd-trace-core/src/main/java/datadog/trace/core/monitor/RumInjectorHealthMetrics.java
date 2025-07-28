@@ -1,7 +1,6 @@
 package datadog.trace.core.monitor;
 
-// Abstract health metrics for RUM injector
-// This class defines the interface for monitoring RUM injection operations
+// Abstract health metrics class for RUM injector
 public abstract class RumInjectorHealthMetrics implements AutoCloseable {
   public static RumInjectorHealthMetrics NO_OP = new RumInjectorHealthMetrics() {};
 

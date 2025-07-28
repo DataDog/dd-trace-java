@@ -12,7 +12,9 @@ import org.jctools.counters.FixedSizeStripedLongCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Default implementation of RumInjectorHealthMetrics that reports metrics to StatsDClient
+// Default implementation of RumInjectorHealthMetrics that reports metrics via StatsDClient
+// This class implements the RumTelemetryCollector interface, which is used to collect telemetry
+// from the RumInjector in the internal-api module
 public class DefaultRumInjectorHealthMetrics extends RumInjectorHealthMetrics
     implements RumTelemetryCollector {
   private static final Logger log = LoggerFactory.getLogger(DefaultRumInjectorHealthMetrics.class);

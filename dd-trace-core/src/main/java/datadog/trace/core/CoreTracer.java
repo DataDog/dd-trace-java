@@ -708,12 +708,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : HealthMetrics.NO_OP;
     healthMetrics.start();
 
+    // Start RUM injector health metrics
     rumInjectorHealthMetrics =
         config.isHealthMetricsEnabled() && config.isRumEnabled()
             ? new DefaultRumInjectorHealthMetrics(this.statsDClient)
             : RumInjectorHealthMetrics.NO_OP;
     rumInjectorHealthMetrics.start();
-    // Register health metrics telemetry collector with RumInjector
+    // Register rumInjectorHealthMetrics as the RumInjector's telemetry collector
     RumInjector.setTelemetryCollector((DefaultRumInjectorHealthMetrics) rumInjectorHealthMetrics);
 
     performanceMonitoring =

@@ -126,21 +126,25 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
+  // set the telemetry collector for the RumInjector
   public static void setTelemetryCollector(RumTelemetryCollector collector) {
     telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
   }
 
-  // report that the RUM injector succeeded in injecting the SDK in an HTTP response
+  // report to the telemetry collector that the RUM injector succeeded in injecting the SDK in an
+  // HTTP response
   public static void reportInjectionSucceed() {
     telemetryCollector.onInjectionSucceed();
   }
 
-  // report that the RUM injector failed to inject the SDK in an HTTP response
+  // report to the telemetry collector that the RUM injector failed to inject the SDK in an HTTP
+  // response
   public static void reportInjectionFailed() {
     telemetryCollector.onInjectionFailed();
   }
 
-  // report that the RUM injector skipped injecting the SDK in an HTTP response
+  // report to the telemetry collector that the RUM injector skipped injecting the SDK in an HTTP
+  // response
   public static void reportInjectionSkipped() {
     telemetryCollector.onInjectionSkipped();
   }

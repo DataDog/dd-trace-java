@@ -1,6 +1,7 @@
 package datadog.trace.api.rum;
 
-// Collect RUM injection telemetry
+// Collect RUM injection telemetry from the RumInjector
+// This is implemented by the DefaultRumInjectorHealthMetrics class in the dd-trace-core module
 public interface RumTelemetryCollector {
 
   RumTelemetryCollector NO_OP =
