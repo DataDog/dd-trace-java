@@ -51,6 +51,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected TestHttpServer.Headers lastTraceRequestHeaders = null
 
   @Shared
+  protected CopyOnWriteArrayList<Map<String, Object>> rcClientMessages = new CopyOnWriteArrayList()
+
+  @Shared
+  private Throwable rcClientDecodingFailure = null
+
+  @Shared
   protected final PollingConditions defaultPoll = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
 
   @Shared
@@ -129,6 +135,10 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send()
       }
       prefix("/v0.7/config") {
+        if (request.getBody() != null) {
+          final msg = new JsonSlurper().parseText(new String(request.getBody(), StandardCharsets.UTF_8)) as Map<String, Object>
+          rcClientMessages.add(msg)
+        }
         response.status(200).send(remoteConfigResponse)
       }
       prefix("/telemetry/proxy/api/v2/apmtelemetry") {
@@ -347,6 +357,21 @@ abstract class AbstractSmokeTest extends ProcessManager {
       }
       assert telemetryFlatMessages.find { predicate.apply(it) } != null
     }
+  }
+
+  Map<String, Object> waitForRcClientRequest(final Function<Map<String, Object>, Boolean> predicate) {
+    waitForRcClientRequest(defaultPoll, predicate)
+  }
+
+  Map<String, Object> waitForRcClientRequest(final PollingConditions poll, final Function<Map<String, Object>, Boolean> predicate) {
+    def message = null
+    poll.eventually {
+      if (rcClientDecodingFailure != null) {
+        throw rcClientDecodingFailure
+      }
+      assert (message = rcClientMessages.find { predicate.apply(it) }) != null
+    }
+    return message
   }
 
   List<DecodedTrace> getTraces() {

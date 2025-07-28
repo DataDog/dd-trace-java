@@ -715,6 +715,41 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     service.usedDDWafConfigKeys.empty
   }
 
+  void 'test that empty configurations are acknowledged'() {
+    given:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+
+    when:
+    AppSecSystem.active = true
+    config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    service.init()
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DATA, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addConfigurationEndListener(_) >> {
+      listeners.savedConfEndListener = it[0]
+    }
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, '{}'.bytes, NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    noExceptionThrown()
+
+    when:
+    listeners.savedWafDataChangesListener.accept(key, null, NOOP)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    noExceptionThrown()
+  }
+
+
   private static AppSecFeatures autoUserInstrum(String mode) {
     return new AppSecFeatures().tap { features ->
       features.autoUserInstrum = new AppSecFeatures.AutoUserInstrum().tap { instrum ->

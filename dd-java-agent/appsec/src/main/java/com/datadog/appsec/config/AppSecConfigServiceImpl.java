@@ -102,11 +102,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
-  private final Set<String> emptyConfigKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<String> ignoredConfigKeys =
+      Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
-  private long rulesAndDataCapabilities;
+  private long rulesAndDataCapabilities = -1L;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -135,32 +136,34 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private long buildRulesAndDataCapabilities() {
-    long capabilities =
-        CAPABILITY_ASM_DD_RULES
-            | CAPABILITY_ASM_IP_BLOCKING
-            | CAPABILITY_ASM_EXCLUSIONS
-            | CAPABILITY_ASM_EXCLUSION_DATA
-            | CAPABILITY_ASM_REQUEST_BLOCKING
-            | CAPABILITY_ASM_USER_BLOCKING
-            | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ENDPOINT_FINGERPRINT
-            | CAPABILITY_ASM_SESSION_FINGERPRINT
-            | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT;
-    if (tracerConfig.isAppSecRaspEnabled()) {
-      capabilities |= CAPABILITY_ASM_RASP_SQLI;
-      capabilities |= CAPABILITY_ASM_RASP_SSRF;
-      capabilities |= CAPABILITY_ASM_RASP_CMDI;
-      capabilities |= CAPABILITY_ASM_RASP_SHI;
-      // RASP LFI is only available in fully enabled mode as it's implemented using callsite
-      // instrumentation
-      if (tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
-        capabilities |= CAPABILITY_ASM_RASP_LFI;
+    if (rulesAndDataCapabilities == -1) {
+      rulesAndDataCapabilities =
+          CAPABILITY_ASM_DD_RULES
+              | CAPABILITY_ASM_IP_BLOCKING
+              | CAPABILITY_ASM_EXCLUSIONS
+              | CAPABILITY_ASM_EXCLUSION_DATA
+              | CAPABILITY_ASM_REQUEST_BLOCKING
+              | CAPABILITY_ASM_USER_BLOCKING
+              | CAPABILITY_ASM_CUSTOM_RULES
+              | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+              | CAPABILITY_ASM_TRUSTED_IPS
+              | CAPABILITY_ENDPOINT_FINGERPRINT
+              | CAPABILITY_ASM_SESSION_FINGERPRINT
+              | CAPABILITY_ASM_NETWORK_FINGERPRINT
+              | CAPABILITY_ASM_HEADER_FINGERPRINT;
+      if (tracerConfig.isAppSecRaspEnabled()) {
+        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SQLI;
+        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SSRF;
+        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_CMDI;
+        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SHI;
+        // RASP LFI is only available in fully enabled mode as it's implemented using callsite
+        // instrumentation
+        if (tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
+          rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_LFI;
+        }
       }
     }
-    return capabilities;
+    return rulesAndDataCapabilities;
   }
 
   private void updateRulesAndDataSubscription() {
@@ -179,7 +182,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.addListener(Product.ASM_DD, new AppSecConfigChangesDDListener());
       this.configurationPoller.addListener(Product.ASM_DATA, new AppSecConfigChangesListener());
       this.configurationPoller.addListener(Product.ASM, new AppSecConfigChangesListener());
-      this.configurationPoller.addCapabilities(rulesAndDataCapabilities);
+      this.configurationPoller.addCapabilities(buildRulesAndDataCapabilities());
     }
   }
 
@@ -188,7 +191,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.removeListeners(Product.ASM_DD);
       this.configurationPoller.removeListeners(Product.ASM_DATA);
       this.configurationPoller.removeListeners(Product.ASM);
-      this.configurationPoller.removeCapabilities(rulesAndDataCapabilities);
+      this.configurationPoller.removeCapabilities(buildRulesAndDataCapabilities());
     }
   }
 
@@ -204,27 +207,22 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
-      maybeInitializeDefaultConfig();
       final String key = configKey.toString();
       if (content == null) {
-        if (!emptyConfigKeys.remove(key)) {
-          try {
-            wafBuilder.removeConfig(key);
-          } catch (UnclassifiedWafException e) {
-            throw new RuntimeException(e);
-          }
-        }
+        remove(configKey, pollingRateHinter);
+        return;
+      }
+      Map<String, Object> contentMap =
+          ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      if (contentMap == null || contentMap.isEmpty()) {
+        ignoredConfigKeys.add(key);
       } else {
-        Map<String, Object> contentMap =
-            ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
-        if (contentMap == null || contentMap.isEmpty()) {
-          emptyConfigKeys.add(key);
-        } else {
-          try {
-            handleWafUpdateResultReport(key, contentMap);
-          } catch (AppSecModule.AppSecModuleActivationException e) {
-            throw new RuntimeException(e);
-          }
+        ignoredConfigKeys.remove(key);
+        try {
+          maybeInitializeDefaultConfig();
+          handleWafUpdateResultReport(key, contentMap);
+        } catch (AppSecModule.AppSecModuleActivationException e) {
+          throw new RuntimeException(e);
         }
       }
     }
@@ -232,7 +230,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     @Override
     public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter)
         throws IOException {
-      accept(configKey, null, pollingRateHinter);
+      final String key = configKey.toString();
+      if (ignoredConfigKeys.remove(key)) {
+        return;
+      }
+      try {
+        maybeInitializeDefaultConfig();
+        wafBuilder.removeConfig(key);
+      } catch (UnclassifiedWafException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -375,7 +382,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     this.mergedAsmFeatures.clear();
     this.usedDDWafConfigKeys.clear();
-    this.emptyConfigKeys.clear();
     this.rulesAndDataCapabilities = buildRulesAndDataCapabilities();
 
     if (wafConfig.isEmpty()) {
