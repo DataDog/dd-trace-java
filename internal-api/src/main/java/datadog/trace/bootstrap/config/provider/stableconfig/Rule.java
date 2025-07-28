@@ -26,12 +26,34 @@ public final class Rule {
   }
 
   public Rule(Object yaml) {
+    if (!(yaml instanceof Map)) {
+      throw new StableConfigMappingException(
+          "Rule must be a map, but got: " + yaml.getClass().getSimpleName());
+    }
     Map map = (Map) yaml;
+
+    Object selectorsObj = map.get("selectors");
+    if (selectorsObj == null) {
+      throw new StableConfigMappingException("Missing 'selectors' in rule: " + map);
+    }
+    if (!(selectorsObj instanceof List)) {
+      throw new StableConfigMappingException(
+          "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName());
+    }
     selectors =
         unmodifiableList(
-            ((List<Object>) map.get("selectors"))
+            ((List<Object>) selectorsObj)
                 .stream().filter(Objects::nonNull).map(Selector::new).collect(toList()));
-    configuration = unmodifiableMap((Map<String, Object>) map.get("configuration"));
+
+    Object configObj = map.get("configuration");
+    if (configObj == null) {
+      throw new StableConfigMappingException("Missing 'configuration' in rule: " + map);
+    }
+    if (!(configObj instanceof Map)) {
+      throw new StableConfigMappingException(
+          "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName());
+    }
+    configuration = unmodifiableMap((Map<String, Object>) configObj);
   }
 
   public List<Selector> getSelectors() {

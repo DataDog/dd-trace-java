@@ -84,7 +84,6 @@ public class StableConfigParser {
       if (configId != null) {
         return new StableConfigSource.StableConfig(configId, Collections.emptyMap());
       }
-
     } catch (IOException e) {
       log.debug("Failed to read the stable configuration file: {}", filePath, e);
     }

@@ -18,13 +18,43 @@ public final class Selector {
   }
 
   public Selector(Object yaml) {
+    if (!(yaml instanceof Map)) {
+      throw new StableConfigMappingException(
+          "Selector must be a map, but got: " + yaml.getClass().getSimpleName());
+    }
     Map map = (Map) yaml;
-    origin = (String) map.get("origin");
-    key = (String) map.get("key");
-    List<String> rawMatches = (List<String>) map.get("matches");
+
+    Object originObj = map.get("origin");
+    if (originObj == null) {
+      throw new StableConfigMappingException("Missing 'origin' in selector: " + map);
+    }
+    if (!(originObj instanceof String)) {
+      throw new StableConfigMappingException(
+          "'origin' must be a string, but got: " + originObj.getClass().getSimpleName());
+    }
+    origin = (String) originObj;
+
+    Object keyObj = map.get("key");
+    key = (keyObj instanceof String) ? (String) keyObj : null;
+
+    Object matchesObj = map.get("matches");
+    if (matchesObj != null && !(matchesObj instanceof List)) {
+      throw new StableConfigMappingException(
+          "'matches' must be a list, but got: " + matchesObj.getClass().getSimpleName());
+    }
+    List<String> rawMatches = (List<String>) matchesObj;
     matches =
         rawMatches != null ? Collections.unmodifiableList(rawMatches) : Collections.emptyList();
-    operator = (String) map.get("operator");
+
+    Object operatorObj = map.get("operator");
+    if (operatorObj == null) {
+      throw new StableConfigMappingException("Missing 'operator' in selector: " + map);
+    }
+    if (!(operatorObj instanceof String)) {
+      throw new StableConfigMappingException(
+          "'operator' must be a string, but got: " + operatorObj.getClass().getSimpleName());
+    }
+    operator = (String) operatorObj;
   }
 
   public String getOrigin() {

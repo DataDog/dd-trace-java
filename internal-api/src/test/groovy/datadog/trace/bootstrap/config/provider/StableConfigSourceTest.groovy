@@ -9,6 +9,10 @@ import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig
 import datadog.trace.test.util.DDSpecification
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -106,6 +110,78 @@ class StableConfigSourceTest extends DDSpecification {
     configId | defaultConfigs                             | ruleConfigs
     ""       | [:]                                        | Arrays.asList(new Rule())
     "12345"  | ["DD_KEY_ONE": "one", "DD_KEY_TWO": "two"] | Arrays.asList(sampleMatchingRule, sampleNonMatchingRule)
+  }
+
+  def "test parse invalid logs mapping errors"() {
+    given:
+    Logger logbackLogger = (Logger) LoggerFactory.getLogger(datadog.trace.bootstrap.config.provider.StableConfigSource)
+    def listAppender = new ListAppender<ILoggingEvent>()
+    listAppender.start()
+    logbackLogger.addAppender(listAppender)
+
+    def tempFile = File.createTempFile("testFile_", ".yaml")
+    tempFile.text = yaml
+
+    when:
+    def stableCfg = new StableConfigSource(tempFile.absolutePath, ConfigOrigin.LOCAL_STABLE_CONFIG)
+
+    then:
+    stableCfg.config == StableConfigSource.StableConfig.EMPTY
+    def warnLogs = listAppender.list.findAll { it.level.toString() == 'WARN' }
+    warnLogs.any { it.formattedMessage.contains(expectedLogSubstring) }
+
+    cleanup:
+    tempFile.delete()
+    logbackLogger.detachAppender(listAppender)
+
+    where:
+    yaml                                                                                           | expectedLogSubstring
+    // Missing 'origin' in selector
+    '''apm_configuration_rules:
+         - selectors:
+             - key: "someKey"
+               matches: ["someValue"]
+               operator: equals
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'origin' in selector"
+    // Missing 'configuration' in rule
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: equals
+    '''                                                                                             | "Missing 'configuration' in rule"
+    // Missing 'selectors' in rule
+    '''apm_configuration_rules:
+         - configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'selectors' in rule"
+    // Triggers ClassCastException (selectors should be a list, not a string)
+    '''apm_configuration_rules:
+         - selectors: "not-a-list"
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'selectors' must be a list, but got: String"
+    // configuration present but not a map
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: equals
+           configuration: "not-a-map"
+    '''                                                                                             | "'configuration' must be a map, but got: String"
+    // configuration present but not a map (integer)
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: equals
+           configuration: 12345
+    '''                                                                                             | "'configuration' must be a map, but got: Integer"
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
