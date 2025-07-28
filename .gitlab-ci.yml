@@ -884,18 +884,15 @@ package-oci:
 verify_maven_central_deployment:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
-  # needs: [ deploy_to_maven_central ]
+  needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-    #   when: on_success
-    - when: manual
-      allow_failure: true
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
   script:
     - |
-      export VERSION=1.51.3 # hardcoded VERSION for testing (should fail)
-      # export VERSION=${CI_COMMIT_TAG##v}
+      export VERSION=${CI_COMMIT_TAG##v}
       MAVEN_URL="https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
       echo "Checking URL: $MAVEN_URL"
       # Wait 30 min for the release to be available
@@ -909,13 +906,15 @@ verify_maven_central_deployment:
         sleep $DELAY
         TRY=$((TRY + 1))
         if [ $TRY -eq $MAX_TRIES ]; then
-          echo "The release is not available after 30 mins. Manually re-run the job to try again."
+          echo "The release was not available after 30 mins. Manually re-run the job to try again."
           exit 1
         fi
       done
 
 publishing-gate:
-  needs: [ verify_maven_central_deployment ]
+  needs:
+    - job: verify_maven_central_deployment
+      optional: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
