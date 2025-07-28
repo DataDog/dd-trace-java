@@ -22,6 +22,7 @@ abstract class AbstractTraceAgentTest extends DDSpecification {
         .withEnv(["DD_APM_ENABLED": "true",
           "DD_BIND_HOST"  : "0.0.0.0",
           "DD_API_KEY"    : "invalid_key_but_this_is_fine",
+          "DD_HOSTNAME"   : "doesnotexist",
           "DD_LOGS_STDOUT": "yes"])
         .withExposedPorts(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
         .withStartupTimeout(Duration.ofSeconds(120))

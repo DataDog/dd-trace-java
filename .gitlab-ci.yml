@@ -606,6 +606,7 @@ agent_integration_tests:
       variables:
         DD_APM_ENABLED: "true"
         DD_BIND_HOST: "0.0.0.0"
+        DD_HOSTNAME: "local-agent"
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
 test_base:
