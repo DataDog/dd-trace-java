@@ -320,8 +320,8 @@ class B3HttpCodec {
       if (firstValue.length() == 1) {
         samplingPriority = convertSamplingPriority(firstValue);
       } else {
-        final int firstIndex = firstValue.indexOf("-");
-        final int secondIndex = firstValue.indexOf("-", firstIndex + 1);
+        final int firstIndex = firstValue.indexOf('-');
+        final int secondIndex = firstValue.indexOf('-', firstIndex + 1);
         if (firstIndex != -1) {
           final String b3TraceId = firstValue.substring(0, firstIndex);
           if (!setTraceId(b3TraceId)) {

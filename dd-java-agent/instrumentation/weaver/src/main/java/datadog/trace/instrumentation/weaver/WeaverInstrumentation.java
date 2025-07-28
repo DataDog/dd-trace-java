@@ -5,7 +5,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.asm.Advice;
 import sbt.testing.TaskDef;
 import weaver.framework.SuiteEvent;
@@ -28,7 +30,8 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
     return new String[] {
       packageName + ".WeaverUtils",
       packageName + ".DatadogWeaverReporter",
-      packageName + ".TaskDefAwareQueueProxy",
+      packageName + ".TaskDefAwareLinkedBlockingQueueProxy",
+      packageName + ".TaskDefAwareConcurrentLinkedQueueProxy",
     };
   }
 
@@ -41,10 +44,26 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   public static class SbtTaskCreationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onTaskCreation(
-        @Advice.FieldValue(value = "queue", readOnly = false)
-            ConcurrentLinkedQueue<SuiteEvent> queue,
-        @Advice.FieldValue("taskDef") TaskDef taskDef) {
-      queue = new TaskDefAwareQueueProxy<SuiteEvent>(taskDef, queue);
+        @Advice.This Object sbtTask, @Advice.FieldValue("taskDef") TaskDef taskDef) {
+      try {
+        Field queueField = sbtTask.getClass().getDeclaredField("queue");
+        queueField.setAccessible(true);
+        Object queue = queueField.get(sbtTask);
+        if (queue instanceof ConcurrentLinkedQueue) {
+          // disney's implementation (0.8.4+) uses a ConcurrentLinkedQueue for the field
+          queueField.set(
+              sbtTask,
+              new TaskDefAwareConcurrentLinkedQueueProxy<SuiteEvent>(
+                  taskDef, (ConcurrentLinkedQueue<SuiteEvent>) queue));
+        } else if (queue instanceof LinkedBlockingQueue) {
+          // typelevel's implementation (0.9+) uses a LinkedBlockingQueue for the field
+          queueField.set(
+              sbtTask,
+              new TaskDefAwareLinkedBlockingQueueProxy<SuiteEvent>(
+                  taskDef, (LinkedBlockingQueue<SuiteEvent>) queue));
+        }
+      } catch (Exception ignored) {
+      }
     }
   }
 }
