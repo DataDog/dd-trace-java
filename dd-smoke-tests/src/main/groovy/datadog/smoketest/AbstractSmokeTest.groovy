@@ -136,8 +136,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
       }
       prefix("/v0.7/config") {
         if (request.getBody() != null) {
-          final msg = new JsonSlurper().parseText(new String(request.getBody(), StandardCharsets.UTF_8)) as Map<String, Object>
-          rcClientMessages.add(msg)
+          try {
+            final msg = new JsonSlurper().parseText(new String(request.getBody(), StandardCharsets.UTF_8)) as Map<String, Object>
+            rcClientMessages.add(msg)
+          } catch (Throwable t) {
+            rcClientDecodingFailure = t
+          }
         }
         response.status(200).send(remoteConfigResponse)
       }
