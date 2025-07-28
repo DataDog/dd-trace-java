@@ -17,6 +17,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.reactivestreams.Publisher;
+import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 
 @AutoService(InstrumenterModule.class)
@@ -73,11 +74,24 @@ public class CircuitBreakerOperatorInstrumentation extends AbstractResilience4jI
 
         Flux<?> newResult = flux.doFinally(ReactorHelper.beforeFinish(span));
 
+        if (newResult instanceof Scannable) {
+          Scannable parent = (Scannable) newResult;
+          // If using putIfAbsent the source publisher should be excluded because it's reused on
+          // retry and other publishers are reconstructed
+          // Don't assign to the source as it's reused on retry
+          while (parent != null) {
+            InstrumentationContext.get(Publisher.class, AgentSpan.class)
+                .put((Publisher<?>) parent, span);
+            parent = parent.scan(Scannable.Attr.PARENT);
+          }
+        }
+
         // for the circuit breaker publisher we should only assign a span to the source publisher,
         // which is just enough
         // whereas for the retry we shouldn't attach to the source because it's reused
         // TODO test if it will work with an open circuit breaker
-        InstrumentationContext.get(Publisher.class, AgentSpan.class).putIfAbsent(source, span);
+        //        InstrumentationContext.get(Publisher.class, AgentSpan.class).putIfAbsent(source,
+        // span);
         result = newResult;
       } // TODO mono
     }

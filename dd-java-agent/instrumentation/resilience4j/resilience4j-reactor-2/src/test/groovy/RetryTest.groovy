@@ -13,14 +13,8 @@ class RetryTest extends AgentTestRunner {
 
   def "decorateCompletionStage retry twice on error"() {
     setup:
-    ConnectableFlux<String> connection = Flux//.just("foo", "bar")
-      //      .<String>error(new IllegalStateException("error"), true)
-      //      .map { serviceCall(it) }
-      .just("abc", "def")
-      //      .map({ serviceCall(it)})
+    ConnectableFlux<String> connection = Flux.just("abc", "def")
       .map({ serviceCallErr(it, new IllegalStateException("error"))})
-      //      .transformDeferred(RetryOperator.of(Retry.of("R2", RetryConfig.custom().maxAttempts(3).build())))
-      //      .transformDeferred(RetryOperator.of(Retry.of("R1", RetryConfig.custom().maxAttempts(3).build())))
       .transformDeferred(RetryOperator.of(Retry.of("R0", RetryConfig.custom().maxAttempts(2).build())))
       .publishOn(Schedulers.boundedElastic())
       .publish()

@@ -75,15 +75,12 @@ public class RetryOperatorInstrumentation extends AbstractResilience4jInstrument
         Flux<?> newResult = flux.doFinally(ReactorHelper.beforeFinish(span));
         if (newResult instanceof Scannable) {
           Scannable parent = (Scannable) newResult;
-          // If using putIfAbsent the source publisher should be excluded because it's reused on
-          // retry and other publishers are reconstructed
-          while (parent != null && parent != source) {
-            System.err.println(
-                ">>c> Assigning to parent " + parent + " span: " + span.getSpanName());
+          while (parent != null) {
             // TODO which parent publisher has to be used to assign a span to?
 
             InstrumentationContext.get(Publisher.class, AgentSpan.class)
                 .putIfAbsent((Publisher<?>) parent, span);
+
             parent = parent.scan(Scannable.Attr.PARENT);
           }
         }
