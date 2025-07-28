@@ -34,6 +34,7 @@ ddprof = "1.29.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
+assertj = "3.25.3" # Added latest AssertJ version
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -61,6 +62,7 @@ lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 aircompressor = { module = 'io.airlift:aircompressor', version = '2.0.2'}
 
 # Testing
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:

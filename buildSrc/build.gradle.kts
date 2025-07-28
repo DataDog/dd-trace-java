@@ -2,6 +2,7 @@ plugins {
   groovy
   `java-gradle-plugin`
   `kotlin-dsl`
+  `jvm-test-suite`
   id("com.diffplug.spotless") version "6.13.0"
 }
 
@@ -51,16 +52,38 @@ dependencies {
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.8")
   implementation("org.ow2.asm", "asm-tree", "9.8")
-
-  testImplementation(libs.spock.core)
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
 }
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
-tasks.test {
-  useJUnitPlatform()
-  enabled = project.hasProperty("runBuildSrcTests")
+testing {
+  @Suppress("UnstableApiUsage")
+  suites {
+    val test by getting() {
+      dependencies {
+        implementation(libs.spock.core)
+        implementation("org.codehaus.groovy", "groovy-all", "3.0.24")
+      }
+    }
+
+    val integTest by registering(JvmTestSuite::class) {
+      dependencies {
+        implementation(gradleTestKit())
+        implementation(libs.assertj)
+      }
+      // Makes the gradle plugin publish its declared plugins to this source set
+      gradlePlugin.testSourceSet(sources)
+    }
+
+    withType(JvmTestSuite::class).configureEach {
+      useJUnitJupiter(libs.versions.junit5)
+      targets.all {
+        testTask.configure {
+          enabled = project.hasProperty("runBuildSrcTests")
+        }
+      }
+    }
+  }
 }

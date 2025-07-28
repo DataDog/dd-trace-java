@@ -24,26 +24,35 @@ abstract class GitCommandValueSource @Inject constructor(
         workingDir(workDir)
         standardOutput = outputStream
         errorOutput = outputStream
+        isIgnoreExitValue = true
       }
     } catch (e: Exception) {
+      e.printStackTrace()
       throw GradleException("Failed to run: ${commands.joinToString(" ")}", e)
     }
 
-    val output = outputStream.toString(Charset.defaultCharset().name())
-    result.exitValue.let { exitValue ->
-      if (exitValue != 0) {
+    val output = outputStream.toString(Charset.defaultCharset().name()).trim()
+    when {
+      result.exitValue == 128 &&
+        (output.startsWith("fatal: not a git repository")
+          || output.startsWith("fatal: No names found, cannot describe anything."))
+            -> {
+        // Behaves as if not a git repo
+        return ""
+      }
+      result.exitValue != 0 -> {
         throw GradleException(
           """
-          Failed to run: ${commands.joinToString(" ")}
-            (exit code: $exitValue)
-          Output:
-          $output
-          """.trimIndent()
+            Failed to run: ${commands.joinToString(" ")}
+              (exit code: ${result.exitValue})
+            Output:
+            $output
+            """.trimIndent()
         )
       }
     }
 
-    return output.trim()
+    return output
   }
 
   interface Parameters : ValueSourceParameters {

@@ -121,7 +121,6 @@ class TracerVersionPlugin @Inject constructor(
     }
 
     return buildString {
-      append(tagPrefix)
       append(version.toString())
 
       if (hasLaterCommits) {
