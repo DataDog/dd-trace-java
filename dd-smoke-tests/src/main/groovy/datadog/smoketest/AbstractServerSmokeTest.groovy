@@ -156,7 +156,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     []
   }
 
-  @Flaky
+  @Flaky("Possible reasons: tests are too fast, the waiting mechanism is not robust enough; somehow too much telemetry is produced.")
   @RunLast
   @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'receive telemetry app-dependencies-loaded'() {
