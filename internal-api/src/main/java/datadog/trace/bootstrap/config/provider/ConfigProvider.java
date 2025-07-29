@@ -74,17 +74,18 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
+    String value = null;
     for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
-        }
-        return value;
+      value = source.get(key, aliases);
+      if (value != null && collectConfig) {
+        ConfigCollector.get().put(key, value, source.origin());
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
+    if (value != null) {
+      return value;
     }
     return defaultValue;
   }
