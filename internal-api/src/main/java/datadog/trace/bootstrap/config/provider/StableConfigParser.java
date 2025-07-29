@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import datadog.environment.EnvironmentVariables;
+import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.config.provider.stableconfig.Rule;
 import datadog.trace.bootstrap.config.provider.stableconfig.Selector;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfig;
@@ -153,7 +155,7 @@ public class StableConfigParser {
         if (key == null) {
           return false;
         }
-        String envValue = System.getenv(key.toUpperCase(Locale.ROOT));
+        String envValue = EnvironmentVariables.get(key.toUpperCase(Locale.ROOT));
         return matchOperator(envValue, operator, matches);
       case "process_arguments":
         if (key == null) {
@@ -166,7 +168,7 @@ public class StableConfigParser {
               key);
           return false;
         }
-        String argValue = System.getProperty(key.substring(2));
+        String argValue = SystemProperties.get(key.substring(2));
         return matchOperator(argValue, operator, matches);
       case "tags":
         // TODO: Support this down the line (Must define the source of "tags" first)
@@ -229,7 +231,7 @@ public class StableConfigParser {
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
-      String value = System.getenv(envVar.toUpperCase(Locale.ROOT));
+      String value = EnvironmentVariables.get(envVar.toUpperCase(Locale.ROOT));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }
@@ -246,7 +248,7 @@ public class StableConfigParser {
             processArg);
         return UNDEFINED_VALUE;
       }
-      String value = System.getProperty(processArg.substring(2));
+      String value = SystemProperties.get(processArg.substring(2));
       if (value == null || value.isEmpty()) {
         return UNDEFINED_VALUE;
       }

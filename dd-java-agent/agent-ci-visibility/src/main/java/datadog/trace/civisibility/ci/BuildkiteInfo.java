@@ -70,6 +70,7 @@ class BuildkiteInfo implements CIProviderInfo {
         .ciPipelineName(environment.get(BUILDKITE_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
         .ciPipelineUrl(ciPipelineUrl)
+        .ciJobId(environment.get(BUILDKITE_JOB_ID))
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
         .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
