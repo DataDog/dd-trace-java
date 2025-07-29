@@ -62,6 +62,7 @@ function process_reports () {
       cp -r workspace/$project_to_save/build/reports/* $report_path/ 2>/dev/null || true
       cp workspace/$project_to_save/build/hs_err_pid*.log $report_path/ 2>/dev/null || true
       cp workspace/$project_to_save/build/javacore*.txt $report_path/ 2>/dev/null || true
+      cp workspace/$project_to_save/build/thread-dump-*.log $report_path/ 2>/dev/null || true
     fi
 }
 

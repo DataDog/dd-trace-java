@@ -19,12 +19,13 @@ class StructuredConcurrencyTest extends AgentTestRunner {
   def setup() {
     scheduler = Executors.newSingleThreadScheduledExecutor()
 
-    threadDumpTask = scheduler.schedule({
-      File reportDir = new File("build/reports")
+    threadDumpTask = scheduler.scheduleAtFixedRate({
+      File reportDir = new File("build")
 
       // Ensure the directory exists
       if (!reportDir.exists()) {
-        reportDir.mkdirs()
+        println("build folder not found")
+        return
       }
 
       // Define the file path
@@ -39,7 +40,7 @@ class StructuredConcurrencyTest extends AgentTestRunner {
         }
         writer.write("==============================================\n")
       }
-    }, 1, TimeUnit.MILLISECONDS)
+    }, 10, 60_000, TimeUnit.MILLISECONDS)
   }
 
   def cleanup() {
