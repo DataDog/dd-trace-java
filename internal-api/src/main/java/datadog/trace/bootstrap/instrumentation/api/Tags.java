@@ -166,4 +166,6 @@ public class Tags {
   public static final String LLMOBS_TASK_SPAN_KIND = "task";
   public static final String LLMOBS_AGENT_SPAN_KIND = "agent";
   public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
+  public static final String LLMOBS_EMBEDDING_SPAN_KIND = "embedding";
+  public static final String LLMOBS_RETRIEVAL_SPAN_KIND = "retrieval";
 }

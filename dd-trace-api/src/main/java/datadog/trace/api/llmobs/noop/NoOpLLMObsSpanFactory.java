@@ -35,4 +35,14 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
+
+  public LLMObsSpan startEmbeddingSpan(
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+    return NoOpLLMObsSpan.INSTANCE;
+  }
+
+  public LLMObsSpan startRetrievalSpan(
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+    return NoOpLLMObsSpan.INSTANCE;
+  }
 }

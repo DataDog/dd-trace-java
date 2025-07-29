@@ -189,6 +189,21 @@ public class LLMObsSystem {
           Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
+    @Override
+    public LLMObsSpan startEmbeddingSpan(
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      return new DDLLMObsSpan(
+          Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+    }
+
+    public LLMObsSpan startRetrievalSpan(
+        String spanName,
+        @javax.annotation.Nullable String mlApp,
+        @javax.annotation.Nullable String sessionId) {
+      return new DDLLMObsSpan(
+          Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+    }
+
     private String getMLApp(String mlApp) {
       if (mlApp == null || mlApp.isEmpty()) {
         return defaultMLApp;

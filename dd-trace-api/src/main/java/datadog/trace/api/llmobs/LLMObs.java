@@ -46,6 +46,16 @@ public class LLMObs {
     return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionId);
   }
 
+  public LLMObsSpan startEmbeddingSpan(
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+    return SPAN_FACTORY.startEmbeddingSpan(spanName, mlApp, sessionId);
+  }
+
+  public LLMObsSpan startRetrievalSpan(
+      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+    return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
+  }
+
   public static void SubmitEvaluation(
       LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, tags);
@@ -89,6 +99,12 @@ public class LLMObs {
     LLMObsSpan startTaskSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
     LLMObsSpan startWorkflowSpan(
+        String spanName, @Nullable String mlApp, @Nullable String sessionId);
+
+    LLMObsSpan startEmbeddingSpan(
+        String spanName, @Nullable String mlApp, @Nullable String sessionId);
+
+    LLMObsSpan startRetrievalSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId);
   }
 
