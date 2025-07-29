@@ -73,6 +73,7 @@ class GitLabInfo implements CIProviderInfo {
         .ciPipelineNumber(environment.get(GITLAB_PIPELINE_NUMBER))
         .ciPipelineUrl(environment.get(GITLAB_PIPELINE_URL))
         .ciStageName(environment.get(GITLAB_STAGE_NAME))
+        .ciJobId(environment.get(GITLAB_JOB_ID))
         .ciJobName(environment.get(GITLAB_JOB_NAME))
         .ciJobUrl(environment.get(GITLAB_JOB_URL))
         .ciWorkspace(expandTilde(environment.get(GITLAB_WORKSPACE_PATH)))

@@ -51,6 +51,7 @@ class CircleCIInfo implements CIProviderInfo {
         .ciPipelineId(pipelineId)
         .ciPipelineName(environment.get(CIRCLECI_PIPELINE_NAME))
         .ciPipelineUrl(buildPipelineUrl(pipelineId))
+        .ciJobId(environment.get(CIRCLECI_BUILD_NUM))
         .ciJobName(environment.get(CIRCLECI_JOB_NAME))
         .ciJobUrl(environment.get(CIRCLECI_BUILD_URL))
         .ciWorkspace(expandTilde(environment.get(CIRCLECI_WORKSPACE_PATH)))

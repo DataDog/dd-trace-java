@@ -82,6 +82,7 @@ class GithubActionsInfo implements CIProviderInfo {
         .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
+        .ciJobId(environment.get(GHACTIONS_JOB))
         .ciJobName(environment.get(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
