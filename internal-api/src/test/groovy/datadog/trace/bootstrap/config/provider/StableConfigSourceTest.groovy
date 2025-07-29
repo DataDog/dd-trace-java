@@ -30,18 +30,17 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def "test empty file"() {
-    when:
+    given:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
-    then:
-    if (filePath == null) {
-      throw new AssertionError("Failed to create: " + filePath)
-    }
 
     when:
     StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
     then:
     config.getKeys().size() == 0
     config.getConfigId() == null
+
+    cleanup:
+    Files.delete(filePath)
   }
 
   def "test file invalid format"() {
@@ -60,6 +59,8 @@ class StableConfigSourceTest extends DDSpecification {
     then:
     stableCfg.getConfigId() == null
     stableCfg.getKeys().size() == 0
+
+    cleanup:
     Files.delete(filePath)
 
     where:
@@ -69,12 +70,8 @@ class StableConfigSourceTest extends DDSpecification {
   }
 
   def "test file valid format"() {
-    when:
+    given:
     Path filePath = Files.createTempFile("testFile_", ".yaml")
-    then:
-    if (filePath == null) {
-      throw new AssertionError("Failed to create: " + filePath)
-    }
 
     when:
     StableConfig stableConfigYaml = new StableConfig(configId, defaultConfigs)
@@ -104,6 +101,8 @@ class StableConfigSourceTest extends DDSpecification {
         !cfgKeys.contains(keyString)
       }
     }
+
+    cleanup:
     Files.delete(filePath)
 
     where:
@@ -114,7 +113,7 @@ class StableConfigSourceTest extends DDSpecification {
 
   def "test parse invalid logs mapping errors"() {
     given:
-    Logger logbackLogger = (Logger) LoggerFactory.getLogger(datadog.trace.bootstrap.config.provider.StableConfigSource)
+    Logger logbackLogger = (Logger) LoggerFactory.getLogger(StableConfigSource)
     def listAppender = new ListAppender<ILoggingEvent>()
     listAppender.start()
     logbackLogger.addAppender(listAppender)
