@@ -1,0 +1,29 @@
+muzzle {
+  pass {
+    group = "com.openai"
+    module = "openai-java"
+    versions = "[2.8.0,)"
+    assertInverse = true
+  }
+}
+
+// Instrumentation is currently in preview. Additional testing will be implemented before enabling this by default.
+//minimumBranchCoverage = 0.0
+//minimumInstructionCoverage = 0.0
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly(group: 'com.openai', name: 'openai-java', version: '2.8.1')
+
+  testImplementation(group: 'com.openai', name: 'openai-java') {
+    version {
+      strictly '[2.8.0,)'
+    }
+  }
+
+  latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
+
+}
