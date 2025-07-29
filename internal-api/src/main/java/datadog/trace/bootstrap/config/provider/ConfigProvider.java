@@ -78,7 +78,12 @@ public final class ConfigProvider {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          if (source instanceof StableConfigSource) {
+            String configId = ((StableConfigSource) source).getConfigId();
+            ConfigCollector.get().put(key, value, source.origin(), configId);
+          } else {
+            ConfigCollector.get().put(key, value, source.origin());
+          }
         }
         return value;
       }
