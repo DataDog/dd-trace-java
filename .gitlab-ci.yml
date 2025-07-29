@@ -893,23 +893,31 @@ verify_maven_central_deployment:
   script:
     - |
       export VERSION=${CI_COMMIT_TAG##v}
-      MAVEN_URL="https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
-      echo "Checking URL: $MAVEN_URL"
-      # Wait 30 min for the release to be available
+      ARTIFACT_URLS=(
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
+      )
+      # Try every min for 30 mins to see if the release artifacts are available
       TRY=0
-      MAX_TRIES=2
-      DELAY=30
+      MAX_TRIES=30
+      DELAY=60
       while [ $TRY -lt $MAX_TRIES ]; do
-        if curl -s -I "$MAVEN_URL" | grep -q "^HTTP/.* 200"; then
+        ARTIFACTS_AVAILABLE=true
+        for URL in "${ARTIFACT_URLS[@]}"; do
+          if ! curl --location --fail --silent --show-error -I "$URL"; then
+            ARTIFACTS_AVAILABLE=false
+            break
+          fi
+        done
+        if [ "$ARTIFACTS_AVAILABLE" = true ]; then
           break
         fi
         sleep $DELAY
         TRY=$((TRY + 1))
-        if [ $TRY -eq $MAX_TRIES ]; then
-          echo "The release was not available after 30 mins. Manually re-run the job to try again."
-          exit 1
-        fi
       done
+      echo "The release was not available after 30 mins. Manually re-run the job to try again."
+      exit 1
 
 publishing-gate:
   needs:
