@@ -923,6 +923,17 @@ verify_maven_central_deployment:
           exit 1
         fi
       done
+      # TODO: remove this
+      echo "The job was successful, but what does test-job do if this job fails?"
+      exit 1
+
+test-job:
+  stage: publish
+  needs:
+    - job: verify_maven_central_deployment
+      optional: true
+  script:
+    - echo "Hello, world!"
 
 # publishing-gate:
 #   needs:
