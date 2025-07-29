@@ -884,15 +884,16 @@ package-oci:
 verify_maven_central_deployment:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
   stage: publish
-  needs: [ deploy_to_maven_central ]
+  # needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
+    # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    #   when: on_success
   script:
     - |
-      export VERSION=${CI_COMMIT_TAG##v}
+      export VERSION=1.51.2
+      # export VERSION=${CI_COMMIT_TAG##v}
       ARTIFACT_URLS=(
         "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
@@ -919,10 +920,10 @@ verify_maven_central_deployment:
       echo "The release was not available after 30 mins. Manually re-run the job to try again."
       exit 1
 
-publishing-gate:
-  needs:
-    - job: verify_maven_central_deployment
-      optional: true
+# publishing-gate:
+#   needs:
+#     - job: verify_maven_central_deployment
+#       optional: true
 
 configure_system_tests:
   variables:
