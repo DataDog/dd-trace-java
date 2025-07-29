@@ -1168,6 +1168,7 @@ public class Config {
 
   private final boolean azureAppServices;
   private final boolean azureFunctions;
+  private final boolean awsServerless;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -1486,6 +1487,9 @@ public class Config {
 
     azureFunctions =
         getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
+
+    awsServerless =
+        getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -4268,6 +4272,10 @@ public class Config {
 
   public boolean isAzureAppServices() {
     return azureAppServices;
+  }
+
+  public boolean isAwsServerless() {
+    return awsServerless;
   }
 
   public boolean isDataStreamsEnabled() {
