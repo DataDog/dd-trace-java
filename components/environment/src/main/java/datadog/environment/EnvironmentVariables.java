@@ -1,6 +1,5 @@
 package datadog.environment;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -32,7 +31,7 @@ public final class EnvironmentVariables {
    * @return The environment variable value, {@code defaultValue} if missing, can't be retrieved or
    *     the environment variable name is {@code null}.
    */
-  public static String getOrDefault(@Nonnull String name, String defaultValue) {
+  public static String getOrDefault(String name, String defaultValue) {
     if (name == null) {
       return defaultValue;
     }
