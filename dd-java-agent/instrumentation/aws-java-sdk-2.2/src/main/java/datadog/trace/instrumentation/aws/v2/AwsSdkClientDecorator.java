@@ -208,7 +208,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
     }
 
-    // Set peer.service based on environment for serverless functions
+    // Set peer.service based on Config for serverless functions
     if (Config.get().isAwsServerless()) {
       URI uri = httpRequest.getUri();
       String hostname = uri.getHost();

@@ -518,10 +518,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
       }
     }
 
-    cleanup:
-    // Clean up the environment variable
-    removeEnvConfig("AWS_LAMBDA_FUNCTION_NAME", false)
-
     where:
     service    | operation      | method | path                  | builder                  | call                                                                                                              | body                                                                                                                               | requestId
     "S3"       | "CreateBucket" | "PUT"  | "/test-bucket"        | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("test-bucket").build()) }                              | ""                                                                                                                                 | "UNKNOWN"

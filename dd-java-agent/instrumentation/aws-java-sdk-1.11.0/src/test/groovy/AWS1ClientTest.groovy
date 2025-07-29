@@ -469,8 +469,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     }
 
     cleanup:
-    // Clean up the environment variable
-    removeEnvConfig("AWS_LAMBDA_FUNCTION_NAME", false)
+
     if (jsonPointerStr != null) {
       jsonPointer.set(null)
     }
