@@ -73,7 +73,8 @@ public class PullRequestInfo {
    * @param second Fallback PR info
    * @return Combined PR info
    */
-  public static PullRequestInfo coalesce(final PullRequestInfo first, final PullRequestInfo second) {
+  public static PullRequestInfo coalesce(
+      final PullRequestInfo first, final PullRequestInfo second) {
     return new PullRequestInfo(
         Strings.coalesce(first.baseBranch, second.baseBranch),
         Strings.coalesce(first.baseBranchSha, second.baseBranchSha),
