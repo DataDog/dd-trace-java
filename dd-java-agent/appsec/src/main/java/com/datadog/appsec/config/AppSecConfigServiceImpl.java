@@ -379,8 +379,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       hasUserWafConfig = true;
     }
-    this.mergedAsmFeatures.clear();
-    this.usedDDWafConfigKeys.clear();
 
     if (wafConfig.isEmpty()) {
       throw new IllegalStateException("Expected default waf config to be available");
