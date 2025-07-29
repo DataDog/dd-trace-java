@@ -6,7 +6,7 @@ package datadog.trace.api.config;
  * <pre>
  *   DDTracer.builder().withProperties(new Properties()).build()
  * </pre>
- *
+ * <p>
  * If using dd-java-agent, these keys represent settings that should be configured via system
  * properties, environment variables, or config properties file. See online documentation for
  * details.
@@ -111,5 +111,6 @@ public final class GeneralConfig {
   public static final String SSI_INJECTION_FORCE = "inject.force";
   public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
 
-  private GeneralConfig() {}
+  private GeneralConfig() {
+  }
 }

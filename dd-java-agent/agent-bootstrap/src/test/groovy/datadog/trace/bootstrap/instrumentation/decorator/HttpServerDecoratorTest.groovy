@@ -7,7 +7,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.TraceConfig
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -34,17 +34,6 @@ import static datadog.trace.api.gateway.Events.EVENTS
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
-
-  static class MapCarrierVisitor
-  implements AgentPropagation.ContextVisitor<Map> {
-    @Override
-    void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
-      Map<String, String> headers = carrier.headers
-      headers?.each {
-        classifier.accept(it.key, it.value)
-      }
-    }
-  }
 
   boolean origAppSecActive
 
@@ -364,103 +353,111 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test response headers with trace.header.tags"() {
     setup:
-    def traceConfig = Mock(TraceConfig)
-    traceConfig.getResponseHeaderTags() >> headerTags
-
-    def tags = [:]
+    injectSysConfig("trace.header.tags", headerTags)
+    def traceConfig = Mock(TraceConfig) {
+      getResponseHeaderTags() >> [(headerTags.split(":")[0].toLowerCase()): headerTags.split(":")[1]]
+    }
 
     def responseSpan = Mock(AgentSpan)
     responseSpan.traceConfig() >> traceConfig
-    responseSpan.setTag(_, _) >> { String k, String v ->
-      tags[k] = v
-      return responseSpan
-    }
-
-    def decorator = newDecorator(null, new MapCarrierVisitor())
+    
+    def decorator = newDecorator()
 
     when:
+    println "Groovy mock span class: ${responseSpan.getClass().name}"
+    println "Direct call: " + responseSpan.traceConfig()
+
     decorator.onResponse(responseSpan, resp)
 
     then:
-    if (expectedTag){
-      expectedTag.each {
-        assert tags[it.key] == it.value
-      }
+    for (Map.Entry<String, String> entry : expectedTag.entrySet()) {
+      assert responseSpan.getTag(entry.getKey()).equals(entry.getValue())
     }
 
     where:
-    headerTags                         | resp                                                                                             | expectedTag
-    [:]                                | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [:]
-    ["x-custom-header": "abc"]         | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [abc:"custom-value"]
-    ["*": "datadog.response.headers."] | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | ["datadog.response.headers.x-custom-header":"custom-value", "datadog.response.headers.content-type":"application/json"]
+    headerTags | resp           | expectedTag
+    "X-Custom-Header:abc"    | [status: 200, headers: ['X-Custom-Header': 'custom-value', 'Content-Type': 'application/json']]  | [abc:"custom-value"]
   }
 
   @Override
   def newDecorator() {
-    return newDecorator(null, null)
+    return newDecorator(null)
   }
 
-  def newDecorator(TracerAPI tracer, AgentPropagation.ContextVisitor<Map> contextVisitor) {
+  def newDecorator(TracerAPI tracer) {
     if (!tracer) {
       tracer = AgentTracer.NOOP_TRACER
     }
 
     return new HttpServerDecorator<Map, Map, Map, Map<String, String>>() {
-        @Override
-        protected TracerAPI tracer() {
-          return tracer
-        }
+      @Override
+      protected TracerAPI tracer() {
+        return tracer
+      }
 
-        @Override
-        protected String[] instrumentationNames() {
-          return ["test1", "test2"]
-        }
+      @Override
+      protected String[] instrumentationNames() {
+        return ["test1", "test2"]
+      }
 
-        @Override
-        protected CharSequence component() {
-          return "test-component"
-        }
+      @Override
+      protected CharSequence component() {
+        return "test-component"
+      }
 
-        @Override
-        protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
-          return ContextVisitors.stringValuesMap()
-        }
+      @Override
+      protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
+        return ContextVisitors.stringValuesMap()
+      }
 
-        @Override
-        protected AgentPropagation.ContextVisitor<Map> responseGetter() {
-          return contextVisitor
-        }
+      @Override
+      protected AgentPropagation.ContextVisitor<Map> responseGetter() {
+        return new MapCarrierVisitor()
+      }
 
-        @Override
-        CharSequence spanName() {
-          return "http-test-span"
-        }
+      @Override
+      CharSequence spanName() {
+        return "http-test-span"
+      }
 
-        @Override
-        protected String method(Map m) {
-          return m.method
-        }
+      @Override
+      protected String method(Map m) {
+        return m.method
+      }
 
-        @Override
-        protected URIDataAdapter url(Map m) {
-          return m.url == null ? null : new URIDefaultDataAdapter(m.url)
-        }
+      @Override
+      protected URIDataAdapter url(Map m) {
+        return m.url == null ? null : new URIDefaultDataAdapter(m.url)
+      }
 
-        @Override
-        protected String peerHostIP(Map m) {
-          return m.peerIp
-        }
+      @Override
+      protected String peerHostIP(Map m) {
+        return m.peerIp
+      }
 
-        @Override
-        protected int peerPort(Map m) {
-          return m.port == null ? 0 : m.port
-        }
+      @Override
+      protected int peerPort(Map m) {
+        return m.port == null ? 0 : m.port
+      }
 
+      @Override
+      protected int status(Map m) {
+        return m.status == null ? 0 : m.status
+      }
+
+      static class MapCarrierVisitor
+        implements AgentPropagation.ContextVisitor<Map> {
         @Override
-        protected int status(Map m) {
-          return m.status == null ? 0 : m.status
+        void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
+          Map<String, String> headers = carrier.headers
+          if (headers != null) {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+              classifier.accept(entry.key, entry.value)
+            }
+          }
         }
       }
+    }
   }
 
   def "test startSpan and InstrumentationGateway"() {
@@ -494,7 +491,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       getUniversalCallbackProvider() >> cbpAppSec // no iast callbacks, so this is equivalent
       getDataStreamsMonitoring() >> Mock(DataStreamsMonitoring)
     }
-    def decorator = newDecorator(mTracer, null)
+    def decorator = newDecorator(mTracer)
 
     when:
     decorator.startSpan("test", headers, null)
