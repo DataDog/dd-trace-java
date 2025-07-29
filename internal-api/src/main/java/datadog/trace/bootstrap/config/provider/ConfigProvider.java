@@ -97,19 +97,23 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    String foundValue = null;
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
+      // TODO: Is a source still configured "set" if it's empty, though?
       if (value != null && !value.trim().isEmpty()) {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        return value;
+        if (foundValue == null) {
+          foundValue = value;
+        }
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public String getStringExcludingSource(
@@ -117,6 +121,7 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
+    String foundValue = null;
     for (ConfigProvider.Source source : sources) {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
@@ -127,13 +132,15 @@ public final class ConfigProvider {
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        return value;
+        if (foundValue == null) {
+          foundValue = value;
+        }
       }
     }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public boolean isSet(String key) {
@@ -194,6 +201,7 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
+    T foundValue = null;
     for (ConfigProvider.Source source : sources) {
       try {
         String sourceValue = source.get(key, aliases);
@@ -202,7 +210,9 @@ public final class ConfigProvider {
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin());
           }
-          return value;
+          if (foundValue == null) {
+            foundValue = value;
+          }
         }
       } catch (NumberFormatException ex) {
         // continue
@@ -211,7 +221,7 @@ public final class ConfigProvider {
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return defaultValue;
+    return foundValue != null ? foundValue : defaultValue;
   }
 
   public List<String> getList(String key) {
