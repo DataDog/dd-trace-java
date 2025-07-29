@@ -113,6 +113,7 @@ public class Tags {
   public static final String CI_PIPELINE_NUMBER = "ci.pipeline.number";
   public static final String CI_PIPELINE_URL = "ci.pipeline.url";
   public static final String CI_STAGE_NAME = "ci.stage.name";
+  public static final String CI_JOB_ID = "ci.job.id";
   public static final String CI_JOB_NAME = "ci.job.name";
   public static final String CI_JOB_URL = "ci.job.url";
   public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
