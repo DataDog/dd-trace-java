@@ -67,23 +67,19 @@ public class PullRequestInfo {
   }
 
   /**
-   * Merges info by completing the empty information fields with the fallback's
+   * Combine infos by completing the empty information fields in {@code first} with {@code second}'s
    *
-   * @param info Base PR info
-   * @param fallback Fallback PR info
-   * @return Completed PR info
+   * @param first Base PR info
+   * @param second Fallback PR info
+   * @return Combined PR info
    */
-  public static PullRequestInfo merge(PullRequestInfo info, PullRequestInfo fallback) {
+  public static PullRequestInfo coalesce(final PullRequestInfo first, final PullRequestInfo second) {
     return new PullRequestInfo(
-        Strings.isNotBlank(info.baseBranch) ? info.baseBranch : fallback.baseBranch,
-        Strings.isNotBlank(info.baseBranchSha) ? info.baseBranchSha : fallback.baseBranchSha,
-        Strings.isNotBlank(info.baseBranchHeadSha)
-            ? info.baseBranchHeadSha
-            : fallback.baseBranchHeadSha,
-        CommitInfo.merge(info.headCommit, fallback.headCommit),
-        Strings.isNotBlank(info.pullRequestNumber)
-            ? info.pullRequestNumber
-            : fallback.pullRequestNumber);
+        Strings.coalesce(first.baseBranch, second.baseBranch),
+        Strings.coalesce(first.baseBranchSha, second.baseBranchSha),
+        Strings.coalesce(first.baseBranchHeadSha, second.baseBranchHeadSha),
+        CommitInfo.coalesce(first.headCommit, second.headCommit),
+        Strings.coalesce(first.pullRequestNumber, second.pullRequestNumber));
   }
 
   @Override

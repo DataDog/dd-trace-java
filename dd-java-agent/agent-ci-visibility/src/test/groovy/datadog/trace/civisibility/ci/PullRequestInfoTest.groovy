@@ -38,9 +38,9 @@ class PullRequestInfoTest extends Specification {
     new PullRequestInfo("branch", "baseSha", SHA_A, COMMIT_A, "42") | true
   }
 
-  def "test info merge"() {
+  def "test info coalesce"() {
     expect:
-    PullRequestInfo.merge(infoA, infoB) == result
+    PullRequestInfo.coalesce(infoA, infoB) == result
 
     where:
     infoA                                                             | infoB                                                             | result

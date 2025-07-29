@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class Strings {
 
@@ -239,5 +240,19 @@ public final class Strings {
     System.arraycopy(arr, 0, result, 0, arr.length);
     System.arraycopy(extra, 0, result, arr.length, extra.length);
     return result;
+  }
+
+  /**
+   * @return first non-blank string out of the two, {@code null} if both are blank
+   */
+  @Nullable
+  public static String coalesce(@Nullable final String first, @Nullable final String second) {
+    if (isNotBlank(first)) {
+      return first;
+    } else if (isNotBlank(second)) {
+      return second;
+    } else {
+      return null;
+    }
   }
 }
