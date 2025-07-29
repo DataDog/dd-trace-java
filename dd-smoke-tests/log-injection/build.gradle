@@ -4,6 +4,11 @@ plugins {
   id 'com.gradleup.shadow'
 }
 
+ext {
+  // TODO: Fix for Java 25. Gradle Test Executor failed. Update givenGradleVersionIsCompatibleWithCurrentJvm() when Gradle releases Java 25 support: https://docs.gradle.org/current/userguide/compatibility.html#java_runtime
+  maxJavaVersionForTests = JavaVersion.VERSION_24
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Log injection Smoke Tests.'
 

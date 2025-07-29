@@ -1,5 +1,8 @@
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_21
+  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
+  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
+  maxJavaVersionForTests = JavaVersion.VERSION_24
 }
 
 apply from: "$rootDir/gradle/java.gradle"
