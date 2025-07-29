@@ -64,7 +64,6 @@ public class TelemetryRouter {
         currentClient = agentClient;
       }
     }
-
     return result;
   }
 

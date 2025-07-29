@@ -7,7 +7,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TraceConfig
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -360,7 +360,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     def responseSpan = Mock(AgentSpan)
     responseSpan.traceConfig() >> traceConfig
-    
+
     def decorator = newDecorator()
 
     when:
@@ -390,74 +390,74 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     }
 
     return new HttpServerDecorator<Map, Map, Map, Map<String, String>>() {
-      @Override
-      protected TracerAPI tracer() {
-        return tracer
-      }
-
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
-
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
-        return ContextVisitors.stringValuesMap()
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Map> responseGetter() {
-        return new MapCarrierVisitor()
-      }
-
-      @Override
-      CharSequence spanName() {
-        return "http-test-span"
-      }
-
-      @Override
-      protected String method(Map m) {
-        return m.method
-      }
-
-      @Override
-      protected URIDataAdapter url(Map m) {
-        return m.url == null ? null : new URIDefaultDataAdapter(m.url)
-      }
-
-      @Override
-      protected String peerHostIP(Map m) {
-        return m.peerIp
-      }
-
-      @Override
-      protected int peerPort(Map m) {
-        return m.port == null ? 0 : m.port
-      }
-
-      @Override
-      protected int status(Map m) {
-        return m.status == null ? 0 : m.status
-      }
-
-      static class MapCarrierVisitor
-        implements AgentPropagation.ContextVisitor<Map> {
         @Override
-        void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
-          Map<String, String> headers = carrier.headers
-          if (headers != null) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-              classifier.accept(entry.key, entry.value)
+        protected TracerAPI tracer() {
+          return tracer
+        }
+
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
+
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
+          return ContextVisitors.stringValuesMap()
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map> responseGetter() {
+          return new MapCarrierVisitor()
+        }
+
+        @Override
+        CharSequence spanName() {
+          return "http-test-span"
+        }
+
+        @Override
+        protected String method(Map m) {
+          return m.method
+        }
+
+        @Override
+        protected URIDataAdapter url(Map m) {
+          return m.url == null ? null : new URIDefaultDataAdapter(m.url)
+        }
+
+        @Override
+        protected String peerHostIP(Map m) {
+          return m.peerIp
+        }
+
+        @Override
+        protected int peerPort(Map m) {
+          return m.port == null ? 0 : m.port
+        }
+
+        @Override
+        protected int status(Map m) {
+          return m.status == null ? 0 : m.status
+        }
+
+        static class MapCarrierVisitor
+        implements AgentPropagation.ContextVisitor<Map> {
+          @Override
+          void forEachKey(Map carrier, AgentPropagation.KeyClassifier classifier) {
+            Map<String, String> headers = carrier.headers
+            if (headers != null) {
+              for (Map.Entry<String, String> entry : headers.entrySet()) {
+                classifier.accept(entry.key, entry.value)
+              }
             }
           }
         }
       }
-    }
   }
 
   def "test startSpan and InstrumentationGateway"() {

@@ -58,7 +58,7 @@ public class TelemetryRunnable implements Runnable {
   @Override
   public void run() {
     // Ensure that Config has been initialized, so ConfigCollector can collect all settings first.
-//    Config.get();
+    //    Config.get();
 
     collectConfigChanges();
 
@@ -68,6 +68,7 @@ public class TelemetryRunnable implements Runnable {
       try {
         if (!startupEventSent) {
           startupEventSent = sendAppStartedEvent();
+          return;
         }
         if (startupEventSent) {
           mainLoopIteration();
