@@ -286,6 +286,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
       | CAPABILITY_ASM_HEADER_FINGERPRINT)
+    0 * poller._
 
     when:
     // AppSec is ACTIVE - rules trigger subscriptions
@@ -383,7 +384,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     AppSecSystem.active = false
     config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    config.isAppSecRaspEnabled() >> true
     appSecConfigService.init()
     appSecConfigService.maybeSubscribeConfigPolling()
     def configurer = appSecConfigService.createAppSecModuleConfigurer()
@@ -424,10 +424,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_RASP_SQLI
-      | CAPABILITY_ASM_RASP_SSRF
-      | CAPABILITY_ASM_RASP_CMDI
-      | CAPABILITY_ASM_RASP_SHI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT

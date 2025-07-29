@@ -97,8 +97,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  private volatile boolean hasUserWafConfig;
-  private volatile boolean defaultConfigActivated;
+  private boolean hasUserWafConfig;
+  private boolean defaultConfigActivated;
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -107,7 +107,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final String DEFAULT_WAF_CONFIG_RULE = "DEFAULT_WAF_CONFIG";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
-  private long rulesAndDataCapabilities = -1L;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -135,35 +134,33 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addConfigurationEndListener(applyRemoteConfigListener);
   }
 
-  private long buildRulesAndDataCapabilities() {
-    if (rulesAndDataCapabilities == -1) {
-      rulesAndDataCapabilities =
-          CAPABILITY_ASM_DD_RULES
-              | CAPABILITY_ASM_IP_BLOCKING
-              | CAPABILITY_ASM_EXCLUSIONS
-              | CAPABILITY_ASM_EXCLUSION_DATA
-              | CAPABILITY_ASM_REQUEST_BLOCKING
-              | CAPABILITY_ASM_USER_BLOCKING
-              | CAPABILITY_ASM_CUSTOM_RULES
-              | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-              | CAPABILITY_ASM_TRUSTED_IPS
-              | CAPABILITY_ENDPOINT_FINGERPRINT
-              | CAPABILITY_ASM_SESSION_FINGERPRINT
-              | CAPABILITY_ASM_NETWORK_FINGERPRINT
-              | CAPABILITY_ASM_HEADER_FINGERPRINT;
-      if (tracerConfig.isAppSecRaspEnabled()) {
-        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SQLI;
-        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SSRF;
-        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_CMDI;
-        rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_SHI;
-        // RASP LFI is only available in fully enabled mode as it's implemented using callsite
-        // instrumentation
-        if (tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
-          rulesAndDataCapabilities |= CAPABILITY_ASM_RASP_LFI;
-        }
+  private long getRulesAndDataCapabilities() {
+    long capabilities =
+        CAPABILITY_ASM_DD_RULES
+            | CAPABILITY_ASM_IP_BLOCKING
+            | CAPABILITY_ASM_EXCLUSIONS
+            | CAPABILITY_ASM_EXCLUSION_DATA
+            | CAPABILITY_ASM_REQUEST_BLOCKING
+            | CAPABILITY_ASM_USER_BLOCKING
+            | CAPABILITY_ASM_CUSTOM_RULES
+            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+            | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ENDPOINT_FINGERPRINT
+            | CAPABILITY_ASM_SESSION_FINGERPRINT
+            | CAPABILITY_ASM_NETWORK_FINGERPRINT
+            | CAPABILITY_ASM_HEADER_FINGERPRINT;
+    if (tracerConfig.isAppSecRaspEnabled()) {
+      capabilities |= CAPABILITY_ASM_RASP_SQLI;
+      capabilities |= CAPABILITY_ASM_RASP_SSRF;
+      capabilities |= CAPABILITY_ASM_RASP_CMDI;
+      capabilities |= CAPABILITY_ASM_RASP_SHI;
+      // RASP LFI is only available in fully enabled mode as it's implemented using callsite
+      // instrumentation
+      if (tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED) {
+        capabilities |= CAPABILITY_ASM_RASP_LFI;
       }
     }
-    return rulesAndDataCapabilities;
+    return capabilities;
   }
 
   private void updateRulesAndDataSubscription() {
@@ -182,7 +179,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.addListener(Product.ASM_DD, new AppSecConfigChangesDDListener());
       this.configurationPoller.addListener(Product.ASM_DATA, new AppSecConfigChangesListener());
       this.configurationPoller.addListener(Product.ASM, new AppSecConfigChangesListener());
-      this.configurationPoller.addCapabilities(buildRulesAndDataCapabilities());
+      this.configurationPoller.addCapabilities(getRulesAndDataCapabilities());
     }
   }
 
@@ -191,7 +188,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.removeListeners(Product.ASM_DD);
       this.configurationPoller.removeListeners(Product.ASM_DATA);
       this.configurationPoller.removeListeners(Product.ASM);
-      this.configurationPoller.removeCapabilities(buildRulesAndDataCapabilities());
+      this.configurationPoller.removeCapabilities(getRulesAndDataCapabilities());
     }
   }
 
@@ -382,7 +379,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     this.mergedAsmFeatures.clear();
     this.usedDDWafConfigKeys.clear();
-    this.rulesAndDataCapabilities = buildRulesAndDataCapabilities();
 
     if (wafConfig.isEmpty()) {
       throw new IllegalStateException("Expected default waf config to be available");
