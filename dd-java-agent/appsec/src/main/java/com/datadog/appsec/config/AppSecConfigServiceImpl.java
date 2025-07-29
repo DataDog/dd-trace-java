@@ -204,11 +204,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
-      final String key = configKey.toString();
       if (content == null) {
         remove(configKey, pollingRateHinter);
         return;
       }
+      final String key = configKey.toString();
       Map<String, Object> contentMap =
           ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
       if (contentMap == null || contentMap.isEmpty()) {
@@ -216,6 +216,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       } else {
         ignoredConfigKeys.remove(key);
         try {
+          beforeApply(key, contentMap);
           maybeInitializeDefaultConfig();
           handleWafUpdateResultReport(key, contentMap);
         } catch (AppSecModule.AppSecModuleActivationException e) {
@@ -234,6 +235,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         maybeInitializeDefaultConfig();
         wafBuilder.removeConfig(key);
+        afterRemove(key);
       } catch (UnclassifiedWafException e) {
         throw new RuntimeException(e);
       }
@@ -243,12 +245,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     public void commit(PollingRateHinter pollingRateHinter) {
       // no action needed
     }
+
+    protected void beforeApply(final String key, final Map<String, Object> contentMap) {}
+
+    protected void afterRemove(final String key) {}
   }
 
   private class AppSecConfigChangesDDListener extends AppSecConfigChangesListener {
     @Override
-    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
-        throws IOException {
+    protected void beforeApply(final String key, final Map<String, Object> config) {
       if (defaultConfigActivated) { // if we get any config, remove the default one
         log.debug("Removing default config");
         try {
@@ -258,15 +263,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         }
         defaultConfigActivated = false;
       }
-      usedDDWafConfigKeys.add(configKey.toString());
-      super.accept(configKey, content, pollingRateHinter);
+      usedDDWafConfigKeys.add(key);
     }
 
     @Override
-    public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter)
-        throws IOException {
-      super.remove(configKey, pollingRateHinter);
-      usedDDWafConfigKeys.remove(configKey.toString());
+    protected void afterRemove(final String key) {
+      usedDDWafConfigKeys.remove(key);
     }
   }
 
