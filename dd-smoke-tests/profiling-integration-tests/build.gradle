@@ -1,5 +1,5 @@
 plugins {
-  id "com.gradleup.shadow"
+  id 'com.gradleup.shadow'
 }
 
 ext {
@@ -36,6 +36,11 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+
+  testLogging {
+    events "started", "passed", "skipped", "failed"
+    showStandardStreams = true
+  }
 }
 
 shadowJar {

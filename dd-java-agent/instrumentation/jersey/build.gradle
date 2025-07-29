@@ -56,6 +56,7 @@ dependencies {
   jersey2JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-9')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
 
   jersey3JettyTestImplementation project(':dd-java-agent:testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -72,6 +73,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty-11')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-3-appsec')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
 }
 
 configurations.getByName('jersey3JettyTestRuntimeClasspath').resolutionStrategy {

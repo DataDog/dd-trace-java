@@ -117,12 +117,14 @@ class StringsTest extends DDSpecification {
     "hélló wórld" | 5     | "hélló"
   }
 
-  def "test isNotBlank: #input"() {
+  def "test isNotBlank and isBlank: #input"() {
     when:
     def notBlank = Strings.isNotBlank(input)
+    def isBlank = Strings.isBlank(input)
 
     then:
     notBlank == expected
+    isBlank == !notBlank
 
     where:
     input        | expected

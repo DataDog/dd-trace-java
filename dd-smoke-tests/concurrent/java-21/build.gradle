@@ -34,7 +34,7 @@ forbiddenApisMain {
 }
 
 application {
-  mainClassName = 'datadog.smoketest.concurrent.ConcurrentApp'
+  mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
 
 dependencies {

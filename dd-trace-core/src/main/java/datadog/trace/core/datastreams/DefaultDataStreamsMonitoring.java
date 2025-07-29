@@ -3,12 +3,6 @@ package datadog.trace.core.datastreams;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.MANUAL_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -19,12 +13,7 @@ import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.api.datastreams.Backlog;
-import datadog.trace.api.datastreams.DataStreamsContext;
-import datadog.trace.api.datastreams.InboxItem;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.api.datastreams.PathwayContext;
-import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.*;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,11 +25,9 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +44,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
+      new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0, null);
+      new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
   private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
@@ -91,7 +78,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             V01_DATASTREAMS_ENDPOINT,
             false,
             true,
-            Collections.<String, String>emptyMap()),
+            Collections.emptyMap()),
         sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
         traceConfigSupplier,
@@ -135,12 +122,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     schemaSamplers = new ConcurrentHashMap<>();
 
     this.propagator =
-        new DataStreamsPropagator(
-            this,
-            this.traceConfigSupplier,
-            this.timeSource,
-            this.hashOfKnownTags,
-            serviceNameOverride);
+        new DataStreamsPropagator(this, this.timeSource, this.hashOfKnownTags, serviceNameOverride);
+    // configure global tags behavior
+    DataStreamsTags.setGlobalBaseHash(this.hashOfKnownTags);
+    DataStreamsTags.setServiceNameOverride(serviceNameOverride);
   }
 
   @Override
@@ -228,15 +213,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
-  public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {
-    List<String> tags = new ArrayList<>(sortedTags.size());
-    for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
-      String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
-      if (tag == null) {
-        continue;
-      }
-      tags.add(tag);
-    }
+  public void trackBacklog(DataStreamsTags tags, long value) {
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
 
@@ -250,6 +227,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+    setConsumeCheckpoint(type, source, carrier, true);
+  }
+
+  public void setConsumeCheckpoint(
+      String type, String source, DataStreamsContextCarrier carrier, Boolean isManual) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
@@ -262,13 +244,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
     mergePathwayContextIntoSpan(span, carrier);
 
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-    sortedTags.put(MANUAL_TAG, "true");
-    sortedTags.put(TOPIC_TAG, source);
-    sortedTags.put(TYPE_TAG, type);
+    DataStreamsTags tags;
+    if (isManual) {
+      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Inbound, source);
+    } else {
+      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Inbound, source);
+    }
 
-    setCheckpoint(span, fromTags(sortedTags));
+    setCheckpoint(span, fromTags(tags));
   }
 
   public void setProduceCheckpoint(
@@ -283,16 +266,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("SetProduceCheckpoint is called with no active span");
       return;
     }
-
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    DataStreamsTags tags;
     if (manualCheckpoint) {
-      sortedTags.put(MANUAL_TAG, "true");
+      tags = DataStreamsTags.createManual(type, DataStreamsTags.Direction.Outbound, target);
+    } else {
+      tags = DataStreamsTags.create(type, DataStreamsTags.Direction.Outbound, target);
     }
-    sortedTags.put(TOPIC_TAG, target);
-    sortedTags.put(TYPE_TAG, type);
 
-    DataStreamsContext dsmContext = fromTags(sortedTags);
+    DataStreamsContext dsmContext = fromTags(tags);
     this.propagator.inject(
         span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
   }

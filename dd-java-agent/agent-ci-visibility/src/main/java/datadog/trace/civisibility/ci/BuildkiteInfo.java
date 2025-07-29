@@ -37,7 +37,7 @@ class BuildkiteInfo implements CIProviderInfo {
   public static final String BUILDKITE_GIT_AUTHOR_EMAIL = "BUILDKITE_BUILD_AUTHOR_EMAIL";
   public static final String BUILDKITE_AGENT_ID = "BUILDKITE_AGENT_ID";
   private static final String BUILDKITE_CI_NODE_LABEL_PREFIX = "BUILDKITE_AGENT_META_DATA_";
-  private static final String BUILDKITE_PULL_REQUEST = "BUILDKITE_PULL_REQUEST";
+  private static final String BUILDKITE_PULL_REQUEST_NUMBER = "BUILDKITE_PULL_REQUEST";
   private static final String BUILDKITE_PULL_REQUEST_BASE_BRANCH =
       "BUILDKITE_PULL_REQUEST_BASE_BRANCH";
 
@@ -70,6 +70,7 @@ class BuildkiteInfo implements CIProviderInfo {
         .ciPipelineName(environment.get(BUILDKITE_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
         .ciPipelineUrl(ciPipelineUrl)
+        .ciJobId(environment.get(BUILDKITE_JOB_ID))
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
         .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
@@ -83,13 +84,16 @@ class BuildkiteInfo implements CIProviderInfo {
   public PullRequestInfo buildPullRequestInfo() {
     if (isPullRequest()) {
       return new PullRequestInfo(
-          normalizeBranch(environment.get(BUILDKITE_PULL_REQUEST_BASE_BRANCH)), null, null);
+          normalizeBranch(environment.get(BUILDKITE_PULL_REQUEST_BASE_BRANCH)),
+          null,
+          CommitInfo.NOOP,
+          environment.get(BUILDKITE_PULL_REQUEST_NUMBER));
     }
     return PullRequestInfo.EMPTY;
   }
 
   private boolean isPullRequest() {
-    String pullRequest = environment.get(BUILDKITE_PULL_REQUEST);
+    String pullRequest = environment.get(BUILDKITE_PULL_REQUEST_NUMBER);
     return pullRequest != null && !"false".equals(pullRequest);
   }
 

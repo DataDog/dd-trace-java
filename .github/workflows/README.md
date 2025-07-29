@@ -85,13 +85,6 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
-### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
-
-_Trigger:_ Every day or manually.
-
-_Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
-
-_Recovery:_ Manually trigger the action again.
 
 ### prune-old-pull-requests [🔗](prune-old-pull-requests.yaml)
 
@@ -136,6 +129,14 @@ _Trigger:_ When pushing commits to `master` or manually.
 _Action:_ Build the Java Client Library and runs [the system tests](https://github.com/DataDog/system-tests) against.
 
 _Recovery:_ Manually trigger the action on the desired branch.
+
+### update-jmxfetch-submodule [🔗](update-jmxfetch-submodule.yaml)
+
+_Trigger:_ Monthly or manually
+
+_Action:_ Creates a PR updating the git submodule at dd-java-agent/agent-jmxfetch/integrations-core
+
+_Recovery:_ Manually trigger the action again.
 
 ## Maintenance
 

@@ -9,6 +9,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.TagMap
 import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.config.GeneralConfig
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
@@ -99,6 +100,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> requestBodyProcessedCB
+  BiFunction<RequestContext, Object, Flow<Void>> responseBodyCB
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
@@ -114,6 +116,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
   BiFunction<RequestContext, String, Flow<Void>> userCB
   TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEventCB
+  BiConsumer<RequestContext, String> httpRouteCB
 
   WafMetricCollector wafMetricCollector = Mock(WafMetricCollector)
 
@@ -171,7 +174,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * spanInfo.getTags() >> ['http.client_ip': '1.1.1.1']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '1.1.1.1'])
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
@@ -210,7 +213,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
-    1 * spanInfo.getTags() >> ['http.client_ip': '8.8.8.8']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
   }
 
@@ -462,6 +465,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseBody(), _) >> { responseBodyCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
@@ -477,6 +481,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.httpRoute(), _) >> { httpRouteCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -1004,7 +1009,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       getTraceSegment() >> traceSegment
     }
     final spanInfo = Mock(AgentSpan) {
-      getTags() >> ['http.route':'/']
+      getTags() >> TagMap.fromMap(['http.route':'/'])
     }
 
     when:
@@ -1192,7 +1197,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> true
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
@@ -1210,7 +1215,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >>  TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> false
     0 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     0 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
@@ -1229,7 +1234,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> []
-    1 * spanInfo.getTags() >>  ['http.route': 'route']
+    1 * spanInfo.getTags() >> TagMap.fromMap(['http.route': 'route'])
     1 * requestSampler.preSampleRequest(_) >> true
     1 * traceSegment.setTagTop(Tags.ASM_KEEP, true)
     1 * traceSegment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM)
@@ -1325,6 +1330,30 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.response.headers.x-other-header-2', 'value3')
     1 * traceSegment.setTagTop('_dd.appsec.response.header_collection.discarded', 1)
     0 * traceSegment.setTagTop(_, _)
+  }
+
+  void 'test on httpRoute'() {
+    given:
+    final route = 'dummy-route'
+
+    when:
+    httpRouteCB.accept(ctx, route)
+
+    then:
+    arCtx.getRoute() == route
+  }
+
+  void 'test on response body callback'() {
+    when:
+    responseBodyCB.apply(ctx, [test: 'this is a test'])
+
+    then:
+    1 * eventDispatcher.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT) >> nonEmptyDsInfo
+    1 * eventDispatcher.publishDataEvent(_, _, _, _) >> {
+      final bundle = it[2] as DataBundle
+      final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
+      assert body['test'] == 'this is a test'
+    }
   }
 
 }

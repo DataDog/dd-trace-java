@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.spark
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.test.util.Flaky
@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.StructType
 import spock.lang.IgnoreIf
 
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
-  Platform.isJ9()
+  JavaVirtualMachine.isJ9()
 })
 abstract class AbstractSparkTest extends AgentTestRunner {
   @Override

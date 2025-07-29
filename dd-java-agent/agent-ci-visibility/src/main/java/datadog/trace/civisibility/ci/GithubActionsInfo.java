@@ -82,6 +82,7 @@ class GithubActionsInfo implements CIProviderInfo {
         .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
+        .ciJobId(environment.get(GHACTIONS_JOB))
         .ciJobName(environment.get(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
@@ -94,7 +95,7 @@ class GithubActionsInfo implements CIProviderInfo {
   @Override
   public PullRequestInfo buildPullRequestInfo() {
     String baseRef = environment.get(GITHUB_BASE_REF);
-    if (!Strings.isNotBlank(baseRef)) {
+    if (Strings.isBlank(baseRef)) {
       return PullRequestInfo.EMPTY;
     }
 
@@ -109,6 +110,7 @@ class GithubActionsInfo implements CIProviderInfo {
 
       String baseSha = null;
       String headSha = null;
+      String prNumber = null;
 
       Map<String, Object> pullRequest = (Map<String, Object>) eventJson.get("pull_request");
       if (pullRequest != null) {
@@ -121,13 +123,18 @@ class GithubActionsInfo implements CIProviderInfo {
         if (base != null) {
           baseSha = (String) base.get("sha");
         }
+
+        Double number = (Double) pullRequest.get("number");
+        if (number != null) {
+          prNumber = String.valueOf(number.intValue());
+        }
       }
 
-      return new PullRequestInfo(baseRef, baseSha, headSha);
+      return new PullRequestInfo(baseRef, baseSha, new CommitInfo(headSha), prNumber);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
-      return new PullRequestInfo(baseRef, null, null);
+      return new PullRequestInfo(baseRef, null, CommitInfo.NOOP, null);
     }
   }
 

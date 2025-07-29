@@ -40,8 +40,9 @@ class GithubActionsInfoTest extends CITagsProviderTest {
     def pullRequestInfo = new GithubActionsInfo(new CiEnvironmentImpl(System.getenv())).buildPullRequestInfo()
 
     then:
-    pullRequestInfo.pullRequestBaseBranch == "base-ref"
-    pullRequestInfo.pullRequestBaseBranchSha == "52e0974c74d41160a03d59ddc73bb9f5adab054b"
-    pullRequestInfo.gitCommitHeadSha == "df289512a51123083a8e6931dd6f57bb3883d4c4"
+    pullRequestInfo.getPullRequestBaseBranch() == "base-ref"
+    pullRequestInfo.getPullRequestBaseBranchSha() == "52e0974c74d41160a03d59ddc73bb9f5adab054b"
+    pullRequestInfo.getHeadCommit().getSha() == "df289512a51123083a8e6931dd6f57bb3883d4c4"
+    pullRequestInfo.getPullRequestNumber() == "1"
   }
 }

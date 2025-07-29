@@ -1,13 +1,11 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
-import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.util.Strings
-import java.nio.file.Files
-import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -21,6 +19,9 @@ import org.gradle.wrapper.WrapperConfiguration
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
@@ -43,7 +44,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
-    Platform.isJ9()
+    JavaVirtualMachine.isJ9()
   })
   def "test legacy #projectName, v#gradleVersion"() {
     runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
@@ -255,9 +256,20 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
-    def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
-    buildResult
+    try {
+      def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
+      return buildResult
+
+    } catch (Exception e) {
+      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+      if (daemonLog != null) {
+        println "=============================================================="
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+        println "=============================================================="
+      }
+      throw e
+    }
   }
 
   private void assertBuildSuccessful(buildResult) {

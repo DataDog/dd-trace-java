@@ -5,10 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
@@ -19,14 +16,11 @@ import com.amazonaws.handlers.HandlerContextKey;
 import com.amazonaws.handlers.RequestHandler2;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
-import datadog.trace.api.datastreams.DataStreamsContext;
-import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.datastreams.*;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,24 +101,22 @@ public class TracingRequestHandler extends RequestHandler2 {
       }
     }
     if (span != null
-        && span.traceConfig().isDataStreamsEnabled()
+        && traceConfig().isDataStreamsEnabled()
         && "AmazonKinesis".equals(request.getServiceName())
         && "GetRecords".equals(requestAccess.getOperationNameFromType())) {
       String streamArn = requestAccess.getStreamARN(originalRequest);
       if (null != streamArn) {
-        List records =
+        List<?> records =
             GetterAccess.of(response.getAwsResponse()).getRecords(response.getAwsResponse());
         if (null != records) {
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put(TOPIC_TAG, streamArn);
-          sortedTags.put(TYPE_TAG, "kinesis");
+          DataStreamsTags tags =
+              DataStreamsTags.create("kinesis", DataStreamsTags.Direction.Inbound, streamArn);
           for (Object record : records) {
             Date arrivalTime = GetterAccess.of(record).getApproximateArrivalTimestamp(record);
             AgentDataStreamsMonitoring dataStreamsMonitoring =
                 AgentTracer.get().getDataStreamsMonitoring();
             PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-            DataStreamsContext context = create(sortedTags, arrivalTime.getTime(), 0);
+            DataStreamsContext context = create(tags, arrivalTime.getTime(), 0);
             pathwayContext.setCheckpoint(context, dataStreamsMonitoring::add);
             if (!span.context().getPathwayContext().isStarted()) {
               span.context().mergePathwayContext(pathwayContext);

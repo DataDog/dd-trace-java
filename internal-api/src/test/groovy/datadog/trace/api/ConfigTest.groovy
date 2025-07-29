@@ -40,6 +40,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_PR
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
@@ -164,6 +165,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_JMXFETCH_METRICS_CONFIGS_ENV = "DD_JMXFETCH_METRICS_CONFIGS"
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
+  private static final DD_TRACE_HEADER_TAGS = "DD_TRACE_HEADER_TAGS"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
   private static final DD_RUNTIME_METRICS_ENABLED_ENV = "DD_RUNTIME_METRICS_ENABLED"
   private static final DD_TRACE_LONG_RUNNING_ENABLED = "DD_TRACE_EXPERIMENTAL_LONG_RUNNING_ENABLED"
@@ -256,7 +258,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DYNAMIC_INSTRUMENTATION_ENABLED, "true")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_PROBE_FILE, "file location")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT, "10")
-    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "1000")
+    prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS, "0.234")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE, "200")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_METRICS_ENABLED, "false")
     prop.setProperty(DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED, "true")
@@ -352,7 +354,7 @@ class ConfigTest extends DDSpecification {
     config.getFinalDebuggerSnapshotUrl() == "http://somehost:123/debugger/v1/input"
     config.dynamicInstrumentationProbeFile == "file location"
     config.dynamicInstrumentationUploadTimeout == 10
-    config.dynamicInstrumentationUploadFlushInterval == 1000
+    config.dynamicInstrumentationUploadFlushInterval == 234
     config.dynamicInstrumentationUploadBatchSize == 200
     config.dynamicInstrumentationMetricsEnabled == false
     config.dynamicInstrumentationClassFileDumpEnabled == true
@@ -567,6 +569,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "42")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
+    environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
 
     when:
     def config = new Config()
@@ -586,6 +589,8 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
+    config.requestHeaderTags == ["*":"http.request.headers."]
+    config.responseHeaderTags == ["*":"http.response.headers."]
   }
 
   def "sys props override env vars"() {

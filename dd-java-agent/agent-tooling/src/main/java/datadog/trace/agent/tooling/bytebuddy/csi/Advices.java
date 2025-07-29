@@ -370,7 +370,8 @@ public class Advices {
         @Nonnull TypeDescription type, @Nonnull ConstantPool pool, final byte[] classFile);
   }
 
-  private interface TypedAdvice {
+  // Kept public only for testing
+  public interface TypedAdvice {
     byte getType();
 
     static CallSiteAdvice withType(final CallSiteAdvice advice, final byte type) {

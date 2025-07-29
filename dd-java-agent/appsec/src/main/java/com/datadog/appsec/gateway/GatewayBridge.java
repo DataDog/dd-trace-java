@@ -98,6 +98,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo initialReqDataSubInfo;
   private volatile DataSubscriberInfo rawRequestBodySubInfo;
   private volatile DataSubscriberInfo requestBodySubInfo;
+  private volatile DataSubscriberInfo responseBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerMethodSubInfo;
@@ -137,6 +138,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.requestMethodUriRaw(), this::onRequestMethodUriRaw);
     subscriptionService.registerCallback(EVENTS.requestBodyStart(), this::onRequestBodyStart);
     subscriptionService.registerCallback(EVENTS.requestBodyDone(), this::onRequestBodyDone);
+    subscriptionService.registerCallback(EVENTS.responseBody(), this::onResponseBody);
     subscriptionService.registerCallback(
         EVENTS.requestClientSocketAddress(), this::onRequestClientSocketAddress);
     subscriptionService.registerCallback(
@@ -158,6 +160,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
     subscriptionService.registerCallback(EVENTS.user(), this::onUser);
     subscriptionService.registerCallback(EVENTS.loginEvent(), this::onLoginEvent);
+    subscriptionService.registerCallback(EVENTS.httpRoute(), this::onHttpRoute);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -176,6 +179,7 @@ public class GatewayBridge {
     initialReqDataSubInfo = null;
     rawRequestBodySubInfo = null;
     requestBodySubInfo = null;
+    responseBodySubInfo = null;
     pathParamsSubInfo = null;
     respDataSubInfo = null;
     grpcServerMethodSubInfo = null;
@@ -222,6 +226,14 @@ public class GatewayBridge {
         userIdSubInfo = null;
       }
     }
+  }
+
+  private void onHttpRoute(final RequestContext ctx_, final String route) {
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+    ctx.setRoute(route);
   }
 
   private Flow<Void> onLoginEvent(
@@ -629,6 +641,39 @@ public class GatewayBridge {
     }
   }
 
+  private Flow<Void> onResponseBody(RequestContext ctx_, Object obj) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    if (ctx.isResponseBodyPublished()) {
+      log.debug(
+          "Response body already published; will ignore new value of type {}", obj.getClass());
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setResponseBodyPublished(true);
+
+    while (true) {
+      DataSubscriberInfo subInfo = responseBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.RESPONSE_BODY_OBJECT);
+        responseBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      Object converted = ObjectIntrospection.convert(obj, ctx);
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.RESPONSE_BODY_OBJECT, converted);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        responseBodySubInfo = null;
+      }
+    }
+  }
+
   private Flow<Void> onRequestPathParams(RequestContext ctx_, Map<String, ?> data) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null || ctx.isPathParamsPublished()) {
@@ -969,7 +1014,7 @@ public class GatewayBridge {
     }
 
     Map<String, List<String>> queryParams = EMPTY_QUERY_PARAMS;
-    int i = savedRawURI.indexOf("?");
+    int i = savedRawURI.indexOf('?');
     if (i != -1) {
       String qs = savedRawURI.substring(i + 1);
       // ideally we'd have the query string as parsed by the server

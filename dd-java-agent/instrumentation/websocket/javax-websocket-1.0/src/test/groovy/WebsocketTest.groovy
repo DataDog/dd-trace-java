@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
+import datadog.trace.api.TagMap
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -584,7 +585,7 @@ class WebsocketTest extends AgentTestRunner {
     clientHandshake.setSamplingPriority(PrioritySampling.SAMPLER_DROP) // simulate sampler drop
     def serverHandshake = createHandshakeSpan("servlet.request", url,
     new ExtractedContext(clientHandshake.context().getTraceId(), clientHandshake.context().getSpanId(), clientHandshake.context().getSamplingPriority(),
-    "test", 0, ["example_baggage": "test"], null, null, null, null, null)) // simulate server span
+    "test", 0, ["example_baggage": "test"], TagMap.EMPTY, null, null, null, null)) // simulate server span
     def session = deployEndpointAndConnect(new Endpoints.TestEndpoint(new Endpoints.FullStringHandler()),
     clientHandshake, serverHandshake, url)
 

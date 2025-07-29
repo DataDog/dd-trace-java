@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import java.util.Collection;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
@@ -17,6 +18,7 @@ import jdk.jfr.StackTrace;
 @Period("beginChunk")
 @StackTrace(false)
 public class SmapEntryEvent extends Event {
+  private static final EventType TYPE = EventType.getEventType(SmapEntryEvent.class);
 
   @Label("Region Start Address")
   long startAddress;
@@ -239,10 +241,9 @@ public class SmapEntryEvent extends Event {
     this.nmtCategory = nmtCategory;
   }
 
-  public static void emit() {
-    if (!EventType.getEventType(AggregatedSmapEntryEvent.class).isEnabled()) {
-      SmapEntryFactory.collectEvents().forEach(Event::commit);
-    } else {
+  public static void emit(Collection<SmapEntryEvent> events) {
+    if (TYPE.isEnabled()) {
+      events.forEach(SmapEntryEvent::commit);
     }
   }
 

@@ -1,5 +1,7 @@
 package com.datadog.profiling.agent;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
@@ -85,8 +87,7 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(
-      final boolean isStartingFirst, ClassLoader agentClasLoader, Instrumentation inst)
+  public static synchronized boolean run(final boolean earlyStart, Instrumentation inst)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
@@ -103,19 +104,19 @@ public class ProfilingAgent {
         startForceFirst = false;
       }
 
-      if (isStartingFirst && !startForceFirst) {
+      if (earlyStart && !startForceFirst) {
         log.debug("Profiling: not starting first");
         // early startup is disabled;
-        return;
+        return true;
       }
       if (!config.isProfilingEnabled()) {
         log.debug(SEND_TELEMETRY, "Profiling: disabled");
-        return;
+        return false;
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
         log.info(
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
-        return;
+        return false;
       }
 
       try {
@@ -174,12 +175,13 @@ public class ProfilingAgent {
         log.debug(SEND_TELEMETRY, "Failed to initialize profiling agent!", e);
       }
     }
+    return false;
   }
 
   private static boolean isStartForceFirstSafe() {
-    return Platform.isJavaVersionAtLeast(14)
-        || (Platform.isJavaVersion(13) && Platform.isJavaVersionAtLeast(13, 0, 4))
-        || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 8));
+    return isJavaVersionAtLeast(14)
+        || (isJavaVersion(13) && isJavaVersionAtLeast(13, 0, 4))
+        || (isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 8));
   }
 
   public static void shutdown() {

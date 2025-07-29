@@ -51,13 +51,6 @@ public enum CiVisibilityDistributionMetric {
   FLAKY_TESTS_RESPONSE_BYTES("flaky_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the flaky tests endpoint */
   FLAKY_TESTS_RESPONSE_TESTS("flaky_tests.response_tests"),
-  /** The time it takes to get the response of the changed files endpoint request in ms */
-  IMPACTED_TESTS_DETECTION_REQUEST_MS("impacted_tests_detection.request_ms"),
-  /** The number of bytes received by the changed files endpoint */
-  IMPACTED_TESTS_DETECTION_RESPONSE_BYTES(
-      "impacted_tests_detection.response_bytes", ResponseCompressed.class),
-  /** The number of files received by the changed files endpoint */
-  IMPACTED_TESTS_DETECTION_RESPONSE_FILES("impacted_tests_detection.response_files"),
   /** The time it takes to get the response of the test management tests endpoint request in ms */
   TEST_MANAGEMENT_TESTS_REQUEST_MS("test_management.request_ms"),
   /** The number of bytes received by the test management tests endpoint */
