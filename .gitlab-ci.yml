@@ -918,9 +918,11 @@ verify_maven_central_deployment:
         fi
         sleep $DELAY
         TRY=$((TRY + 1))
+        if [ $TRY -eq $MAX_TRIES ]; then
+          echo "The release was not available after 30 mins. Manually re-run the job to try again."
+          exit 1
+        fi
       done
-      echo "The release was not available after 30 mins. Manually re-run the job to try again."
-      exit 1
 
 # publishing-gate:
 #   needs:
