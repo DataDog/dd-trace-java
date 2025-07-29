@@ -73,8 +73,8 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
     threadDumpTask = scheduler.scheduleAtFixedRate({
       File reportDir = new File("build")
+      println("DEBUG: " + reportDir.absolutePath)
 
-      // Ensure the directory exists
       if (!reportDir.exists()) {
         println("build folder not found")
         return
@@ -85,10 +85,18 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
       // Write to the file
       try (FileWriter writer = new FileWriter(reportFile)) {
-        writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+        def s = "=== Thread Dump Triggered at ${new Date()} ===\n"
+        println(s)
+        writer.write(s)
         Thread.getAllStackTraces().each { thread, stack ->
-          writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
-          stack.each { writer.write("\tat ${it}\n") }
+          def t = "Thread: ${thread.name}, daemon: ${thread.daemon}\n"
+          println(t)
+          writer.write(t)
+          stack.each {
+            def st = "\tat ${it}\n"
+            println(st)
+            writer.write(st)
+          }
         }
         writer.write("==============================================\n")
       }
