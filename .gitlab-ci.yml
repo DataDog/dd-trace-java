@@ -898,9 +898,10 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
       )
-      # Try every min for 30 mins to see if the release artifacts are available
+      # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
+      sleep 300
       TRY=0
-      MAX_TRIES=30
+      MAX_TRIES=5
       DELAY=60
       while [ $TRY -lt $MAX_TRIES ]; do
         ARTIFACTS_AVAILABLE=true
@@ -913,12 +914,12 @@ verify_maven_central_deployment:
         if [ "$ARTIFACTS_AVAILABLE" = true ]; then
           break
         fi
-        sleep $DELAY
         TRY=$((TRY + 1))
         if [ $TRY -eq $MAX_TRIES ]; then
-          echo "The release was not available after 30 mins. Manually re-run the job to try again."
+          echo "The release was not available after 10 mins. Manually re-run the job to try again."
           exit 1
         fi
+        sleep $DELAY
       done
 
 publishing-gate:
