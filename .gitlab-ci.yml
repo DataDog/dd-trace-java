@@ -884,18 +884,15 @@ package-oci:
 verify_maven_central_deployment:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
   stage: publish
-  # needs: [ deploy_to_maven_central ]
+  needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: manual
-      allow_failure: true
-    # - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-    #   when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
   script:
     - |
-      export VERSION=1.51.2
-      # export VERSION=${CI_COMMIT_TAG##v}
+      export VERSION=${CI_COMMIT_TAG##v}
       ARTIFACT_URLS=(
         "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
@@ -923,22 +920,11 @@ verify_maven_central_deployment:
           exit 1
         fi
       done
-      # TODO: remove this
-      echo "The job was successful, but what does test-job do if this job fails?"
-      exit 1
 
-test-job:
-  stage: publish
+publishing-gate:
   needs:
     - job: verify_maven_central_deployment
-      optional: true
-  script:
-    - echo "Hello, world!"
-
-# publishing-gate:
-#   needs:
-#     - job: verify_maven_central_deployment
-#       optional: true
+      optional: true # Allow job to run even if the verify_maven_central_deployment job fails
 
 configure_system_tests:
   variables:
