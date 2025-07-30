@@ -13,7 +13,10 @@ dependencies {
 }
 
 shadowJar {
-  dependencies deps.excludeShared
+  dependencies {
+    deps.excludeShared
+    exclude '**/*.debug'
+  }
   archiveClassifier = 'all'
   include {
     def rslt = false

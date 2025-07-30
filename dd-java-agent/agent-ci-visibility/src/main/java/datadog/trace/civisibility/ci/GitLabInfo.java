@@ -41,6 +41,9 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_CI_RUNNER_TAGS = "CI_RUNNER_TAGS";
   public static final String GITLAB_PULL_REQUEST_BASE_BRANCH =
       "CI_MERGE_REQUEST_TARGET_BRANCH_NAME";
+  public static final String GITLAB_PULL_REQUEST_BASE_SHA = "CI_MERGE_REQUEST_DIFF_BASE_SHA";
+  public static final String GITLAB_PULL_REQUEST_BASE_HEAD_SHA =
+      "CI_MERGE_REQUEST_TARGET_BRANCH_SHA";
   public static final String GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA =
       "CI_MERGE_REQUEST_SOURCE_BRANCH_SHA";
   public static final String GITLAB_PULL_REQUEST_NUMBER = "CI_MERGE_REQUEST_IID";
@@ -88,7 +91,8 @@ class GitLabInfo implements CIProviderInfo {
   public PullRequestInfo buildPullRequestInfo() {
     return new PullRequestInfo(
         normalizeBranch(environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH)),
-        null,
+        environment.get(GITLAB_PULL_REQUEST_BASE_SHA),
+        environment.get(GITLAB_PULL_REQUEST_BASE_HEAD_SHA),
         new CommitInfo(environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA)),
         environment.get(GITLAB_PULL_REQUEST_NUMBER));
   }

@@ -47,7 +47,7 @@ dependencies {
   implementation("org.ow2.asm", "asm-tree", "9.8")
 
   testImplementation(libs.spock.core)
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
+  testImplementation(libs.groovy)
 }
 
 tasks.compileKotlin {
