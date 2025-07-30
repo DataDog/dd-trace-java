@@ -201,7 +201,7 @@ public class LLMObsSystem {
       DDLLMObsSpan embeddingSpan =
           new DDLLMObsSpan(
               Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
-      embeddingSpan.setTag("ml.provider", mlProvider);
+      embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, mlProvider);
       return embeddingSpan;
     }
 
