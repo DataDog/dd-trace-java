@@ -73,18 +73,20 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
     threadDumpTask = scheduler.scheduleAtFixedRate({
       File reportDir = new File("build")
-      println("DEBUG: " + reportDir.absolutePath)
+      String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+      "dd-trace-java/workspace/dd-java-agent")
 
       if (!reportDir.exists()) {
-        println("build folder not found")
+        println("Folder not found: " + fullPath)
         return
       }
 
       // Define the file path
-      File reportFile = new File(reportDir, String.format("thread-dump-%d.log", System.currentTimeMillis()))
+      File reportFile = new File(fullPath, String.format("thread-dump-%d.log", System.currentTimeMillis()))
 
       // Write to the file
       try (FileWriter writer = new FileWriter(reportFile)) {
+        println()
         def s = "=== Thread Dump Triggered at ${new Date()} ===\n"
         println(s)
         writer.write(s)
