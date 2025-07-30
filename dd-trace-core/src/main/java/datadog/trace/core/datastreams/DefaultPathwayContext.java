@@ -9,8 +9,7 @@ import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.context.propagation.CarrierVisitor;
-import datadog.trace.api.Config;
-import datadog.trace.api.ProcessTags;
+import datadog.trace.api.ServiceHash;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -270,23 +269,7 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   public static long getBaseHash(WellKnownTags wellKnownTags) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(wellKnownTags.getService());
-    builder.append(wellKnownTags.getEnv());
-
-    String primaryTag = Config.get().getPrimaryTag();
-    if (primaryTag != null) {
-      builder.append(primaryTag);
-    }
-    CharSequence processTags = ProcessTags.getTagsForSerialization();
-    if (processTags != null) {
-      builder.append(processTags);
-      String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
-      if (containerTagsHash != null && !containerTagsHash.isEmpty()) {
-        builder.append(containerTagsHash);
-      }
-    }
-    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    return ServiceHash.getBaseHash(wellKnownTags, ContainerInfo.get().getContainerTagsHash());
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

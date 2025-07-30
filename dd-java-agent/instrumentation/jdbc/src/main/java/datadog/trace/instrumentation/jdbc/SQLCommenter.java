@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.ServiceHash;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
@@ -22,6 +24,7 @@ public class SQLCommenter {
   private static final String DD_PEER_SERVICE = "ddprs";
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
+  private static final String DD_SERVICE_HASH = encode("ddsh");
   private static final String TRACEPARENT = encode("traceparent");
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
@@ -117,6 +120,10 @@ public class SQLCommenter {
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
     final String version = config.getVersion();
+    String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
+    final String serviceHash =
+        Long.toString(ServiceHash.getBaseHash(parentService, env, containerTagsHash));
+    //        config.isDbDbmInjectServiceHash() ; // TODO && baseHash != null
     final int commentSize = capacity(traceParent, parentService, dbService, env, version);
     StringBuilder sb = new StringBuilder(sql.length() + commentSize);
     boolean commentAdded = false;
@@ -137,7 +144,8 @@ public class SQLCommenter {
               peerService,
               env,
               version,
-              traceParent);
+              traceParent,
+              serviceHash);
       sb.append(CLOSE_COMMENT);
     } else {
       sb.append(OPEN_COMMENT);
@@ -152,7 +160,8 @@ public class SQLCommenter {
               peerService,
               env,
               version,
-              traceParent);
+              traceParent,
+              serviceHash);
 
       sb.append(CLOSE_COMMENT);
       sb.append(SPACE);
@@ -226,9 +235,9 @@ public class SQLCommenter {
       final String peerService,
       final String env,
       final String version,
-      final String traceparent) {
+      final String traceparent,
+      final String serviceHash) {
     int emptySize = sb.length();
-
     append(sb, PARENT_SERVICE, parentService, false);
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
     append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
@@ -241,6 +250,8 @@ public class SQLCommenter {
     if (injectTrace) {
       append(sb, TRACEPARENT, traceparent, sb.length() > emptySize);
     }
+    // TODO only if DB_DBM_INJECT_SERVICE_HASH_ENABLED
+    append(sb, DD_SERVICE_HASH, serviceHash, sb.length() > emptySize);
     return sb.length() > emptySize;
   }
 

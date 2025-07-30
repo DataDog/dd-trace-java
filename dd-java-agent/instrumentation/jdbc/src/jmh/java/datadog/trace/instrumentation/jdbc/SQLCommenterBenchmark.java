@@ -21,6 +21,7 @@ public class SQLCommenterBenchmark {
   private static final String parentService = "parent";
   private static final String env = "env";
   private static final String version = "version";
+  private static final String serviceHash = "service-hash";
   private static final boolean injectTrace = true;
 
   @Benchmark
@@ -36,6 +37,7 @@ public class SQLCommenterBenchmark {
         null,
         env,
         version,
-        traceParent);
+        traceParent,
+        serviceHash);
   }
 }
