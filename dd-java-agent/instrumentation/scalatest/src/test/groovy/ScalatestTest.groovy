@@ -206,5 +206,4 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
       throw new AssertionError("Expected $expectSuccess execution status, got $result")
     }
   }
-
 }

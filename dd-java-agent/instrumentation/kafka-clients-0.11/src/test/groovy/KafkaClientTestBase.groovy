@@ -605,7 +605,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).subList kafka consume"() {
@@ -661,7 +660,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -717,7 +715,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test iteration backwards over ConsumerRecords"() {
@@ -826,7 +823,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   @Flaky("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
@@ -889,7 +885,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       def headers = received.headers()
       assert headers.iterator().hasNext()
-
     }
     assert receivedSet.isEmpty()
 
@@ -1279,8 +1274,6 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest {
-
-
 }
 
 class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest {

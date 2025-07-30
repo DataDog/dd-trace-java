@@ -74,7 +74,11 @@ class NettyWebsocketClient implements WebsocketClient {
         pipeline.addLast(new HttpObjectAggregator(1024))
         pipeline.addLast(wsHandler)
         // remove our handler since we do not want to trace that client
-        pipeline.names().findAll { it.contains("HttpClientTracingHandler") }.each { pipeline.remove(it) }
+        pipeline.names().findAll {
+          it.contains("HttpClientTracingHandler")
+        }.each {
+          pipeline.remove(it)
+        }
       }
     }).channel(NioSocketChannel)
     channel = b.connect(uri.host, uri.port).sync().channel()
@@ -102,7 +106,9 @@ class NettyWebsocketClient implements WebsocketClient {
 
   byte[][] split(byte[] src) {
     if (chunkSize <= 0) {
-      return new byte[][]{src}
+      return new byte[][]{
+        src
+      }
     }
     def ret = new byte[(int) Math.ceil(src.length / chunkSize)][]
     def offset = 0

@@ -148,6 +148,5 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     expect:
     context == getMap()
   }
-
 }
 

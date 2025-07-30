@@ -147,5 +147,4 @@ class AkkaHttpScalaClientInstrumentationV0Test extends AkkaHttpScalaClientInstru
 }
 
 class AkkaHttpScalaClientInstrumentationV1ForkedTest extends AkkaHttpScalaClientInstrumentationTest implements TestingGenericHttpNamingConventions.ClientV1{
-
 }

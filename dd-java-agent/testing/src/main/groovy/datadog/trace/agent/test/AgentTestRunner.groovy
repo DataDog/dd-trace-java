@@ -122,7 +122,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
         ddEnvVars.append(Strings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
-          .append("=").append(entry.getValue()).append(",")
+        .append("=").append(entry.getValue()).append(",")
       }
     }
     ddEnvVars.append("DD_SERVICE=").append(Config.get().getServiceName())
@@ -355,10 +355,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
 
     Sink sink = new Sink() {
-        void accept(int messageCount, ByteBuffer buffer) {}
+      void accept(int messageCount, ByteBuffer buffer) {}
 
-        void register(EventListener listener) {}
-      }
+      void register(EventListener listener) {}
+    }
 
     // Fast enough so tests don't take forever
     long bucketDuration = dataStreamsBucketDuration()
@@ -382,15 +382,15 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     TEST_TRACER =
-      Spy(
-      CoreTracer.builder()
-      .writer(TEST_WRITER)
-      .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
-      .statsDClient(STATS_D_CLIENT)
-      .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
-      .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
-      .build())
+    Spy(
+    CoreTracer.builder()
+    .writer(TEST_WRITER)
+    .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
+    .statsDClient(STATS_D_CLIENT)
+    .strictTraceWrites(useStrictTraceWrites())
+    .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
+    .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
+    .build())
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
@@ -418,7 +418,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
           } while (!(locations == null ?
           spanFinishLocations.putIfAbsent(agentSpan, newLocations) == null :
           spanFinishLocations.replace(agentSpan, locations, newLocations)))
-            mi.callRealMethod()
+          mi.callRealMethod()
         } finally {
           CallDepthThreadLocalMap.decrementCallDepth(DDSpan)
         }
@@ -443,12 +443,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       TraceSegment segment = requestContext.getTraceSegment()
       RequestContext spiedReqCtx = Spy(requestContext)
       TraceSegment checkedSegment = new PreconditionCheckTraceSegment(
-        check: {
-          -> if (useStrictTraceWrites() && spiedAgentSpan.localRootSpan.isFinished()) {
-            throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
-          }},
-        delegate: segment
-        )
+      check: {
+        -> if (useStrictTraceWrites() && spiedAgentSpan.localRootSpan.isFinished()) {
+          throw new AssertionError("Interaction with TraceSegment after root span has already finished: $spiedAgentSpan")
+        }
+      },
+      delegate: segment
+      )
       spiedAgentSpan.getRequestContext() >> {
         spiedReqCtx
       }
@@ -463,7 +464,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
-      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
   }
 
   protected String idGenerationStrategyName() {
@@ -572,7 +573,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         def st = e.stackTrace
         int loc = st.findIndexOf {
           it.className.startsWith('datadog.trace.core.DDSpan$SpockMock$') &&
-            it.methodName.startsWith('finish')
+          it.methodName.startsWith('finish')
         }
         for (int j = loc == -1 ? 0 : loc; j < st.length; j++) {
           pw.println("\tat ${st[j]}")
@@ -681,23 +682,23 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   void assertTraces(
-    final int size,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     assertTraces(size, false, spec)
   }
 
   void assertTraces(
-    final int size,
-    final boolean ignoreAdditionalTraces,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final boolean ignoreAdditionalTraces,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
   }
 
@@ -706,13 +707,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_NAMES = ListWriterAssert.SORT_TRACES_BY_NAMES
 
   void assertTraces(
-    final int size,
-    final Comparator<List<DDSpan>> traceSorter,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final Comparator<List<DDSpan>> traceSorter,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, false, traceSorter, spec)
   }
 
@@ -757,7 +758,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
-      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+    && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

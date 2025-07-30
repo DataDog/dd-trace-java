@@ -128,7 +128,6 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
         }
       }
     }
-
   }
 
   def "command with no arguments"() {

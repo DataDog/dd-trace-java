@@ -454,34 +454,90 @@ class GatewayBridgeSpecification extends DDSpecification {
     // force all callbacks to be registered
     _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
 
-    1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestPathParams(), _) >> { pathParamsCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { reqHeaderCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { reqHeadersDoneCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestInferredClientAddress(), _) >> { requestInferredAddressCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> { requestBodyProcessedCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.responseBody(), _) >> { responseBodyCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.grpcServerMethod(), _) >> { grpcServerMethodCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> { fileLoadedCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.requestSession(), _) >> { requestSessionCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.execCmd(), _) >> { execCmdCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.user(), _) >> { userCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.loginEvent(), _) >> { loginEventCB = it[1]; null }
-    1 * ig.registerCallback(EVENTS.httpRoute(), _) >> { httpRouteCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestStarted(), _) >> {
+      requestStartedCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestEnded(), _) >> {
+      requestEndedCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> {
+      requestMethodURICB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestPathParams(), _) >> {
+      pathParamsCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> {
+      reqHeaderCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> {
+      reqHeadersDoneCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> {
+      requestSocketAddressCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestInferredClientAddress(), _) >> {
+      requestInferredAddressCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> {
+      requestBodyStartCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> {
+      requestBodyDoneCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestBodyProcessed(), _) >> {
+      requestBodyProcessedCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.responseBody(), _) >> {
+      responseBodyCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.responseStarted(), _) >> {
+      responseStartedCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.responseHeader(), _) >> {
+      respHeaderCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> {
+      respHeadersDoneCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.grpcServerMethod(), _) >> {
+      grpcServerMethodCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> {
+      grpcServerRequestMessageCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> {
+      graphqlServerRequestMessageCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> {
+      databaseConnectionCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> {
+      databaseSqlQueryCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.networkConnection(), _) >> {
+      networkConnectionCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> {
+      fileLoadedCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestSession(), _) >> {
+      requestSessionCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.execCmd(), _) >> {
+      execCmdCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.shellCmd(), _) >> {
+      shellCmdCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.user(), _) >> {
+      userCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.loginEvent(), _) >> {
+      loginEventCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.httpRoute(), _) >> {
+      httpRouteCB = it[1]; null
+    }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -612,9 +668,12 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     setup:
     supplier.get() >> 'foobar'
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_BODY_RAW in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     when:
     requestBodyDoneCB.apply(ctx, supplier)
@@ -647,9 +706,13 @@ class GatewayBridgeSpecification extends DDSpecification {
     Object obj = 'hello'
 
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_BODY_OBJECT in it
+    }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext)
-    >> { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     when:
     requestBodyProcessedCB.apply(ctx, obj)
@@ -675,7 +738,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'request body transforms object and publishes'() {
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_BODY_OBJECT in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -686,8 +751,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -701,9 +767,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create('http://example.com/')
 
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_METHOD in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_METHOD in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     when:
     requestMethodURICB.apply(ctx, 'POST', adapter)
@@ -722,9 +791,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     def adapter = TestURIDataAdapter.create('https://example.com/')
 
     when:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_SCHEME in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_SCHEME in it
+    }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE
+    }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -757,15 +829,18 @@ class GatewayBridgeSpecification extends DDSpecification {
 
 
   void 'response_start produces appsec context and publishes event'() {
-    eventDispatcher.getDataSubscribers({ KnownAddresses.RESPONSE_STATUS in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.RESPONSE_STATUS in it
+    }) >> nonEmptyDsInfo
 
     when:
     Flow<AppSecRequestContext> flow1 = responseStartedCB.apply(ctx, 404)
     Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      NoopFlow.INSTANCE
+    }
     flow1.result == null
     flow1.action == Flow.Action.Noop.INSTANCE
     flow2.result == null
@@ -774,7 +849,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'grpc server message recv transforms object and publishes'() {
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -785,8 +862,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -804,8 +882,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = grpcServerMethodCB.apply(ctx, '/my.package.Greeter/SayHello')
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { args -> bundle = args[2]; gatewayContext = args[3]; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      args -> bundle = args[2]; gatewayContext = args[3]; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.GRPC_SERVER_METHOD) == '/my.package.Greeter/SayHello'
     gatewayContext != null
     gatewayContext.isTransient == true
@@ -816,7 +895,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'process database type'() {
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_TYPE in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.DB_TYPE in it
+    }) >> nonEmptyDsInfo
 
     when:
     databaseConnectionCB.accept(ctx, 'postgresql')
@@ -827,7 +908,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'process jdbc statement query object'() {
     setup:
-    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_SQL_QUERY in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.DB_SQL_QUERY in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -835,8 +918,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = databaseSqlQueryCB.apply(ctx, 'SELECT * FROM foo')
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.DB_SQL_QUERY) == 'SELECT * FROM foo'
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -847,7 +931,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'process network connection URL'() {
     setup:
     final url = 'https://www.datadoghq.com/'
-    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_NET_URL in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.IO_NET_URL in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -855,8 +941,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = networkConnectionCB.apply(ctx, url)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.IO_NET_URL) == url
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -867,7 +954,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'process file loaded'() {
     setup:
     final path = 'https://www.datadoghq.com/demo/file.txt'
-    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_FS_FILE in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.IO_FS_FILE in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -875,8 +964,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = fileLoadedCB.apply(ctx, path)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.IO_FS_FILE) == path
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -887,7 +977,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'process exec cmd'() {
     setup:
     final cmd = ['/bin/../usr/bin/reboot', '-f'] as String[]
-    eventDispatcher.getDataSubscribers({ KnownAddresses.EXEC_CMD in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.EXEC_CMD in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -895,8 +987,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = execCmdCB.apply(ctx, cmd)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.EXEC_CMD) == cmd
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -907,7 +1000,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'process shell cmd'() {
     setup:
     final cmd = '$(cat /etc/passwd 1>&2 ; echo .)'
-    eventDispatcher.getDataSubscribers({ KnownAddresses.SHELL_CMD in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.SHELL_CMD in it
+    }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
 
@@ -915,8 +1010,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = shellCmdCB.apply(ctx, cmd)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.SHELL_CMD) == cmd
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -1086,8 +1182,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestSessionCB.apply(ctx, sessionId)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
-    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
     bundle.get(KnownAddresses.SESSION_ID) == sessionId
     gatewayContext.isTransient == false
   }
@@ -1100,7 +1197,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     userCB.apply(ctx, USER_ID)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, DataBundle db, GatewayContext gw ->
       assert db.get(KnownAddresses.USER_ID) == USER_ID
       assert !gw.isTransient
       return NoopFlow.INSTANCE
@@ -1121,7 +1219,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     loginEventCB.apply(ctx, SIGN_UP, USER_ID)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, DataBundle db, GatewayContext gw ->
       assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
       assert db.get(KnownAddresses.SIGN_UP) != null
       assert !gw.isTransient
@@ -1137,7 +1236,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     loginEventCB.apply(ctx, LOGIN_SUCCESS, USER_ID)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, DataBundle db, GatewayContext gw ->
       assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
       assert db.get(KnownAddresses.LOGIN_SUCCESS) != null
       assert !gw.isTransient
@@ -1153,7 +1253,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     loginEventCB.apply(ctx, LOGIN_FAILURE, USER_ID)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> { a, b, DataBundle db, GatewayContext gw ->
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, DataBundle db, GatewayContext gw ->
       assert db.get(KnownAddresses.USER_LOGIN) == USER_ID
       assert db.get(KnownAddresses.LOGIN_FAILURE) != null
       assert !gw.isTransient
@@ -1355,5 +1456,4 @@ class GatewayBridgeSpecification extends DDSpecification {
       assert body['test'] == 'this is a test'
     }
   }
-
 }

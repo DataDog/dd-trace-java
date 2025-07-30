@@ -222,7 +222,8 @@ class TagsAssert {
             return false
           }
         }
-      } else if(queryParams != null && queryParams.size() > 0){ //if http.query.string is empty/null but we expect queryParams, return false
+      } else if(queryParams != null && queryParams.size() > 0){
+        //if http.query.string is empty/null but we expect queryParams, return false
         return false
       }
       return true

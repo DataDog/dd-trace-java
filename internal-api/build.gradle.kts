@@ -17,9 +17,10 @@ java {
 }
 
 tasks.compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
+  javaCompiler =
+    javaToolchains.compilerFor {
+      languageVersion = JavaLanguageVersion.of(8)
+    }
 }
 
 tasks.compileTestJava {
@@ -236,7 +237,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
-  )
+  ),
 )
 
 val excludedClassesBranchCoverage by extra(
@@ -250,15 +251,15 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.api.env.CapturedEnvironment.ProcessInfo",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
-  )
+  ),
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
-    "datadog.trace.util.stacktrace.StackWalkerFactory"
-  )
+    "datadog.trace.util.stacktrace.StackWalkerFactory",
+  ),
 )
 
 tasks.compileTestJava {

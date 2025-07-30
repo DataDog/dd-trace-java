@@ -7,8 +7,8 @@ apply(from = "$rootDir/gradle/java.gradle")
 val excludedClassesCoverage by extra(
   listOf(
     "datadog.trace.api.time.ControllableTimeSource:",
-    "datadog.trace.api.time.SystemTimeSource"
-  )
+    "datadog.trace.api.time.SystemTimeSource",
+  ),
 )
 
 dependencies {

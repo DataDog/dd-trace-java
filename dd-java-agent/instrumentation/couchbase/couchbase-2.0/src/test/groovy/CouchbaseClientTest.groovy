@@ -124,7 +124,6 @@ abstract class CouchbaseClientTest extends AbstractCouchbaseTest {
 }
 
 class CouchbaseClientV0ForkedTest extends CouchbaseClientTest {
-
 }
 
 class CouchbaseClientV1ForkedTest extends CouchbaseClientTest {

@@ -202,5 +202,4 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     'OTEL_TRACES_EXPORTER'  | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_traces_exporter'
     'OTEL_LOGS_EXPORTER'    | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_logs_exporter'
   }
-
 }

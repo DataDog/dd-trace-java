@@ -29,11 +29,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
-abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
-
+abstract class CoreKotlinCoroutineTests(
+  private val dispatcher: CoroutineDispatcher,
+) {
   @Trace
   open fun tracePreventedByCancellation(): Int {
-
     kotlin.runCatching {
       runTest {
         tracedChild("preLaunch")
@@ -67,22 +67,24 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   @Trace
   open fun traceWithDeferred(): Int = runTest {
-
     val keptPromise = CompletableDeferred<Boolean>()
     val brokenPromise = CompletableDeferred<Boolean>()
-    val afterPromise = async(jobName("afterPromise")) {
-      keptPromise.await()
-      tracedChild("keptPromise")
-    }
-    val afterPromise2 = async(jobName("afterPromise2")) {
-      keptPromise.await()
-      tracedChild("keptPromise2")
-    }
-    val failedAfterPromise = async(jobName("failedAfterPromise")) {
-      brokenPromise
-        .runCatching { await() }
-        .onFailure { tracedChild("brokenPromise") }
-    }
+    val afterPromise =
+      async(jobName("afterPromise")) {
+        keptPromise.await()
+        tracedChild("keptPromise")
+      }
+    val afterPromise2 =
+      async(jobName("afterPromise2")) {
+        keptPromise.await()
+        tracedChild("keptPromise2")
+      }
+    val failedAfterPromise =
+      async(jobName("failedAfterPromise")) {
+        brokenPromise
+          .runCatching { await() }
+          .onFailure { tracedChild("brokenPromise") }
+      }
 
     launch(jobName("future1")) {
       tracedChild("future1")
@@ -100,21 +102,21 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
    */
   @Trace
   open fun tracedWithDeferredFirstCompletions(): Int = runTest {
-
-    val children = listOf(
-      async(jobName("timeout1")) {
-        tracedChild("timeout1")
-        false
-      },
-      async(jobName("timeout2")) {
-        tracedChild("timeout2")
-        false
-      },
-      async(jobName("timeout3")) {
-        tracedChild("timeout3")
-        true
-      }
-    )
+    val children =
+      listOf(
+        async(jobName("timeout1")) {
+          tracedChild("timeout1")
+          false
+        },
+        async(jobName("timeout2")) {
+          tracedChild("timeout2")
+          false
+        },
+        async(jobName("timeout3")) {
+          tracedChild("timeout3")
+          true
+        },
+      )
 
     withTimeout(TimeUnit.SECONDS.toMillis(30)) {
       select<Boolean> {
@@ -206,7 +208,10 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     spans.get()
   }
 
-  open fun withNoTraceParentSpan(lazy: Boolean, throwing: Boolean): Int {
+  open fun withNoTraceParentSpan(
+    lazy: Boolean,
+    throwing: Boolean,
+  ): Int {
     val spans = AtomicInteger(0)
     try {
       runTest {
@@ -218,45 +223,48 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     return spans.get()
   }
 
-  private suspend fun createAndWaitForCoroutines(lazy: Boolean = false, throwing: Boolean = false, spans: AtomicInteger) =
-    coroutineScope {
-      val jobs = mutableListOf<Deferred<Unit>>()
-      val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
+  private suspend fun createAndWaitForCoroutines(
+    lazy: Boolean = false,
+    throwing: Boolean = false,
+    spans: AtomicInteger,
+  ) = coroutineScope {
+    val jobs = mutableListOf<Deferred<Unit>>()
+    val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
 
-      childSpan("top-level").activateAndUse {
-        spans.incrementAndGet()
-        async(jobName("first"), start) {
-          childSpan("first-span").activateAndUse {
-            spans.incrementAndGet()
-            if (throwing) {
-              throw IllegalStateException("first")
-            }
-            delay(1)
+    childSpan("top-level").activateAndUse {
+      spans.incrementAndGet()
+      async(jobName("first"), start) {
+        childSpan("first-span").activateAndUse {
+          spans.incrementAndGet()
+          if (throwing) {
+            throw IllegalStateException("first")
           }
-        }.run(jobs::add)
-
-        async(jobName("second"), start) {
-          childSpan("second-span").activateAndUse {
-            spans.incrementAndGet()
-            if (throwing) {
-              throw IllegalStateException("second")
-            }
-            delay(1)
-          }
-        }.run(jobs::add)
-      }
-
-      if (lazy) {
-        jobs.forEach { it.start() }
-      }
-
-      jobs.forEach {
-        try {
-          it.await()
-        } catch (_: Exception) {
+          delay(1)
         }
+      }.run(jobs::add)
+
+      async(jobName("second"), start) {
+        childSpan("second-span").activateAndUse {
+          spans.incrementAndGet()
+          if (throwing) {
+            throw IllegalStateException("second")
+          }
+          delay(1)
+        }
+      }.run(jobs::add)
+    }
+
+    if (lazy) {
+      jobs.forEach { it.start() }
+    }
+
+    jobs.forEach {
+      try {
+        it.await()
+      } catch (_: Exception) {
       }
     }
+  }
 
   open fun withNoParentSpan(lazy: Boolean): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()
@@ -340,14 +348,16 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     val inputs = listOf("a", "b", "c")
 
     coroutineScope {
-      inputs.map { data ->
-        async {
-          upload(data)
+      inputs
+        .map { data ->
+          async {
+            upload(data)
+          }
+        }.awaitAll()
+        .map {
+          tracedChild("process-$it")
+          encrypt(it)
         }
-      }.awaitAll().map {
-        tracedChild("process-$it")
-        encrypt(it)
-      }
     }
 
     tracedChild("after-process")
@@ -370,7 +380,8 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     activeSpan().setSpanName(opName)
   }
 
-  protected fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
+  protected fun childSpan(opName: String): AgentSpan = get()
+    .buildSpan(opName)
     .withResourceName("coroutines-test-span")
     .start()
 
@@ -386,7 +397,10 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     }
   }
 
-  protected fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
+  protected fun <T> runTest(
+    asyncPropagation: Boolean = true,
+    block: suspend CoroutineScope.() -> T,
+  ): T {
     setAsyncPropagationEnabled(asyncPropagation)
     return runBlocking(jobName("test") + dispatcher, block = block)
   }

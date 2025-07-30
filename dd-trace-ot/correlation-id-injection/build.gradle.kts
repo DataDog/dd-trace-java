@@ -9,8 +9,8 @@ val minimumBranchCoverage by extra(0.8)
 val excludedClassesCoverage by extra(
   listOf(
     "datadog.trace.correlation.CorrelationIdInjectors",
-    "datadog.trace.correlation.CorrelationIdInjectors.InjectorType"
-  )
+    "datadog.trace.correlation.CorrelationIdInjectors.InjectorType",
+  ),
 )
 
 description = "correlation-id-injection"

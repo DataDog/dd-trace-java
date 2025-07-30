@@ -617,7 +617,11 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     datasource.getConnection().close()
 
     then:
-    !TEST_WRITER.any { it.any { it.operationName.toString() == "database.connection" } }
+    !TEST_WRITER.any {
+      it.any {
+        it.operationName.toString() == "database.connection"
+      }
+    }
     TEST_WRITER.clear()
 
     when:

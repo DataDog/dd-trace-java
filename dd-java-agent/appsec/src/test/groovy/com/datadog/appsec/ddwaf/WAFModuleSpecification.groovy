@@ -708,7 +708,9 @@ class WAFModuleSpecification extends DDSpecification {
         truncatedStringTooLongCount = new AtomicLong(0)
         truncatedListMapTooLargeCount = new AtomicLong(0)
         truncatedObjectTooDeepCount = new AtomicLong(0)
-        it } }
+        it
+      }
+    }
 
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
     1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
@@ -772,7 +774,6 @@ class WAFModuleSpecification extends DDSpecification {
     stackTrace.frames.size() >= 1
     stackTrace.frames[0].class_name == 'org.codehaus.groovy.runtime.callsite.CallSiteArray'
     stackTrace.frames[0].function == 'defaultCall'
-
   }
 
   void 'redaction with default settings'() {
@@ -1175,7 +1176,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1197,7 +1199,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1220,7 +1223,8 @@ class WAFModuleSpecification extends DDSpecification {
     // attack found
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * flow.isBlocking()
     1 * flow.setAction({ it.blocking })
@@ -1249,7 +1253,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1435,7 +1440,6 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     waf.rateLimiter.limitPerSec == 5
-
   }
 
   void 'suspicious attacker blocking'() {

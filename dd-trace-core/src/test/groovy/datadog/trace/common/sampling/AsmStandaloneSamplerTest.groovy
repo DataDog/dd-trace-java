@@ -37,7 +37,9 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     sampler.setSamplingPriority(span2)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(value -> value + 1000) } // increment in one second
+    1 * clock.millis() >> {
+      current.updateAndGet(value -> value + 1000)
+    } // increment in one second
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
 
     when:
@@ -45,11 +47,12 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     sampler.setSamplingPriority(span3)
 
     then: "Mock one minute later"
-    clock.millis() >> { current.updateAndGet(value -> value + 60000) } // increment in one minute
+    clock.millis() >> {
+      current.updateAndGet(value -> value + 60000)
+    } // increment in one minute
     span3.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     cleanup:
     tracer.close()
   }
-
 }

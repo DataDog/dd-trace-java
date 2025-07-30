@@ -70,7 +70,6 @@ if (version >= 17) {
   tasks.withType(Test).configureEach {
     jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
   }
-
 } else {
   tasks.withType(Test).configureEach {
     enabled = false

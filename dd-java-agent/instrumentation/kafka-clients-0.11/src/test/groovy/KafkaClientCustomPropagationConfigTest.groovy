@@ -302,5 +302,4 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
       return Class.forName("org.springframework.kafka.listener.ContainerProperties").newInstance(topic)
     }
   }
-
 }

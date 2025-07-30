@@ -63,8 +63,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
-      flushCountingPayloadDispatcher(flushCount),
-      {
+      flushCountingPayloadDispatcher(flushCount), {
         false
       },
       FAST_LANE,
@@ -90,8 +89,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
-      flushCountingPayloadDispatcher(flushCount),
-      {
+      flushCountingPayloadDispatcher(flushCount), {
         false
       },
       FAST_LANE,
@@ -429,5 +427,4 @@ class TraceProcessingWorkerTest extends DDSpecification {
     USER_KEEP    | 10         | 10             | 40            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
     SAMPLER_KEEP | 10         | 10             | 50            | 0                  | [Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan), Mock(DDSpan)]
   }
-
 }

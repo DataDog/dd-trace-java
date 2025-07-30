@@ -320,7 +320,6 @@ class ErrorHandlerValve extends ErrorReportValve {
       } else if (response.message) {
         response.reporter.write(response.message)
       }
-
     } catch (IOException e) {
       e.printStackTrace()
     }
@@ -373,7 +372,6 @@ class TomcatServlet3TestSync extends TomcatServlet3Test {
 }
 
 class TomcatServlet3SyncV1ForkedTest extends TomcatServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class TomcatServlet3TestAsync extends TomcatServlet3Test {
@@ -393,11 +391,9 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
-
 }
 
 class TomcatServlet3AsyncV1ForkedTest extends TomcatServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
@@ -581,5 +577,4 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
     0 *  appModule.checkSessionTrackingModes(_)
     0 * _
   }
-
 }

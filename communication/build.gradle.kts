@@ -30,7 +30,10 @@ dependencies {
   testImplementation(
     group = "com.squareup.okhttp3",
     name = "mockwebserver",
-    version = libs.versions.okhttp.legacy.get() // actually a version range
+    version =
+    libs.versions.okhttp.legacy
+      .get(),
+    // actually a version range
   )
 }
 
@@ -58,7 +61,7 @@ val excludedClassesCoverage by extra(
     "datadog.communication.IntakeApi",
     "datadog.communication.util.IOUtils",
     "datadog.communication.util.IOUtils.1",
-  )
+  ),
 )
 val excludedClassesBranchCoverage by extra(
   listOf(
@@ -66,7 +69,7 @@ val excludedClassesBranchCoverage by extra(
     "datadog.communication.BackendApiFactory",
     "datadog.communication.EvpProxyApi",
     "datadog.communication.IntakeApi",
-  )
+  ),
 )
 val excludedClassesInstructionCoverage by extra(
   listOf(
@@ -80,5 +83,5 @@ val excludedClassesInstructionCoverage by extra(
     "datadog.communication.IntakeApi",
     "datadog.communication.util.IOUtils",
     "datadog.communication.util.IOUtils.1",
-  )
+  ),
 )

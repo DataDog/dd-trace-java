@@ -11,7 +11,8 @@ def configureClassNameTrieTask(exec, sourceSetName) {
   def javaFiles = trieFiles.collect {
     file(javaDir.resolve(trieDir.relativize(it.toPath())).resolveSibling(
       it.name.capitalize().replaceAll('_([a-z])') {
-        it[1].toUpperCase() }
+        it[1].toUpperCase()
+      }
       .replace('.trie', 'Trie.java') as String))
   }
 

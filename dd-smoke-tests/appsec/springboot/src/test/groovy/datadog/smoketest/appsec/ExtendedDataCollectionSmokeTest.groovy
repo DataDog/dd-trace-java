@@ -228,7 +228,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.rasp.request_body_size.exceeded')
-
   }
 
   void 'test request body collection if RASP event exceeded'(){
@@ -269,7 +268,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     rootSpan.meta.containsKey('_dd.appsec.rasp.request_body_size.exceeded')
-
   }
 
   void 'test request body not collected if no RASP event'(){
@@ -305,9 +303,5 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger == null, 'test trigger found'
 
     rootSpan.span.metaStruct == null
-
   }
-
-
-
 }

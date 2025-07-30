@@ -38,5 +38,4 @@ class JSONTokenerInstrumentationTest extends AgentTestRunner {
       new StringReader(JSON_STRING) // Reader input
     ]
   }
-
 }

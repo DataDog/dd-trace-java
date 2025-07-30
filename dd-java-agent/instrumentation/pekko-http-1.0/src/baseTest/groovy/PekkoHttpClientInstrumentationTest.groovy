@@ -150,5 +150,4 @@ class PekkoHttpScalaClientInstrumentationV0ForkedTest extends PekkoHttpScalaClie
 }
 
 class PekkoHttpScalaClientInstrumentationV1ForkedTest extends PekkoHttpScalaClientInstrumentationTest implements TestingGenericHttpNamingConventions.ClientV1{
-
 }

@@ -34,7 +34,8 @@ public final class EnvironmentChecker {
     boolean result = false;
     result |= checkJFR();
     result |= checkDdprof();
-    if (!result) {;
+    if (!result) {
+      ;
       System.out.println("Profiler is not supported on this JVM.");
       return false;
     } else {

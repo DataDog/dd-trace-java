@@ -28,5 +28,4 @@ dependencies {
   latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '+'
   // Looks like later versions on reactor need this dependency for some reason even though it is marked as optional.
   latestDepTestImplementation group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
-
 }

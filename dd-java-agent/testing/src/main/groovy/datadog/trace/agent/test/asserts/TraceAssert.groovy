@@ -76,7 +76,6 @@ class TraceAssert {
     } else {
       assertSpan(trace.get(index), spec)
     }
-
   }
 
   void assertSpansAllVerified() {

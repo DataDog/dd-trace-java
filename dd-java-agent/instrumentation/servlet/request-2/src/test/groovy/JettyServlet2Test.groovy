@@ -204,11 +204,9 @@ abstract class JettyServlet2Test extends HttpServerTest<Server> {
 }
 
 class JettyServlet2V0ForkedTest extends JettyServlet2Test implements TestingGenericHttpNamingConventions.ServerV0 {
-
 }
 
 class JettyServlet2V1ForkedTest extends JettyServlet2Test implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class IastJettyServlet2ForkedTest extends JettyServlet2Test implements TestingGenericHttpNamingConventions.ServerV0 {
@@ -252,5 +250,4 @@ class IastJettyServlet2ForkedTest extends JettyServlet2Test implements TestingGe
     0 *  appModule.onRealPath(_)
     0 * _
   }
-
 }

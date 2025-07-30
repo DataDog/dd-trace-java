@@ -21,7 +21,7 @@ spotless {
       // ignore embedded test projects
       targetExclude 'src/test/resources/**'
       // This is the last Google Java Format version that supports Java 8
-      googleJavaFormat('1.7')
+      googleJavaFormat('1.8')
     }
   }
 
@@ -44,7 +44,8 @@ spotless {
     target '*.gradle.kts'
     // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
     // Newer versions do not work well with the older version of kotlin in this build
-    ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    ktlint('1.7.1')
+      .editorConfigOverride(['indent_size': '2', 'continuation_indent_size': '2'])
   }
 
   if (project.plugins.hasPlugin('groovy')) {

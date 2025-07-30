@@ -12,7 +12,8 @@ import java.util.zip.GZIPInputStream
 
 @IgnoreIf({
   // TODO https://github.com/eclipse-vertx/vert.x/issues/2172
-  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0) })
+  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+})
 class AppSecVertxSmokeTest extends AbstractAppSecServerSmokeTest {
 
   @Override

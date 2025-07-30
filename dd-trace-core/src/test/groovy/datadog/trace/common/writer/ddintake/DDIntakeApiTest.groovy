@@ -350,7 +350,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
     }
     packer.flush()
     return mapper.newPayload()
-      .withBody(traceCapture.traceCount,
-      traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
+    .withBody(traceCapture.traceCount,
+    traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
   }
 }
