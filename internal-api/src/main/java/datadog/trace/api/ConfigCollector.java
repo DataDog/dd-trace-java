@@ -34,6 +34,14 @@ public class ConfigCollector {
     originMap.put(origin, setting); // replaces any previous value for this origin
   }
 
+  // TODO: Replace old `put` with this `put`
+  public void put(String key, Object value, ConfigOrigin origin, int seqId) {
+    ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId);
+    Map<ConfigOrigin, ConfigSetting> originMap =
+        collected.computeIfAbsent(key, k -> new ConcurrentHashMap<>());
+    originMap.put(origin, setting); // replaces any previous value for this origin
+  }
+
   public void putAll(Map<String, Object> keysAndValues, ConfigOrigin origin) {
     for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
       put(entry.getKey(), entry.getValue(), origin);

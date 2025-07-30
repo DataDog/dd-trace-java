@@ -16,7 +16,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
 
 class ConfigCollectorTest extends DDSpecification {
-
   def "non-default config settings get collected"() {
     setup:
     injectEnvConfig(Strings.toEnvVar(configKey), configValue)
@@ -83,6 +82,7 @@ class ConfigCollectorTest extends DDSpecification {
     setting != null
     setting.stringValue() == expectedValue
     setting.origin == ConfigOrigin.JVM_PROP
+    // TODO: Add check for env origin as well
 
     where:
     configKey                                                 | configValue1                                   | configValue2              | expectedValue
@@ -247,5 +247,26 @@ class ConfigCollectorTest extends DDSpecification {
     "trace.header.tags"      | "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2".toLowerCase()
     "logs.injection.enabled" | "false"
     "trace.sample.rate"      | "0.3"
+  }
+
+  def "seqID increases with precedence"() {
+    setup:
+    def configKey = IastConfig.IAST_TELEMETRY_VERBOSITY
+    def envValue = Verbosity.DEBUG.toString()
+    def sysValue = Verbosity.MANDATORY.toString()
+    injectEnvConfig(Strings.toEnvVar(configKey), envValue)
+    injectSysConfig(configKey, sysValue)
+
+    expect:
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def sysSetting = configsByOrigin.get(ConfigOrigin.JVM_PROP)
+    sysSetting != null
+    def envSetting = configsByOrigin.get(ConfigOrigin.ENV)
+    envSetting != null
+    def defaultSetting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    defaultSetting != null
+    sysSetting.seqID > envSetting.seqID
+    envSetting.seqID > defaultSetting.seqID
   }
 }
