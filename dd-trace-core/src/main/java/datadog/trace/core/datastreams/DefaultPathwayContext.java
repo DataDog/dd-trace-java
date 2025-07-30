@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
+import datadog.common.container.ContainerInfo;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
@@ -280,6 +281,10 @@ public class DefaultPathwayContext implements PathwayContext {
     CharSequence processTags = ProcessTags.getTagsForSerialization();
     if (processTags != null) {
       builder.append(processTags);
+      String containerTagsHash = ContainerInfo.get().getContainerTagsHash();
+      if (containerTagsHash != null && !containerTagsHash.isEmpty()) {
+        builder.append(containerTagsHash);
+      }
     }
     return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
   }
