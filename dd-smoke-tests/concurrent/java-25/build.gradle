@@ -1,0 +1,62 @@
+plugins {
+  id 'application'
+  id 'com.gradleup.shadow'
+}
+
+ext {
+  // This smoke test should be limited to Java 25 and above
+  // But the groovy testing framework cannot run on Java 25
+  // Using Java 8 for now and runs a JVM 25 when forking tests process.
+  // Relying on forked JVM 25 is hardcoded in the test suites (see createProcessBuilder()).
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+description = 'JDK 25 Concurrent Integration Tests'
+
+tasks.named('compileJava').configure {
+  setJavaVersion(it, 25)
+  sourceCompatibility = JavaVersion.VERSION_25
+  targetCompatibility = JavaVersion.VERSION_25
+  options.compilerArgs.add("--enable-preview")
+  javaToolchains {
+    java {
+      toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+      }
+    }
+  }
+}
+
+tasks.named('compileTestGroovy').configure {
+  setJavaVersion(it, 8)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+// Disable plugin tasks that do not support Java 25:
+// * forbiddenApis is missing classes
+// * spotless as the google-java-format version does not support Java 25 and can't be changed once applied
+// * spotbugs failed to read class using newer bytecode versions
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
+  tasks.named(it).configure { enabled = false }
+}
+
+application {
+  mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
+}
+
+dependencies {
+  implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '2.19.0'
+  testImplementation project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
