@@ -6,7 +6,6 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 import com.datadog.debugger.util.ClassFileHelper;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
@@ -26,11 +25,8 @@ import org.slf4j.LoggerFactory;
  */
 public class SourceFileTrackingTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFileTrackingTransformer.class);
-  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  static final int MAX_QUEUE_SIZE = 4096;
+  static final int MAX_QUEUE_SIZE = 16 * 1024;
 
-  private final RatelimitedLogger ratelimitedLogger =
-      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final ClassesToRetransformFinder finder;
   private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
   private final AgentTaskScheduler scheduler = AgentTaskScheduler.INSTANCE;
@@ -93,7 +89,7 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
       return null;
     }
     if (queueSize.get() >= MAX_QUEUE_SIZE) {
-      ratelimitedLogger.warn("SourceFile Tracking queue full, dropping class: {}", className);
+      LOGGER.debug("SourceFile Tracking queue full, dropping class: {}", className);
       return null;
     }
     queue.add(new SourceFileItem(className, classfileBuffer));
