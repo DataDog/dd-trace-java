@@ -327,12 +327,7 @@ public class TelemetryRequestBody extends RequestBody {
       bodyWriter.name("path").value(endpoint.getPath());
     }
     bodyWriter.name("operation_name").value(endpoint.getOperation());
-    bodyWriter
-        .name("resource_name")
-        .value(
-            endpoint.getMethod() != null && endpoint.getPath() != null
-                ? endpoint.getMethod() + " " + endpoint.getPath()
-                : "UNDEFINED");
+    bodyWriter.name("resource_name").value(endpoint.getResource());
     if (endpoint.getRequestBodyType() != null) {
       bodyWriter.name("request-body-type").jsonValue(endpoint.getRequestBodyType());
     }
