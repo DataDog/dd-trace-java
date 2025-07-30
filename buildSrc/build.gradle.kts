@@ -61,10 +61,15 @@ tasks.compileKotlin {
 testing {
   @Suppress("UnstableApiUsage")
   suites {
-    val test by getting() {
+    val test by getting(JvmTestSuite::class) {
       dependencies {
         implementation(libs.spock.core)
-        implementation("org.codehaus.groovy", "groovy-all", "3.0.24")
+        implementation("org.codehaus.groovy:groovy-all:3.0.24")
+      }
+      targets.configureEach {
+        testTask.configure {
+          enabled = project.hasProperty("runBuildSrcTests")
+        }
       }
     }
 
@@ -79,10 +84,8 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
-      targets.all {
-        testTask.configure {
-          enabled = project.hasProperty("runBuildSrcTests")
-        }
+      targets.configureEach {
+        testTask
       }
     }
   }
