@@ -216,6 +216,7 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "add", "-A")
         exec(projectDir, "git", "commit", "-m", "A commit")
         exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
+        exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
 
         val settingsFile = File(projectDir, "settings.gradle.kts")
         settingsFile.appendText("""
@@ -230,11 +231,9 @@ class TracerVersionIntegrationTest {
           // Another committed change 
         """.trimIndent())
         exec(projectDir, "git", "commit", "-am", "Another commit")
-        exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
       }
     )
   }
-
 
   @Test
   fun `should compute version on worktrees`(@TempDir projectDir: File, @TempDir workTreeDir: File) {

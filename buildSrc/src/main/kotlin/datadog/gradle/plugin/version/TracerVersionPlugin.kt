@@ -53,7 +53,7 @@ class TracerVersionPlugin @Inject constructor(
               nextPatchVersion()
             }
             else -> {
-              logger.info("Incrementing patch")
+              logger.info("Incrementing minor")
               nextMinorVersion()
             }
           }
