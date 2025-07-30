@@ -68,7 +68,6 @@ public final class ConfigProvider {
     }
     if (collectConfig) {
       String valueStr = defaultValue == null ? null : defaultValue.name();
-      System.out.println("MTOFF: Reporting default config for " + key + " in getEnum: " + valueStr);
       ConfigCollector.get().put(key, valueStr, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -79,7 +78,6 @@ public final class ConfigProvider {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
-        System.out.println("MTOFF: value for source " + source.origin() + " is " + value);
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
@@ -89,8 +87,6 @@ public final class ConfigProvider {
       }
     }
     if (collectConfig) {
-      System.out.println(
-          "MTOFF: Reporting default config for " + key + " in getString: " + defaultValue);
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return foundValue != null ? foundValue : defaultValue;
