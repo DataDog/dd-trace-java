@@ -22,9 +22,18 @@ class ConfigCollectorTest extends DDSpecification {
     injectEnvConfig(Strings.toEnvVar(configKey), configValue)
 
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
-    setting.stringValue() == configValue
-    setting.origin == ConfigOrigin.ENV
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    configsByOrigin.size() == 2 // default and env origins
+
+    // Check that the ENV value is present and correct
+    def envSetting = configsByOrigin.get(ConfigOrigin.ENV)
+    assert envSetting != null
+    assert envSetting.stringValue() == configValue
+
+    // Check the default is present with non-null value
+    def defaultSetting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    assert defaultSetting != null
 
     where:
     configKey                                                  | configValue
@@ -68,7 +77,10 @@ class ConfigCollectorTest extends DDSpecification {
     injectSysConfig(configKey, configValue2)
 
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.JVM_PROP)
+    setting != null
     setting.stringValue() == expectedValue
     setting.origin == ConfigOrigin.JVM_PROP
 
@@ -84,9 +96,12 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default not-null config settings are collected"() {
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
-    setting.origin == ConfigOrigin.DEFAULT
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
     setting.stringValue() == defaultValue
+    setting.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey                                                  | defaultValue
@@ -100,12 +115,15 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default null config settings are also collected"() {
     when:
-    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
 
     then:
-    cs.key == configKey
-    cs.stringValue() == null
-    cs.origin == ConfigOrigin.DEFAULT
+    setting.key == configKey
+    setting.stringValue() == null
+    setting.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey << [
@@ -121,12 +139,14 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default empty maps and list config settings are collected as empty strings"() {
     when:
-    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    def cs = configsByOrigin?.get(ConfigOrigin.DEFAULT)
 
     then:
-    cs.key == configKey
-    cs.stringValue() == ""
-    cs.origin == ConfigOrigin.DEFAULT
+    assert cs != null
+    assert cs.key == configKey
+    assert cs.stringValue() == ""
+    assert cs.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey << [
@@ -137,6 +157,7 @@ class ConfigCollectorTest extends DDSpecification {
   }
 
   def "put-get configurations"() {
+    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     ConfigCollector.get().collect()
 
@@ -156,6 +177,7 @@ class ConfigCollectorTest extends DDSpecification {
 
 
   def "hide pii configuration data"() {
+    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     ConfigCollector.get().collect()
 
@@ -167,6 +189,7 @@ class ConfigCollectorTest extends DDSpecification {
   }
 
   def "collects common setting default values"() {
+    // TODO: Migrate test to new ConfigCollector data structure
     when:
     def settings = ConfigCollector.get().collect()
 
@@ -191,6 +214,7 @@ class ConfigCollectorTest extends DDSpecification {
   }
 
   def "collects common setting overridden values"() {
+    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     injectEnvConfig("DD_TRACE_ENABLED", "false")
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
