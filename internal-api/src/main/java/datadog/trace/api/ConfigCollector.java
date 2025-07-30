@@ -23,6 +23,10 @@ public class ConfigCollector {
     return INSTANCE;
   }
 
+  /**
+   * Records the latest ConfigSetting for the given key and origin, replacing any previous value for
+   * that (key, origin) pair.
+   */
   public void put(String key, Object value, ConfigOrigin origin) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin);
     Map<ConfigOrigin, ConfigSetting> originMap =
