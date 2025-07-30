@@ -47,8 +47,11 @@ public class LLMObs {
   }
 
   public LLMObsSpan startEmbeddingSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-    return SPAN_FACTORY.startEmbeddingSpan(spanName, mlApp, sessionId);
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String mlProvider,
+      @Nullable String sessionId) {
+    return SPAN_FACTORY.startEmbeddingSpan(spanName, mlApp, mlProvider, sessionId);
   }
 
   public LLMObsSpan startRetrievalSpan(
@@ -102,7 +105,10 @@ public class LLMObs {
         String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
     LLMObsSpan startEmbeddingSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId);
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String mlProvider,
+        @Nullable String sessionId);
 
     LLMObsSpan startRetrievalSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId);
