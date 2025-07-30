@@ -76,9 +76,10 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
       String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
       "dd-trace-java/workspace/dd-java-agent")
 
+      reportDir = new File(fullPath)
       if (!reportDir.exists()) {
         println("Folder not found: " + fullPath)
-        return
+        reportDir.mkdirs()
       }
 
       // Define the file path
