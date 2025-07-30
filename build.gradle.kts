@@ -19,7 +19,6 @@ plugins {
 
 description = "dd-trace-java"
 
-
 val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
