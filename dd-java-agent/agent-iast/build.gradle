@@ -56,7 +56,7 @@ dependencies {
   testFixturesApi project(':utils:test-utils')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
+  testImplementation libs.groovy.yaml
   testImplementation libs.guava
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
