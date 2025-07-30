@@ -3,7 +3,7 @@ import io.grpc.Metadata
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER
 
 class GrpcInjectAdapterTest extends VersionedNamingTestBase {
-  def "carrier set is called only once per unique ot-baggage-* key"() {
+  def "carrier overrides values for duplicate keys"() {
     setup:
     def carrier = new Metadata()
 
@@ -21,7 +21,7 @@ class GrpcInjectAdapterTest extends VersionedNamingTestBase {
 
     then:
     carrier.headerCount() == 2
-    carrier.get(getKey("ot-baggage-foo")) == "v1" // first value wins
+    carrier.get(getKey("ot-baggage-foo")) == "v2" // overridden value wins
     carrier.get(getKey("ot-baggage-bar")) == "v3"
   }
 
