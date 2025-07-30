@@ -1,9 +1,8 @@
-package datadog.trace.instrumentation.java.concurrent.structuredconcurrency21;
+package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
-import static datadog.environment.JavaVirtualMachine.isJavaVersionBetween;
+import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -11,9 +10,14 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
+
+// WARNING:
+// This instrumentation is tested using smoke tests as instrumented tests cannot run using Java 25.
+// Instrumented tests rely on Spock / Groovy which cannot run using Java 25 due to byte-code
+// compatibility. Check dd-java-agent/instrumentation/java-concurrent/java-concurrent-25 for this
+// instrumentation test suite.
 
 /**
  * This instrumentation captures the active span scope at StructuredTaskScope task creation
@@ -22,26 +26,21 @@ import net.bytebuddy.asm.Advice.This;
  */
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
-public class StructuredTaskScope21Instrumentation extends InstrumenterModule.Tracing
+public class StructuredTaskScope25Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public StructuredTaskScope21Instrumentation() {
-    super("java_concurrent", "structured-task-scope", "structured-task-scope-21");
+  public StructuredTaskScope25Instrumentation() {
+    super("java_concurrent", "structured-task-scope", "structured-task-scope-25");
   }
 
   @Override
   public String instrumentedType() {
-    return "java.util.concurrent.StructuredTaskScope$SubtaskImpl";
+    return "java.util.concurrent.StructuredTaskScopeImpl$SubtaskImpl";
   }
 
   @Override
   public boolean isEnabled() {
-    return isJavaVersionBetween(21, 25) && super.isEnabled();
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
+    return isJavaVersionAtLeast(25) && super.isEnabled();
   }
 
   @Override
@@ -54,8 +53,8 @@ public class StructuredTaskScope21Instrumentation extends InstrumenterModule.Tra
      * Captures task scope to be restored at the start of VirtualThread.run() method by {@link
      * Runnable} instrumentation.
      *
-     * @param subTaskImpl The StructuredTaskScope.SubtaskImpl object (the advice are compile against
-     *     Java 8 so the type from JDK25 can't be referred, using {@link Object} instead
+     * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice are compile
+     *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead
      */
     @OnMethodExit(suppress = Throwable.class)
     public static void captureScope(@This Object subTaskImpl) {
