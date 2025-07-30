@@ -32,10 +32,10 @@ public class SpanUtils {
     setFrameworks(span, merged);
   }
 
-  private static Collection<TestFramework> getFrameworks(AgentSpan span) {
+  static Collection<TestFramework> getFrameworks(AgentSpan span) {
     Object nameTag = span.getTag(Tags.TEST_FRAMEWORK);
     Object versionTag = span.getTag(Tags.TEST_FRAMEWORK_VERSION);
-    if (nameTag == null && versionTag == null) {
+    if (nameTag == null) {
       return Collections.emptyList();
     }
 
@@ -45,9 +45,10 @@ public class SpanUtils {
 
     } else if (nameTag instanceof Collection) {
       Iterator<String> names = ((Collection<String>) nameTag).iterator();
-      Iterator<String> versions = ((Collection<String>) versionTag).iterator();
+      Iterator<String> versions =
+          versionTag != null ? ((Collection<String>) versionTag).iterator() : null;
       while (names.hasNext()) {
-        frameworks.add(new TestFramework(names.next(), versions.next()));
+        frameworks.add(new TestFramework(names.next(), versions != null ? versions.next() : null));
       }
 
     } else {
