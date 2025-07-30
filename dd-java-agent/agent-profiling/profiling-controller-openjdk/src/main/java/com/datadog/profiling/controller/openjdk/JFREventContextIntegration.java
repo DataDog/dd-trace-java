@@ -59,7 +59,7 @@ public class JFREventContextIntegration implements ProfilingContextIntegration {
     if (!isTimelineEventsEnabled || !isStarted) {
       return Stateful.DEFAULT;
     }
-    return new TimelineEvent(
+    return new TimelineEvent.Holder(
         profilerContext.getRootSpanId(),
         profilerContext.getSpanId(),
         String.valueOf(profilerContext.getOperationName()));
