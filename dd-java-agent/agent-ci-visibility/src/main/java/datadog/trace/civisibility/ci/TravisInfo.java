@@ -71,6 +71,7 @@ class TravisInfo implements CIProviderInfo {
       return new PullRequestInfo(
           normalizeBranch(environment.get(TRAVIS_GIT_BRANCH)),
           null,
+          null,
           new CommitInfo(environment.get(TRAVIS_PR_HEAD_SHA)),
           environment.get(TRAVIS_PR_NUMBER));
     }

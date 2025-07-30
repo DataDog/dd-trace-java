@@ -423,10 +423,16 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         // ensure repo is not shallow before attempting to get git diff
         gitRepoUnshallow.unshallow();
 
-        String baseCommitSha = pullRequestInfo.getPullRequestBaseBranchSha();
+        String baseCommitSha = pullRequestInfo.getBaseBranchSha();
+        if (baseCommitSha == null && pullRequestInfo.getBaseBranchHeadSha() != null) {
+          baseCommitSha =
+              gitClient.getMergeBase(
+                  pullRequestInfo.getBaseBranchHeadSha(), pullRequestInfo.getHeadCommit().getSha());
+        }
+
         if (baseCommitSha == null) {
           baseCommitSha =
-              gitClient.getBaseCommitSha(pullRequestInfo.getPullRequestBaseBranch(), defaultBranch);
+              gitClient.getBaseCommitSha(pullRequestInfo.getBaseBranch(), defaultBranch);
         }
 
         Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());

@@ -57,17 +57,17 @@ public class PersonInfo {
   }
 
   /**
-   * Merges info by completing the empty information fields with the fallback's
+   * Combine infos by completing the empty information fields in {@code first} with {@code second}'s
    *
-   * @param info Base person info
-   * @param fallback Fallback person info
-   * @return Completed person info
+   * @param first Base person info
+   * @param second Fallback person info
+   * @return Combined person info
    */
-  public static PersonInfo merge(final PersonInfo info, final PersonInfo fallback) {
+  public static PersonInfo coalesce(final PersonInfo first, final PersonInfo second) {
     return new PersonInfo(
-        Strings.isNotBlank(info.name) ? info.name : fallback.name,
-        Strings.isNotBlank(info.email) ? info.email : fallback.email,
-        Strings.isNotBlank(info.iso8601Date) ? info.iso8601Date : fallback.iso8601Date);
+        Strings.coalesce(first.name, second.name),
+        Strings.coalesce(first.email, second.email),
+        Strings.coalesce(first.iso8601Date, second.iso8601Date));
   }
 
   @Override

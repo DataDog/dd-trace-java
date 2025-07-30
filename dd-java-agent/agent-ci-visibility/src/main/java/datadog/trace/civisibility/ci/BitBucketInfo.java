@@ -79,6 +79,7 @@ class BitBucketInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(BITBUCKET_PR_DESTINATION_BRANCH)),
         null,
+        null,
         CommitInfo.NOOP,
         environment.get(BITBUCKET_PR_NUMBER));
   }

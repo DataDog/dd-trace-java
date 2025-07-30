@@ -135,12 +135,12 @@ class JvmOptionsTest {
         arguments(
             "Java from class and options",
             new String[]{"java", "-Xmx512m", "-Xms256m", "-cp", "app.jar", "Main"},
-            asList("-Xmx512m", "-Xms256m", "-cp", "app.jar")
+            asList("-Xmx512m", "-Xms256m")
         ),
         arguments(
             "Java from class and options, mixed",
             new String[]{"java", "-Xms256m", "-cp", "app.jar", "-Xmx512m", "Main"},
-            asList("-Xms256m", "-cp", "app.jar", "-Xmx512m")
+            asList("-Xms256m", "-Xmx512m")
         ),
         arguments(
             "Args from file",
@@ -167,10 +167,9 @@ class JvmOptionsTest {
 
   @ParameterizedTest(name = "[{index}] {0}")
   @MethodSource("procFsCmdLine")
-  void testFindVmOptionsWithProcFsCmdLine(
-      String useCase, String[] procfsCmdline, List<String> expected) throws Exception {
+  void testFindVmOptionsFromProcFs(String useCase, String[] procfsCmdline, List<String> expected) {
     JvmOptions vmOptions = new JvmOptions();
-    List<String> found = vmOptions.findVmOptions(procfsCmdline);
+    List<String> found = vmOptions.findVmOptionsFromProcFs(procfsCmdline);
     assertEquals(expected, found);
   }
 
