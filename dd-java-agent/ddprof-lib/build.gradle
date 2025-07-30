@@ -22,6 +22,7 @@ shadowJar {
     || it.path.startsWith("com/datadoghq/profiler")
     rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/") || it.path.startsWith("META-INF/native-libs/")
     rslt |= (it.path.contains("ddprof") && it.path.endsWith(".jar"))
+    rslt &= !it.path.endsWith(".debug")
     return rslt
   }
 }

@@ -4,6 +4,7 @@ import datadog.environment.JavaVirtualMachine;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -46,6 +47,9 @@ public class JPMSJFRAccess extends JFRAccess {
   private final MethodHandle counterTimeMH;
   private final MethodHandle getTimeConversionFactorMH;
 
+  private final Field evenWriterPositionField;
+  private final MethodHandle getPositionFieldHolder;
+
   public JPMSJFRAccess(Instrumentation inst) throws Exception {
     patchModuleAccess(inst);
 
@@ -57,6 +61,17 @@ public class JPMSJFRAccess extends JFRAccess {
     setRepositoryBaseMH = setRepositoryBaseMethodHandle();
     counterTimeMH = getJvmMethodHandle(jvm, "counterTime");
     getTimeConversionFactorMH = getJvmMethodHandle(jvm, "getTimeConversionFactor");
+    getPositionFieldHolder = getJvmMethodHandle(jvm, "getEventWriter");
+
+    Class<?> eventWriterClass = null;
+    try {
+      eventWriterClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.EventWriter");
+    } catch (Throwable ignored) {
+      // in JDK ~21 the package has changed
+      eventWriterClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.event.EventWriter");
+    }
+    evenWriterPositionField = eventWriterClass.getDeclaredField("currentPosition");
+    evenWriterPositionField.setAccessible(true);
   }
 
   private static Class<?> safePathClass() {
@@ -117,7 +132,7 @@ public class JPMSJFRAccess extends JFRAccess {
     Module unnamedModule = JFRAccess.class.getClassLoader().getUnnamedModule();
     Module targetModule = Event.class.getModule();
 
-    Map<String, Set<Module>> extraOpens = Map.of("jdk.jfr.internal", Set.of(unnamedModule));
+    Map<String, Set<Module>> extraOpens = Map.of("jdk.jfr.internal", Set.of(unnamedModule), "jdk.jfr.internal.event", Set.of(unnamedModule));
 
     // Redefine the module
     inst.redefineModule(
@@ -173,5 +188,18 @@ public class JPMSJFRAccess extends JFRAccess {
       log.debug("Unable to get time conversion factor from JFR", t);
     }
     return super.toNanosConversionFactor();
+  }
+
+  @Override
+  public long getThreadWriterPosition() {
+    try {
+      Object eventWriter = getPositionFieldHolder.invoke();
+      if (eventWriter != null) {
+        return  (long) evenWriterPositionField.get(eventWriter);
+      }
+    } catch (Throwable e) {
+      log.debug("Unable to get thread writer position from JFR", e);
+    }
+    return -1; // return a constant and invalid value
   }
 }

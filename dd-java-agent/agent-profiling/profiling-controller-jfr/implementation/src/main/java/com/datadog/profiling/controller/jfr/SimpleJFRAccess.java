@@ -2,6 +2,11 @@ package com.datadog.profiling.controller.jfr;
 
 import datadog.environment.JavaVirtualMachine;
 import java.lang.instrument.Instrumentation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
+
+import jdk.jfr.internal.EventWriter;
 import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport;
@@ -26,6 +31,33 @@ public class SimpleJFRAccess extends JFRAccess {
     }
   }
 
+  private final Field evenWriterPositionField;
+  private final MethodHandle getPositionFieldHolder;
+  private final long fakePositionField = -1;
+
+  public SimpleJFRAccess() {
+    Field posField = null;
+    MethodHandle positionHolderMh = null;
+    try {
+      // first setup the defaults
+      // this will definitely not throw any exception
+      posField = SimpleJFRAccess.class.getDeclaredField("evenWriterPositionField");
+      positionHolderMh = MethodHandles.lookup().unreflect(SimpleJFRAccess.class.getDeclaredMethod("getThis")).bindTo(this);
+      // now try setting up access to JFR internals
+      Class<?> eventWriterClass = EventWriter.class;
+      posField = eventWriterClass.getDeclaredField("currentPosition");
+      posField.setAccessible(true);
+      positionHolderMh = MethodHandles.lookup().unreflect(JVM.class.getMethod("getEventWriter"));
+    } catch (Exception ignored) {}
+    evenWriterPositionField = posField;
+    getPositionFieldHolder = positionHolderMh;
+  }
+
+  // for the event writer position wrapper
+  private SimpleJFRAccess getThis() {
+    return this;
+  }
+
   @Override
   public boolean setStackDepth(int depth) {
     JVM.getJVM().setStackDepth(depth);
@@ -41,6 +73,16 @@ public class SimpleJFRAccess extends JFRAccess {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public long getThreadWriterPosition() {
+    try {
+      return (long)evenWriterPositionField.get(getPositionFieldHolder.invoke());
+    } catch (Throwable ignored) {
+      // never gonna happen
+    }
+    return -1; // just return the same invalid position
   }
 
   @Override

@@ -27,6 +27,11 @@ public abstract class JFRAccess implements Timestamper {
         public boolean setBaseLocation(String location) {
           return false;
         }
+
+        @Override
+        public long getThreadWriterPosition() {
+          return -1;
+        }
       };
 
   /**
@@ -90,4 +95,6 @@ public abstract class JFRAccess implements Timestamper {
    * @return {@code true} if the base location was set successfully, {@code false} if not
    */
   public abstract boolean setBaseLocation(String location);
+
+  public abstract long getThreadWriterPosition();
 }
