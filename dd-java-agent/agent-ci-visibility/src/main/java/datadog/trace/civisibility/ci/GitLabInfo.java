@@ -89,6 +89,7 @@ class GitLabInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(GITLAB_PULL_REQUEST_BASE_BRANCH)),
         null,
+        null,
         new CommitInfo(environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA)),
         environment.get(GITLAB_PULL_REQUEST_NUMBER));
   }

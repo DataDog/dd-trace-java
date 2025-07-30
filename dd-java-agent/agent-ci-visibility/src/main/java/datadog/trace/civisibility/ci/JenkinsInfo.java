@@ -77,6 +77,7 @@ class JenkinsInfo implements CIProviderInfo {
     return new PullRequestInfo(
         normalizeBranch(environment.get(JENKINS_PR_BASE_BRANCH)),
         null,
+        null,
         CommitInfo.NOOP,
         environment.get(JENKINS_PR_NUMBER));
   }
