@@ -91,7 +91,7 @@ class TracerVersionPlugin @Inject constructor(
         "--abbrev=8",
         "--tags",
         "--first-parent",
-        "--match=$tagPrefix[0-9].[0-9]*.[0-9]",
+        "--match=$tagPrefix[0-9].[0-9]*.[0-9]*",
       )
 
       if (extension.detectDirty.get()) {

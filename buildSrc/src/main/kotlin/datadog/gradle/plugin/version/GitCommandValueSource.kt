@@ -27,7 +27,6 @@ abstract class GitCommandValueSource @Inject constructor(
         isIgnoreExitValue = true
       }
     } catch (e: Exception) {
-      e.printStackTrace()
       throw GradleException("Failed to run: ${commands.joinToString(" ")}", e)
     }
 
