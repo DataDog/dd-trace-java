@@ -51,7 +51,7 @@ processResources {
 }
 
 jmh {
-  jmhVersion = '1.32'
+  jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
   jvmArgs = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
   failOnError = false
