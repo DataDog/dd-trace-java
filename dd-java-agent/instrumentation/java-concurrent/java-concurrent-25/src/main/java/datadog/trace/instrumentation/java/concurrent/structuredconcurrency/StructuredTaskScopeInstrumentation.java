@@ -54,7 +54,8 @@ public class StructuredTaskScopeInstrumentation extends InstrumenterModule.Traci
   public static final class ConstructorAdvice {
     @Advice.OnMethodExit
     public static <T> void captureScope(
-        @Advice.This Object task // StructuredTaskScopeImpl.SubtaskImpl (can't use the type)
+        @Advice.This Object task // StructuredTaskScopeImpl.SubtaskImpl
+        // (the advice are compile against Java 8 so the type from JDK25 can't be referred)
         ) {
       ContextStore<Object, State> contextStore =
           InstrumentationContext.get(
