@@ -43,7 +43,7 @@ public class TimelineEvent extends Event {
         // This, practically, will always be true; we just need to make sure JIT does not optimize
         // the summing code away
         if (sum > 0) {
-          cpuTimeSupported = avg < 100; // less than 100ns for getting thread cpu time sounds fair
+          cpuTimeSupported = avg < 5_000; // less than 5us for getting thread cpu time sounds fair
         }
         log.debug(
             SEND_TELEMETRY,

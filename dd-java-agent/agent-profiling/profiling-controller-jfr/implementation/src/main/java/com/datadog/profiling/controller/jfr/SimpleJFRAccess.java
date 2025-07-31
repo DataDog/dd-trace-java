@@ -26,6 +26,11 @@ public class SimpleJFRAccess extends JFRAccess {
         return !JavaVirtualMachine.isJ9() && !JavaVirtualMachine.isOracleJDK8()
             ? new SimpleJFRAccess()
             : JFRAccess.NOOP;
+      } else if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
+        try {
+          Class<?> vtClass = Class.forName("java.lang.VirtualThread");
+          log.debug("VirtualThread class modifiable: {}", inst.isModifiableClass(vtClass));
+        } catch (Throwable ignored) {}
       }
       return null;
     }
