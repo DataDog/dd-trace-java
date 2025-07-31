@@ -64,7 +64,7 @@ testing {
     val test by getting(JvmTestSuite::class) {
       dependencies {
         implementation(libs.spock.core)
-        implementation("org.codehaus.groovy:groovy-all:3.0.24")
+        implementation(libs.groovy)
       }
       targets.configureEach {
         testTask.configure {

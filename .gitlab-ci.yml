@@ -255,7 +255,7 @@ build:
     CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
-    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks; fi
+    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
