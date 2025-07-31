@@ -11,6 +11,11 @@ public final class GrpcInjectAdapter implements CarrierSetter<Metadata> {
 
   @Override
   public void set(final Metadata carrier, final String key, final String value) {
-    carrier.put(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER), value);
+    Metadata.Key<String> metadataKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+    if (carrier.containsKey(metadataKey)) {
+      carrier.removeAll(
+          metadataKey); // Remove existing to ensure identical behavior with other carriers
+    }
+    carrier.put(metadataKey, value);
   }
 }
