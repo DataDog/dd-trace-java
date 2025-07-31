@@ -1,4 +1,4 @@
-package datadog.trace.core.monitor
+package datadog.trace.api.rum
 
 import datadog.trace.api.StatsDClient
 import spock.lang.Specification
@@ -7,16 +7,16 @@ import spock.lang.Subject
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-class RumInjectorHealthMetricsTest extends Specification {
+class RumInjectorMetricsTest extends Specification {
   def statsD = Mock(StatsDClient)
 
   @Subject
-  def healthMetrics = new DefaultRumInjectorHealthMetrics(statsD)
+  def healthMetrics = new RumInjectorMetrics(statsD)
 
   def "test onInjectionSucceed"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new DefaultRumInjectorHealthMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -34,7 +34,7 @@ class RumInjectorHealthMetricsTest extends Specification {
   def "test onInjectionFailed"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new DefaultRumInjectorHealthMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -52,7 +52,7 @@ class RumInjectorHealthMetricsTest extends Specification {
   def "test onInjectionSkipped"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new DefaultRumInjectorHealthMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
@@ -70,7 +70,7 @@ class RumInjectorHealthMetricsTest extends Specification {
   def "test multiple events"() {
     setup:
     def latch = new CountDownLatch(3) // expecting 3 metric types
-    def healthMetrics = new DefaultRumInjectorHealthMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
