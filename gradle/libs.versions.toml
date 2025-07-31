@@ -34,6 +34,7 @@ ddprof = "1.29.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
+jmh = "1.37"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
