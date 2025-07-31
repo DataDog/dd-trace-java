@@ -57,9 +57,8 @@ public class ConfigHelper {
   }
 
   public static String getEnvironmentVariable(String name) {
-    if ((name.startsWith("DD_")
-            || name.startsWith("OTEL_")
-            || GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(name))
+    if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
+        && !GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(name)
         && !GeneratedSupportedConfigurations.SUPPORTED.contains(name)
         && configInversionStrict) {
       System.err.println(
