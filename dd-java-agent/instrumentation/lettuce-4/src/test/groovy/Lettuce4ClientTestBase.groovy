@@ -69,28 +69,26 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
+    File reportDir = new File("build")
+    String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+    "dd-trace-java/workspace/dd-java-agent")
+
+    reportDir = new File(fullPath)
+    if (!reportDir.exists()) {
+      println("Folder not found: " + fullPath)
+      reportDir.mkdirs()
+    }
+    else println("Folder found: " + fullPath)
+
     scheduler = Executors.newSingleThreadScheduledExecutor()
-
     threadDumpTask = scheduler.scheduleAtFixedRate({
-      File reportDir = new File("build")
-      String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
-      "dd-trace-java/workspace/dd-java-agent")
-
-      reportDir = new File(fullPath)
-      if (!reportDir.exists()) {
-        println("Folder not found: " + fullPath)
-        reportDir.mkdirs()
-      }
-
       // Define the file path
       File reportFile = new File(fullPath, String.format("thread-dump-%d.log", System.currentTimeMillis()))
 
       // Write to the file
       try (FileWriter writer = new FileWriter(reportFile)) {
-        println(s)
         writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
         Thread.getAllStackTraces().each { thread, stack ->
-          println(t)
           writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
           stack.each {
             writer.write("\tat ${it}\n")
@@ -98,7 +96,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
         }
         writer.write("==============================================\n")
       }
-    }, 60_000, 60_000, TimeUnit.MILLISECONDS)
+    }, 10, 60_000, TimeUnit.MILLISECONDS)
 
     redisServer.start()
 
