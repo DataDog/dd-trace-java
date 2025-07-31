@@ -25,13 +25,7 @@ public final class Rule {
     this.configuration = configuration;
   }
 
-  public Rule(Object yaml) {
-    if (!(yaml instanceof Map)) {
-      throw new StableConfigMappingException(
-          "Rule must be a map, but got: " + yaml.getClass().getSimpleName());
-    }
-    Map map = (Map) yaml;
-
+  public static Rule from(Map<?, ?> map) {
     Object selectorsObj = map.get("selectors");
     if (selectorsObj == null) {
       throw new StableConfigMappingException("Missing 'selectors' in rule: " + map);
@@ -40,10 +34,20 @@ public final class Rule {
       throw new StableConfigMappingException(
           "'selectors' must be a list, but got: " + selectorsObj.getClass().getSimpleName());
     }
-    selectors =
+    List<Selector> selectors =
         unmodifiableList(
-            ((List<Object>) selectorsObj)
-                .stream().filter(Objects::nonNull).map(Selector::new).collect(toList()));
+            ((List<?>) selectorsObj)
+                .stream()
+                    .filter(Objects::nonNull)
+                    .map(
+                        s -> {
+                          if (!(s instanceof Map)) {
+                            throw new StableConfigMappingException(
+                                "Selector must be a map, but got: " + s.getClass().getSimpleName());
+                          }
+                          return Selector.from((Map<?, ?>) s);
+                        })
+                    .collect(toList()));
 
     Object configObj = map.get("configuration");
     if (configObj == null) {
@@ -53,7 +57,9 @@ public final class Rule {
       throw new StableConfigMappingException(
           "'configuration' must be a map, but got: " + configObj.getClass().getSimpleName());
     }
-    configuration = unmodifiableMap((Map<String, Object>) configObj);
+    Map<String, Object> configuration = (Map<String, Object>) configObj;
+
+    return new Rule(selectors, configuration);
   }
 
   public List<Selector> getSelectors() {
