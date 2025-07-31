@@ -140,7 +140,7 @@ public class TelemetryRunnable implements Runnable {
     }
   }
 
-  private void collectConfigChanges() {
+  void collectConfigChanges() {
     Map<String, ConfigSetting> collectedConfig = ConfigCollector.get().collect();
     if (!collectedConfig.isEmpty()) {
       telemetryService.addConfiguration(collectedConfig);
