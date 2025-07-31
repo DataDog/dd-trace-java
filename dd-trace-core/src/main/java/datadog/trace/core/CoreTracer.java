@@ -50,8 +50,6 @@ import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.rum.RumInjector;
-import datadog.trace.api.rum.RumInjectorMetrics;
-import datadog.trace.api.rum.RumTelemetryCollector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -208,7 +206,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Monitoring performanceMonitoring;
 
   private final HealthMetrics healthMetrics;
-  private final RumTelemetryCollector rumInjectorHealthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
@@ -708,14 +705,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : HealthMetrics.NO_OP;
     healthMetrics.start();
 
-    // Start RUM injector metrics
-    rumInjectorHealthMetrics =
-        config.isHealthMetricsEnabled() && config.isRumEnabled()
-            ? new RumInjectorMetrics(this.statsDClient)
-            : RumTelemetryCollector.NO_OP;
-    rumInjectorHealthMetrics.start();
-    // Register rumInjectorHealthMetrics as the RumInjector's telemetry collector
-    RumInjector.setTelemetryCollector(rumInjectorHealthMetrics);
+    // Start RUM injector telemetry
+    if (config.isRumEnabled()) {
+      RumInjector.enableTelemetry(this.statsDClient);
+    }
 
     performanceMonitoring =
         config.isPerfMetricsEnabled()
@@ -1262,7 +1255,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     tracingConfigPoller.stop();
     pendingTraceBuffer.close();
     writer.close();
-    rumInjectorHealthMetrics.close();
+    RumInjector.shutdownTelemetry();
     statsDClient.close();
     metricsAggregator.close();
     dataStreamsMonitoring.close();

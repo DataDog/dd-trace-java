@@ -117,7 +117,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   public void onInjected() {
-    RumInjector.reportInjectionSucceed();
+    RumInjector.getTelemetryCollector().onInjectionSucceed();
     try {
       setHeader("x-datadog-rum-injected", "1");
     } catch (Throwable ignored) {

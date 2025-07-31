@@ -65,4 +65,59 @@ class RumInjectorTest extends DDSpecification {
     injector.getSnippetChars() != null
     injector.getMarkerChars() != null
   }
+
+  void 'set telemetry collector'() {
+    setup:
+    def mockTelemetryCollector = mock(RumTelemetryCollector)
+
+    when:
+    RumInjector.setTelemetryCollector(mockTelemetryCollector)
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+
+    then:
+    telemetryCollector == mockTelemetryCollector
+  }
+
+  void 'return NO_OP when telemetry collector is not set'() {
+    when:
+    RumInjector.setTelemetryCollector(null)
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+
+    then:
+    telemetryCollector == RumTelemetryCollector.NO_OP
+  }
+
+  void 'enable telemetry with StatsDClient'() {
+    setup:
+    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
+    RumInjector.enableTelemetry(mockStatsDClient)
+
+    when:
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+
+    then:
+    telemetryCollector instanceof datadog.trace.api.rum.RumInjectorMetrics
+  }
+
+  void 'enabling telemetry with a null StatsDClient sets the telemetry collector to NO_OP'() {
+    when:
+    RumInjector.enableTelemetry(null)
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+
+    then:
+    telemetryCollector == RumTelemetryCollector.NO_OP
+  }
+
+  void 'shutdown telemetry'() {
+    setup:
+    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
+    RumInjector.enableTelemetry(mockStatsDClient)
+
+    when:
+    RumInjector.shutdownTelemetry()
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+
+    then:
+    telemetryCollector == RumTelemetryCollector.NO_OP
+  }
 }

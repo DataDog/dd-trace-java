@@ -29,7 +29,7 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
-  // Health metrics telemetry collector (set by CoreTracer)
+  // telemetry collector defaults to NO_OP
   private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
 
   RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
@@ -126,26 +126,30 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
-  // set the telemetry collector for the RumInjector
+  // start telemetry collection and report metrics via the given StatsDClient
+  public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
+    if (statsDClient != null) {
+      RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
+      metrics.start();
+      telemetryCollector = metrics;
+    } else {
+      telemetryCollector = RumTelemetryCollector.NO_OP;
+    }
+  }
+
+  // shutdown telemetry and reset to NO_OP
+  public static void shutdownTelemetry() {
+    telemetryCollector.close();
+    telemetryCollector = RumTelemetryCollector.NO_OP;
+  }
+
+  // set the telemetry collector
   public static void setTelemetryCollector(RumTelemetryCollector collector) {
     telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
   }
 
-  // report to the telemetry collector that the RUM injector succeeded in injecting the SDK in an
-  // HTTP response
-  public static void reportInjectionSucceed() {
-    telemetryCollector.onInjectionSucceed();
-  }
-
-  // report to the telemetry collector that the RUM injector failed to inject the SDK in an HTTP
-  // response
-  public static void reportInjectionFailed() {
-    telemetryCollector.onInjectionFailed();
-  }
-
-  // report to the telemetry collector that the RUM injector skipped injecting the SDK in an HTTP
-  // response
-  public static void reportInjectionSkipped() {
-    telemetryCollector.onInjectionSkipped();
+  // get the telemetry collector. this is used to directly report telemetry
+  public static RumTelemetryCollector getTelemetryCollector() {
+    return telemetryCollector;
   }
 }
