@@ -87,23 +87,18 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
 
       // Write to the file
       try (FileWriter writer = new FileWriter(reportFile)) {
-        println()
-        def s = "=== Thread Dump Triggered at ${new Date()} ===\n"
         println(s)
-        writer.write(s)
+        writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
         Thread.getAllStackTraces().each { thread, stack ->
-          def t = "Thread: ${thread.name}, daemon: ${thread.daemon}\n"
           println(t)
-          writer.write(t)
+          writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
           stack.each {
-            def st = "\tat ${it}\n"
-            println(st)
-            writer.write(st)
+            writer.write("\tat ${it}\n")
           }
         }
         writer.write("==============================================\n")
       }
-    }, 10, 60_000, TimeUnit.MILLISECONDS)
+    }, 60_000, 60_000, TimeUnit.MILLISECONDS)
 
     redisServer.start()
 
