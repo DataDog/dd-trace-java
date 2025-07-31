@@ -1,5 +1,7 @@
 package datadog.environment;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +33,7 @@ public final class EnvironmentVariables {
    * @return The environment variable value, {@code defaultValue} if missing, can't be retrieved or
    *     the environment variable name is {@code null}.
    */
+  @SuppressForbidden
   public static String getOrDefault(String name, String defaultValue) {
     if (name == null) {
       return defaultValue;
