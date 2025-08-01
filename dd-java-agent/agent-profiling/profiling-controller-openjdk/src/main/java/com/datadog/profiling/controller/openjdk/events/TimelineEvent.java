@@ -6,6 +6,8 @@ import com.datadog.profiling.controller.jfr.JFRAccess;
 import datadog.trace.api.Stateful;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.concurrent.atomic.LongAdder;
+
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -57,31 +59,46 @@ public class TimelineEvent extends Event {
       isThreadCpuTimeSupported = cpuTimeSupported;
     }
 
+    private static final LongAdder droppedEvents = new LongAdder();
+    private static final LongAdder writtenEvents = new LongAdder();
+    private static final LongAdder timeChecks = new LongAdder();
+    private static final LongAdder inflight = new LongAdder();
+
+    public static void debug() {
+      log.debug("Dropped timeline events: {}, written timeline events: {}, cpu time checks: {}, inflight: {}", droppedEvents.sumThenReset(), writtenEvents.sumThenReset(), timeChecks.sumThenReset(), inflight.sum());
+    }
+
     private final long marker;
-    private final long cpuTime;
+    private final long cpuTimeThreshold;
 
     public Holder(long localRootSpanId, long spanId, String operation) {
       this.event = new TimelineEvent(localRootSpanId, spanId, operation);
-      this.cpuTime =
+      this.cpuTimeThreshold =
           isThreadCpuTimeSupported
-              ? threadMXBean.getThreadCpuTime(Thread.currentThread().getId())
+              ? threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) + 1_000_000L
               : -1;
       this.marker = JFRAccess.instance().getThreadWriterPosition();
       this.event.begin();
+      inflight.increment();
     }
 
     public void begin() {}
 
     @Override
     public void close() {
-      long end = JFRAccess.instance().getThreadWriterPosition();
-      boolean writeEvent = end != marker;
-      if (!writeEvent && isThreadCpuTimeSupported) {
-        writeEvent = threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) != cpuTime;
-      }
-      if (writeEvent) {
+//      long end = JFRAccess.instance().getThreadWriterPosition();
+//      boolean writeEvent = end != marker;
+//      if (!writeEvent && isThreadCpuTimeSupported) {
+//        timeChecks.increment();
+//        writeEvent = threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) >= cpuTimeThreshold;
+//      }
+//      if (writeEvent) {
         event.close();
-      }
+        writtenEvents.increment();
+//      } else {
+//        droppedEvents.increment();
+//      }
+      inflight.decrement();
     }
 
     @Override

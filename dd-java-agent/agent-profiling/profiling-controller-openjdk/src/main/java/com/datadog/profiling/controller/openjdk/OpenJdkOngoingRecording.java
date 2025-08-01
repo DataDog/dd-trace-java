@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.openjdk.events.TimelineEvent;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -143,6 +144,8 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
+
+    TimelineEvent.Holder.debug();
 
     // dump the config to the current JFR recording
     configMemento.publish();
