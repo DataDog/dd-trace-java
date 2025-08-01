@@ -12,10 +12,13 @@ import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class EndsWithExpressionTest {
   private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
+  // used to ref lookup
+  URI uri = URI.create("https://www.datadoghq.com");
 
   @Test
   void nullExpression() {
@@ -45,5 +48,12 @@ class EndsWithExpressionTest {
     expression = new EndsWithExpression(DSL.value("abc"), new StringValue("ab"));
     assertFalse(expression.evaluate(resolver));
     assertEquals("endsWith(\"abc\", \"ab\")", print(expression));
+  }
+
+  @Test
+  void stringPrimitives() {
+    EndsWithExpression expression = new EndsWithExpression(DSL.ref("uri"), new StringValue(".com"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("endsWith(uri, \".com\")", print(expression));
   }
 }
