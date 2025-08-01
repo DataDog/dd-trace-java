@@ -23,37 +23,48 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   @Override
   public ServletOutputStream getOutputStream() throws IOException {
     if (!shouldInject) {
+      RumInjector.getTelemetryCollector().onInjectionSkipped();
       return super.getOutputStream();
     }
     if (outputStream == null) {
-      String encoding = getCharacterEncoding();
-      if (encoding == null) {
-        encoding = Charset.defaultCharset().name();
+      try {
+        String encoding = getCharacterEncoding();
+        if (encoding == null) {
+          encoding = Charset.defaultCharset().name();
+        }
+        outputStream =
+            new WrappedServletOutputStream(
+                super.getOutputStream(),
+                rumInjector.getMarkerBytes(encoding),
+                rumInjector.getSnippetBytes(encoding),
+                this::onInjected);
+      } catch (Exception e) {
+        RumInjector.getTelemetryCollector().onInjectionFailed();
+        throw e;
       }
-      outputStream =
-          new WrappedServletOutputStream(
-              super.getOutputStream(),
-              rumInjector.getMarkerBytes(encoding),
-              rumInjector.getSnippetBytes(encoding),
-              this::onInjected);
     }
     return outputStream;
   }
 
   @Override
   public PrintWriter getWriter() throws IOException {
-    final PrintWriter delegate = super.getWriter();
     if (!shouldInject) {
-      return delegate;
+      RumInjector.getTelemetryCollector().onInjectionSkipped();
+      return super.getWriter();
     }
     if (printWriter == null) {
-      printWriter =
-          new PrintWriter(
-              new InjectingPipeWriter(
-                  delegate,
-                  rumInjector.getMarkerChars(),
-                  rumInjector.getSnippetChars(),
-                  this::onInjected));
+      try {
+        printWriter =
+            new PrintWriter(
+                new InjectingPipeWriter(
+                    super.getWriter(),
+                    rumInjector.getMarkerChars(),
+                    rumInjector.getSnippetChars(),
+                    this::onInjected));
+      } catch (Exception e) {
+        RumInjector.getTelemetryCollector().onInjectionFailed();
+        throw e;
+      }
     }
     return printWriter;
   }
