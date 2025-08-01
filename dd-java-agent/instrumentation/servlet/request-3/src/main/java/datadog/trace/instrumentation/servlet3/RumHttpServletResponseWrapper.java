@@ -45,18 +45,24 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return outputStream;
     }
     if (!shouldInject) {
+      RumInjector.getTelemetryCollector().onInjectionSkipped();
       return super.getOutputStream();
     }
-    String encoding = getCharacterEncoding();
-    if (encoding == null) {
-      encoding = Charset.defaultCharset().name();
+    try {
+      String encoding = getCharacterEncoding();
+      if (encoding == null) {
+        encoding = Charset.defaultCharset().name();
+      }
+      outputStream =
+          new WrappedServletOutputStream(
+              super.getOutputStream(),
+              rumInjector.getMarkerBytes(encoding),
+              rumInjector.getSnippetBytes(encoding),
+              this::onInjected);
+    } catch (Exception e) {
+      RumInjector.getTelemetryCollector().onInjectionFailed();
+      throw e;
     }
-    outputStream =
-        new WrappedServletOutputStream(
-            super.getOutputStream(),
-            rumInjector.getMarkerBytes(encoding),
-            rumInjector.getSnippetBytes(encoding),
-            this::onInjected);
 
     return outputStream;
   }
@@ -67,15 +73,21 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
       return printWriter;
     }
     if (!shouldInject) {
+      RumInjector.getTelemetryCollector().onInjectionSkipped();
       return super.getWriter();
     }
-    wrappedPipeWriter =
-        new InjectingPipeWriter(
-            super.getWriter(),
-            rumInjector.getMarkerChars(),
-            rumInjector.getSnippetChars(),
-            this::onInjected);
-    printWriter = new PrintWriter(wrappedPipeWriter);
+    try {
+      wrappedPipeWriter =
+          new InjectingPipeWriter(
+              super.getWriter(),
+              rumInjector.getMarkerChars(),
+              rumInjector.getSnippetChars(),
+              this::onInjected);
+      printWriter = new PrintWriter(wrappedPipeWriter);
+    } catch (Exception e) {
+      RumInjector.getTelemetryCollector().onInjectionFailed();
+      throw e;
+    }
 
     return printWriter;
   }
