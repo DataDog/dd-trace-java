@@ -44,7 +44,7 @@ dependencies {
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jersey3Version
 
-  jersey2JettyTestImplementation project(':dd-java-agent:testing'), {
+  jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   jersey2JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))
@@ -58,7 +58,7 @@ dependencies {
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey-2-appsec')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
 
-  jersey3JettyTestImplementation project(':dd-java-agent:testing'), {
+  jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   jersey3JettyTestImplementation testFixtures(project(':dd-java-agent:appsec'))

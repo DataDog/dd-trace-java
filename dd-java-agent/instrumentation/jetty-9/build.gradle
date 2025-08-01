@@ -163,11 +163,11 @@ dependencies {
     builtBy = ['compileJava']
   }
 
-  testFixturesImplementation(project(':dd-java-agent:testing')) {
+  testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty-util')

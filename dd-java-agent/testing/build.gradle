@@ -64,8 +64,6 @@ dependencies {
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
   implementation project(':dd-java-agent:appsec')
 
-  implementation project(':dd-java-agent:agent-debugger')
-
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
@@ -88,16 +86,5 @@ shadowJar {
 }
 
 tasks.withType(Test).configureEach {
-  // SpockRunner that we use to run agent tests cannot be properly ported to JUnit 5,
-  // since the framework does not provide the hooks / extension points
-  // that can be used to shadow the tested class.
-
-  // In order to mitigate this, SpockRunner extends JUnitPlatform,
-  // which is a JUnit 4 runner that allows executing JUnit 5 tests in a JUnit 4 environment
-  // (i.e. running them as JUnit 4 tests).
-
-  // So even though Spock 2 tests run on top of JUnit 5,
-  // we execute them in "compatibility mode" so that SpockRunner could shadow the test class
-  // See https://junit.org/junit5/docs/current/user-guide/#running-tests-junit-platform-runner for more details.
-  useJUnit()
+  useJUnitPlatform()
 }

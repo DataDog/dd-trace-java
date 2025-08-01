@@ -36,7 +36,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:span-origin')
   main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude(module: 'jetty-server') // incompatible servlet api
   }
 

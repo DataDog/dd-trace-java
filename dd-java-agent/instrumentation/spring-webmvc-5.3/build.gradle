@@ -14,7 +14,7 @@ dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '5.3.23'
   compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude(module: 'jetty-server') // incompatable servlet api
   }
 

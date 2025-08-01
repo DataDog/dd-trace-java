@@ -66,7 +66,7 @@ import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.utility.JavaModule
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import org.junit.runner.RunWith
+import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
@@ -107,7 +107,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
  */
 // CodeNarc incorrectly thinks ".class" is unnecessary in @RunWith
 @SuppressWarnings('UnnecessaryDotClass')
-@RunWith(SpockRunner.class)
+@ExtendWith(SpockExtension.class)
 abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
 
