@@ -76,7 +76,7 @@ testing {
     val integTest by registering(JvmTestSuite::class) {
       dependencies {
         implementation(gradleTestKit())
-        implementation(libs.assertj)
+        implementation("org.assertj:assertj-core:3.25.3")
       }
       // Makes the gradle plugin publish its declared plugins to this source set
       gradlePlugin.testSourceSet(sources)
