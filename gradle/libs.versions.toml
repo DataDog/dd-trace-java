@@ -9,6 +9,7 @@ okio = "1.17.6" # Datadog fork
 spock = "2.3-groovy-3.0"
 spock24 = "2.4-M6-groovy-3.0"
 groovy = "3.0.24"
+assertj = "3.25.3" # Added latest AssertJ version
 junit5 = "5.9.2"
 logback = "1.2.3"
 bytebuddy = "1.17.5"
@@ -34,7 +35,7 @@ ddprof = "1.29.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
-assertj = "3.25.3" # Added latest AssertJ version
+jmh = "1.37"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
