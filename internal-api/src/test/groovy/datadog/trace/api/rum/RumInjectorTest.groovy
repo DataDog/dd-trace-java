@@ -68,56 +68,110 @@ class RumInjectorTest extends DDSpecification {
 
   void 'set telemetry collector'() {
     setup:
-    def mockTelemetryCollector = mock(RumTelemetryCollector)
+    def telemetryCollector = mock(RumTelemetryCollector)
 
     when:
-    RumInjector.setTelemetryCollector(mockTelemetryCollector)
-    def telemetryCollector = RumInjector.getTelemetryCollector()
+    RumInjector.setTelemetryCollector(telemetryCollector)
 
     then:
-    telemetryCollector == mockTelemetryCollector
+    RumInjector.getTelemetryCollector() == telemetryCollector
+
+    cleanup:
+    RumInjector.setTelemetryCollector(RumTelemetryCollector.NO_OP)
   }
 
   void 'return NO_OP when telemetry collector is not set'() {
     when:
     RumInjector.setTelemetryCollector(null)
-    def telemetryCollector = RumInjector.getTelemetryCollector()
 
     then:
-    telemetryCollector == RumTelemetryCollector.NO_OP
+    RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
+
+    cleanup:
+    RumInjector.setTelemetryCollector(RumTelemetryCollector.NO_OP)
   }
 
   void 'enable telemetry with StatsDClient'() {
-    setup:
-    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
-    RumInjector.enableTelemetry(mockStatsDClient)
-
     when:
-    def telemetryCollector = RumInjector.getTelemetryCollector()
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
 
     then:
-    telemetryCollector instanceof datadog.trace.api.rum.RumInjectorMetrics
+    RumInjector.getTelemetryCollector() instanceof datadog.trace.api.rum.RumInjectorMetrics
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
   }
 
   void 'enabling telemetry with a null StatsDClient sets the telemetry collector to NO_OP'() {
     when:
     RumInjector.enableTelemetry(null)
-    def telemetryCollector = RumInjector.getTelemetryCollector()
 
     then:
-    telemetryCollector == RumTelemetryCollector.NO_OP
+    RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
   }
 
   void 'shutdown telemetry'() {
     setup:
-    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
-    RumInjector.enableTelemetry(mockStatsDClient)
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
 
     when:
     RumInjector.shutdownTelemetry()
-    def telemetryCollector = RumInjector.getTelemetryCollector()
 
     then:
-    telemetryCollector == RumTelemetryCollector.NO_OP
+    RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
+  }
+
+  void 'telemetry integration works end-to-end'() {
+    when:
+    // simulate CoreTracer enabling telemetry
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
+
+    // simulate reporting successful injection
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onInjectionSucceed()
+    telemetryCollector.onInjectionSucceed()
+    telemetryCollector.onInjectionFailed()
+
+    // verify metrics are collected
+    def summary = telemetryCollector.summary()
+
+    then:
+    summary.contains("injectionSucceed=2")
+    summary.contains("injectionFailed=1")
+    summary.contains("injectionSkipped=0")
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
+  }
+
+  void 'concurrent telemetry calls are thread-safe'() {
+    setup:
+    RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    def threads = []
+
+    when:
+    // simulate multiple threads calling telemetry methods
+    (1..50).each { i ->
+      threads << Thread.start {
+        telemetryCollector.onInjectionSucceed()
+        telemetryCollector.onInjectionFailed()
+        telemetryCollector.onInjectionSkipped()
+      }
+    }
+    threads*.join()
+
+    def summary = telemetryCollector.summary()
+
+    then:
+    summary.contains("injectionSucceed=50")
+    summary.contains("injectionFailed=50")
+    summary.contains("injectionSkipped=50")
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
   }
 }

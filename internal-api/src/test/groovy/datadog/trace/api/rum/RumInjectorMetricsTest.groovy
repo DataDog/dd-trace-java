@@ -11,16 +11,16 @@ class RumInjectorMetricsTest extends Specification {
   def statsD = Mock(StatsDClient)
 
   @Subject
-  def healthMetrics = new RumInjectorMetrics(statsD)
+  def metrics = new RumInjectorMetrics(statsD)
 
   def "test onInjectionSucceed"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
-    healthMetrics.start()
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
 
     when:
-    healthMetrics.onInjectionSucceed()
+    metrics.onInjectionSucceed()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
@@ -28,17 +28,17 @@ class RumInjectorMetricsTest extends Specification {
     0 * _
 
     cleanup:
-    healthMetrics.close()
+    metrics.close()
   }
 
   def "test onInjectionFailed"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
-    healthMetrics.start()
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
 
     when:
-    healthMetrics.onInjectionFailed()
+    metrics.onInjectionFailed()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
@@ -46,17 +46,17 @@ class RumInjectorMetricsTest extends Specification {
     0 * _
 
     cleanup:
-    healthMetrics.close()
+    metrics.close()
   }
 
   def "test onInjectionSkipped"() {
     setup:
     def latch = new CountDownLatch(1)
-    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
-    healthMetrics.start()
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
 
     when:
-    healthMetrics.onInjectionSkipped()
+    metrics.onInjectionSkipped()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
@@ -64,19 +64,19 @@ class RumInjectorMetricsTest extends Specification {
     0 * _
 
     cleanup:
-    healthMetrics.close()
+    metrics.close()
   }
 
-  def "test multiple events"() {
+  def "test flushing multiple events"() {
     setup:
     def latch = new CountDownLatch(3) // expecting 3 metric types
-    def healthMetrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
-    healthMetrics.start()
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
 
     when:
-    healthMetrics.onInjectionSucceed()
-    healthMetrics.onInjectionFailed()
-    healthMetrics.onInjectionSkipped()
+    metrics.onInjectionSucceed()
+    metrics.onInjectionFailed()
+    metrics.onInjectionSkipped()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
@@ -86,20 +86,56 @@ class RumInjectorMetricsTest extends Specification {
     0 * _
 
     cleanup:
-    healthMetrics.close()
+    metrics.close()
   }
 
-  def "test summary"() {
+  def "test that flushing only reports non-zero deltas"() {
+    setup:
+    def latch = new CountDownLatch(1) // expecting only 1 metric call (non-zero delta)
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
+
     when:
-    healthMetrics.onInjectionSucceed()
-    healthMetrics.onInjectionFailed()
-    healthMetrics.onInjectionSkipped()
-    def summary = healthMetrics.summary()
+    metrics.onInjectionSucceed()
+    metrics.onInjectionSucceed()
+    latch.await(5, TimeUnit.SECONDS)
 
     then:
-    summary.contains("injectionSucceed=1")
-    summary.contains("injectionFailed=1")
+    1 * statsD.count('rum.injection.succeed', 2, _)
+    // should not be called since they have delta of 0
+    0 * statsD.count('rum.injection.failed', _, _)
+    0 * statsD.count('rum.injection.skipped', _, _)
+    0 * _
+
+    cleanup:
+    metrics.close()
+  }
+
+  def "test summary with multiple events"() {
+    when:
+    metrics.onInjectionSucceed()
+    metrics.onInjectionFailed()
+    metrics.onInjectionSucceed()
+    metrics.onInjectionFailed()
+    metrics.onInjectionSucceed()
+    metrics.onInjectionSkipped()
+    def summary = metrics.summary()
+
+    then:
+    summary.contains("injectionSucceed=3")
+    summary.contains("injectionFailed=2")
     summary.contains("injectionSkipped=1")
+    0 * _
+  }
+
+  def "test metrics start at zero"() {
+    when:
+    def summary = metrics.summary()
+
+    then:
+    summary.contains("injectionSucceed=0")
+    summary.contains("injectionFailed=0")
+    summary.contains("injectionSkipped=0")
     0 * _
   }
 
