@@ -67,9 +67,40 @@ class RumInjectorMetricsTest extends Specification {
     metrics.close()
   }
 
+  def "test onContentSecurityPolicyDetected"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
+    metrics.start()
+
+    when:
+    metrics.onContentSecurityPolicyDetected()
+    latch.await(5, TimeUnit.SECONDS)
+
+    then:
+    1 * statsD.count('rum.injection.content_security_policy', 1, _)
+    0 * _
+
+    cleanup:
+    metrics.close()
+  }
+
+  def "test onInjectionResponseSize with multiple sizes"() {
+    when:
+    metrics.onInjectionResponseSize(512)
+    metrics.onInjectionResponseSize(2048)
+    metrics.onInjectionResponseSize(256)
+
+    then:
+    1 * statsD.distribution('rum.injection.response.bytes', 512, _)
+    1 * statsD.distribution('rum.injection.response.bytes', 2048, _)
+    1 * statsD.distribution('rum.injection.response.bytes', 256, _)
+    0 * _
+  }
+
   def "test flushing multiple events"() {
     setup:
-    def latch = new CountDownLatch(3) // expecting 3 metric types
+    def latch = new CountDownLatch(4) // expecting 4 metric types
     def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
     metrics.start()
 
@@ -77,12 +108,14 @@ class RumInjectorMetricsTest extends Specification {
     metrics.onInjectionSucceed()
     metrics.onInjectionFailed()
     metrics.onInjectionSkipped()
+    metrics.onContentSecurityPolicyDetected()
     latch.await(5, TimeUnit.SECONDS)
 
     then:
     1 * statsD.count('rum.injection.succeed', 1, _)
     1 * statsD.count('rum.injection.failed', 1, _)
     1 * statsD.count('rum.injection.skipped', 1, _)
+    1 * statsD.count('rum.injection.content_security_policy', 1, _)
     0 * _
 
     cleanup:
@@ -105,6 +138,7 @@ class RumInjectorMetricsTest extends Specification {
     // should not be called since they have delta of 0
     0 * statsD.count('rum.injection.failed', _, _)
     0 * statsD.count('rum.injection.skipped', _, _)
+    0 * statsD.count('rum.injection.content_security_policy', _, _)
     0 * _
 
     cleanup:
@@ -119,12 +153,15 @@ class RumInjectorMetricsTest extends Specification {
     metrics.onInjectionFailed()
     metrics.onInjectionSucceed()
     metrics.onInjectionSkipped()
+    metrics.onContentSecurityPolicyDetected()
+    metrics.onContentSecurityPolicyDetected()
     def summary = metrics.summary()
 
     then:
     summary.contains("injectionSucceed=3")
     summary.contains("injectionFailed=2")
     summary.contains("injectionSkipped=1")
+    summary.contains("contentSecurityPolicyDetected=2")
     0 * _
   }
 
@@ -136,6 +173,7 @@ class RumInjectorMetricsTest extends Specification {
     summary.contains("injectionSucceed=0")
     summary.contains("injectionFailed=0")
     summary.contains("injectionSkipped=0")
+    summary.contains("contentSecurityPolicyDetected=0")
     0 * _
   }
 

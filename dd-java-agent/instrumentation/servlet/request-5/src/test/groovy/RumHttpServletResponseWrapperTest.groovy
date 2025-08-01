@@ -82,4 +82,57 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     then:
     1 * mockTelemetryCollector.onInjectionFailed()
   }
+
+  void 'setHeader with Content-Security-Policy reports CSP detected'() {
+    when:
+    wrapper.setHeader("Content-Security-Policy", "test")
+
+    then:
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockResponse.setHeader("Content-Security-Policy", "test")
+  }
+
+  void 'addHeader with Content-Security-Policy-Report-Only reports CSP detected'() {
+    when:
+    wrapper.addHeader("Content-Security-Policy-Report-Only", "test")
+
+    then:
+    1 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockResponse.addHeader("Content-Security-Policy-Report-Only", "test")
+  }
+
+  void 'setHeader with non-CSP header does not report CSP detected'() {
+    when:
+    wrapper.setHeader("X-Content-Security-Policy", "test")
+
+    then:
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockResponse.setHeader("X-Content-Security-Policy", "test")
+  }
+
+  void 'addHeader with non-CSP header does not report CSP detected'() {
+    when:
+    wrapper.addHeader("X-Content-Security-Policy", "test")
+
+    then:
+    0 * mockTelemetryCollector.onContentSecurityPolicyDetected()
+    1 * mockResponse.addHeader("X-Content-Security-Policy", "test")
+  }
+
+  void 'setHeader with Content-Length reports response size'() {
+    when:
+    wrapper.setHeader("Content-Length", "1024")
+
+    then:
+    1 * mockTelemetryCollector.onInjectionResponseSize(1024)
+    1 * mockResponse.setHeader("Content-Length", "1024")
+  }
+
+  void 'setContentLength method reports response size'() {
+    when:
+    wrapper.setContentLength(1024)
+
+    then:
+    1 * mockTelemetryCollector.onInjectionResponseSize(1024)
+  }
 }

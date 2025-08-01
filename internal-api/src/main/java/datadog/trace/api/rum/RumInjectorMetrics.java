@@ -23,6 +23,7 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
   private final AtomicLong injectionSucceed = new AtomicLong();
   private final AtomicLong injectionFailed = new AtomicLong();
   private final AtomicLong injectionSkipped = new AtomicLong();
+  private final AtomicLong contentSecurityPolicyDetected = new AtomicLong();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -61,6 +62,17 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     injectionSkipped.incrementAndGet();
   }
 
+  @Override
+  public void onContentSecurityPolicyDetected() {
+    contentSecurityPolicyDetected.incrementAndGet();
+  }
+
+  @Override
+  public void onInjectionResponseSize(long bytes) {
+    // report distribution metric immediately
+    statsd.distribution("rum.injection.response.bytes", bytes, NO_TAGS);
+  }
+
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -73,12 +85,14 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
         + "\ninjectionFailed="
         + injectionFailed.get()
         + "\ninjectionSkipped="
-        + injectionSkipped.get();
+        + injectionSkipped.get()
+        + "\ncontentSecurityPolicyDetected="
+        + contentSecurityPolicyDetected.get();
   }
 
   private static class Flush implements AgentTaskScheduler.Task<RumInjectorMetrics> {
 
-    private final long[] previousCounts = new long[3]; // one per counter
+    private final long[] previousCounts = new long[4]; // one per counter
     private int countIndex;
 
     @Override
@@ -88,6 +102,11 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
         reportIfChanged(target.statsd, "rum.injection.succeed", target.injectionSucceed, NO_TAGS);
         reportIfChanged(target.statsd, "rum.injection.failed", target.injectionFailed, NO_TAGS);
         reportIfChanged(target.statsd, "rum.injection.skipped", target.injectionSkipped, NO_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "rum.injection.content_security_policy",
+            target.contentSecurityPolicyDetected,
+            NO_TAGS);
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
             "previousCounts array needs resizing to at least {}, was {}",

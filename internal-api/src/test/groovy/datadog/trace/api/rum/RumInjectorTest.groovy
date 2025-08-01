@@ -130,6 +130,7 @@ class RumInjectorTest extends DDSpecification {
     telemetryCollector.onInjectionSucceed()
     telemetryCollector.onInjectionSucceed()
     telemetryCollector.onInjectionFailed()
+    telemetryCollector.onContentSecurityPolicyDetected()
 
     // verify metrics are collected
     def summary = telemetryCollector.summary()
@@ -138,6 +139,27 @@ class RumInjectorTest extends DDSpecification {
     summary.contains("injectionSucceed=2")
     summary.contains("injectionFailed=1")
     summary.contains("injectionSkipped=0")
+    summary.contains("contentSecurityPolicyDetected=1")
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
+  }
+
+  void 'response size telemetry does not throw an exception'() {
+    setup:
+    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
+
+    when:
+    RumInjector.enableTelemetry(mockStatsDClient)
+
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onInjectionResponseSize(512)
+    telemetryCollector.onInjectionResponseSize(2048)
+    telemetryCollector.onInjectionResponseSize(256)
+
+    then:
+    // response sizes are reported immediately as distribution metrics
+    noExceptionThrown()
 
     cleanup:
     RumInjector.shutdownTelemetry()
@@ -156,6 +178,7 @@ class RumInjectorTest extends DDSpecification {
         telemetryCollector.onInjectionSucceed()
         telemetryCollector.onInjectionFailed()
         telemetryCollector.onInjectionSkipped()
+        telemetryCollector.onContentSecurityPolicyDetected()
       }
     }
     threads*.join()
@@ -166,6 +189,7 @@ class RumInjectorTest extends DDSpecification {
     summary.contains("injectionSucceed=50")
     summary.contains("injectionFailed=50")
     summary.contains("injectionSkipped=50")
+    summary.contains("contentSecurityPolicyDetected=50")
 
     cleanup:
     RumInjector.shutdownTelemetry()
