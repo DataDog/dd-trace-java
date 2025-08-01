@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 public class BaggagePropagator implements Propagator {
   private static final Logger LOG = LoggerFactory.getLogger(BaggagePropagator.class);
   private static final PercentEscaper UTF_ESCAPER = PercentEscaper.create();
+  private static final BaggageMetrics BAGGAGE_METRICS = BaggageMetrics.getInstance();
   static final String BAGGAGE_KEY = "baggage";
   private final boolean injectBaggage;
   private final boolean extractBaggage;
@@ -90,13 +91,13 @@ public class BaggagePropagator implements Propagator {
       processedItems++;
       // reached the max number of baggage items allowed
       if (processedItems == this.maxItems) {
-        BaggageMetrics.getInstance().onBaggageTruncatedByItemLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByItemLimit();
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
       if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
-        BaggageMetrics.getInstance().onBaggageTruncatedByByteLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByByteLimit();
         break;
       }
       currentBytes += escapedKey.size + escapedVal.size + extraBytes;
@@ -108,7 +109,7 @@ public class BaggagePropagator implements Propagator {
     setter.set(carrier, BAGGAGE_KEY, headerValue);
 
     // Record successful baggage injection for telemetry
-    BaggageMetrics.getInstance().onBaggageInjected();
+    BAGGAGE_METRICS.onBaggageInjected();
   }
 
   @Override
@@ -124,7 +125,7 @@ public class BaggagePropagator implements Propagator {
     }
 
     // Record successful baggage extraction for telemetry
-    BaggageMetrics.getInstance().onBaggageExtracted();
+    BAGGAGE_METRICS.onBaggageExtracted();
 
     // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
@@ -167,14 +168,14 @@ public class BaggagePropagator implements Propagator {
         if (kvSeparatorInd > end) {
           LOG.debug(
               "Dropping baggage headers due to key with no value {}", input.substring(start, end));
-          BaggageMetrics.getInstance().onBaggageMalformed();
+          BAGGAGE_METRICS.onBaggageMalformed();
           return emptyMap();
         }
         String key = decode(input.substring(start, kvSeparatorInd).trim());
         String value = decode(input.substring(kvSeparatorInd + 1, end).trim());
         if (key.isEmpty() || value.isEmpty()) {
           LOG.debug("Dropping baggage headers due to empty k/v {}:{}", key, value);
-          BaggageMetrics.getInstance().onBaggageMalformed();
+          BAGGAGE_METRICS.onBaggageMalformed();
           return emptyMap();
         }
         baggage.put(key, value);
