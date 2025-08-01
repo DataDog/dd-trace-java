@@ -240,6 +240,11 @@ include(
   ":dd-java-agent:instrumentation-annotation-processor",
 )
 
+// utilities and fixtures for instrumentation tests
+include(
+  ":dd-java-agent:instrumentation-testing",
+)
+
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4",

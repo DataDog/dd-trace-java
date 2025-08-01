@@ -53,7 +53,7 @@ dependencies {
   testImplementation libs.scala
   testImplementation libs.kotlin
 
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
   testFixturesApi project(':utils:test-utils')
 
   testFixturesApi group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
