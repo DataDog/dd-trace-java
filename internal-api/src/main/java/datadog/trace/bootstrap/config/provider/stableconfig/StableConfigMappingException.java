@@ -5,10 +5,6 @@ public class StableConfigMappingException extends RuntimeException {
     super(message);
   }
 
-  public StableConfigMappingException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
   public static String safeToString(Object value) {
     if (value == null) return "null";
     String str = value.toString();
