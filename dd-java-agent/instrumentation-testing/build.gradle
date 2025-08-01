@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  api libs.bytebuddy
+  api libs.bytebuddyagent
+  api libs.slf4j
+  api libs.bundles.spock
+  api libs.bundles.test.logging
+  api libs.guava
+
+  api project(':dd-java-agent:testing')
+
+  implementation project(':dd-java-agent:agent-debugger')
+
+  implementation 'org.junit.platform:junit-platform-runner:1.9.0'
+}

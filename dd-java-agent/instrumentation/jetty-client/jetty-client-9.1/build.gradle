@@ -51,7 +51,7 @@ dependencies {
   implementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-common')) {
     transitive = false
   }
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     // explicitly declared below.
     exclude group: 'org.eclipse.jetty'
   }

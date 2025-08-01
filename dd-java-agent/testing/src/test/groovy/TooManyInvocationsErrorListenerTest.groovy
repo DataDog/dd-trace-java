@@ -1,12 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.SpockRunner
-import org.junit.runner.Description
-import org.junit.runner.notification.Failure
-import org.spockframework.mock.IMockInteraction
-import org.spockframework.mock.IMockMethod
-import org.spockframework.mock.IMockObject
-import org.spockframework.mock.IResponseGenerator
-import org.spockframework.mock.TooManyInvocationsError
+import datadog.trace.agent.test.SpockExtension
+import org.spockframework.mock.*
 import org.spockframework.mock.runtime.MockInvocation
 
 class TooManyInvocationsErrorListenerTest extends AgentTestRunner {
@@ -19,18 +13,16 @@ class TooManyInvocationsErrorListenerTest extends AgentTestRunner {
       Stub(IMockMethod),
       [error],
       Stub(IResponseGenerator)))
-    final failure = new Failure(new Description(TooManyInvocationsErrorListenerTest, 'test'), error)
 
     when:
-    failure.getMessage()
+    error.getMessage()
 
     then:
     thrown(StackOverflowError)
 
     when:
-    final listener = new SpockRunner.TooManyInvocationsErrorListener()
-    listener.testFailure(failure)
-    failure.getMessage()
+    SpockExtension.fixTooManyInvocationsError(error)
+    error.getMessage()
 
     then:
     noExceptionThrown()
