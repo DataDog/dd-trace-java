@@ -32,8 +32,6 @@ public final class ConfigProvider {
 
   private final ConfigProvider.Source[] sources;
 
-  private final int numSources;
-
   private ConfigProvider(ConfigProvider.Source... sources) {
     this(true, sources);
   }
@@ -41,7 +39,6 @@ public final class ConfigProvider {
   private ConfigProvider(boolean collectConfig, ConfigProvider.Source... sources) {
     this.collectConfig = collectConfig;
     this.sources = sources;
-    this.numSources = sources.length;
   }
 
   public String getConfigFileStatus() {
@@ -78,27 +75,23 @@ public final class ConfigProvider {
 
   public String getString(String key, String defaultValue, String... aliases) {
     String foundValue = null;
-    int ctr = numSources + 1;
+
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);
       if (value != null) {
         if (collectConfig) {
-          if (ctr <= 1) {
-            // log a developer error? Report some log to telemetry for developer use?
-            ConfigCollector.get().put(key, value, source.origin()); // report without seq_id
-          } else {
-            ctr--;
-            ConfigCollector.get().put(key, value, source.origin(), ctr);
-          }
+          ConfigCollector.get().put(key, value, source.origin());
         }
         if (foundValue == null) {
           foundValue = value;
         }
       }
     }
+
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
+
     return foundValue != null ? foundValue : defaultValue;
   }
 

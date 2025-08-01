@@ -157,19 +157,20 @@ class ConfigCollectorTest extends DDSpecification {
   }
 
   def "put-get configurations"() {
-    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     ConfigCollector.get().collect()
 
     when:
     ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
     ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
-    ConfigCollector.get().put('key1', 'replaced', ConfigOrigin.REMOTE)
+    ConfigCollector.get().put('key1', 'value11', ConfigOrigin.REMOTE)
     ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
 
     then:
-    ConfigCollector.get().collect().values().toSet() == [
-      ConfigSetting.of('key1', 'replaced', ConfigOrigin.REMOTE),
+    def allSettings = ConfigCollector.get().collect().values().collectMany { it.values() }.toSet()
+    allSettings == [
+      ConfigSetting.of('key1', 'value1', ConfigOrigin.DEFAULT),
+      ConfigSetting.of('key1', 'value11', ConfigOrigin.REMOTE),
       ConfigSetting.of('key2', 'value2', ConfigOrigin.ENV),
       ConfigSetting.of('key3', 'value3', ConfigOrigin.JVM_PROP)
     ] as Set
@@ -177,7 +178,6 @@ class ConfigCollectorTest extends DDSpecification {
 
 
   def "hide pii configuration data"() {
-    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     ConfigCollector.get().collect()
 
@@ -185,17 +185,20 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
 
     then:
-    ConfigCollector.get().collect().get('DD_API_KEY').stringValue() == '<hidden>'
+    def configsByOrigin = ConfigCollector.get().collect().get('DD_API_KEY')
+    configsByOrigin != null
+    configsByOrigin.get(ConfigOrigin.ENV).stringValue() == '<hidden>'
   }
 
   def "collects common setting default values"() {
-    // TODO: Migrate test to new ConfigCollector data structure
     when:
     def settings = ConfigCollector.get().collect()
 
     then:
-    def setting = settings.get(key)
-
+    def configsByOrigin = settings.get(key)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
     setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.DEFAULT
@@ -214,7 +217,6 @@ class ConfigCollectorTest extends DDSpecification {
   }
 
   def "collects common setting overridden values"() {
-    // TODO: Migrate test to new ConfigCollector data structure
     setup:
     injectEnvConfig("DD_TRACE_ENABLED", "false")
     injectEnvConfig("DD_PROFILING_ENABLED", "true")
@@ -229,8 +231,10 @@ class ConfigCollectorTest extends DDSpecification {
     def settings = ConfigCollector.get().collect()
 
     then:
-    def setting = settings.get(key)
-
+    def configsByOrigin = settings.get(key)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.ENV)
+    setting != null
     setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.ENV
@@ -249,24 +253,28 @@ class ConfigCollectorTest extends DDSpecification {
     "trace.sample.rate"      | "0.3"
   }
 
-  def "seqID increases with precedence"() {
+  def "getAppliedConfigSetting returns the setting with the highest precedence for a key"() {
     setup:
-    def configKey = IastConfig.IAST_TELEMETRY_VERBOSITY
-    def envValue = Verbosity.DEBUG.toString()
-    def sysValue = Verbosity.MANDATORY.toString()
-    injectEnvConfig(Strings.toEnvVar(configKey), envValue)
-    injectSysConfig(configKey, sysValue)
+    def collector = ConfigCollector.get()
+    collector.collect() // clear previous state
+    collector.put('test.key', 'default', ConfigOrigin.DEFAULT)
+    collector.put('test.key', 'env', ConfigOrigin.ENV)
+    collector.put('test.key', 'remote', ConfigOrigin.REMOTE)
+    collector.put('test.key', 'jvm', ConfigOrigin.JVM_PROP)
 
-    expect:
-    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
-    configsByOrigin != null
-    def sysSetting = configsByOrigin.get(ConfigOrigin.JVM_PROP)
-    sysSetting != null
-    def envSetting = configsByOrigin.get(ConfigOrigin.ENV)
-    envSetting != null
-    def defaultSetting = configsByOrigin.get(ConfigOrigin.DEFAULT)
-    defaultSetting != null
-    sysSetting.seqID > envSetting.seqID
-    envSetting.seqID > defaultSetting.seqID
+    when:
+    def applied = collector.getAppliedConfigSetting('test.key')
+
+    then:
+    applied != null
+    applied.key == 'test.key'
+    applied.value == 'remote'
+    applied.origin == ConfigOrigin.REMOTE
+
+    when: "no settings for a key"
+    def none = collector.getAppliedConfigSetting('nonexistent.key')
+
+    then:
+    none == null
   }
 }
