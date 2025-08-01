@@ -19,6 +19,12 @@ public interface RumTelemetryCollector {
         public void onInjectionSkipped() {}
 
         @Override
+        public void onContentSecurityPolicyDetected() {}
+
+        @Override
+        public void onInjectionResponseSize(long bytes) {}
+
+        @Override
         public void close() {}
 
         @Override
@@ -37,6 +43,12 @@ public interface RumTelemetryCollector {
 
   // call when RUM injection is skipped
   void onInjectionSkipped();
+
+  // call when a Content Security Policy header is detected
+  void onContentSecurityPolicyDetected();
+
+  // call to get the response size (in bytes) before RUM injection
+  void onInjectionResponseSize(long bytes);
 
   default void close() {}
 

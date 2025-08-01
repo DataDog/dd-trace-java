@@ -93,7 +93,39 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
   }
 
   @Override
+  public void setHeader(String name, String value) {
+    if (name != null) {
+      String lowerName = name.toLowerCase();
+      if (lowerName.startsWith("content-security-policy")) {
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected();
+      } else if (lowerName.equals("content-length") && value != null) {
+        try {
+          long contentLength = Long.parseLong(value);
+          RumInjector.getTelemetryCollector().onInjectionResponseSize(contentLength);
+        } catch (NumberFormatException ignored) {
+          // ignore?
+        }
+      }
+    }
+    super.setHeader(name, value);
+  }
+
+  @Override
+  public void addHeader(String name, String value) {
+    if (name != null) {
+      String lowerName = name.toLowerCase();
+      if (lowerName.startsWith("content-security-policy")) {
+        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected();
+      }
+    }
+    super.addHeader(name, value);
+  }
+
+  @Override
   public void setContentLength(int len) {
+    if (len >= 0) {
+      RumInjector.getTelemetryCollector().onInjectionResponseSize(len);
+    }
     // don't set it since we don't know if we will inject
     if (!shouldInject) {
       super.setContentLength(len);
