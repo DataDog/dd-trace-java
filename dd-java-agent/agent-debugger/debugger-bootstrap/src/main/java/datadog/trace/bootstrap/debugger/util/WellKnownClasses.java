@@ -107,6 +107,7 @@ public class WellKnownClasses {
               "java.time.LocalDate",
               "java.time.LocalDateTime",
               "java.util.UUID",
+              "java.net.URI",
               "java.io.File",
               "sun.nio.fs.UnixPath",
               "sun.nio.fs.WindowsPath"));

@@ -9,10 +9,13 @@ import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class StartsWithExpressionTest {
   private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
+  // used to ref lookup
+  URI uri = URI.create("https://www.datadoghq.com");
 
   @Test
   void nullExpression() {
@@ -43,5 +46,13 @@ class StartsWithExpressionTest {
     expression = new StartsWithExpression(DSL.value("abc"), new StringValue("bc"));
     assertFalse(expression.evaluate(resolver));
     assertEquals("startsWith(\"abc\", \"bc\")", print(expression));
+  }
+
+  @Test
+  void stringPrimitives() {
+    StartsWithExpression expression =
+        new StartsWithExpression(DSL.ref("uri"), new StringValue("https"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("startsWith(uri, \"https\")", print(expression));
   }
 }
