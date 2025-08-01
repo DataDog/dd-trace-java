@@ -61,7 +61,7 @@ tasks.withType(Test).configureEach {
     exclude "**/TestRepeated*"
     exclude "**/TestTemplate*"
     exclude "**/TestDisableTestTrace*"
-    exclude "**/TestAssumption*"
+    exclude "**/TestAssumption*", "**/TestSuiteSetUpAssumption*"
     exclude "**/TestParameterized*"
   }
 

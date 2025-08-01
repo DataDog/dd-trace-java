@@ -94,7 +94,7 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
 
-  testImplementation(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 

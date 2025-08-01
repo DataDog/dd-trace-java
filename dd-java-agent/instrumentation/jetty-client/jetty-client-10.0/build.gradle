@@ -38,7 +38,7 @@ dependencies {
   }
   //because contains some instrumentation that still apply
   testImplementation(project(':dd-java-agent:instrumentation:jetty-client:jetty-client-9.1'))
-  testImplementation(project(path:':dd-java-agent:testing', configuration:'shadow')) {
+  testImplementation(project(path:':dd-java-agent:instrumentation-testing', configuration:'shadow')) {
     // explicitly declared below.
     exclude group: 'org.eclipse.jetty'
   }
