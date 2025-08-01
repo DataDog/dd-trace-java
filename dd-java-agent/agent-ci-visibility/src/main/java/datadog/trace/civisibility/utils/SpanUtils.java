@@ -17,7 +17,8 @@ import java.util.function.Consumer;
 public class SpanUtils {
   public static final Consumer<AgentSpan> DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS = span -> {};
 
-  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(AgentSpan parentSpan, Object lock, String... additionalTags) {
+  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(
+      AgentSpan parentSpan, Object lock, String... additionalTags) {
     return childSpan -> {
       synchronized (lock) {
         propagateCiVisibilityTags(parentSpan, childSpan);
