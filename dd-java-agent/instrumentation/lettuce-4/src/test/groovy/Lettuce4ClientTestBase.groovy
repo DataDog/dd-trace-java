@@ -8,6 +8,11 @@ import datadog.trace.agent.test.utils.PortUtils
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
@@ -32,6 +37,8 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   @Shared
   RedisServer redisServer
 
+  ThreadDumpLogger threadDumpLogger
+
   @Shared
   Map<String, String> testHashMap = [
     firstname: "John",
@@ -53,14 +60,30 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.newRedisServer()
-      // bind to localhost to avoid firewall popup
-      .setting("bind " + HOST)
-      // set max memory to avoid problems in CI
-      .setting("maxmemory 128M")
-      .port(port).build()
+    // bind to localhost to avoid firewall popup
+    .setting("bind " + HOST)
+    // set max memory to avoid problems in CI
+    .setting("maxmemory 128M")
+    .port(port).build()
   }
 
   def setup() {
+    File reportDir = new File("build")
+    String fullPath = reportDir.absolutePath.replace("dd-trace-java/dd-java-agent",
+    "dd-trace-java/workspace/dd-java-agent")
+
+    reportDir = new File(fullPath)
+    if (!reportDir.exists()) {
+      println("Folder not found: " + fullPath)
+      reportDir.mkdirs()
+    } else println("Folder found: " + fullPath)
+
+    // Use the current feature name as the test name
+    String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
+
+    threadDumpLogger = new ThreadDumpLogger(testName, reportDir)
+    threadDumpLogger.start()
+
     redisServer.start()
 
     redisClient = RedisClient.create(embeddedDbUri)
@@ -79,8 +102,43 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   }
 
   def cleanup() {
+    threadDumpLogger.stop()
+
     connection.close()
     redisClient.shutdown()
     redisServer.stop()
+  }
+
+  // 🔒 Private helper class for thread dump logging
+  private static class ThreadDumpLogger {
+    private final String testName
+    private final File outputDir
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor()
+    private ScheduledFuture<?> task
+
+    ThreadDumpLogger(String testName, File outputDir) {
+      this.testName = testName
+      this.outputDir = outputDir
+    }
+
+    void start() {
+      task = scheduler.scheduleAtFixedRate({
+        def reportFile = new File(outputDir, "thread-dump-${System.currentTimeMillis()}.log")
+        try (def writer = new FileWriter(reportFile)) {
+          writer.write("=== Test: ${testName} ===\n")
+          writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+          Thread.getAllStackTraces().each { thread, stack ->
+            writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+            stack.each { writer.write("\tat ${it}\n") }
+          }
+          writer.write("==============================================\n")
+        }
+      }, 10000, 60000, TimeUnit.MILLISECONDS)
+    }
+
+    void stop() {
+      task?.cancel(false)
+      scheduler.shutdownNow()
+    }
   }
 }
