@@ -289,7 +289,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+    synchronized (tagPropagationLock) {
+      // avoids desync between read and merging
+      SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+    }
 
     return AckResponse.INSTANCE;
   }

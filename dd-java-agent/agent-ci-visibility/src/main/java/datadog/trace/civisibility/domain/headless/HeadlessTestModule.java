@@ -183,6 +183,6 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         coverageStoreFactory,
         executionResults,
         capabilities,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        SpanUtils.propagateCiVisibilityTagsTo(span, tagPropagationLock));
   }
 }

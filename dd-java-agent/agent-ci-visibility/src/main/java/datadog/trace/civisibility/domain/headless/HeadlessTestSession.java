@@ -82,22 +82,17 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         coverageStoreFactory,
         executionStrategy,
         capabilities,
-        this::propagateModuleTags);
-  }
-
-  private void propagateModuleTags(AgentSpan moduleSpan) {
-    SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
-    SpanUtils.propagateTags(
-        span,
-        moduleSpan,
-        Tags.TEST_CODE_COVERAGE_ENABLED,
-        Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
-        Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
-        Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
-        Tags.TEST_EARLY_FLAKE_ENABLED,
-        Tags.TEST_EARLY_FLAKE_ABORT_REASON,
-        DDTags.CI_ITR_TESTS_SKIPPED,
-        Tags.TEST_TEST_MANAGEMENT_ENABLED);
+        SpanUtils.propagateCiVisibilityTagsTo(
+            span,
+            tagPropagationLock,
+            Tags.TEST_CODE_COVERAGE_ENABLED,
+            Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
+            Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
+            Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
+            Tags.TEST_EARLY_FLAKE_ENABLED,
+            Tags.TEST_EARLY_FLAKE_ABORT_REASON,
+            DDTags.CI_ITR_TESTS_SKIPPED,
+            Tags.TEST_TEST_MANAGEMENT_ENABLED));
   }
 
   @Override

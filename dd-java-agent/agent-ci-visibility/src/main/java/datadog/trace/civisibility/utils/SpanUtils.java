@@ -17,8 +17,23 @@ import java.util.function.Consumer;
 public class SpanUtils {
   public static final Consumer<AgentSpan> DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS = span -> {};
 
-  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(AgentSpan parentSpan) {
-    return childSpan -> propagateCiVisibilityTags(parentSpan, childSpan);
+  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(AgentSpan parentSpan, Object lock, String... additionalTags) {
+    return childSpan -> {
+      synchronized (lock) {
+        propagateCiVisibilityTags(parentSpan, childSpan);
+        if (additionalTags != null) {
+          propagateTags(parentSpan, childSpan, additionalTags);
+        }
+      }
+    };
+  }
+
+  public static Consumer<AgentSpan> propagateStatusTo(AgentSpan parentSpan, Object lock) {
+    return childSpan -> {
+      synchronized (lock) {
+        propagateStatus(parentSpan, childSpan);
+      }
+    };
   }
 
   public static void propagateCiVisibilityTags(AgentSpan parentSpan, AgentSpan childSpan) {

@@ -60,6 +60,6 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         codeowners,
         linesResolver,
         coverageStoreFactory,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        SpanUtils.propagateCiVisibilityTagsTo(span, tagPropagationLock));
   }
 }

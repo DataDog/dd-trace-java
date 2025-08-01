@@ -81,6 +81,6 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         coverageStoreFactory,
         executionResults,
         Collections.emptyList(),
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        SpanUtils.propagateCiVisibilityTagsTo(span, tagPropagationLock));
   }
 }

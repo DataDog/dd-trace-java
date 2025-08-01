@@ -46,6 +46,7 @@ public abstract class AbstractTestSession {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final LinesResolver linesResolver;
+  protected final Object tagPropagationLock = new Object();
 
   public AbstractTestSession(
       String projectName,

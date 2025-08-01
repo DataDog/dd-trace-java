@@ -30,6 +30,7 @@ public abstract class AbstractTestModule {
   protected final Codeowners codeowners;
   protected final LinesResolver linesResolver;
   private final Consumer<AgentSpan> onSpanFinish;
+  protected final Object tagPropagationLock = new Object();
 
   public AbstractTestModule(
       AgentSpanContext sessionSpanContext,
