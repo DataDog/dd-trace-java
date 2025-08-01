@@ -25,13 +25,50 @@ public final class Rule {
     this.configuration = configuration;
   }
 
-  public Rule(Object yaml) {
-    Map map = (Map) yaml;
-    selectors =
+  public static Rule from(Map<?, ?> map) {
+    Object selectorsObj = map.get("selectors");
+    if (selectorsObj == null) {
+      throw new StableConfigMappingException("Missing 'selectors' in rule: " + map);
+    }
+    if (!(selectorsObj instanceof List)) {
+      throw new StableConfigMappingException(
+          "'selectors' must be a list, but got: "
+              + selectorsObj.getClass().getSimpleName()
+              + ", value: "
+              + StableConfigMappingException.safeToString(selectorsObj));
+    }
+    List<Selector> selectors =
         unmodifiableList(
-            ((List<Object>) map.get("selectors"))
-                .stream().filter(Objects::nonNull).map(Selector::new).collect(toList()));
-    configuration = unmodifiableMap((Map<String, Object>) map.get("configuration"));
+            ((List<?>) selectorsObj)
+                .stream()
+                    .filter(Objects::nonNull)
+                    .map(
+                        s -> {
+                          if (!(s instanceof Map)) {
+                            throw new StableConfigMappingException(
+                                "Each selector must be a map, but got: "
+                                    + s.getClass().getSimpleName()
+                                    + ", value: "
+                                    + StableConfigMappingException.safeToString(s));
+                          }
+                          return Selector.from((Map<?, ?>) s);
+                        })
+                    .collect(toList()));
+
+    Object configObj = map.get("configuration");
+    if (configObj == null) {
+      throw new StableConfigMappingException("Missing 'configuration' in rule: " + map);
+    }
+    if (!(configObj instanceof Map)) {
+      throw new StableConfigMappingException(
+          "'configuration' must be a map, but got: "
+              + configObj.getClass().getSimpleName()
+              + ", value: "
+              + StableConfigMappingException.safeToString(configObj));
+    }
+    Map<String, Object> configuration = (Map<String, Object>) configObj;
+
+    return new Rule(selectors, configuration);
   }
 
   public List<Selector> getSelectors() {
