@@ -34,6 +34,7 @@ ddprof = "1.29.0"
 asm = "9.8"
 cafe_crypto = "0.1.0"
 lz4 = "1.7.1"
+jmh = "1.37"
 
 [libraries]
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -70,6 +71,7 @@ spock24-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "sp
 spock24-spring = { module = "org.spockframework:spock-spring", version = "spock24" }
 
 groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
+groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 

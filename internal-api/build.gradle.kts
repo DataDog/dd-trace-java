@@ -290,6 +290,6 @@ dependencies {
 }
 
 jmh {
-  jmhVersion = "1.32"
+  jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

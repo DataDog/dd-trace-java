@@ -19,7 +19,7 @@ repositories {
 testing {
     suites {
         test {
-            useJUnitJupiter()
+            useJUnitJupiter('5.9.3')
 
             dependencies {
               implementation 'org.junit.platform:junit-platform-launcher:1.9.3'
