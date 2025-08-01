@@ -9,12 +9,26 @@ import java.util.Map;
 public class ConfigHelper {
   private static boolean configInversionStrict;
 
+  // Default to production source
+  private static SupportedConfigurationSource configSource = new SupportedConfigurationSource();
+
   public static void setConfigInversionStrict(boolean configInversionStrict) {
     ConfigHelper.configInversionStrict = configInversionStrict;
   }
 
   public static boolean isConfigInversionStrict() {
     return configInversionStrict;
+  }
+
+  // Used only for testing purposes
+  static void setConfigurationSource(SupportedConfigurationSource testSource) {
+    configSource = testSource;
+  }
+
+  /** Reset all configuration data to the generated defaults. Useful for cleaning up after tests. */
+  static void resetToDefaults() {
+    configSource = new SupportedConfigurationSource();
+    configInversionStrict = false;
   }
 
   public static Map<String, String> getEnvironmentVariables() {
@@ -25,19 +39,18 @@ public class ConfigHelper {
       String value = entry.getValue();
       if (key.startsWith("DD_")
           || key.startsWith("OTEL_")
-          || GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(key)) {
-        if (GeneratedSupportedConfigurations.SUPPORTED.contains(key)) {
+          || configSource.getAliasMapping().containsKey(key)) {
+        if (configSource.getSupportedConfigurations().contains(key)) {
           configs.put(key, value);
           // If this environment variable is the alias of another, and we haven't processed the
           // original environment variable yet, handle it here.
-        } else if (GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(key)
-            && !configs.containsKey(GeneratedSupportedConfigurations.ALIAS_MAPPING.get(key))) {
+        } else if (configSource.getAliasMapping().containsKey(key)
+            && !configs.containsKey(configSource.getAliasMapping().get(key))) {
           List<String> aliasList =
-              GeneratedSupportedConfigurations.ALIASES.get(
-                  GeneratedSupportedConfigurations.ALIAS_MAPPING.get(key));
+              configSource.getAliases().get(configSource.getAliasMapping().get(key));
           for (String alias : aliasList) {
             if (env.containsKey(alias)) {
-              configs.put(GeneratedSupportedConfigurations.ALIAS_MAPPING.get(key), env.get(alias));
+              configs.put(configSource.getAliasMapping().get(key), env.get(alias));
               break;
             }
           }
@@ -58,16 +71,18 @@ public class ConfigHelper {
 
   public static String getEnvironmentVariable(String name) {
     if ((name.startsWith("DD_") || name.startsWith("OTEL_"))
-        && !GeneratedSupportedConfigurations.ALIAS_MAPPING.containsKey(name)
-        && !GeneratedSupportedConfigurations.SUPPORTED.contains(name)
-        && configInversionStrict) {
+        && !configSource.getAliasMapping().containsKey(name)
+        && !configSource.getSupportedConfigurations().contains(name)) {
       System.err.println(
           "Warning: Missing environment variable " + name + " from supported-configurations.json.");
+      if (configInversionStrict) {
+        return null; // If strict mode is enabled, return null for unsupported configs
+      }
     }
 
     String config = EnvironmentVariables.get(name);
-    if (config == null && GeneratedSupportedConfigurations.ALIASES.containsKey(name)) {
-      for (String alias : GeneratedSupportedConfigurations.ALIASES.get(name)) {
+    if (config == null && configSource.getAliases().containsKey(name)) {
+      for (String alias : configSource.getAliases().get(name)) {
         String aliasValue = EnvironmentVariables.get(alias);
         if (aliasValue != null) {
           return aliasValue;
