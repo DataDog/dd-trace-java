@@ -52,7 +52,7 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
 
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
   testFixturesApi project(':utils:test-utils')
   testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
