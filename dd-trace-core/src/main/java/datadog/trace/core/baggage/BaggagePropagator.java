@@ -7,6 +7,7 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
+import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
@@ -89,11 +90,13 @@ public class BaggagePropagator implements Propagator {
       processedItems++;
       // reached the max number of baggage items allowed
       if (processedItems == this.maxItems) {
+        BaggageMetrics.getInstance().onBaggageTruncatedByItemLimit();
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
       if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
+        BaggageMetrics.getInstance().onBaggageTruncatedByByteLimit();
         break;
       }
       currentBytes += escapedKey.size + escapedVal.size + extraBytes;
@@ -103,6 +106,9 @@ public class BaggagePropagator implements Propagator {
     // Save header as cache to re-inject it later if baggage did not change
     baggage.setW3cHeader(headerValue);
     setter.set(carrier, BAGGAGE_KEY, headerValue);
+
+    // Record successful baggage injection for telemetry
+    BaggageMetrics.getInstance().onBaggageInjected();
   }
 
   @Override
@@ -116,6 +122,9 @@ public class BaggagePropagator implements Propagator {
     if (baggage == null) {
       return context;
     }
+
+    // Record successful baggage extraction for telemetry
+    BaggageMetrics.getInstance().onBaggageExtracted();
 
     // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
@@ -158,12 +167,14 @@ public class BaggagePropagator implements Propagator {
         if (kvSeparatorInd > end) {
           LOG.debug(
               "Dropping baggage headers due to key with no value {}", input.substring(start, end));
+          BaggageMetrics.getInstance().onBaggageMalformed();
           return emptyMap();
         }
         String key = decode(input.substring(start, kvSeparatorInd).trim());
         String value = decode(input.substring(kvSeparatorInd + 1, end).trim());
         if (key.isEmpty() || value.isEmpty()) {
           LOG.debug("Dropping baggage headers due to empty k/v {}:{}", key, value);
+          BaggageMetrics.getInstance().onBaggageMalformed();
           return emptyMap();
         }
         baggage.put(key, value);
