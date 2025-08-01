@@ -26,7 +26,7 @@ dependencies {
   testImplementation libs.logback.classic
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
 
-  testFixturesApi project(':dd-java-agent:testing')
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
 }
 
 configurations.testFixturesApi {
