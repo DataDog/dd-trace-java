@@ -54,7 +54,9 @@ public final class StableConfig {
           // Log or throw with a detailed message
           throw new StableConfigMappingException(
               "Rule must be a map, but got: "
-                  + (ruleObj == null ? "null" : ruleObj.getClass().getSimpleName()));
+                  + (ruleObj == null ? "null" : ruleObj.getClass().getSimpleName())
+                  + ", value: "
+                  + StableConfigMappingException.safeToString(ruleObj));
         }
       }
       return unmodifiableList(rules);

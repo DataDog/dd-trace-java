@@ -135,52 +135,53 @@ class StableConfigSourceTest extends DDSpecification {
 
     where:
     yaml                                                                                           | expectedLogSubstring
-    // Missing 'origin' in selector
     '''apm_configuration_rules:
-         - selectors:
-             - key: "someKey"
-               matches: ["someValue"]
-               operator: equals
-           configuration:
-             DD_SERVICE: "test"
-    '''                                                                                             | "Missing 'origin' in selector"
-    // Missing 'configuration' in rule
+          - selectors:
+              - key: "someKey"
+                matches: ["someValue"]
+                operator: equals
+            configuration:
+              DD_SERVICE: "test"
+     '''                                                                                             | "Missing 'origin' in selector"
     '''apm_configuration_rules:
-         - selectors:
-             - origin: process_arguments
-               key: "-Dfoo"
-               matches: ["bar"]
-               operator: equals
-    '''                                                                                             | "Missing 'configuration' in rule"
-    // Missing 'selectors' in rule
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+     '''                                                                                             | "Missing 'configuration' in rule"
     '''apm_configuration_rules:
          - configuration:
              DD_SERVICE: "test"
     '''                                                                                             | "Missing 'selectors' in rule"
-    // Triggers ClassCastException (selectors should be a list, not a string)
     '''apm_configuration_rules:
-         - selectors: "not-a-list"
-           configuration:
-             DD_SERVICE: "test"
-    '''                                                                                             | "'selectors' must be a list, but got: String"
-    // configuration present but not a map
+          - selectors: "not-a-list"
+            configuration:
+              DD_SERVICE: "test"
+     '''                                                                                             | "'selectors' must be a list, but got: String"
     '''apm_configuration_rules:
-         - selectors:
-             - origin: process_arguments
-               key: "-Dfoo"
-               matches: ["bar"]
-               operator: equals
-           configuration: "not-a-map"
-    '''                                                                                             | "'configuration' must be a map, but got: String"
-    // configuration present but not a map (integer)
+          - selectors:
+              - "not-a-map"
+     '''                                                                                             | "Each selector must be a map, but got: String"
     '''apm_configuration_rules:
-         - selectors:
-             - origin: process_arguments
-               key: "-Dfoo"
-               matches: ["bar"]
-               operator: equals
-           configuration: 12345
-    '''                                                                                             | "'configuration' must be a map, but got: Integer"
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: "not-a-map"
+     '''                                                                                             | "'configuration' must be a map, but got: String"
+    '''apm_configuration_rules:
+          - selectors:
+              - origin: process_arguments
+                key: "-Dfoo"
+                matches: ["bar"]
+                operator: equals
+            configuration: 12345
+     '''                                                                                             | "'configuration' must be a map, but got: Integer"
+    '''apm_configuration_rules:
+          - "not-a-map"
+     '''                                                                                             | "Rule must be a map, but got: String"
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
