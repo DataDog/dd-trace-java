@@ -15,7 +15,7 @@ public class WafInitialization {
     try {
       boolean simpleLoad = System.getProperty("POWERWAF_SIMPLE_LOAD") != null;
       Waf.initialize(simpleLoad);
-    } catch (Exception e) {
+    } catch (Throwable e) {
       Logger logger = LoggerFactory.getLogger(WafInitialization.class);
       logger.warn("Error initializing WAF library", e);
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
