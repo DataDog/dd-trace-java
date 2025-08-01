@@ -8,32 +8,51 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: ${{ github.repository }}
+          policy: self.update-jmxfetch-submodule.create-pr
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
-
       - name: Update Submodule
         run: |
           git submodule update --remote -- dd-java-agent/agent-jmxfetch/integrations-core
-      - name: Download ghcommit CLI
-        run: |
-          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
-          chmod +x /usr/local/bin/ghcommit
       - name: Pick a branch name
         id: define-branch
         run: echo "branch=ci/update-jmxfetch-submodule-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-      - name: Create branch
+      - name: Commit changes
+        id: create-commit
         run: |
-          git checkout -b ${{ steps.define-branch.outputs.branch }}
-          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
-      - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: |
-          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add dd-java-agent/agent-jmxfetch/integrations-core --message "Update agent-jmxfetch submodule"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No changes to commit, exiting."
+            exit 0;
+          fi
+
+          git commit -a -m "Update agent-jmxfetch submodule"
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
+        if: ${{ steps.create-commit.outputs.commit != '' }}
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          # for scheduled runs, sha is the tip of the default branch
+          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          branch-from: "${{ github.sha }}"
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request
+        if: ${{ steps.create-commit.outputs.commit != '' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: "${{ steps.octo-sts.outputs.token }}"
         run: |
           gh pr create --title "Update agent-jmxfetch submodule" \
             --base master \
