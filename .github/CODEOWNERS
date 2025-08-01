@@ -15,6 +15,7 @@
 # @DataDog/apm-sdk-api-java
 /dd-java-agent/agent-otel                                     @DataDog/apm-sdk-api-java
 /dd-trace-core/src/main/java/datadog/trace/core/baggage       @DataDog/apm-sdk-api-java
+/dd-trace-core/src/main/java/datadog/trace/core/propagation   @DataDog/apm-sdk-api-java
 /dd-trace-core/src/main/java/datadog/trace/core/scopemanager  @DataDog/apm-sdk-api-java
 /dd-trace-ot/                                                 @DataDog/apm-sdk-api-java
 /internal-api/src/main/java/datadog/trace/bootstrap           @DataDog/apm-sdk-api-java
