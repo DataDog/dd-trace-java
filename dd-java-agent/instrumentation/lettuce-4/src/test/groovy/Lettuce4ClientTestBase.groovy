@@ -37,8 +37,7 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   @Shared
   RedisServer redisServer
 
-  ScheduledExecutorService scheduler
-  ScheduledFuture<?> threadDumpTask
+  ThreadDumpLogger threadDumpLogger
 
   @Shared
   Map<String, String> testHashMap = [
@@ -77,26 +76,13 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     if (!reportDir.exists()) {
       println("Folder not found: " + fullPath)
       reportDir.mkdirs()
-    }
-    else println("Folder found: " + fullPath)
+    } else println("Folder found: " + fullPath)
 
-    scheduler = Executors.newSingleThreadScheduledExecutor()
-    threadDumpTask = scheduler.scheduleAtFixedRate({
-      // Define the file path
-      File reportFile = new File(fullPath, String.format("thread-dump-%d.log", System.currentTimeMillis()))
+    // Use the current feature name as the test name
+    String testName = "${specificationContext?.currentSpec?.name ?: "unknown-spec"} : ${specificationContext?.currentFeature?.name ?: "unknown-test"}"
 
-      // Write to the file
-      try (FileWriter writer = new FileWriter(reportFile)) {
-        writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
-        Thread.getAllStackTraces().each { thread, stack ->
-          writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
-          stack.each {
-            writer.write("\tat ${it}\n")
-          }
-        }
-        writer.write("==============================================\n")
-      }
-    }, 10, 60_000, TimeUnit.MILLISECONDS)
+    threadDumpLogger = new ThreadDumpLogger(testName, reportDir)
+    threadDumpLogger.start()
 
     redisServer.start()
 
@@ -116,11 +102,43 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
   }
 
   def cleanup() {
-    threadDumpTask?.cancel(false)
-    scheduler?.shutdownNow()
+    threadDumpLogger.stop()
 
     connection.close()
     redisClient.shutdown()
     redisServer.stop()
+  }
+
+  // 🔒 Private helper class for thread dump logging
+  private static class ThreadDumpLogger {
+    private final String testName
+    private final File outputDir
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor()
+    private ScheduledFuture<?> task
+
+    ThreadDumpLogger(String testName, File outputDir) {
+      this.testName = testName
+      this.outputDir = outputDir
+    }
+
+    void start() {
+      task = scheduler.scheduleAtFixedRate({
+        def reportFile = new File(outputDir, "thread-dump-${System.currentTimeMillis()}.log")
+        try (def writer = new FileWriter(reportFile)) {
+          writer.write("=== Test: ${testName} ===\n")
+          writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
+          Thread.getAllStackTraces().each { thread, stack ->
+            writer.write("Thread: ${thread.name}, daemon: ${thread.daemon}\n")
+            stack.each { writer.write("\tat ${it}\n") }
+          }
+          writer.write("==============================================\n")
+        }
+      }, 10000, 60000, TimeUnit.MILLISECONDS)
+    }
+
+    void stop() {
+      task?.cancel(false)
+      scheduler.shutdownNow()
+    }
   }
 }
