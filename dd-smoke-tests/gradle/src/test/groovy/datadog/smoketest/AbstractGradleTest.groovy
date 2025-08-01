@@ -34,6 +34,8 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest"
   private static final String GRADLE_REGULAR_EXTENSION = ".gradle"
 
+  private static final ComparableVersion GRADLE_9 = new ComparableVersion("9.0.0")
+
   @TempDir
   protected Path projectFolder
 
@@ -105,23 +107,23 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
     } else if (Jvm.current.java17) {
       return gradleVersion.compareTo(new ComparableVersion("7.3")) >= 0
     } else if (Jvm.current.java16) {
-      return gradleVersion.compareTo(new ComparableVersion("7.0")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("7.0"), GRADLE_9)
     } else if (Jvm.current.java15) {
-      return gradleVersion.compareTo(new ComparableVersion("6.7")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("6.7"), GRADLE_9)
     } else if (Jvm.current.java14) {
-      return gradleVersion.compareTo(new ComparableVersion("6.3")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("6.3"), GRADLE_9)
     } else if (Jvm.current.java13) {
-      return gradleVersion.compareTo(new ComparableVersion("6.0")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("6.0"), GRADLE_9)
     } else if (Jvm.current.java12) {
-      return gradleVersion.compareTo(new ComparableVersion("5.4")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("5.4"), GRADLE_9)
     } else if (Jvm.current.java11) {
-      return gradleVersion.compareTo(new ComparableVersion("5.0")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("5.0"), GRADLE_9)
     } else if (Jvm.current.java10) {
-      return gradleVersion.compareTo(new ComparableVersion("4.7")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("4.7"), GRADLE_9)
     } else if (Jvm.current.java9) {
-      return gradleVersion.compareTo(new ComparableVersion("4.3")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("4.3"), GRADLE_9)
     } else if (Jvm.current.java8) {
-      return gradleVersion.compareTo(new ComparableVersion("2.0")) >= 0
+      return gradleVersion.isWithin(new ComparableVersion("2.0"), GRADLE_9)
     }
     return false
   }
