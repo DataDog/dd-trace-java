@@ -182,6 +182,32 @@ class StableConfigSourceTest extends DDSpecification {
     '''apm_configuration_rules:
           - "not-a-map"
      '''                                                                                             | "Rule must be a map, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: "not-a-list"
+               operator: equals
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'matches' must be a list, but got: String"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "Missing 'operator' in selector"
+    '''apm_configuration_rules:
+         - selectors:
+             - origin: process_arguments
+               key: "-Dfoo"
+               matches: ["bar"]
+               operator: 12345
+           configuration:
+             DD_SERVICE: "test"
+    '''                                                                                             | "'operator' must be a string, but got: Integer"
   }
 
   // Corrupt YAML string variable used for testing, defined outside the 'where' block for readability
