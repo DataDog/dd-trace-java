@@ -54,7 +54,6 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   private final CoverageCalculator.Factory<T> coverageCalculatorFactory;
   private final T coverageCalculator;
   private final BuildSessionSettings settings;
-  private final Object tagPropagationLock = new Object();
 
   public BuildSystemSessionImpl(
       String projectName,

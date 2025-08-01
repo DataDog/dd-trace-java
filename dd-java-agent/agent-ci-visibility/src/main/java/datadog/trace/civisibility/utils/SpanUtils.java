@@ -17,8 +17,24 @@ import java.util.function.Consumer;
 public class SpanUtils {
   public static final Consumer<AgentSpan> DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS = span -> {};
 
-  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(AgentSpan parentSpan) {
-    return childSpan -> propagateCiVisibilityTags(parentSpan, childSpan);
+  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(
+      AgentSpan parentSpan, Object lock, String... additionalTags) {
+    return childSpan -> {
+      synchronized (lock) {
+        propagateCiVisibilityTags(parentSpan, childSpan);
+        if (additionalTags != null) {
+          propagateTags(parentSpan, childSpan, additionalTags);
+        }
+      }
+    };
+  }
+
+  public static Consumer<AgentSpan> propagateStatusTo(AgentSpan parentSpan, Object lock) {
+    return childSpan -> {
+      synchronized (lock) {
+        propagateStatus(parentSpan, childSpan);
+      }
+    };
   }
 
   public static void propagateCiVisibilityTags(AgentSpan parentSpan, AgentSpan childSpan) {
@@ -32,10 +48,10 @@ public class SpanUtils {
     setFrameworks(span, merged);
   }
 
-  private static Collection<TestFramework> getFrameworks(AgentSpan span) {
+  static Collection<TestFramework> getFrameworks(AgentSpan span) {
     Object nameTag = span.getTag(Tags.TEST_FRAMEWORK);
     Object versionTag = span.getTag(Tags.TEST_FRAMEWORK_VERSION);
-    if (nameTag == null && versionTag == null) {
+    if (nameTag == null) {
       return Collections.emptyList();
     }
 
@@ -45,9 +61,10 @@ public class SpanUtils {
 
     } else if (nameTag instanceof Collection) {
       Iterator<String> names = ((Collection<String>) nameTag).iterator();
-      Iterator<String> versions = ((Collection<String>) versionTag).iterator();
+      Iterator<String> versions =
+          versionTag != null ? ((Collection<String>) versionTag).iterator() : null;
       while (names.hasNext()) {
-        frameworks.add(new TestFramework(names.next(), versions.next()));
+        frameworks.add(new TestFramework(names.next(), versions != null ? versions.next() : null));
       }
 
     } else {

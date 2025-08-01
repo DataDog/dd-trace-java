@@ -56,6 +56,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final boolean parallelized;
   private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
+  private final Object tagPropagationLock = new Object();
 
   public TestSuiteImpl(
       AgentSpanContext moduleSpanContext,
@@ -264,6 +265,6 @@ public class TestSuiteImpl implements DDTestSuite {
         coverageStoreFactory,
         executionResults,
         capabilities,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+        SpanUtils.propagateStatusTo(span, tagPropagationLock));
   }
 }
