@@ -111,5 +111,7 @@ public final class GeneralConfig {
   public static final String SSI_INJECTION_FORCE = "inject.force";
   public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
 
+  public static final String CONFIG_INVERSION_STRICT = "config.inversion.strict";
+
   private GeneralConfig() {}
 }
