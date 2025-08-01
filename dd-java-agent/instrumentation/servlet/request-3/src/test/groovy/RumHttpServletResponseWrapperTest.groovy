@@ -135,4 +135,6 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     then:
     1 * mockTelemetryCollector.onInjectionResponseSize(1024)
   }
+
+  // test injection timing?
 }

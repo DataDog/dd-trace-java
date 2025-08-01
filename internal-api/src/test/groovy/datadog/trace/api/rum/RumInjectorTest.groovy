@@ -169,6 +169,26 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.shutdownTelemetry()
   }
 
+  void 'injection time telemetry does not throw an exception'() {
+    setup:
+    def mockStatsDClient = mock(datadog.trace.api.StatsDClient)
+
+    when:
+    RumInjector.enableTelemetry(mockStatsDClient)
+
+    def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onInjectionTime(5L)
+    telemetryCollector.onInjectionTime(10L)
+    telemetryCollector.onInjectionTime(20L)
+
+    then:
+    // injection times are reported immediately as distribution metrics
+    noExceptionThrown()
+
+    cleanup:
+    RumInjector.shutdownTelemetry()
+  }
+
   void 'concurrent telemetry calls are thread-safe'() {
     setup:
     RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))

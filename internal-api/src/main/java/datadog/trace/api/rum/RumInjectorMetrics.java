@@ -73,6 +73,12 @@ public class RumInjectorMetrics implements RumTelemetryCollector {
     statsd.distribution("rum.injection.response.bytes", bytes, NO_TAGS);
   }
 
+  @Override
+  public void onInjectionTime(long milliseconds) {
+    // report distribution metric immediately
+    statsd.distribution("rum.injection.ms", milliseconds, NO_TAGS);
+  }
+
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
