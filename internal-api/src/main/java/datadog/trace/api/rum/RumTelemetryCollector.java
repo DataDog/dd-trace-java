@@ -25,6 +25,9 @@ public interface RumTelemetryCollector {
         public void onInjectionResponseSize(long bytes) {}
 
         @Override
+        public void onInjectionTime(long milliseconds) {}
+
+        @Override
         public void close() {}
 
         @Override
@@ -47,8 +50,11 @@ public interface RumTelemetryCollector {
   // call when a Content Security Policy header is detected
   void onContentSecurityPolicyDetected();
 
-  // call to get the response size (in bytes) before RUM injection
+  // call to get the response size before RUM injection
   void onInjectionResponseSize(long bytes);
+
+  // call to report the time it takes to inject the RUM SDK
+  void onInjectionTime(long milliseconds);
 
   default void close() {}
 

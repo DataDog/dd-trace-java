@@ -87,14 +87,27 @@ class RumInjectorMetricsTest extends Specification {
 
   def "test onInjectionResponseSize with multiple sizes"() {
     when:
+    metrics.onInjectionResponseSize(256)
     metrics.onInjectionResponseSize(512)
     metrics.onInjectionResponseSize(2048)
-    metrics.onInjectionResponseSize(256)
 
     then:
+    1 * statsD.distribution('rum.injection.response.bytes', 256, _)
     1 * statsD.distribution('rum.injection.response.bytes', 512, _)
     1 * statsD.distribution('rum.injection.response.bytes', 2048, _)
-    1 * statsD.distribution('rum.injection.response.bytes', 256, _)
+    0 * _
+  }
+
+  def "test onInjectionTime with multiple durations"() {
+    when:
+    metrics.onInjectionTime(5L)
+    metrics.onInjectionTime(10L)
+    metrics.onInjectionTime(25L)
+
+    then:
+    1 * statsD.distribution('rum.injection.ms', 5L, _)
+    1 * statsD.distribution('rum.injection.ms', 10L, _)
+    1 * statsD.distribution('rum.injection.ms', 25L, _)
     0 * _
   }
 
