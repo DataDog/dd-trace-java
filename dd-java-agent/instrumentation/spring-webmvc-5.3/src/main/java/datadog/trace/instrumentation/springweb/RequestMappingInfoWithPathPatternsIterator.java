@@ -73,6 +73,7 @@ public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endp
             new Endpoint()
                 .type(Endpoint.Type.REST)
                 .operation(Endpoint.Operation.HTTP_REQUEST)
+                .resource(method + " " + path)
                 .path(path)
                 .method(method)
                 .requestBodyType(requestBody)

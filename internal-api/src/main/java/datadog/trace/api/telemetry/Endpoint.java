@@ -16,6 +16,7 @@ public class Endpoint {
   private String method;
   private String path;
   private String operation;
+  private String resource;
   private List<String> requestBodyType;
   private List<String> responseBodyType;
   private List<Integer> responseCode;
@@ -64,6 +65,15 @@ public class Endpoint {
 
   public Endpoint operation(final String operation) {
     this.operation = operation;
+    return this;
+  }
+
+  public String getResource() {
+    return resource;
+  }
+
+  public Endpoint resource(final String resource) {
+    this.resource = resource;
     return this;
   }
 
