@@ -125,7 +125,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           dbService =
               traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
         }
-        if (dbInfo.getType().equals("sqlserver")) {
+        if (dbInfo.getType().equals("sqlserver")) { // TODO why it's decided here?
           sql =
               SQLCommenter.append(
                   sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());

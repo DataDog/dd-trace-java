@@ -2,9 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
-
 import datadog.trace.instrumentation.jdbc.SQLCommenter
-
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class SQLCommenterTest extends AgentTestRunner {
@@ -30,7 +28,6 @@ class SQLCommenterTest extends AgentTestRunner {
     "   "             | ""
   }
 
-
   def "test encode Sql Comment"() {
     setup:
     injectSysConfig("dd.service", ddService)
@@ -38,16 +35,14 @@ class SQLCommenterTest extends AgentTestRunner {
     injectSysConfig("dd.version", ddVersion)
 
     when:
-    String sqlWithComment = ""
+    String sqlWithComment
     if (injectTrace) {
       sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, true, appendComment)
     } else if (appendComment) {
       sqlWithComment = SQLCommenter.append(query, dbService, dbType, host, dbName)
-    }
-    else {
+    } else {
       sqlWithComment = SQLCommenter.prepend(query, dbService, dbType, host, dbName)
     }
-
 
     then:
     sqlWithComment == expected

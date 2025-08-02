@@ -1,5 +1,6 @@
 package datadog.trace.core.datastreams
 
+import datadog.common.container.ContainerInfo
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
@@ -479,6 +480,32 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     cleanup:
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
+  }
+
+  def "ContainerTagsHash used in hash calculation when enabled propagateTagsEnabled=#propagateTagsEnabled"() {
+    when:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, propagateTagsEnabled.toString())
+    ProcessTags.reset()
+    ProcessTags.addTag("000", "first")
+    def firstBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    then:
+    ContainerInfo.get().setContainerTagsHash("<test-container-tags-hash>")
+    def secondBaseHash = DefaultPathwayContext.getBaseHash(wellKnownTags)
+
+    expect:
+    if (propagateTagsEnabled) {
+      assert secondBaseHash != firstBaseHash
+    } else {
+      assert secondBaseHash == firstBaseHash
+    }
+
+    cleanup:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    ProcessTags.reset()
+
+    where:
+    propagateTagsEnabled << [true, false]
   }
 
   def "Check context extractor decorator behavior"() {
