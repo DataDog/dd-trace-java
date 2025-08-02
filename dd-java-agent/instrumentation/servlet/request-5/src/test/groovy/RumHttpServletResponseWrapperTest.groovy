@@ -92,13 +92,13 @@ class RumHttpServletResponseWrapperTest extends AgentTestRunner {
     1 * mockResponse.setHeader("Content-Security-Policy", "test")
   }
 
-  void 'addHeader with Content-Security-Policy-Report-Only reports CSP detected'() {
+  void 'addHeader with Content-Security-Policy reports CSP detected'() {
     when:
-    wrapper.addHeader("Content-Security-Policy-Report-Only", "test")
+    wrapper.addHeader("Content-Security-Policy", "test")
 
     then:
     1 * mockTelemetryCollector.onContentSecurityPolicyDetected()
-    1 * mockResponse.addHeader("Content-Security-Policy-Report-Only", "test")
+    1 * mockResponse.addHeader("Content-Security-Policy", "test")
   }
 
   void 'setHeader with non-CSP header does not report CSP detected'() {

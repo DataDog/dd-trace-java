@@ -82,9 +82,6 @@ class RumInjectorTest extends DDSpecification {
 
     then:
     RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
-
-    cleanup:
-    RumInjector.setTelemetryCollector(RumTelemetryCollector.NO_OP)
   }
 
   void 'enable telemetry with StatsDClient'() {
@@ -104,9 +101,6 @@ class RumInjectorTest extends DDSpecification {
 
     then:
     RumInjector.getTelemetryCollector() == RumTelemetryCollector.NO_OP
-
-    cleanup:
-    RumInjector.shutdownTelemetry()
   }
 
   void 'shutdown telemetry'() {
@@ -128,17 +122,19 @@ class RumInjectorTest extends DDSpecification {
     // simulate reporting successful injection
     def telemetryCollector = RumInjector.getTelemetryCollector()
     telemetryCollector.onInjectionSucceed()
-    telemetryCollector.onInjectionSucceed()
     telemetryCollector.onInjectionFailed()
+    telemetryCollector.onInjectionSkipped()
     telemetryCollector.onContentSecurityPolicyDetected()
+    telemetryCollector.onInjectionResponseSize(256)
+    telemetryCollector.onInjectionTime(5L)
 
     // verify metrics are collected
     def summary = telemetryCollector.summary()
 
     then:
-    summary.contains("injectionSucceed=2")
+    summary.contains("injectionSucceed=1")
     summary.contains("injectionFailed=1")
-    summary.contains("injectionSkipped=0")
+    summary.contains("injectionSkipped=1")
     summary.contains("contentSecurityPolicyDetected=1")
 
     cleanup:
@@ -153,9 +149,9 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.enableTelemetry(mockStatsDClient)
 
     def telemetryCollector = RumInjector.getTelemetryCollector()
+    telemetryCollector.onInjectionResponseSize(256)
     telemetryCollector.onInjectionResponseSize(512)
     telemetryCollector.onInjectionResponseSize(2048)
-    telemetryCollector.onInjectionResponseSize(256)
 
     then:
     // response sizes are reported immediately as distribution metrics
@@ -185,7 +181,7 @@ class RumInjectorTest extends DDSpecification {
     RumInjector.shutdownTelemetry()
   }
 
-  void 'concurrent telemetry calls are thread-safe'() {
+  void 'concurrent telemetry calls return an accurate summary'() {
     setup:
     RumInjector.enableTelemetry(mock(datadog.trace.api.StatsDClient))
     def telemetryCollector = RumInjector.getTelemetryCollector()
@@ -199,6 +195,8 @@ class RumInjectorTest extends DDSpecification {
         telemetryCollector.onInjectionFailed()
         telemetryCollector.onInjectionSkipped()
         telemetryCollector.onContentSecurityPolicyDetected()
+        telemetryCollector.onInjectionResponseSize(256)
+        telemetryCollector.onInjectionTime(5L)
       }
     }
     threads*.join()

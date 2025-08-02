@@ -71,6 +71,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper {
                     rumInjector.getSnippetChars(),
                     this::onInjected));
       } catch (Exception e) {
+        injectionStartTime = -1;
         RumInjector.getTelemetryCollector().onInjectionFailed();
         throw e;
       }

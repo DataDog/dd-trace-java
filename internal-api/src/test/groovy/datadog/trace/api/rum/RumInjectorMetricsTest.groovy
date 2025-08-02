@@ -85,33 +85,7 @@ class RumInjectorMetricsTest extends Specification {
     metrics.close()
   }
 
-  def "test onInjectionResponseSize with multiple sizes"() {
-    when:
-    metrics.onInjectionResponseSize(256)
-    metrics.onInjectionResponseSize(512)
-    metrics.onInjectionResponseSize(2048)
-
-    then:
-    1 * statsD.distribution('rum.injection.response.bytes', 256, _)
-    1 * statsD.distribution('rum.injection.response.bytes', 512, _)
-    1 * statsD.distribution('rum.injection.response.bytes', 2048, _)
-    0 * _
-  }
-
-  def "test onInjectionTime with multiple durations"() {
-    when:
-    metrics.onInjectionTime(5L)
-    metrics.onInjectionTime(10L)
-    metrics.onInjectionTime(25L)
-
-    then:
-    1 * statsD.distribution('rum.injection.ms', 5L, _)
-    1 * statsD.distribution('rum.injection.ms', 10L, _)
-    1 * statsD.distribution('rum.injection.ms', 25L, _)
-    0 * _
-  }
-
-  def "test flushing multiple events"() {
+  def "test multiple events"() {
     setup:
     def latch = new CountDownLatch(4) // expecting 4 metric types
     def metrics = new RumInjectorMetrics(new Latched(statsD, latch), 10, TimeUnit.MILLISECONDS)
@@ -158,15 +132,15 @@ class RumInjectorMetricsTest extends Specification {
     metrics.close()
   }
 
-  def "test summary with multiple events"() {
+  def "test summary with multiple events in different order"() {
     when:
+    metrics.onContentSecurityPolicyDetected()
     metrics.onInjectionSucceed()
     metrics.onInjectionFailed()
     metrics.onInjectionSucceed()
     metrics.onInjectionFailed()
     metrics.onInjectionSucceed()
     metrics.onInjectionSkipped()
-    metrics.onContentSecurityPolicyDetected()
     metrics.onContentSecurityPolicyDetected()
     def summary = metrics.summary()
 
@@ -187,6 +161,33 @@ class RumInjectorMetricsTest extends Specification {
     summary.contains("injectionFailed=0")
     summary.contains("injectionSkipped=0")
     summary.contains("contentSecurityPolicyDetected=0")
+    0 * _
+  }
+
+  // events below are reported immediately as distribution metrics and do not get summarized
+  def "test onInjectionResponseSize with multiple sizes"() {
+    when:
+    metrics.onInjectionResponseSize(256)
+    metrics.onInjectionResponseSize(512)
+    metrics.onInjectionResponseSize(2048)
+
+    then:
+    1 * statsD.distribution('rum.injection.response.bytes', 256, _)
+    1 * statsD.distribution('rum.injection.response.bytes', 512, _)
+    1 * statsD.distribution('rum.injection.response.bytes', 2048, _)
+    0 * _
+  }
+
+  def "test onInjectionTime with multiple durations"() {
+    when:
+    metrics.onInjectionTime(5L)
+    metrics.onInjectionTime(10L)
+    metrics.onInjectionTime(25L)
+
+    then:
+    1 * statsD.distribution('rum.injection.ms', 5L, _)
+    1 * statsD.distribution('rum.injection.ms', 10L, _)
+    1 * statsD.distribution('rum.injection.ms', 25L, _)
     0 * _
   }
 
