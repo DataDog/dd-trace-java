@@ -116,7 +116,9 @@ public final class ConfigSetting {
         + ", value="
         + stringValue()
         + ", origin="
-        + origin
+        + origin.value
+        + ", seq_id="
+        + origin.precedence
         + '}';
   }
 }

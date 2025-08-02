@@ -16,15 +16,23 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
 
 class ConfigCollectorTest extends DDSpecification {
-
   def "non-default config settings get collected"() {
     setup:
     injectEnvConfig(Strings.toEnvVar(configKey), configValue)
 
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
-    setting.stringValue() == configValue
-    setting.origin == ConfigOrigin.ENV
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    configsByOrigin.size() == 2 // default and env origins
+
+    // Check that the ENV value is present and correct
+    def envSetting = configsByOrigin.get(ConfigOrigin.ENV)
+    assert envSetting != null
+    assert envSetting.stringValue() == configValue
+
+    // Check the default is present with non-null value
+    def defaultSetting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    assert defaultSetting != null
 
     where:
     configKey                                                  | configValue
@@ -68,9 +76,13 @@ class ConfigCollectorTest extends DDSpecification {
     injectSysConfig(configKey, configValue2)
 
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.JVM_PROP)
+    setting != null
     setting.stringValue() == expectedValue
     setting.origin == ConfigOrigin.JVM_PROP
+    // TODO: Add check for env origin as well
 
     where:
     configKey                                                 | configValue1                                   | configValue2              | expectedValue
@@ -84,9 +96,12 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default not-null config settings are collected"() {
     expect:
-    def setting = ConfigCollector.get().collect().get(configKey)
-    setting.origin == ConfigOrigin.DEFAULT
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
     setting.stringValue() == defaultValue
+    setting.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey                                                  | defaultValue
@@ -100,12 +115,15 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default null config settings are also collected"() {
     when:
-    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
 
     then:
-    cs.key == configKey
-    cs.stringValue() == null
-    cs.origin == ConfigOrigin.DEFAULT
+    setting.key == configKey
+    setting.stringValue() == null
+    setting.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey << [
@@ -121,12 +139,14 @@ class ConfigCollectorTest extends DDSpecification {
 
   def "default empty maps and list config settings are collected as empty strings"() {
     when:
-    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+    def configsByOrigin = ConfigCollector.get().collect().get(configKey)
+    def cs = configsByOrigin?.get(ConfigOrigin.DEFAULT)
 
     then:
-    cs.key == configKey
-    cs.stringValue() == ""
-    cs.origin == ConfigOrigin.DEFAULT
+    assert cs != null
+    assert cs.key == configKey
+    assert cs.stringValue() == ""
+    assert cs.origin == ConfigOrigin.DEFAULT
 
     where:
     configKey << [
@@ -143,12 +163,14 @@ class ConfigCollectorTest extends DDSpecification {
     when:
     ConfigCollector.get().put('key1', 'value1', ConfigOrigin.DEFAULT)
     ConfigCollector.get().put('key2', 'value2', ConfigOrigin.ENV)
-    ConfigCollector.get().put('key1', 'replaced', ConfigOrigin.REMOTE)
+    ConfigCollector.get().put('key1', 'value11', ConfigOrigin.REMOTE)
     ConfigCollector.get().put('key3', 'value3', ConfigOrigin.JVM_PROP)
 
     then:
-    ConfigCollector.get().collect().values().toSet() == [
-      ConfigSetting.of('key1', 'replaced', ConfigOrigin.REMOTE),
+    def allSettings = ConfigCollector.get().collect().values().collectMany { it.values() }.toSet()
+    allSettings == [
+      ConfigSetting.of('key1', 'value1', ConfigOrigin.DEFAULT),
+      ConfigSetting.of('key1', 'value11', ConfigOrigin.REMOTE),
       ConfigSetting.of('key2', 'value2', ConfigOrigin.ENV),
       ConfigSetting.of('key3', 'value3', ConfigOrigin.JVM_PROP)
     ] as Set
@@ -163,7 +185,9 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
 
     then:
-    ConfigCollector.get().collect().get('DD_API_KEY').stringValue() == '<hidden>'
+    def configsByOrigin = ConfigCollector.get().collect().get('DD_API_KEY')
+    configsByOrigin != null
+    configsByOrigin.get(ConfigOrigin.ENV).stringValue() == '<hidden>'
   }
 
   def "collects common setting default values"() {
@@ -171,8 +195,10 @@ class ConfigCollectorTest extends DDSpecification {
     def settings = ConfigCollector.get().collect()
 
     then:
-    def setting = settings.get(key)
-
+    def configsByOrigin = settings.get(key)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.DEFAULT)
+    setting != null
     setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.DEFAULT
@@ -205,8 +231,10 @@ class ConfigCollectorTest extends DDSpecification {
     def settings = ConfigCollector.get().collect()
 
     then:
-    def setting = settings.get(key)
-
+    def configsByOrigin = settings.get(key)
+    configsByOrigin != null
+    def setting = configsByOrigin.get(ConfigOrigin.ENV)
+    setting != null
     setting.key == key
     setting.stringValue() == value
     setting.origin == ConfigOrigin.ENV
@@ -223,5 +251,30 @@ class ConfigCollectorTest extends DDSpecification {
     "trace.header.tags"      | "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2".toLowerCase()
     "logs.injection.enabled" | "false"
     "trace.sample.rate"      | "0.3"
+  }
+
+  def "getAppliedConfigSetting returns the setting with the highest precedence for a key"() {
+    setup:
+    def collector = ConfigCollector.get()
+    collector.collect() // clear previous state
+    collector.put('test.key', 'default', ConfigOrigin.DEFAULT)
+    collector.put('test.key', 'env', ConfigOrigin.ENV)
+    collector.put('test.key', 'remote', ConfigOrigin.REMOTE)
+    collector.put('test.key', 'jvm', ConfigOrigin.JVM_PROP)
+
+    when:
+    def applied = collector.getAppliedConfigSetting('test.key')
+
+    then:
+    applied != null
+    applied.key == 'test.key'
+    applied.value == 'remote'
+    applied.origin == ConfigOrigin.REMOTE
+
+    when: "no settings for a key"
+    def none = collector.getAppliedConfigSetting('nonexistent.key')
+
+    then:
+    none == null
   }
 }
