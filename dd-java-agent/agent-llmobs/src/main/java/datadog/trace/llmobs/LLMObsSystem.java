@@ -12,7 +12,7 @@ import datadog.trace.llmobs.domain.LLMObsInternal;
 import java.lang.instrument.Instrumentation;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -187,6 +187,28 @@ public class LLMObsSystem {
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+    }
+
+    @Override
+    public LLMObsSpan startEmbeddingSpan(
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String mlProvider,
+        @Nullable String sessionId) {
+      if (mlProvider == null) {
+        mlProvider = "custom";
+      }
+      DDLLMObsSpan embeddingSpan =
+          new DDLLMObsSpan(
+              Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
+      embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, mlProvider);
+      return embeddingSpan;
+    }
+
+    public LLMObsSpan startRetrievalSpan(
+        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      return new DDLLMObsSpan(
+          Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
     }
 
     private String getMLApp(String mlApp) {
