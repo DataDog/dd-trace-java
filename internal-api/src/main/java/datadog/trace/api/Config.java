@@ -270,6 +270,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SAN
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
@@ -1029,6 +1030,7 @@ public class Config {
   private final String gitPullRequestBaseBranch;
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
+  private boolean ciVisibilityFailedTestReplayEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -2307,6 +2309,8 @@ public class Config {
     gitPullRequestBaseBranch = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH);
     gitPullRequestBaseBranchSha = configProvider.getString(GIT_PULL_REQUEST_BASE_BRANCH_SHA);
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
+    ciVisibilityFailedTestReplayEnabled =
+        configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, false);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3933,6 +3937,14 @@ public class Config {
     return ciVisibilityTestManagementAttemptToFixRetries;
   }
 
+  public boolean isCiVisibilityFailedTestReplayEnabled() {
+    return ciVisibilityFailedTestReplayEnabled;
+  }
+
+  public void setCiVisibilityFailedTestReplayEnabled(boolean enabled) {
+    ciVisibilityFailedTestReplayEnabled = enabled;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -4054,7 +4066,7 @@ public class Config {
   }
 
   public boolean isDebuggerExceptionEnabled() {
-    return debuggerExceptionEnabled;
+    return debuggerExceptionEnabled || ciVisibilityFailedTestReplayEnabled;
   }
 
   public int getDebuggerMaxExceptionPerSecond() {
@@ -4115,7 +4127,16 @@ public class Config {
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    if (isCiVisibilityFailedTestReplayEnabled() && isCiVisibilityAgentlessEnabled()) {
+      // Used in Failed Test Replay agentless
+      String agentlessUrl = getCiVisibilityAgentlessUrl();
+      if (Strings.isBlank(agentlessUrl)) {
+        agentlessUrl = "https://http-intake.logs." + getSite();
+      }
+      return agentlessUrl + "/api/v2/logs";
+    } else {
+      return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
+    }
   }
 
   public String getFinalDebuggerSymDBUrl() {
