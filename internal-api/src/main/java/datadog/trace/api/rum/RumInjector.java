@@ -27,6 +27,9 @@ public final class RumInjector {
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
 
+  // telemetry collector defaults to NO_OP
+  private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
+
   RumInjector(Config config) {
     boolean rumEnabled = config.isRumEnabled();
     RumInjectorConfig injectorConfig = config.getRumInjectorConfig();
@@ -119,5 +122,32 @@ public final class RumInjector {
       return null;
     }
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
+  }
+
+  // start telemetry collection and report metrics via the given StatsDClient
+  public static void enableTelemetry(datadog.trace.api.StatsDClient statsDClient) {
+    if (statsDClient != null) {
+      RumInjectorMetrics metrics = new RumInjectorMetrics(statsDClient);
+      metrics.start();
+      telemetryCollector = metrics;
+    } else {
+      telemetryCollector = RumTelemetryCollector.NO_OP;
+    }
+  }
+
+  // shutdown telemetry and reset to NO_OP
+  public static void shutdownTelemetry() {
+    telemetryCollector.close();
+    telemetryCollector = RumTelemetryCollector.NO_OP;
+  }
+
+  // set the telemetry collector
+  public static void setTelemetryCollector(RumTelemetryCollector collector) {
+    telemetryCollector = collector != null ? collector : RumTelemetryCollector.NO_OP;
+  }
+
+  // get the telemetry collector. this is used to directly report telemetry
+  public static RumTelemetryCollector getTelemetryCollector() {
+    return telemetryCollector;
   }
 }
