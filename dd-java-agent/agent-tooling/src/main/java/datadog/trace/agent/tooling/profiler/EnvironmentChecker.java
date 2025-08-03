@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.profiler;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +29,9 @@ public final class EnvironmentChecker {
         "Using Java version: "
             + JavaVirtualMachine.getRuntimeVersion()
             + " ("
-            + System.getProperty("java.home")
+            + SystemProperties.getOrDefault("java.home", "unknown")
             + ")");
-    System.out.println("Running as user: " + System.getProperty("user.name"));
+    System.out.println("Running as user: " + SystemProperties.getOrDefault("user.name", "unknown"));
     boolean result = false;
     result |= checkJFR();
     result |= checkDdprof();
@@ -46,7 +47,7 @@ public final class EnvironmentChecker {
           "Profiler will not work properly due to issues with temp directory location.");
       return false;
     } else {
-      if (!temp.equals(System.getProperty("java.io.tmpdir"))) {
+      if (!temp.equals(SystemProperties.get("java.io.tmpdir"))) {
         System.out.println(
             "! Make sure to add '-Ddd.profiling.tempdir=" + temp + "' to your JVM command line !");
       }

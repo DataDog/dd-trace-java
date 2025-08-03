@@ -14,6 +14,7 @@ import com.datadog.profiling.controller.oracle.OracleJdkController;
 import com.datadog.profiling.ddprof.Arch;
 import com.datadog.profiling.ddprof.OperatingSystem;
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -230,9 +231,9 @@ public class CompositeController implements Controller {
     if (!datadogProfilerEnabled && !jfrEnabled) {
       return "Profiling is disabled by configuration. Please, make sure that your configuration is correct.";
     }
-    final String javaVendor = System.getProperty("java.vendor");
-    final String javaVersion = System.getProperty("java.version");
-    final String javaRuntimeName = System.getProperty("java.runtime.name");
+    final String javaVendor = SystemProperties.getOrDefault("java.vendor", "unknown");
+    final String javaVersion = SystemProperties.getOrDefault("java.version", "unknown");
+    final String javaRuntimeName = SystemProperties.getOrDefault("java.runtime.name", "unknown");
     final String message =
         "Not enabling profiling for vendor="
             + javaVendor

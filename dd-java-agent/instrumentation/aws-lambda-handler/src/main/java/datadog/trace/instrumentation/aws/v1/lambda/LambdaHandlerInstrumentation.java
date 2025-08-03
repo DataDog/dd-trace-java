@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
+import datadog.environment.EnvironmentVariables;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -60,8 +61,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    final String handler = System.getenv(HANDLER_ENV_NAME);
-    return null != handler;
+    return EnvironmentVariables.get(HANDLER_ENV_NAME) != null;
   }
 
   @Override
