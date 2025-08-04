@@ -14,7 +14,10 @@ import spock.lang.Specification
 class SpanTagsPropagatorTest extends Specification {
   def "test getFrameworks"() {
     when:
-    def span = createSpanWithFrameworks(frameworkTag, frameworkVersionTag)
+    def span = Stub(DDSpan)
+    span.getTag(Tags.TEST_FRAMEWORK) >> frameworkTag
+    span.getTag(Tags.TEST_FRAMEWORK_VERSION) >> frameworkVersionTag
+
     def frameworks = SpanTagsPropagator.getFrameworks(span)
 
     then:
@@ -28,13 +31,6 @@ class SpanTagsPropagatorTest extends Specification {
     ["nameA", "nameB"] | ["versionA", "versionB"] | [new TestFramework("nameA", "versionA"), new TestFramework("nameB", "versionB")]
     ["nameA", "nameB"] | null                     | [new TestFramework("nameA", null), new TestFramework("nameB", null)]
     ["nameA", "nameB"] | ["versionA", null]       | [new TestFramework("nameA", "versionA"), new TestFramework("nameB", null)]
-  }
-
-  DDSpan createSpanWithFrameworks(Object frameworkTag, Object frameworkVersionTag) {
-    def span = Stub(DDSpan)
-    span.getTag(Tags.TEST_FRAMEWORK) >> frameworkTag
-    span.getTag(Tags.TEST_FRAMEWORK_VERSION) >> frameworkVersionTag
-    return span
   }
 
   def "test status propagation: #childStatus to #parentStatus"() {
@@ -95,17 +91,17 @@ class SpanTagsPropagatorTest extends Specification {
     ])
 
     where:
-    childFrameworks                        | parentFrameworks                       | expectedFrameworks
+    childFrameworks                        | parentFrameworks                                                          | expectedFrameworks
     []                                     | [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("TestNG", "7.4.0")] | [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("TestNG", "7.4.0")]
+                                              new TestFramework("TestNG", "7.4.0")]                                    | [new TestFramework("JUnit", "5.8.0"),
+                                                                                                                          new TestFramework("TestNG", "7.4.0")]
     [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("TestNG", "7.4.0")] | []                                     | [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("TestNG", "7.4.0")]
+     new TestFramework("TestNG", "7.4.0")] | []                                                                        | [new TestFramework("JUnit", "5.8.0"),
+                                                                                                                          new TestFramework("TestNG", "7.4.0")]
     [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("TestNG", "7.4.0")] | [new TestFramework("Spock", "2.3")]    | [new TestFramework("JUnit", "5.8.0"),
-      new TestFramework("Spock", "2.3"),
-      new TestFramework("TestNG", "7.4.0")]
+     new TestFramework("TestNG", "7.4.0")] | [new TestFramework("Spock", "2.3")]                                       | [new TestFramework("JUnit", "5.8.0"),
+                                                                                                                          new TestFramework("Spock", "2.3"),
+                                                                                                                          new TestFramework("TestNG", "7.4.0")]
   }
 
   def "test tag propagation: #childValue and #parentValue with spec #tagSpec"() {
@@ -152,19 +148,19 @@ class SpanTagsPropagatorTest extends Specification {
         try {
           switch (i % 3) {
             case 0:
-            def childSpan = Mock(DDSpan)
-            childSpan.getTag(Tags.TEST_STATUS) >> TestStatus.fail
-            propagator.propagateStatus(childSpan)
-            break
+              def childSpan = Mock(DDSpan)
+              childSpan.getTag(Tags.TEST_STATUS) >> TestStatus.fail
+              propagator.propagateStatus(childSpan)
+              break
             case 1:
-            def frameworks = [new TestFramework("JUnit${i}", "5.${i}")]
-            propagator.mergeTestFrameworks(frameworks)
-            break
+              def frameworks = [new TestFramework("JUnit${i}", "5.${i}")]
+              propagator.mergeTestFrameworks(frameworks)
+              break
             case 2:
-            def childSpan = Mock(DDSpan)
-            childSpan.getTag("custom.tag.${i}") >> "value${i}"
-            propagator.propagateTags(childSpan, TagMergeSpec.of("custom.tag.${i}"))
-            break
+              def childSpan = Mock(DDSpan)
+              childSpan.getTag("custom.tag.${i}") >> "value${i}"
+              propagator.propagateTags(childSpan, TagMergeSpec.of("custom.tag.${i}"))
+              break
           }
         } catch (Exception e) {
           exceptions.add(e)
