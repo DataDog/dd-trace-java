@@ -32,7 +32,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
-          ghcommit --repository ${{ github.repository }} --branch ${{ steps.define-branch.outputs.branch }} --add dd-java-agent/agent-jmxfetch/integrations-core --message "Update agent-jmxfetch submodule"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No changes to commit, exiting."
+            exit 0;
+          fi
+          git checkout -b ${{ steps.define-branch.outputs.branch }}
+          git add dd-java-agent/agent-jmxfetch/integrations-core
+          git commit -m "Update agent-jmxfetch submodule"
+          git push origin ${{ steps.define-branch.outputs.branch }}
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
