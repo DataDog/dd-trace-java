@@ -3,6 +3,7 @@ package datadog.telemetry;
 import datadog.telemetry.metric.MetricPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
@@ -141,9 +142,9 @@ public class TelemetryRunnable implements Runnable {
   }
 
   private void collectConfigChanges() {
-    Map<String, ConfigSetting> collectedConfig = ConfigCollector.get().collect();
+    Map<String, Map<ConfigOrigin, ConfigSetting>> collectedConfig = ConfigCollector.get().collect();
     if (!collectedConfig.isEmpty()) {
-      telemetryService.addConfiguration(collectedConfig);
+      telemetryService.addConfigurationByOrigin(collectedConfig);
     }
   }
 

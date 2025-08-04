@@ -128,7 +128,7 @@ public final class ConfigSetting {
         + stringValue()
         + ", origin="
         + origin
-        + ", seq_id="
+        + ", seqId="
         + seqId
         + '}';
   }

@@ -7,6 +7,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange;
@@ -89,6 +90,27 @@ public class TelemetryService {
       extendedHeartbeatData.pushConfigSetting(cs);
       if (!this.configurations.offer(cs)) {
         return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Adds all configuration settings from the provided map, grouped by their origin.
+   *
+   * @param configuration a map of configuration keys to a map of origins and their corresponding
+   *     settings
+   * @return {@code true} if all settings were successfully added, {@code false} if the queue is
+   *     full
+   */
+  public boolean addConfigurationByOrigin(
+      Map<String, Map<ConfigOrigin, ConfigSetting>> configuration) {
+    for (Map<ConfigOrigin, ConfigSetting> settings : configuration.values()) {
+      for (ConfigSetting cs : settings.values()) {
+        extendedHeartbeatData.pushConfigSetting(cs);
+        if (!this.configurations.offer(cs)) {
+          return false;
+        }
       }
     }
     return true;
