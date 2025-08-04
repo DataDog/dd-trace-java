@@ -6,10 +6,12 @@ import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -223,6 +225,15 @@ public class JettyBlockingHelper {
       log.info("Error committing blocking response", e);
     }
     return true;
+  }
+
+  public static boolean block(Request request, Response response, Context context) {
+    AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
+    Flow.Action.RequestBlockingAction rba;
+    if (span == null || (rba = span.getRequestBlockingAction()) == null) {
+      return false;
+    }
+    return block(request, response, rba, span);
   }
 
   public static boolean block(
