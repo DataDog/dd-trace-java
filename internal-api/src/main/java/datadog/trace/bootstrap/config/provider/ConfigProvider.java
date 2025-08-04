@@ -11,6 +11,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,6 +42,32 @@ public final class ConfigProvider {
     this.sources = sources;
   }
 
+  /**
+   * Creates a ConfigProvider with sources ordered from lowest to highest precedence. Internally
+   * reverses the array to support the new approach of iterating from lowest to highest precedence,
+   * enabling reporting of all configured sources to telemetry (not just the highest-precedence
+   * match).
+   *
+   * @param sources the configuration sources, in order from lowest to highest precedence
+   * @return a ConfigProvider with sources in precedence order (highest first)
+   */
+  public static ConfigProvider createWithPrecedenceOrder(Source... sources) {
+    Source[] reversed = Arrays.copyOf(sources, sources.length);
+    Collections.reverse(Arrays.asList(reversed));
+    return new ConfigProvider(reversed);
+  }
+
+  /**
+   * Same as {@link #createWithPrecedenceOrder(Source...)} but allows specifying the collectConfig
+   * flag.
+   */
+  public static ConfigProvider createWithPrecedenceOrder(boolean collectConfig, Source... sources) {
+    Source[] reversed = Arrays.copyOf(sources, sources.length);
+    Collections.reverse(Arrays.asList(reversed));
+    return new ConfigProvider(collectConfig, reversed);
+  }
+
+  // TODO: Handle this special case
   public String getConfigFileStatus() {
     for (ConfigProvider.Source source : sources) {
       if (source instanceof PropertiesConfigSource) {
@@ -74,25 +101,24 @@ public final class ConfigProvider {
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
-    String foundValue = null;
-
-    for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
-        }
-        if (foundValue == null) {
-          foundValue = value;
-        }
-      }
-    }
-
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-
-    return foundValue != null ? foundValue : defaultValue;
+    String value = null;
+    for (ConfigProvider.Source source : sources) {
+      String tmp = source.get(key, aliases);
+      if (key.equals("CONFIG_NAME")) {
+        System.out.println(
+            "MTOFF - source: " + source.getClass().getSimpleName() + " value: " + value);
+      }
+      if (tmp != null) {
+        value = tmp;
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value, source.origin());
+        }
+      }
+    }
+    return value != null ? value : defaultValue;
   }
 
   /**
@@ -100,23 +126,21 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
-    String foundValue = null;
-    for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      // TODO: Is a source still configured "set" if it's empty, though?
-      if (value != null && !value.trim().isEmpty()) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
-        }
-        if (foundValue == null) {
-          foundValue = value;
-        }
-      }
-    }
     if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
-    return foundValue != null ? foundValue : defaultValue;
+    String value = null;
+    for (ConfigProvider.Source source : sources) {
+      String tmp = source.get(key, aliases);
+      // TODO: Is a source still configured "set" if it's empty, though?
+      if (tmp != null && !tmp.trim().isEmpty()) {
+        value = tmp;
+        if (collectConfig) {
+          ConfigCollector.get().put(key, value, source.origin());
+        }
+      }
+    }
+    return value != null ? value : defaultValue;
   }
 
   public String getStringExcludingSource(
@@ -124,26 +148,23 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
-    String foundValue = null;
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
+    String value = null;
     for (ConfigProvider.Source source : sources) {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-
-      String value = source.get(key, aliases);
-      if (value != null) {
+      String tmp = source.get(key, aliases);
+      if (tmp != null) {
+        value = tmp;
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
-        if (foundValue == null) {
-          foundValue = value;
-        }
       }
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-    }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   public boolean isSet(String key) {
@@ -204,27 +225,25 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
-    T foundValue = null;
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
+    T value = null;
     for (ConfigProvider.Source source : sources) {
       try {
         String sourceValue = source.get(key, aliases);
-        T value = ConfigConverter.valueOf(sourceValue, type);
-        if (value != null) {
+        T tmp = ConfigConverter.valueOf(sourceValue, type);
+        if (tmp != null) {
+          value = tmp;
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin());
-          }
-          if (foundValue == null) {
-            foundValue = value;
           }
         }
       } catch (NumberFormatException ex) {
         // continue
       }
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-    }
-    return foundValue != null ? foundValue : defaultValue;
+    return value != null ? value : defaultValue;
   }
 
   public List<String> getList(String key) {
@@ -232,11 +251,11 @@ public final class ConfigProvider {
   }
 
   public List<String> getList(String key, List<String> defaultValue) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     String list = getString(key);
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-      }
       return defaultValue;
     } else {
       return ConfigConverter.parseList(list);
@@ -244,11 +263,11 @@ public final class ConfigProvider {
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
+    if (collectConfig) {
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+    }
     String list = getString(key);
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-      }
       return defaultValue;
     } else {
       return new HashSet(ConfigConverter.parseList(list));
@@ -259,40 +278,49 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key), " ");
   }
 
+  // TODO: Handle this special case
   public Map<String, String> getMergedMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
-    // We reverse iterate to allow overrides
-    for (int i = sources.length - 1; 0 <= i; i--) {
+    // We iterate in order so higher precedence sources overwrite lower precedence
+    for (int i = 0; i < sources.length; i++) {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
     if (collectConfig) {
+      // TO DISCUSS: But if multiple sources have been set, origin isn't exactly accurate here...?
       ConfigCollector.get().put(key, merged, origin);
     }
     return merged;
   }
 
+  // TODO: Handle this special case
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
-    // We reverse iterate to allow overrides
-    for (int i = sources.length - 1; 0 <= i; i--) {
+    // We iterate in order so higher precedence sources overwrite lower precedence
+    for (int i = 0; i < sources.length; i++) {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap =
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
@@ -302,18 +330,22 @@ public final class ConfigProvider {
     return merged;
   }
 
+  // TODO: Handle this special case
   public Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> merged = new LinkedHashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
-    // We reverse iterate to allow overrides
-    for (int i = sources.length - 1; 0 <= i; i--) {
+    // We iterate in order so higher precedence sources overwrite lower precedence
+    for (int i = 0; i < sources.length; i++) {
       String value = sources[i].get(key);
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
+        if (collectConfig) {
+          ConfigCollector.get().put(key, parsedMap, origin);
+        }
       }
       merged.putAll(parsedMap);
     }
@@ -338,6 +370,9 @@ public final class ConfigProvider {
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
         if (!parsedMap.isEmpty()) {
           origin = sources[i].origin();
+          if (collectConfig) {
+            ConfigCollector.get().put(key, parsedMap, origin);
+          }
         }
         merged.putAll(parsedMap);
       }
@@ -391,9 +426,10 @@ public final class ConfigProvider {
   public static ConfigProvider createDefault() {
     Properties configProperties =
         loadConfigurationFile(
-            new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
+            createWithPrecedenceOrder(
+                new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
     if (configProperties.isEmpty()) {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
@@ -401,7 +437,7 @@ public final class ConfigProvider {
           StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
@@ -415,10 +451,10 @@ public final class ConfigProvider {
   public static ConfigProvider withoutCollector() {
     Properties configProperties =
         loadConfigurationFile(
-            new ConfigProvider(
+            createWithPrecedenceOrder(
                 false, new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
     if (configProperties.isEmpty()) {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           false,
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
@@ -427,7 +463,7 @@ public final class ConfigProvider {
           StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           false,
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
@@ -443,12 +479,12 @@ public final class ConfigProvider {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
     Properties configProperties =
         loadConfigurationFile(
-            new ConfigProvider(
+            createWithPrecedenceOrder(
                 new SystemPropertiesConfigSource(),
                 new EnvironmentConfigSource(),
                 providedConfigSource));
     if (configProperties.isEmpty()) {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
           new EnvironmentConfigSource(),
@@ -457,7 +493,7 @@ public final class ConfigProvider {
           StableConfigSource.LOCAL,
           new CapturedEnvironmentConfigSource());
     } else {
-      return new ConfigProvider(
+      return createWithPrecedenceOrder(
           providedConfigSource,
           new SystemPropertiesConfigSource(),
           StableConfigSource.FLEET,
