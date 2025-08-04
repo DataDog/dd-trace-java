@@ -39,6 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
+import datadog.trace.core.Metadata
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
 import groovy.json.JsonOutput
@@ -106,10 +107,7 @@ import static org.junit.Assume.assumeTrue
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
-  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpServer().sortedTags().collect {
-    key, value ->
-    return key + ":" + value
-  }
+  protected static final DSM_EDGE_TAGS = DataStreamsContext.forHttpServer().tags()
   static {
     try {
       ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
@@ -640,8 +638,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -684,8 +681,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -730,8 +726,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -759,7 +754,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(SUCCESS)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, SUCCESS, tags)
+        serverSpan(it, null, null, method, SUCCESS, spanTags)
         if (hasHandlerSpan()) {
           handlerSpan(it)
         }
@@ -774,15 +769,70 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
     where:
-    method | body | header                          | value | tags
+    method | body | header                          | value | spanTags
     'GET'  | null | 'x-datadog-test-both-header'    | 'foo' | ['both_header_tag': 'foo']
     'GET'  | null | 'x-datadog-test-request-header' | 'bar' | ['request_header_tag': 'bar']
+  }
+
+  def "test baggage span tags are properly added"() {
+    setup:
+    def recordedBaggageTags = [:]
+    TEST_WRITER.metadataConsumer = { Metadata md ->
+      md.baggage.forEach { k, v ->
+        // record non-internal baggage sent to agent as trace metadata
+        if (!k.startsWith("_dd.")) {
+          recordedBaggageTags.put(k, v)
+        }
+      }
+    }
+    // Use default configuration for TRACE_BAGGAGE_TAG_KEYS (user.id, session.id, account.id)
+    def baggageHeader = "user.id=test-user,session.id=test-session,account.id=test-account,language=en"
+    def request = request(SUCCESS, 'GET', null)
+    .header("baggage", baggageHeader)
+    .build()
+    def response = client.newCall(request).execute()
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    expect:
+    response.code() == SUCCESS.status
+    response.body().string() == SUCCESS.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        // Verify baggage tags are added for default configured keys only
+        serverSpan(it, null, null, 'GET', SUCCESS)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
+        }
+      }
+    }
+    recordedBaggageTags == [
+      "baggage.user.id": "test-user",
+      "baggage.session.id": "test-session",
+      "baggage.account.id": "test-account"
+      // "baggage.language" should NOT be present since it's not in default config
+    ]
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        tags == DSM_EDGE_TAGS
+      }
+    }
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
@@ -794,7 +844,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def body = null
     def header = IG_RESPONSE_HEADER
     def mapping = 'mapped_response_header_tag'
-    def tags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE"]
+    def spanTags = ['mapped_response_header_tag': "$IG_RESPONSE_HEADER_VALUE"]
 
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
@@ -813,7 +863,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assertTraces(1) {
       trace(spanCount(endpoint)) {
         sortSpansByStart()
-        serverSpan(it, null, null, method, endpoint, tags)
+        serverSpan(it, null, null, method, endpoint, spanTags)
         if (hasHandlerSpan()) {
           handlerSpan(it, endpoint)
         }
@@ -828,8 +878,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -871,8 +920,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -926,8 +974,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -974,8 +1021,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1003,8 +1049,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1047,8 +1092,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -1094,8 +1138,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1135,8 +1178,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1178,8 +1220,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1220,8 +1261,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1262,8 +1302,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1303,8 +1342,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1358,8 +1396,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -1405,8 +1442,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1438,8 +1474,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1471,8 +1506,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1506,8 +1540,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1539,8 +1572,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1588,8 +1620,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -1632,8 +1663,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1671,8 +1701,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1708,8 +1737,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1765,8 +1793,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
   }
@@ -1818,8 +1845,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags.containsAll(DSM_EDGE_TAGS)
-        edgeTags.size() == DSM_EDGE_TAGS.size()
+        tags == DSM_EDGE_TAGS
       }
     }
 
@@ -2216,7 +2242,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def response = client.newCall(request).execute()
     then:
     assert response.code() == 200
-    assert response.body().string().contains(new String(RumInjector.get().getSnippet("UTF-8"), "UTF-8")) == expected
+    assert response.body().string().contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
     assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
     where:
     mime   | expected

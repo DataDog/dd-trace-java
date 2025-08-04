@@ -3,28 +3,21 @@ package datadog.trace.api.datastreams;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
-import java.util.LinkedHashMap;
 
 public class DataStreamsContext implements ImplicitContextKeyed {
   private static final ContextKey<DataStreamsContext> CONTEXT_KEY =
       ContextKey.named("dsm-context-key");
-  private static final LinkedHashMap<String, String> CLIENT_PATHWAY_EDGE_TAGS;
-  private static final LinkedHashMap<String, String> SERVER_PATHWAY_EDGE_TAGS;
+  private static final DataStreamsTags CLIENT_PATHWAY_EDGE_TAGS;
+  private static final DataStreamsTags SERVER_PATHWAY_EDGE_TAGS;
 
-  final LinkedHashMap<String, String> sortedTags;
+  final DataStreamsTags tags;
   final long defaultTimestamp;
   final long payloadSizeBytes;
   final boolean sendCheckpoint;
 
   static {
-    CLIENT_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
-    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    CLIENT_PATHWAY_EDGE_TAGS.put("direction", "out");
-    CLIENT_PATHWAY_EDGE_TAGS.put("type", "http");
-    SERVER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(2);
-    // TODO: Refactor TagsProcessor to move it into a package that we can link the constants for.
-    SERVER_PATHWAY_EDGE_TAGS.put("direction", "in");
-    SERVER_PATHWAY_EDGE_TAGS.put("type", "http");
+    CLIENT_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Outbound);
+    SERVER_PATHWAY_EDGE_TAGS = DataStreamsTags.create("http", DataStreamsTags.Direction.Inbound);
   }
 
   public static DataStreamsContext fromContext(Context context) {
@@ -52,17 +45,17 @@ public class DataStreamsContext implements ImplicitContextKeyed {
   /**
    * Creates a DSM context.
    *
-   * @param sortedTags alphabetically sorted tags for the checkpoint (direction, queue type etc)
+   * @param tags DataStreamsTags object
    * @return the created context.
    */
-  public static DataStreamsContext fromTags(LinkedHashMap<String, String> sortedTags) {
-    return new DataStreamsContext(sortedTags, 0, 0, true);
+  public static DataStreamsContext fromTags(DataStreamsTags tags) {
+    return new DataStreamsContext(tags, 0, 0, true);
   }
 
   /**
    * Creates a DSM context.
    *
-   * @param sortedTags alphabetically sorted tags for the checkpoint (direction, queue type etc)
+   * @param tags object
    * @param defaultTimestamp unix timestamp to use as a start of the pathway if this is the first
    *     checkpoint in the chain. Zero should be passed if we can't extract the timestamp from the
    *     message / payload itself (for instance: produce operations; http produce / consume etc).
@@ -72,29 +65,25 @@ public class DataStreamsContext implements ImplicitContextKeyed {
    * @return the created context.
    */
   public static DataStreamsContext create(
-      LinkedHashMap<String, String> sortedTags, long defaultTimestamp, long payloadSizeBytes) {
-    return new DataStreamsContext(sortedTags, defaultTimestamp, payloadSizeBytes, true);
+      DataStreamsTags tags, long defaultTimestamp, long payloadSizeBytes) {
+    return new DataStreamsContext(tags, defaultTimestamp, payloadSizeBytes, true);
   }
 
-  public static DataStreamsContext fromTagsWithoutCheckpoint(
-      LinkedHashMap<String, String> sortedTags) {
-    return new DataStreamsContext(sortedTags, 0, 0, false);
+  public static DataStreamsContext fromTagsWithoutCheckpoint(DataStreamsTags tags) {
+    return new DataStreamsContext(tags, 0, 0, false);
   }
 
   // That's basically a record for now
   private DataStreamsContext(
-      LinkedHashMap<String, String> sortedTags,
-      long defaultTimestamp,
-      long payloadSizeBytes,
-      boolean sendCheckpoint) {
-    this.sortedTags = sortedTags;
+      DataStreamsTags tags, long defaultTimestamp, long payloadSizeBytes, boolean sendCheckpoint) {
+    this.tags = tags;
     this.defaultTimestamp = defaultTimestamp;
     this.payloadSizeBytes = payloadSizeBytes;
     this.sendCheckpoint = sendCheckpoint;
   }
 
-  public LinkedHashMap<String, String> sortedTags() {
-    return this.sortedTags;
+  public DataStreamsTags tags() {
+    return this.tags;
   }
 
   public long defaultTimestamp() {

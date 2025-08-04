@@ -4,10 +4,9 @@ import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
-import java.util.LinkedHashMap;
 
 public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
-  void trackBacklog(LinkedHashMap<String, String> sortedTags, long value);
+  void trackBacklog(DataStreamsTags tags, long value);
 
   /**
    * Sets data streams checkpoint, used for both produce and consume operations.

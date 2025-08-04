@@ -37,9 +37,9 @@ dependencies {
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
-  testImplementation("org.spockframework", "spock-core", "2.3-groovy-3.0")
+  testImplementation(libs.spock.core)
   testImplementation("org.objenesis", "objenesis", "3.0.1")
-  testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
+  testImplementation(libs.groovy)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
 }

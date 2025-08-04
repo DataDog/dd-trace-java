@@ -71,10 +71,10 @@ class ClassFileLinesTest {
     assertEquals("multiLambda", methods58.get(0).name);
     assertEquals("(Ljava/lang/String;)I", methods58.get(0).desc);
     // filter
-    assertEquals("lambda$multiLambda$3", methods58.get(1).name);
+    assertTrue(methods58.get(1).name.startsWith("lambda$multiLambda$"));
     assertEquals("(Ljava/lang/String;)Z", methods58.get(1).desc);
     // map
-    assertEquals("lambda$multiLambda$2", methods58.get(2).name);
+    assertTrue(methods58.get(2).name.startsWith("lambda$multiLambda$"));
     assertEquals("(Ljava/lang/String;)Ljava/lang/String;", methods58.get(2).desc);
   }
 

@@ -1,5 +1,6 @@
 package com.datadog.appsec.ddwaf
 
+import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
 import com.datadog.appsec.config.AppSecModuleConfigurer
@@ -30,6 +31,8 @@ import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.communication.monitor.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.PollerRequestFactory
+import datadog.remoteconfig.PollingRateHinter
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ConfigKey
 import datadog.remoteconfig.state.ParsedConfigKey
@@ -97,6 +100,7 @@ class WAFModuleSpecification extends DDSpecification {
   void setup() {
     WafMetricCollector.INSTANCE = wafMetricCollector
     AgentTracer.forceRegister(tracer)
+    AppSecSystem.active = true
 
     final configurationPoller = Stub(ConfigurationPoller) {
       addListener(Product.ASM_DD, _ as ProductListener) >> {
@@ -972,7 +976,7 @@ class WAFModuleSpecification extends DDSpecification {
 
   void 'configuration can be given later'() {
     when:
-    initialRuleAddWithMap([waf: null])
+    initialRuleAddWithMap([waf: new BadConfig()]) // empty configs are allowed now
 
     then:
     thrown RuntimeException
@@ -1693,6 +1697,16 @@ class WAFModuleSpecification extends DDSpecification {
       return new UnclassifiedWafException(code.code)
       default:
       throw new IllegalStateException("Unhandled WafErrorCode: $code")
+    }
+  }
+
+  private static class BadConfig implements Map<String, Object> {
+    @Delegate
+    private Map<String, Object> delegate
+
+    @Override
+    Set entrySet() {
+      throw new IllegalStateException("You tried to iterate!")
     }
   }
 }

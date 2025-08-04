@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -476,8 +477,11 @@ public final class ConfigProvider {
     }
 
     // Normalizing tilde (~) paths for unix systems
-    configurationFilePath =
-        configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+    String home;
+    if (configurationFilePath.charAt(0) == '~'
+        && (home = SystemProperties.get("user.home")) != null) {
+      configurationFilePath = home + configurationFilePath.substring(1);
+    }
 
     // Configuration properties file is optional
     final File configurationFile = new File(configurationFilePath);

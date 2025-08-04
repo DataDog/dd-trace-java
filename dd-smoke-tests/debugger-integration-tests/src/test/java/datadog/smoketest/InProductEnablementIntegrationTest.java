@@ -40,6 +40,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @Test
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
   void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
     LogProbe probe =

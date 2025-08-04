@@ -15,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.StringTokenizer;
 
 /** Fetches and captures the JVM options. */
@@ -45,37 +44,7 @@ class JvmOptions {
   private List<String> findVmOptions() {
     // Try ProcFS on Linux
     if (PROCFS_CMDLINE != null) {
-      // Start at 1 to skip "java" command itself
-      int index = 1;
-      // Look for main class or "-jar", end of VM options
-      for (; index < PROCFS_CMDLINE.length; index++) {
-        if (!PROCFS_CMDLINE[index].startsWith("-") || "-jar".equals(PROCFS_CMDLINE[index])) {
-          break;
-        }
-      }
-      // Create list of VM options
-      List<String> vmOptions = new ArrayList<>(asList(PROCFS_CMDLINE).subList(1, index + 1));
-      ListIterator<String> iterator = vmOptions.listIterator();
-      while (iterator.hasNext()) {
-        String vmOption = iterator.next();
-        if (vmOption.startsWith("@")) {
-          iterator.remove();
-          for (String argument : getArgumentsFromFile(vmOption)) {
-            iterator.add(argument);
-          }
-        }
-      }
-      // Insert JDK_JAVA_OPTIONS at the start if present and supported
-      List<String> jdkJavaOptions = getJdkJavaOptions();
-      if (!jdkJavaOptions.isEmpty()) {
-        vmOptions.addAll(0, jdkJavaOptions);
-      }
-      // Insert JAVA_TOOL_OPTIONS at the start if present
-      List<String> javaToolOptions = getJavaToolOptions();
-      if (!javaToolOptions.isEmpty()) {
-        vmOptions.addAll(0, javaToolOptions);
-      }
-      return vmOptions;
+      return findVmOptionsFromProcFs(PROCFS_CMDLINE);
     }
 
     // Try Oracle-based
@@ -120,6 +89,48 @@ class JvmOptions {
       System.err.println("WARNING: Unable to get VM args using managed beans");
     }
     return emptyList();
+  }
+
+  // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
+  // executable
+  // Visible for testing
+  List<String> findVmOptionsFromProcFs(String[] procfsCmdline) {
+    // Create list of VM options
+    List<String> vmOptions = new ArrayList<>();
+    // Look for first self-standing argument that is not prefixed with "-" or end of VM options
+    // while simultaneously, collect all arguments in the VM options
+    // Starts from 1 as 0 is the java command itself (or native-image)
+    for (int index = 1; index < procfsCmdline.length; index++) {
+      String argument = procfsCmdline[index];
+      // Inflate arg files
+      if (argument.startsWith("@")) {
+        vmOptions.addAll(getArgumentsFromFile(argument));
+      }
+      // Skip classpath argument (not part of VM options)
+      else if ("-cp".equals(argument)) {
+        index++;
+      }
+      // Check "-jar" or class name argument as the end of the VM options
+      else if ("-jar".equals(argument) || !argument.startsWith("-")) {
+        // End of VM options
+        break;
+      }
+      // Otherwise add as VM option
+      else {
+        vmOptions.add(argument);
+      }
+    }
+    // Insert JDK_JAVA_OPTIONS at the start if present and supported
+    List<String> jdkJavaOptions = getJdkJavaOptions();
+    if (!jdkJavaOptions.isEmpty()) {
+      vmOptions.addAll(0, jdkJavaOptions);
+    }
+    // Insert JAVA_TOOL_OPTIONS at the start if present
+    List<String> javaToolOptions = getJavaToolOptions();
+    if (!javaToolOptions.isEmpty()) {
+      vmOptions.addAll(0, javaToolOptions);
+    }
+    return vmOptions;
   }
 
   private static List<String> getArgumentsFromFile(String argFile) {

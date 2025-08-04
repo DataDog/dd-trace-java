@@ -43,7 +43,7 @@ public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {
     if (!checked) {
       checked = true;
       // Header evidence format is <headerName>: <headerValue>
-      int separatorIndex = evidenceValue.indexOf(":");
+      int separatorIndex = evidenceValue.indexOf(':');
       if (separatorIndex < 1) {
         return null; // Wrong evidence format: there is no separator or <headerName>
       }

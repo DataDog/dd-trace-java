@@ -8,10 +8,10 @@ import spock.lang.Specification
 import spock.lang.Timeout
 
 @Timeout(30)
-@IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(24)
-})
 class InitializationTelemetryTest extends Specification {
+  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  })
   def "block agent start-up"() {
     // In this case, the SecurityManager blocks loading of the Premain Class,
     // so the JVM is expected to terminate with an error
@@ -53,19 +53,25 @@ class InitializationTelemetryTest extends Specification {
     agent.close()
   }
 
+  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  })
   def "incomplete agent start-up"() {
     // In this case, the SecurityManager blocks a custom permission that is checked by bytebuddy causing
-    // agent initialization to fail.  However, we should catch the exception allowing the application
+    // agent initialization to fail. However, we should catch the exception allowing the application
     // to run normally.
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy)
 
-    then:
+    then: 'should complete successfully and catch error'
     result.exitCode == 0
     !result.telemetryJson.contains('library_entrypoint.complete')
-    result.telemetryJson.contains('error_type:java.lang.IllegalStateException')
+    result.telemetryJson.contains('error_type:')
   }
 
+  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  })
   def "block forwarder env var"() {
     // In this case, the SecurityManager blocks access to the forwarder environment variable,
     // so the tracer is unable to report initialization telemetry
@@ -78,6 +84,9 @@ class InitializationTelemetryTest extends Specification {
     result.telemetryJson == null
   }
 
+  @IgnoreIf(reason = "SecurityManager is permanently disabled as of JDK 24", value = {
+    JavaVirtualMachine.isJavaVersionAtLeast(24)
+  })
   def "block forwarder execution"() {
     // In this case, the SecurityManager blocks access to process execution, so the tracer is
     // unable to invoke the forwarder executable

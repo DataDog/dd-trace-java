@@ -30,6 +30,7 @@ repositories {
 dependencies {
     testImplementation gradleTestKit()
 
+    testImplementation 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
 }
 

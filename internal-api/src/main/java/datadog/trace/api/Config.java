@@ -151,6 +151,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
@@ -323,7 +324,6 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
-import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
@@ -373,6 +373,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
@@ -583,6 +584,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH;
@@ -630,8 +632,10 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -823,6 +827,7 @@ public class Config {
   private final boolean tracePropagationExtractFirst;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
+  private final List<String> traceBaggageTagKeys;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
 
@@ -1142,7 +1147,6 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
-  private final String dataJobsCommandPattern;
   private final boolean dataJobsOpenLineageEnabled;
 
   private final boolean dataStreamsEnabled;
@@ -1164,6 +1168,7 @@ public class Config {
 
   private final boolean azureAppServices;
   private final boolean azureFunctions;
+  private final boolean awsServerless;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -1179,6 +1184,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+
   private final boolean cassandraKeyspaceStatementExtractionEnabled;
   private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
@@ -1215,6 +1221,7 @@ public class Config {
 
   private final boolean jdkSocketEnabled;
 
+  private final boolean optimizedMapEnabled;
   private final int stackTraceLengthLimit;
 
   private final boolean rumEnabled;
@@ -1235,7 +1242,7 @@ public class Config {
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled =
         configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemProperties.getOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1481,6 +1488,9 @@ public class Config {
     azureFunctions =
         getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
 
+    awsServerless =
+        getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
+
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
@@ -1693,6 +1703,11 @@ public class Config {
         // If we have a new setting, we log a warning
         logOverriddenDeprecatedSettingWarning(PROPAGATION_STYLE_INJECT, injectOrigin, inject);
       }
+
+      // Parse the baggage tag keys configuration
+      traceBaggageTagKeys =
+          configProvider.getList(TRACE_BAGGAGE_TAG_KEYS, DEFAULT_TRACE_BAGGAGE_TAG_KEYS);
+
       // Now we can check if we should pick the default injection/extraction
 
       tracePropagationStylesToExtract =
@@ -1783,7 +1798,9 @@ public class Config {
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     // Enable tracer computed trace metrics by default for Azure Functions
-    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, azureFunctions);
+    tracerMetricsEnabled =
+        configProvider.getBoolean(
+            TRACE_STATS_COMPUTATION_ENABLED, azureFunctions, TRACER_METRICS_ENABLED);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -2530,7 +2547,6 @@ public class Config {
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
             DATA_JOBS_OPENLINEAGE_ENABLED, DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED);
-    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2714,6 +2730,9 @@ public class Config {
     this.apmTracingEnabled = configProvider.getBoolean(GeneralConfig.APM_TRACING_ENABLED, true);
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
+
+    this.optimizedMapEnabled =
+        configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
@@ -2959,6 +2978,10 @@ public class Config {
 
   public Map<String, String> getBaggageMapping() {
     return baggageMapping;
+  }
+
+  public List<String> getTraceBaggageTagKeys() {
+    return traceBaggageTagKeys;
   }
 
   public Map<String, String> getHttpServerPathResourceNameMapping() {
@@ -3392,7 +3415,7 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!JavaVirtualMachine.isJ9() && isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
+      String arch = SystemProperties.get("os.arch");
       if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
@@ -4251,6 +4274,10 @@ public class Config {
     return azureAppServices;
   }
 
+  public boolean isAwsServerless() {
+    return awsServerless;
+  }
+
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
   }
@@ -4377,10 +4404,6 @@ public class Config {
     return dataJobsOpenLineageEnabled;
   }
 
-  public String getDataJobsCommandPattern() {
-    return dataJobsCommandPattern;
-  }
-
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -4389,15 +4412,19 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isOptimizedMapEnabled() {
+    return optimizedMapEnabled;
+  }
+
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
-  public Map<String, Object> getLocalRootSpanTags() {
+  public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
-    result.putAll(runtimeTags);
+
+    final TagMap result = TagMap.fromMap(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
@@ -4418,7 +4445,7 @@ public class Config {
 
     result.putAll(getProcessIdTag());
 
-    return Collections.unmodifiableMap(result);
+    return result.freeze();
   }
 
   public WellKnownTags getWellKnownTags() {
@@ -4436,12 +4463,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"),
+        SystemProperties.get("java.runtime.name"),
+        SystemProperties.get("java.version"),
+        SystemProperties.get("java.vendor"),
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("os.name"),
+        SystemProperties.get("os.version"),
         isServiceNameSetByUser() ? "true" : "false");
   }
 
@@ -4622,7 +4649,7 @@ public class Config {
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
     String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
-    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf('+');
 
     // The subscription ID of the site instance in Azure App Services
     String subscriptionId = null;
@@ -5180,7 +5207,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = EnvironmentVariables.get(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
@@ -5203,7 +5230,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }
@@ -5365,6 +5392,8 @@ public class Config {
         + traceKeepLatencyThreshold
         + ", traceStrictWritesEnabled="
         + traceStrictWritesEnabled
+        + ", traceBaggageTagKeys="
+        + traceBaggageTagKeys
         + ", tracePropagationStylesToExtract="
         + tracePropagationStylesToExtract
         + ", tracePropagationStylesToInject="
@@ -5675,8 +5704,6 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
-        + ", dataJobsCommandPattern="
-        + dataJobsCommandPattern
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="

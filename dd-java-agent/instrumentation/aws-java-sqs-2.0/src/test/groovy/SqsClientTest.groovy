@@ -173,14 +173,12 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:out", "topic:somequeue", "type:sqs")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["direction:in", "topic:somequeue", "type:sqs"]
-        edgeTags.size() == 3
+        tags.hasAllTags("direction:in", "topic:somequeue", "type:sqs")
       }
     }
 
