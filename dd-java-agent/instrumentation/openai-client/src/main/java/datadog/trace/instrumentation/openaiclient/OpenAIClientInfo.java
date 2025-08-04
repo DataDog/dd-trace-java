@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.openai;
+package datadog.trace.instrumentation.openaiclient;
 
 import com.openai.azure.credential.AzureApiKeyCredential;
 import com.openai.core.ClientOptions;
@@ -33,10 +33,11 @@ public class OpenAIClientInfo {
         info.setApiKey(((BearerTokenCredential) options.credential()).token());
       } else if (options.credential() instanceof AzureApiKeyCredential) {
         info.setApiKey(((AzureApiKeyCredential) options.credential()).apiKey());
-      } else info.setApiKey(null);
+      } else {
+        info.setApiKey(null);
+      }
 
     } catch (Exception e) {
-      // TODO: returns empty info for now
       return info;
     }
 

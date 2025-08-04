@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.openai;
+package datadog.trace.instrumentation.openaiclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
