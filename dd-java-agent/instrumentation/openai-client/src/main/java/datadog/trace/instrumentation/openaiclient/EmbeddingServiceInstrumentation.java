@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.openai;
+package datadog.trace.instrumentation.openaiclient;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -22,7 +22,7 @@ public class EmbeddingServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public EmbeddingServiceInstrumentation() {
-    super("openai", "openai-java");
+    super("openai", "openai-java", "openai-2.8");
   }
 
   @Override

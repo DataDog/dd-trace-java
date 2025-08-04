@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.openai;
+package datadog.trace.instrumentation.openaiclient;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 public class OpenAIClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public OpenAIClientInstrumentation() {
-    super("openai-client");
+    super("openai-client", "openai-java", "openai-2.8");
   }
 
   @Override
