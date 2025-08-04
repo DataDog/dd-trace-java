@@ -23,9 +23,6 @@ import spock.lang.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
-@IgnoreIf(reason = "TODO: Fix for Java 25. Gradle does not support Java 25 yet: https://docs.gradle.org/current/userguide/compatibility.html#java_runtime", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(25)
-})
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
