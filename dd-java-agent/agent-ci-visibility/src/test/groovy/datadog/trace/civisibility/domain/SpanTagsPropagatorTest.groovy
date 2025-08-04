@@ -91,17 +91,10 @@ class SpanTagsPropagatorTest extends Specification {
     ])
 
     where:
-    childFrameworks                        | parentFrameworks                                                          | expectedFrameworks
-    []                                     | [new TestFramework("JUnit", "5.8.0"),
-                                              new TestFramework("TestNG", "7.4.0")]                                    | [new TestFramework("JUnit", "5.8.0"),
-                                                                                                                          new TestFramework("TestNG", "7.4.0")]
-    [new TestFramework("JUnit", "5.8.0"),
-     new TestFramework("TestNG", "7.4.0")] | []                                                                        | [new TestFramework("JUnit", "5.8.0"),
-                                                                                                                          new TestFramework("TestNG", "7.4.0")]
-    [new TestFramework("JUnit", "5.8.0"),
-     new TestFramework("TestNG", "7.4.0")] | [new TestFramework("Spock", "2.3")]                                       | [new TestFramework("JUnit", "5.8.0"),
-                                                                                                                          new TestFramework("Spock", "2.3"),
-                                                                                                                          new TestFramework("TestNG", "7.4.0")]
+    childFrameworks                                                             | parentFrameworks                                                            | expectedFrameworks
+    []                                                                          | [new TestFramework("JUnit", "5.8.0"), new TestFramework("TestNG", "7.4.0")] | [new TestFramework("JUnit", "5.8.0"), new TestFramework("TestNG", "7.4.0")]
+    [new TestFramework("JUnit", "5.8.0"), new TestFramework("TestNG", "7.4.0")] | []                                                                          | [new TestFramework("JUnit", "5.8.0"), new TestFramework("TestNG", "7.4.0")]
+    [new TestFramework("JUnit", "5.8.0"), new TestFramework("TestNG", "7.4.0")] | [new TestFramework("Spock", "2.3")]                                         | [new TestFramework("JUnit", "5.8.0"), new TestFramework("Spock", "2.3"), new TestFramework("TestNG", "7.4.0")]
   }
 
   def "test tag propagation: #childValue and #parentValue with spec #tagSpec"() {
@@ -148,19 +141,19 @@ class SpanTagsPropagatorTest extends Specification {
         try {
           switch (i % 3) {
             case 0:
-              def childSpan = Mock(DDSpan)
-              childSpan.getTag(Tags.TEST_STATUS) >> TestStatus.fail
-              propagator.propagateStatus(childSpan)
-              break
+            def childSpan = Mock(DDSpan)
+            childSpan.getTag(Tags.TEST_STATUS) >> TestStatus.fail
+            propagator.propagateStatus(childSpan)
+            break
             case 1:
-              def frameworks = [new TestFramework("JUnit${i}", "5.${i}")]
-              propagator.mergeTestFrameworks(frameworks)
-              break
+            def frameworks = [new TestFramework("JUnit${i}", "5.${i}")]
+            propagator.mergeTestFrameworks(frameworks)
+            break
             case 2:
-              def childSpan = Mock(DDSpan)
-              childSpan.getTag("custom.tag.${i}") >> "value${i}"
-              propagator.propagateTags(childSpan, TagMergeSpec.of("custom.tag.${i}"))
-              break
+            def childSpan = Mock(DDSpan)
+            childSpan.getTag("custom.tag.${i}") >> "value${i}"
+            propagator.propagateTags(childSpan, TagMergeSpec.of("custom.tag.${i}"))
+            break
           }
         } catch (Exception e) {
           exceptions.add(e)
