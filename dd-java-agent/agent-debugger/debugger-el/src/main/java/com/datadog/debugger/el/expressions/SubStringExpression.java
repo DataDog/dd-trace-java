@@ -20,15 +20,27 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
   @Override
   public Value<String> evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> sourceValue = source != null ? source.evaluate(valueRefResolver) : Value.nullValue();
+    if (sourceValue.isUndefined()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    }
+    if (sourceValue.isNull()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+    }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
-      try {
-        return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
-      } catch (StringIndexOutOfBoundsException ex) {
-        throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
-      }
+      return internalEvaluate(sourceStr);
     }
     return Value.undefined();
+  }
+
+  private Value<String> internalEvaluate(String sourceStr) {
+    try {
+      return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
+    } catch (StringIndexOutOfBoundsException ex) {
+      throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
+    }
   }
 
   @Override

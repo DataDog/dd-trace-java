@@ -158,4 +158,21 @@ class StringsTest extends DDSpecification {
     ''                      | ''
     'zouzou@sansgluten.com' | '7A6F757A6F754073616E73676C7574656E2E636F6D'
   }
+
+  void 'test coalesce: #first - #second'() {
+    when:
+    def combined = Strings.coalesce(first, second)
+
+    then:
+    expected == combined
+
+    where:
+    first | second | expected
+    "a"   | "b"    | "a"
+    "a"   | null   | "a"
+    null  | "b"    | "b"
+    ""    | "b"    | "b"
+    null  | null   | null
+    ""    | ""     | null
+  }
 }

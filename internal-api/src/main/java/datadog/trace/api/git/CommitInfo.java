@@ -59,18 +59,18 @@ public class CommitInfo {
   }
 
   /**
-   * Merges info by completing the empty information fields with the fallback's
+   * Combine infos by completing the empty information fields in {@code first} with {@code second}'s
    *
-   * @param info Base commit info
-   * @param fallback Fallback commit info
-   * @return Completed commit info
+   * @param first Base commit info
+   * @param second Fallback commit info
+   * @return Combined commit info
    */
-  public static CommitInfo merge(CommitInfo info, CommitInfo fallback) {
+  public static CommitInfo coalesce(final CommitInfo first, final CommitInfo second) {
     return new CommitInfo(
-        Strings.isNotBlank(info.sha) ? info.sha : fallback.sha,
-        PersonInfo.merge(info.author, fallback.author),
-        PersonInfo.merge(info.committer, fallback.committer),
-        Strings.isNotBlank(info.fullMessage) ? info.fullMessage : fallback.fullMessage);
+        Strings.coalesce(first.sha, second.sha),
+        PersonInfo.coalesce(first.author, second.author),
+        PersonInfo.coalesce(first.committer, second.committer),
+        Strings.coalesce(first.fullMessage, second.fullMessage));
   }
 
   @Override

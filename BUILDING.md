@@ -69,10 +69,16 @@ Download and install JDK versions 8, 11, 17, 21 and 24, and GraalVM 17 for your 
   ```shell
   brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu graalvm/tap/graalvm-ce-java17
   ```
-* Fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
+* Identify your local version of GraalVM:
+  ```
+  ls /Library/Java/JavaVirtualMachines | grep graalvm
+  ```
+  Example: `graalvm-ce-java17-22.3.1`
+* Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
   ```
   sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>
   ```
+  Example: `/Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1`
 * Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
   ```shell
   export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home

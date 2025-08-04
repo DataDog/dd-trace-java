@@ -60,6 +60,7 @@ workflow:
       - "11"
       - "17"
       - "21"
+      - "25"
       - "stable"
       - "semeru11"
       - "oracle8"
@@ -254,7 +255,7 @@ build:
     CACHE_TYPE: lib
     DEPENDENCY_CACHE_POLICY: pull
   script:
-    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks; fi
+    - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
@@ -601,11 +602,12 @@ agent_integration_tests:
     GRADLE_TARGET: "traceAgentTest"
     CACHE_TYPE: "base"
   services:
-    - name: datadog/agent:7.34.0
+    - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
       alias: local-agent
       variables:
         DD_APM_ENABLED: "true"
         DD_BIND_HOST: "0.0.0.0"
+        DD_HOSTNAME: "local-agent"
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
 test_base:
