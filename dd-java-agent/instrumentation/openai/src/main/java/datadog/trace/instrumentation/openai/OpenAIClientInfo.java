@@ -10,10 +10,7 @@ public class OpenAIClientInfo {
   private String projectID;
   private String apiKey;
 
-  /**
-   * Creates an OpenAIClientInfo instance populated with relevant information from ClientOptions for
-   * use in span tags during tests and instrumentation
-   */
+  // This information will be used later to populate future LLMObs spans
   public static OpenAIClientInfo fromClientOptions(ClientOptions options) {
     if (options == null) {
       return null;
@@ -22,15 +19,12 @@ public class OpenAIClientInfo {
     OpenAIClientInfo info = new OpenAIClientInfo();
 
     try {
-      // Extract base URL
       info.setBaseURL(options.baseUrl());
 
-      // Extract organization ID if available
       if (options.organization().isPresent()) {
         info.setOrganizationID(options.organization().get());
       }
 
-      // Extract project ID if available
       if (options.project().isPresent()) {
         info.setProjectID(options.project().get());
       }
