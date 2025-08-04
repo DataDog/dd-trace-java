@@ -85,7 +85,6 @@ public class TelemetryService {
     this.debug = debug;
   }
 
-  // Old method for backward compatibility
   public boolean addConfiguration(Map<String, ConfigSetting> configuration) {
     for (ConfigSetting cs : configuration.values()) {
       extendedHeartbeatData.pushConfigSetting(cs);
@@ -96,7 +95,14 @@ public class TelemetryService {
     return true;
   }
 
-  // New method for the new collector structure
+  /**
+   * Adds all configuration settings from the provided map, grouped by their origin.
+   *
+   * @param configuration a map of configuration keys to a map of origins and their corresponding
+   *     settings
+   * @return {@code true} if all settings were successfully added, {@code false} if the queue is
+   *     full
+   */
   public boolean addConfigurationByOrigin(
       Map<String, Map<ConfigOrigin, ConfigSetting>> configuration) {
     for (Map<ConfigOrigin, ConfigSetting> settings : configuration.values()) {
