@@ -50,9 +50,10 @@ jobs:
           echo "::notice::Using Docker build image tag: ${TAG}"
       - name: Update the Docker build image in GitLab CI config
         run: |
-          sed -i '' -E 's|(BUILDER_IMAGE_VERSION_PREFIX:)[^#]*([#].*)|\1 "${{ steps.define-tag.outputs.tag }}-" \2|' .gitlab-ci.yml
-      - name: Commit changes
-        id: create-commit
+          sed -i -E 's|(BUILDER_IMAGE_VERSION_PREFIX:)[^#]*([#].*)|\1 "${{ steps.define-tag.outputs.tag }}-" \2|' .gitlab-ci.yml
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
