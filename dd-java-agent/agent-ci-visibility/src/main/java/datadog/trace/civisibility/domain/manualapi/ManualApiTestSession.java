@@ -11,7 +11,6 @@ import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import javax.annotation.Nullable;
 
 /**
@@ -60,6 +59,6 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         codeowners,
         linesResolver,
         coverageStoreFactory,
-        SpanUtils.propagateCiVisibilityTagsTo(span, tagPropagationLock));
+        tagPropagator::propagateCiVisibilityTags);
   }
 }

@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.utils;
+package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,38 +14,45 @@ import java.util.TreeSet;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 
-public class SpanUtils {
-  public static final Consumer<AgentSpan> DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS = span -> {};
+public class SpanTagsPropagator {
+  public static final Consumer<AgentSpan> NOOP_PROPAGATOR = span -> {};
 
-  public static Consumer<AgentSpan> propagateCiVisibilityTagsTo(
-      AgentSpan parentSpan, Object lock, String... additionalTags) {
-    return childSpan -> {
-      synchronized (lock) {
-        propagateCiVisibilityTags(parentSpan, childSpan);
-        if (additionalTags != null) {
-          propagateTags(parentSpan, childSpan, additionalTags);
-        }
+  private final AgentSpan parentSpan;
+  private final Object tagPropagationLock = new Object();
+
+  public SpanTagsPropagator(AgentSpan parentSpan) {
+    this.parentSpan = parentSpan;
+  }
+
+  public void propagateCiVisibilityTags(AgentSpan childSpan) {
+    mergeTestFrameworks(getFrameworks(childSpan));
+    propagateStatus(childSpan);
+  }
+
+  public void propagateStatus(AgentSpan childSpan) {
+    synchronized (tagPropagationLock) {
+      unsafePropagateStatus(childSpan);
+    }
+  }
+
+  public void mergeTestFrameworks(Collection<TestFramework> testFrameworks) {
+    synchronized (tagPropagationLock) {
+      unsafeMergeTestFrameworks(testFrameworks);
+    }
+  }
+
+  public void propagateTags(AgentSpan childSpan, TagMergeSpec<?>... specs) {
+    synchronized (tagPropagationLock) {
+      for (TagMergeSpec<?> spec : specs) {
+        unsafePropagateTag(childSpan, spec);
       }
-    };
+    }
   }
 
-  public static Consumer<AgentSpan> propagateStatusTo(AgentSpan parentSpan, Object lock) {
-    return childSpan -> {
-      synchronized (lock) {
-        propagateStatus(parentSpan, childSpan);
-      }
-    };
-  }
-
-  public static void propagateCiVisibilityTags(AgentSpan parentSpan, AgentSpan childSpan) {
-    mergeTestFrameworks(parentSpan, getFrameworks(childSpan));
-    propagateStatus(parentSpan, childSpan);
-  }
-
-  public static void mergeTestFrameworks(AgentSpan span, Collection<TestFramework> testFrameworks) {
-    Collection<TestFramework> spanFrameworks = getFrameworks(span);
-    Collection<TestFramework> merged = merge(spanFrameworks, testFrameworks);
-    setFrameworks(span, merged);
+  private void unsafeMergeTestFrameworks(Collection<TestFramework> childFrameworks) {
+    Collection<TestFramework> parentFrameworks = getFrameworks(parentSpan);
+    Collection<TestFramework> merged = merge(parentFrameworks, childFrameworks);
+    setFrameworks(merged);
   }
 
   static Collection<TestFramework> getFrameworks(AgentSpan span) {
@@ -64,7 +71,8 @@ public class SpanUtils {
       Iterator<String> versions =
           versionTag != null ? ((Collection<String>) versionTag).iterator() : null;
       while (names.hasNext()) {
-        frameworks.add(new TestFramework(names.next(), versions != null ? versions.next() : null));
+        String version = (versions != null && versions.hasNext()) ? versions.next() : null;
+        frameworks.add(new TestFramework(names.next(), version));
       }
 
     } else {
@@ -96,7 +104,7 @@ public class SpanUtils {
     return merged;
   }
 
-  private static void setFrameworks(AgentSpan span, Collection<TestFramework> frameworks) {
+  private void setFrameworks(Collection<TestFramework> frameworks) {
     if (frameworks.isEmpty()) {
       return;
     }
@@ -107,7 +115,7 @@ public class SpanUtils {
       if (framework.getVersion() != null) {
         tags.put(Tags.TEST_FRAMEWORK_VERSION, framework.getVersion());
       }
-      span.setAllTags(tags);
+      parentSpan.setAllTags(tags);
       return;
     }
     Collection<String> names = new ArrayList<>(frameworks.size());
@@ -119,10 +127,10 @@ public class SpanUtils {
     Map<String, Collection<String>> tags = new HashMap<>();
     tags.put(Tags.TEST_FRAMEWORK, names);
     tags.put(Tags.TEST_FRAMEWORK_VERSION, versions);
-    span.setAllTags(tags);
+    parentSpan.setAllTags(tags);
   }
 
-  private static void propagateStatus(AgentSpan parentSpan, AgentSpan childSpan) {
+  private void unsafePropagateStatus(AgentSpan childSpan) {
     TestStatus childStatus = (TestStatus) childSpan.getTag(Tags.TEST_STATUS);
     if (childStatus == null) {
       return;
@@ -148,25 +156,32 @@ public class SpanUtils {
     }
   }
 
-  public static void propagateTags(AgentSpan parentSpan, AgentSpan childSpan, String... tagNames) {
-    for (String tagName : tagNames) {
-      parentSpan.setTag(tagName, childSpan.getTag(tagName));
+  public static class TagMergeSpec<T> {
+    private final String tagKey;
+    private final BinaryOperator<T> mergeFunction;
+
+    TagMergeSpec(String tagKey, BinaryOperator<T> mergeFunction) {
+      this.tagKey = tagKey;
+      this.mergeFunction = mergeFunction;
+    }
+
+    public static <T> TagMergeSpec<T> of(String key, BinaryOperator<T> mergeFunction) {
+      return new TagMergeSpec<>(key, mergeFunction);
+    }
+
+    public static TagMergeSpec<Object> of(String tagKey) {
+      return new TagMergeSpec<>(tagKey, (parent, child) -> child);
     }
   }
 
-  public static <T> void propagateTag(AgentSpan parentSpan, AgentSpan childSpan, String tagName) {
-    propagateTag(parentSpan, childSpan, tagName, (p, c) -> c);
-  }
-
-  public static <T> void propagateTag(
-      AgentSpan parentSpan, AgentSpan childSpan, String tagName, BinaryOperator<T> mergeStrategy) {
-    T childTag = (T) childSpan.getTag(tagName);
+  private <T> void unsafePropagateTag(AgentSpan childSpan, TagMergeSpec<T> spec) {
+    T childTag = (T) childSpan.getTag(spec.tagKey);
     if (childTag != null) {
-      T parentTag = (T) parentSpan.getTag(tagName);
+      T parentTag = (T) parentSpan.getTag(spec.tagKey);
       if (parentTag == null) {
-        parentSpan.setTag(tagName, childTag);
+        parentSpan.setTag(spec.tagKey, childTag);
       } else {
-        parentSpan.setTag(tagName, mergeStrategy.apply(parentTag, childTag));
+        parentSpan.setTag(spec.tagKey, spec.mergeFunction.apply(parentTag, childTag));
       }
     }
   }

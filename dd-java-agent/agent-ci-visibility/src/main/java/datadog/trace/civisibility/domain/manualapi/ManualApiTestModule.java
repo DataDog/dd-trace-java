@@ -15,7 +15,6 @@ import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collections;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
@@ -81,6 +80,6 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         coverageStoreFactory,
         executionResults,
         Collections.emptyList(),
-        SpanUtils.propagateCiVisibilityTagsTo(span, tagPropagationLock));
+        tagsPropagator::propagateCiVisibilityTags);
   }
 }

@@ -46,7 +46,7 @@ public abstract class AbstractTestSession {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final LinesResolver linesResolver;
-  protected final Object tagPropagationLock = new Object();
+  protected final SpanTagsPropagator tagPropagator;
 
   public AbstractTestSession(
       String projectName,
@@ -94,6 +94,7 @@ public abstract class AbstractTestSession {
     }
 
     span = spanBuilder.start();
+    tagPropagator = new SpanTagsPropagator(span);
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);

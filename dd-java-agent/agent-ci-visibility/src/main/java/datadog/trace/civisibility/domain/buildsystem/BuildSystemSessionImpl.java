@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -35,7 +36,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -182,22 +182,17 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
 
   private void onModuleFinish(AgentSpan moduleSpan) {
     // multiple modules can finish in parallel
-    synchronized (tagPropagationLock) {
-      SpanUtils.propagateCiVisibilityTags(span, moduleSpan);
-
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_EARLY_FLAKE_ABORT_REASON);
-
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(
-          span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_TYPE);
-      SpanUtils.propagateTag(span, moduleSpan, Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum);
-      SpanUtils.propagateTag(span, moduleSpan, DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr);
-
-      SpanUtils.propagateTag(
-          span, moduleSpan, Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr);
-    }
+    tagPropagator.propagateCiVisibilityTags(moduleSpan);
+    tagPropagator.propagateTags(
+        moduleSpan,
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
+        TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
+        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
+        TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr));
   }
 
   @Override

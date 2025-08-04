@@ -30,7 +30,7 @@ public abstract class AbstractTestModule {
   protected final Codeowners codeowners;
   protected final LinesResolver linesResolver;
   private final Consumer<AgentSpan> onSpanFinish;
-  protected final Object tagPropagationLock = new Object();
+  protected final SpanTagsPropagator tagsPropagator;
 
   public AbstractTestModule(
       AgentSpanContext sessionSpanContext,
@@ -64,6 +64,7 @@ public abstract class AbstractTestModule {
     }
 
     span = spanBuilder.start();
+    tagsPropagator = new SpanTagsPropagator(span);
 
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);

@@ -30,7 +30,6 @@ import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -289,10 +288,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    synchronized (tagPropagationLock) {
-      // avoids desync between read and merging
-      SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
-    }
+    tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
 
     return AckResponse.INSTANCE;
   }

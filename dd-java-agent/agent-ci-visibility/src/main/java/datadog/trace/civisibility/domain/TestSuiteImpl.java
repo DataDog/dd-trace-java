@@ -24,7 +24,6 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -56,7 +55,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final boolean parallelized;
   private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
-  private final Object tagPropagationLock = new Object();
+  private final SpanTagsPropagator tagsPropagator;
 
   public TestSuiteImpl(
       AgentSpanContext moduleSpanContext,
@@ -107,6 +106,7 @@ public class TestSuiteImpl implements DDTestSuite {
     }
 
     span = spanBuilder.start();
+    tagsPropagator = new SpanTagsPropagator(span);
 
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SUITE);
@@ -265,6 +265,6 @@ public class TestSuiteImpl implements DDTestSuite {
         coverageStoreFactory,
         executionResults,
         capabilities,
-        SpanUtils.propagateStatusTo(span, tagPropagationLock));
+        tagsPropagator::propagateStatus);
   }
 }
