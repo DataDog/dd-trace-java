@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import javax.annotation.Nonnull;
 
 // backported from org.apache.maven:maven-artifact:3.9.9
 public class ComparableVersion implements Comparable<ComparableVersion> {
@@ -123,6 +124,11 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
 
   public int compareTo(ComparableVersion o) {
     return this.items.compareTo(o.items);
+  }
+
+  /** Checks if the version is in the range {@code [start, end)} */
+  public boolean isWithin(@Nonnull ComparableVersion start, @Nonnull ComparableVersion end) {
+    return compareTo(start) >= 0 && compareTo(end) < 0;
   }
 
   public String toString() {

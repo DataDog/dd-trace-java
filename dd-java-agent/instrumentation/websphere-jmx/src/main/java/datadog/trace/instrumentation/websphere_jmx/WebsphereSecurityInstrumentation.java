@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -24,7 +25,7 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
   public WebsphereSecurityInstrumentation() {
     super("websphere-jmx");
 
-    customBuilder = System.getProperty("javax.management.builder.initial");
+    customBuilder = SystemProperties.get("javax.management.builder.initial");
   }
 
   @Override
