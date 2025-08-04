@@ -27,7 +27,6 @@
 /internal-api/src/main/java/datadog/trace/api/sampling          @DataDog/apm-sdk-api-java
 /internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-api-java
 
-
 # @DataDog/apm-serverless
 /dd-trace-core/src/main/java/datadog/trace/lambda/ @DataDog/apm-serverless
 /dd-trace-core/src/test/groovy/datadog/trace/lambda/ @DataDog/apm-serverless
