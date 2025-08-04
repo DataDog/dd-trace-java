@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.utils;
 
+import datadog.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -77,7 +78,7 @@ public abstract class FileUtils {
       return path;
     }
 
-    return path.replaceFirst("^~", System.getProperty("user.home"));
+    return path.replaceFirst("^~", SystemProperties.getOrDefault("user.home", ""));
   }
 
   public static String toRealPath(String path) {

@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
@@ -47,9 +48,9 @@ public class JMXFetch {
     }
 
     if (!log.isDebugEnabled()
-        && System.getProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
+        && SystemProperties.get("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
       // Reduce noisiness of jmxfetch logging.
-      System.setProperty("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
+      SystemProperties.set("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
     }
 
     final String jmxFetchConfigDir = config.getJmxFetchConfigDir();
@@ -217,10 +218,11 @@ public class JMXFetch {
   }
 
   private static String getLogLocation() {
-    return System.getProperty("org.slf4j.simpleLogger.logFile", "System.err");
+    return SystemProperties.getOrDefault("org.slf4j.simpleLogger.logFile", "System.err");
   }
 
   private static String getLogLevel() {
-    return System.getProperty("org.slf4j.simpleLogger.defaultLogLevel", "info").toUpperCase();
+    return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
+        .toUpperCase();
   }
 }
