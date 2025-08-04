@@ -35,17 +35,25 @@ public class TimelineEvent extends Event {
       boolean cpuTimeSupported = threadMXBean.isThreadCpuTimeSupported();
       if (cpuTimeSupported) {
         // a trivial benchmark
-        final int iterations = 1_000;
+        final int iterations = 20_000;
         long ts = System.nanoTime();
         long sum = 0;
         for (int i = 0; i < iterations; ++i) {
           sum += threadMXBean.getThreadCpuTime(Thread.currentThread().getId());
+          if (i % 1_000 == 0) {
+            // sanity test to bail out quickly if the call to get thread cpu time is unexpectedly slow
+            if (System.nanoTime() - ts > 500_000_000L) {
+              log.warn("Obtaining thread CPU time is exceptionally slow. Disabling.");
+              cpuTimeSupported = false;
+              break;
+            }
+          }
         }
         double avg = (System.nanoTime() - ts) / (double) iterations;
         // This, practically, will always be true; we just need to make sure JIT does not optimize
         // the summing code away
         if (sum > 0) {
-          cpuTimeSupported = avg < 5_000; // less than 5us for getting thread cpu time sounds fair
+          cpuTimeSupported = avg < 1_000; // less than 5us for getting thread cpu time sounds fair
         }
         log.debug(
             SEND_TELEMETRY,
@@ -75,7 +83,7 @@ public class TimelineEvent extends Event {
       this.event = new TimelineEvent(localRootSpanId, spanId, operation);
       this.cpuTimeThreshold =
           isThreadCpuTimeSupported
-              ? threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) + 1_000_000L
+              ? threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) + 5_000_000L
               : -1;
       this.marker = JFRAccess.instance().getThreadWriterPosition();
       this.event.begin();
@@ -86,18 +94,18 @@ public class TimelineEvent extends Event {
 
     @Override
     public void close() {
-//      long end = JFRAccess.instance().getThreadWriterPosition();
-//      boolean writeEvent = end != marker;
-//      if (!writeEvent && isThreadCpuTimeSupported) {
-//        timeChecks.increment();
-//        writeEvent = threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) >= cpuTimeThreshold;
-//      }
-//      if (writeEvent) {
+      long end = JFRAccess.instance().getThreadWriterPosition();
+      boolean writeEvent = end != marker;
+      if (!writeEvent && isThreadCpuTimeSupported) {
+        timeChecks.increment();
+        writeEvent = threadMXBean.getThreadCpuTime(Thread.currentThread().getId()) >= cpuTimeThreshold;
+      }
+      if (writeEvent) {
         event.close();
         writtenEvents.increment();
-//      } else {
-//        droppedEvents.increment();
-//      }
+      } else {
+        droppedEvents.increment();
+      }
       inflight.decrement();
     }
 
