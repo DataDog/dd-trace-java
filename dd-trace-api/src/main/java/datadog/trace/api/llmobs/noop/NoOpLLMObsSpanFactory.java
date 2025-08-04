@@ -39,7 +39,8 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
   public LLMObsSpan startEmbeddingSpan(
       String spanName,
       @Nullable String mlApp,
-      @Nullable String mlProvider,
+      @Nullable String modelProvider,
+      @Nullable String modelName,
       @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }

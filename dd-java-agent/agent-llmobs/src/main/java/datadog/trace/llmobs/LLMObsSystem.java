@@ -193,15 +193,17 @@ public class LLMObsSystem {
     public LLMObsSpan startEmbeddingSpan(
         String spanName,
         @Nullable String mlApp,
-        @Nullable String mlProvider,
+        @Nullable String modelProvider,
+        @Nullable String modelName,
         @Nullable String sessionId) {
-      if (mlProvider == null) {
-        mlProvider = "custom";
+      if (modelProvider == null) {
+        modelProvider = "custom";
       }
       DDLLMObsSpan embeddingSpan =
           new DDLLMObsSpan(
               Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName);
-      embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, mlProvider);
+      embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
+      embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
       return embeddingSpan;
     }
 
