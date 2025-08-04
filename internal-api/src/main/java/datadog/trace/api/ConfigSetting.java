@@ -11,6 +11,7 @@ public final class ConfigSetting {
   public final String key;
   public final Object value;
   public final ConfigOrigin origin;
+  /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
 
   private static final Set<String> CONFIG_FILTER_LIST =
@@ -108,7 +109,7 @@ public final class ConfigSetting {
     return key.equals(that.key)
         && Objects.equals(value, that.value)
         && origin == that.origin
-        && configId.equals(that.configId);
+        && Objects.equals(configId, that.configId);
   }
 
   @Override
