@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty9;
 
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
@@ -25,8 +26,7 @@ import org.slf4j.LoggerFactory;
  * </code> is replaced with: <code>
  *   case REQUEST_DISPATCH:
  *   // ...
- *   if (span != null && span.getBlockingAction() != null &&
- *       JettyBlockingHelper.block(this.getRequest(), this.getResponse())) {
+ *   if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), context)) {
  *     // nothing
  *   } else {
  *     getServer().handle(this);
@@ -82,7 +82,7 @@ public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
 
   private boolean lookForStore;
-  private int agentSpanVar = -1;
+  private int contextVar = -1;
   private boolean success;
   private final String methodName;
 
@@ -98,12 +98,13 @@ public class HandleVisitor extends MethodVisitor {
   @Override
   public void visitMethodInsn(
       int opcode, String owner, String name, String descriptor, boolean isInterface) {
-    if (agentSpanVar == -1) {
+    if (contextVar == -1) {
       lookForStore =
           !lookForStore
               && opcode == Opcodes.INVOKEVIRTUAL
               && name.equals("startSpan")
-              && descriptor.endsWith("Ldatadog/trace/bootstrap/instrumentation/api/AgentSpan;");
+              && descriptor.endsWith("Ldatadog.context.Context;");
+              && descriptor.endsWith("Ldatadog/context/Context;");
     } else if (!success
         && opcode == Opcodes.INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
@@ -124,24 +125,8 @@ public class HandleVisitor extends MethodVisitor {
         return;
       }
 
-      Label doBlockLabel = new Label();
-      Label beforeHandle = new Label();
       Label afterHandle = new Label();
 
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
-      super.visitJumpInsn(Opcodes.IFNULL, beforeHandle);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
-      super.visitMethodInsn(
-          Opcodes.INVOKEINTERFACE,
-          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "getRequestBlockingAction",
-          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-          true);
-      super.visitJumpInsn(Opcodes.IFNONNULL, doBlockLabel);
-      super.visitJumpInsn(Opcodes.GOTO, beforeHandle);
-
-      super.visitLabel(doBlockLabel);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
       super.visitVarInsn(Opcodes.ALOAD, 0);
       super.visitMethodInsn(
           Opcodes.INVOKEVIRTUAL,
@@ -156,27 +141,17 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
-      super.visitMethodInsn(
-          Opcodes.INVOKEINTERFACE,
-          "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
-          "getRequestBlockingAction",
-          "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
-          true);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitVarInsn(Opcodes.ALOAD, contextVar);
       super.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              + Type.getDescriptor(Flow.Action.RequestBlockingAction.class)
-              + Type.getDescriptor(AgentSpan.class)
+              + Type.getDescriptor(Context.class)
               + ")Z",
           false);
       super.visitJumpInsn(Opcodes.IFNE, afterHandle);
 
-      super.visitLabel(beforeHandle);
-      super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
       mv.commitVisitations(savedVisitations);
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       super.visitLabel(afterHandle);
@@ -214,9 +189,9 @@ public class HandleVisitor extends MethodVisitor {
       Label beforeRegularDispatch = new Label();
       Label afterRegularDispatch = new Label();
 
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitVarInsn(Opcodes.ALOAD, contextVar);
       super.visitJumpInsn(Opcodes.IFNULL, beforeRegularDispatch);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitVarInsn(Opcodes.ALOAD, contextVar);
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
@@ -248,14 +223,14 @@ public class HandleVisitor extends MethodVisitor {
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
           false);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitVarInsn(Opcodes.ALOAD, contextVar);
       super.visitMethodInsn(
           Opcodes.INVOKEINTERFACE,
           "datadog/trace/bootstrap/instrumentation/api/AgentSpan",
           "getRequestBlockingAction",
           "()" + Type.getDescriptor(Flow.Action.RequestBlockingAction.class),
           true);
-      super.visitVarInsn(Opcodes.ALOAD, agentSpanVar);
+      super.visitVarInsn(Opcodes.ALOAD, contextVar);
 
       // create the lambda
       super.visitInvokeDynamicInsn(
@@ -337,7 +312,7 @@ public class HandleVisitor extends MethodVisitor {
   @Override
   public void visitVarInsn(int opcode, int varIndex) {
     if (lookForStore && opcode == Opcodes.ASTORE) {
-      agentSpanVar = varIndex;
+      contextVar = varIndex;
       lookForStore = false;
     }
 
