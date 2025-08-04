@@ -13,6 +13,8 @@ public final class ConfigSetting {
   public final ConfigOrigin origin;
   public final int seqId;
 
+  public static final int DEFAULT_SEQ_ID = 1;
+
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));

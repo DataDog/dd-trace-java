@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.api.ConfigSetting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -85,6 +86,7 @@ public final class ConfigProvider {
     return getString(key, null);
   }
 
+  // TODO: Change this logic too
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
     String value = getString(key);
     if (null != value) {
@@ -94,24 +96,22 @@ public final class ConfigProvider {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
     }
-    if (collectConfig) {
-      String valueStr = defaultValue == null ? null : defaultValue.name();
-      ConfigCollector.get().put(key, valueStr, ConfigOrigin.DEFAULT);
-    }
     return defaultValue;
   }
 
   public String getString(String key, String defaultValue, String... aliases) {
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID;
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
     String value = null;
     for (ConfigProvider.Source source : sources) {
+      seqId++;
       String tmp = source.get(key, aliases);
       if (tmp != null) {
         value = tmp;
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get().put(key, value, source.origin(), seqId);
         }
       }
     }
@@ -123,21 +123,20 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID;
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
     String value = null;
     for (ConfigProvider.Source source : sources) {
+      seqId++;
       String tmp = source.get(key, aliases);
       if (tmp != null && !tmp.trim().isEmpty()) {
         value = tmp;
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get().put(key, value, source.origin(), seqId);
         }
       }
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return value != null ? value : defaultValue;
   }
@@ -147,25 +146,23 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID;
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
     String value = null;
     for (ConfigProvider.Source source : sources) {
       if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
-
+      seqId++;
       String tmp = source.get(key, aliases);
       if (tmp != null) {
         value = tmp;
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get().put(key, value, source.origin(), seqId);
         }
       }
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return value != null ? value : defaultValue;
   }
@@ -228,26 +225,25 @@ public final class ConfigProvider {
   }
 
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID;
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT, seqId);
     }
     T value = null;
     for (ConfigProvider.Source source : sources) {
       try {
+        seqId++;
         String sourceValue = source.get(key, aliases);
         T tmp = ConfigConverter.valueOf(sourceValue, type);
         if (tmp != null) {
           value = tmp;
           if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue, source.origin());
+            ConfigCollector.get().put(key, sourceValue, source.origin(), seqId);
           }
         }
       } catch (NumberFormatException ex) {
         // continue
       }
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return value != null ? value : defaultValue;
   }
@@ -257,8 +253,10 @@ public final class ConfigProvider {
   }
 
   public List<String> getList(String key, List<String> defaultValue) {
+    // Do we need this, if getString will already report the default?
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get()
+          .put(key, defaultValue, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
     }
     String list = getString(key);
     if (null == list) {
@@ -269,8 +267,10 @@ public final class ConfigProvider {
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
+    // Do we need this, if getString will already report the default?
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get()
+          .put(key, defaultValue, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
     }
     String list = getString(key);
     if (null == list) {
@@ -286,7 +286,8 @@ public final class ConfigProvider {
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    ConfigOrigin origin = null;
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID + 1;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -297,21 +298,28 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         origin = source.origin();
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin);
+          ConfigCollector.get().put(key, parsedMap, origin, seqId);
         }
       }
       merged.putAll(parsedMap);
+      seqId++;
     }
     if (collectConfig) {
-      // TO DISCUSS: But if multiple sources have been set, origin isn't exactly accurate here...?
-      ConfigCollector.get().put(key, merged, origin);
+      if (origin != null) {
+        // TO DISCUSS: But if multiple sources have been set, origin isn't exactly accurate here...?
+        ConfigCollector.get().put(key, merged, origin, seqId);
+      } else {
+        ConfigCollector.get()
+            .put(key, new HashMap<>(), ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
+      }
     }
     return merged;
   }
 
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    ConfigOrigin origin = null;
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID + 1;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -323,20 +331,26 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         origin = source.origin();
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin);
+          ConfigCollector.get().put(key, parsedMap, origin, seqId);
         }
       }
       merged.putAll(parsedMap);
+      seqId++;
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      if (origin != null) {
+        ConfigCollector.get().put(key, merged, origin, seqId);
+      } else {
+        ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
+      }
     }
     return merged;
   }
 
   public Map<String, String> getOrderedMap(String key) {
     LinkedHashMap<String, String> merged = new LinkedHashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    ConfigOrigin origin = null;
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID + 1;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -347,13 +361,18 @@ public final class ConfigProvider {
       if (!parsedMap.isEmpty()) {
         origin = source.origin();
         if (collectConfig) {
-          ConfigCollector.get().put(key, parsedMap, origin);
+          ConfigCollector.get().put(key, parsedMap, origin, seqId);
         }
       }
       merged.putAll(parsedMap);
+      seqId++;
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin);
+      if (origin != null) {
+        ConfigCollector.get().put(key, merged, origin, seqId);
+      } else {
+        ConfigCollector.get().put(key, merged, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
+      }
     }
     return merged;
   }
@@ -361,7 +380,8 @@ public final class ConfigProvider {
   public Map<String, String> getMergedMapWithOptionalMappings(
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
     Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
+    ConfigOrigin origin = null;
+    int seqId = ConfigSetting.DEFAULT_SEQ_ID + 1;
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -374,13 +394,19 @@ public final class ConfigProvider {
         if (!parsedMap.isEmpty()) {
           origin = source.origin();
           if (collectConfig) {
-            ConfigCollector.get().put(key, parsedMap, origin);
+            ConfigCollector.get().put(key, parsedMap, origin, seqId);
           }
         }
         merged.putAll(parsedMap);
+        seqId++;
       }
       if (collectConfig) {
-        ConfigCollector.get().put(key, merged, origin);
+        if (origin != null) {
+          ConfigCollector.get().put(key, merged, origin, seqId);
+        } else {
+          ConfigCollector.get()
+              .put(key, merged, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
+        }
       }
     }
     return merged;
@@ -396,7 +422,8 @@ public final class ConfigProvider {
       log.warn("Invalid configuration for {}", key, e);
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      ConfigCollector.get()
+          .put(key, defaultValue, ConfigOrigin.DEFAULT, ConfigSetting.DEFAULT_SEQ_ID);
     }
     return defaultValue;
   }
