@@ -5,7 +5,6 @@ import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
-import datadog.trace.api.config.AppSecConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -130,15 +129,8 @@ public final class ConfigProvider {
     String value = null;
     for (ConfigProvider.Source source : sources) {
       String tmp = source.get(key, aliases);
-      if (key.equals(AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING)) {
-        System.out.println("MTOFF - source: " + source.getClass().getSimpleName() + " tmp: " + tmp);
-      }
       if (tmp != null && !tmp.trim().isEmpty()) {
         value = tmp;
-        if (key.equals(AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING)) {
-          System.out.println(
-              "MTOFF - source: " + source.getClass().getSimpleName() + " value: " + value);
-        }
         if (collectConfig) {
           ConfigCollector.get().put(key, value, source.origin());
         }
