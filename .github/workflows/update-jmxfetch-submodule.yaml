@@ -24,10 +24,6 @@ jobs:
       - name: Update Submodule
         run: |
           git submodule update --remote -- dd-java-agent/agent-jmxfetch/integrations-core
-      - name: Download ghcommit CLI
-        run: |
-          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
-          chmod +x /usr/local/bin/ghcommit
       - name: Pick a branch name
         id: define-branch
         run: echo "branch=ci/update-jmxfetch-submodule-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
