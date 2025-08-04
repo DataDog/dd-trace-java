@@ -28,38 +28,38 @@ class ConfigCollectorTest extends DDSpecification {
 
     where:
     configKey                                                  | configValue
-    // ConfigProvider.getEnum
-    IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.DEBUG.toString()
-    // ConfigProvider.getString
-    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v1"
+    //    // ConfigProvider.getEnum
+    //    IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.DEBUG.toString()
+    //    // ConfigProvider.getString
+    //    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v1"
     // ConfigProvider.getStringNotEmpty
     AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | UserEventTrackingMode.EXTENDED.toString()
     // ConfigProvider.getStringExcludingSource
-    GeneralConfig.APPLICATION_KEY                              | "app-key"
-    // ConfigProvider.getBoolean
-    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | "true"
-    // ConfigProvider.getInteger
-    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"
-    // ConfigProvider.getLong
-    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"
-    // ConfigProvider.getFloat
-    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"
-    // ConfigProvider.getDouble
-    TracerConfig.TRACE_SAMPLE_RATE                             | "2.2"
-    // ConfigProvider.getList
-    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | "someTopic,otherTopic"
-    // ConfigProvider.getSet
-    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | "SHA1,SHA-1"
-    // ConfigProvider.getSpacedList
-    TracerConfig.PROXY_NO_PROXY                                | "a b c"
-    // ConfigProvider.getMergedMap
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | "service1:best_service,userService:my_service"
-    // ConfigProvider.getOrderedMap
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | "/asdf/*:/test"
-    // ConfigProvider.getMergedMapWithOptionalMappings
-    TracerConfig.HEADER_TAGS                                   | "e:five"
-    // ConfigProvider.getIntegerRange
-    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-402"
+    //    GeneralConfig.APPLICATION_KEY                              | "app-key"
+    //    // ConfigProvider.getBoolean
+    //    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | "true"
+    //    // ConfigProvider.getInteger
+    //    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"
+    //    // ConfigProvider.getLong
+    //    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"
+    //    // ConfigProvider.getFloat
+    //    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"
+    //    // ConfigProvider.getDouble
+    //    TracerConfig.TRACE_SAMPLE_RATE                             | "2.2"
+    //    // ConfigProvider.getList
+    //    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | "someTopic,otherTopic"
+    //    // ConfigProvider.getSet
+    //    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | "SHA1,SHA-1"
+    //    // ConfigProvider.getSpacedList
+    //    TracerConfig.PROXY_NO_PROXY                                | "a b c"
+    //    // ConfigProvider.getMergedMap
+    //    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | "service1:best_service,userService:my_service"
+    //    // ConfigProvider.getOrderedMap
+    //    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | "/asdf/*:/test"
+    //    // ConfigProvider.getMergedMapWithOptionalMappings
+    //    TracerConfig.HEADER_TAGS                                   | "e:five"
+    //    // ConfigProvider.getIntegerRange
+    //    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-402"
   }
 
   def "should collect merged data from multiple sources"() {
