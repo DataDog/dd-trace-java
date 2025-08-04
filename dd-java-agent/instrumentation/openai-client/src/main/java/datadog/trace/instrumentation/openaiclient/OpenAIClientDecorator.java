@@ -19,7 +19,9 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class OpenAIClientDecorator extends ClientDecorator {
@@ -126,7 +128,7 @@ public class OpenAIClientDecorator extends ClientDecorator {
       llmObsSpan.annotateIO(inputData.toString(), null); // No output yet, will be set in response
     }
 
-    java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+    Map<String, Object> metadata = new HashMap<>();
     metadata.put("endpoint", "/chat/completions");
     metadata.put("provider", "openai");
     metadata.put("model", modelName);
@@ -144,7 +146,7 @@ public class OpenAIClientDecorator extends ClientDecorator {
     try {
       if (throwable != null) {
         // Set error information
-        java.util.Map<String, Object> errorMetadata = new java.util.HashMap<>();
+        Map<String, Object> errorMetadata = new HashMap<>();
         errorMetadata.put("error.type", throwable.getClass().getSimpleName());
         errorMetadata.put("error.message", throwable.getMessage());
         llmObsSpan.setMetadata(errorMetadata);
@@ -186,13 +188,13 @@ public class OpenAIClientDecorator extends ClientDecorator {
         if (outputData.length() > 0) {
           llmObsSpan.annotateIO(null, outputData.toString());
         }
-        java.util.Map<String, Object> responseMetadata = new java.util.HashMap<>();
+        Map<String, Object> responseMetadata = new HashMap<>();
         responseMetadata.put("response.choices_count", choices.size());
 
         llmObsSpan.setMetadata(responseMetadata);
       }
     } catch (Exception e) {
-      java.util.Map<String, Object> errorMetadata = new java.util.HashMap<>();
+      Map<String, Object> errorMetadata = new HashMap<>();
       errorMetadata.put("error.type", "ResponseProcessingError");
       errorMetadata.put("error.message", "Failed to process response: " + e.getMessage());
       llmObsSpan.setMetadata(errorMetadata);
