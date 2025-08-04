@@ -10,7 +10,9 @@ import com.google.auto.service.AutoService;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -21,6 +23,11 @@ public class EmbeddingServiceInstrumentation extends InstrumenterModule.Tracing
 
   public EmbeddingServiceInstrumentation() {
     super("openai", "openai-java");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("openai"), false);
   }
 
   @Override

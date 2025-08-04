@@ -10,6 +10,9 @@ import com.openai.models.completions.CompletionCreateParams;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
+import datadog.trace.api.Config;
+import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -20,6 +23,8 @@ import java.util.List;
 import java.util.Optional;
 
 public class OpenAIClientDecorator extends ClientDecorator {
+  private static final String mlApp = Config.get().getLlmObsMlApp();
+  private static final String mlProvider = "openai";
   private static final String COMPONENT_NAME = "openai";
   private static final UTF8BytesString OPENAI_REQUEST = UTF8BytesString.create("openai.request");
 
@@ -42,14 +47,14 @@ public class OpenAIClientDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return null; // Use default service name
+    return null;
   }
 
   public AgentScope startChatCompletionSpan(ChatCompletionCreateParams params) {
     AgentSpan span = startSpan(OPENAI_REQUEST);
     span.setTag("openai.request.endpoint", "/chat/completions");
     span.setResourceName("chat.completions.create");
-    span.setTag("openai.provider", "openai");
+    span.setTag("openai.request.provider", "openai");
     extractChatCompletionRequestData(span, params);
     afterStart(span);
     return activateSpan(span);
@@ -59,7 +64,7 @@ public class OpenAIClientDecorator extends ClientDecorator {
     AgentSpan span = startSpan(OPENAI_REQUEST);
     span.setTag("openai.request.endpoint", "/chat/completions");
     span.setResourceName("chat.completions.create");
-    span.setTag("openai.provider", "openai");
+    span.setTag("openai.request.provider", "openai");
     extractChatCompletionRequestData(span, params);
     afterStart(span);
     return activateSpan(span);
@@ -88,6 +93,115 @@ public class OpenAIClientDecorator extends ClientDecorator {
     return activateSpan(span);
   }
 
+  public LLMObsSpan startLLMObsChatCompletionSpan(ChatCompletionCreateParams params) {
+    String modelName = params.model().toString();
+
+    LLMObsSpan llmObsSpan =
+        LLMObs.startLLMSpan("chat_completion", modelName, mlProvider, mlApp, null);
+
+    // Extract and set input data from chat completion params
+    // May need to be reformatted
+    StringBuilder inputData = new StringBuilder();
+    List<ChatCompletionMessageParam> messages = params.messages();
+    for (int i = 0; i < messages.size(); i++) {
+      ChatCompletionMessageParam messageParam = messages.get(i);
+      if (i > 0) {
+        inputData.append(" | ");
+      }
+
+      if (messageParam.isUser()) {
+        inputData.append("User: ").append(messageParam.asUser().content());
+      } else if (messageParam.isAssistant()) {
+        inputData.append("Assistant: ").append(messageParam.asAssistant().content());
+      } else if (messageParam.isDeveloper()) {
+        inputData.append("Developer: ").append(messageParam.asDeveloper().content());
+      } else if (messageParam.isSystem()) {
+        inputData.append("System: ").append(messageParam.asSystem().content());
+      } else if (messageParam.isTool()) {
+        inputData.append("Tool: ").append(messageParam.asTool().content());
+      }
+    }
+
+    if (inputData.length() > 0) {
+      llmObsSpan.annotateIO(inputData.toString(), null); // No output yet, will be set in response
+    }
+
+    java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+    metadata.put("endpoint", "/chat/completions");
+    metadata.put("provider", "openai");
+    metadata.put("model", modelName);
+
+    params.maxTokens().ifPresent(tokens -> metadata.put("max_tokens", tokens));
+    params.temperature().ifPresent(temp -> metadata.put("temperature", temp));
+
+    llmObsSpan.setMetadata(metadata);
+
+    return llmObsSpan;
+  }
+
+  public void finishLLMObsChatCompletionSpan(
+      LLMObsSpan llmObsSpan, ChatCompletion response, Throwable throwable) {
+    try {
+      if (throwable != null) {
+        // Set error information
+        java.util.Map<String, Object> errorMetadata = new java.util.HashMap<>();
+        errorMetadata.put("error.type", throwable.getClass().getSimpleName());
+        errorMetadata.put("error.message", throwable.getMessage());
+        llmObsSpan.setMetadata(errorMetadata);
+      } else if (response != null) {
+        StringBuilder outputData = new StringBuilder();
+        List<ChatCompletion.Choice> choices = response.choices();
+
+        for (int i = 0; i < choices.size(); i++) {
+          ChatCompletion.Choice choice = choices.get(i);
+          ChatCompletionMessage message = choice.message();
+
+          if (i > 0) {
+            outputData.append(" | ");
+          }
+
+          // Extract content
+          Optional<String> content = message.content();
+          content.ifPresent(s -> outputData.append("Assistant: ").append(s));
+
+          // Extract tool calls if present
+          Optional<List<ChatCompletionMessageToolCall>> toolCalls = message.toolCalls();
+          if (toolCalls.isPresent() && !toolCalls.get().isEmpty()) {
+            content.ifPresent(s -> outputData.append(" | "));
+            outputData.append("Tool calls: ");
+            for (int j = 0; j < toolCalls.get().size(); j++) {
+              ChatCompletionMessageToolCall call = toolCalls.get().get(j);
+              if (j > 0) {
+                outputData.append(", ");
+              }
+              outputData
+                  .append(call.function().name())
+                  .append("(")
+                  .append(call.function().arguments())
+                  .append(")");
+            }
+          }
+        }
+
+        if (outputData.length() > 0) {
+          llmObsSpan.annotateIO(null, outputData.toString());
+        }
+        java.util.Map<String, Object> responseMetadata = new java.util.HashMap<>();
+        responseMetadata.put("response.choices_count", choices.size());
+
+        llmObsSpan.setMetadata(responseMetadata);
+      }
+    } catch (Exception e) {
+      java.util.Map<String, Object> errorMetadata = new java.util.HashMap<>();
+      errorMetadata.put("error.type", "ResponseProcessingError");
+      errorMetadata.put("error.message", "Failed to process response: " + e.getMessage());
+      llmObsSpan.setMetadata(errorMetadata);
+    } finally {
+      // Always finish the span
+      llmObsSpan.finish();
+    }
+  }
+
   public void finishSpan(AgentScope scope, Object result, Throwable throwable) {
 
     AgentSpan span = scope.span();
@@ -107,8 +221,6 @@ public class OpenAIClientDecorator extends ClientDecorator {
 
   private void extractChatCompletionRequestData(AgentSpan span, ChatCompletionCreateParams params) {
 
-    // Extract model
-
     span.setTag("openai.model.name", params.model().toString());
 
     // Extract messages
@@ -124,11 +236,7 @@ public class OpenAIClientDecorator extends ClientDecorator {
 
   private void extractCompletionRequestData(
       AgentSpan span, CompletionCreateParams completionParams) {
-    // Extract model
-    CompletionCreateParams.Model model = completionParams.model();
-    if (model != null) {
-      span.setTag("openai.model.name", model.toString());
-    }
+    span.setTag("openai.model.name", completionParams.model().toString());
 
     // Extract prompt
     Optional<CompletionCreateParams.Prompt> prompt = completionParams.prompt();
@@ -156,18 +264,13 @@ public class OpenAIClientDecorator extends ClientDecorator {
 
   private void extractEmbeddingRequestData(AgentSpan span, EmbeddingCreateParams embeddingParams) {
 
-    // Extract model
-    Object model = embeddingParams.model();
-    if (model != null) {
-      span.setTag("openai.model.name", model.toString());
-    }
-
+    span.setTag("openai.model.name", embeddingParams.model().toString());
     // Extract input
     EmbeddingCreateParams.Input input = embeddingParams.input();
     int inputIndex = 0;
     List<String> inputStrings = input.asArrayOfStrings();
     for (String inputItem : inputStrings) {
-      span.setTag("openai.request.input." + inputIndex, input.asString());
+      span.setTag("openai.request.input." + inputIndex, inputItem);
       inputIndex++;
     }
   }
@@ -205,25 +308,19 @@ public class OpenAIClientDecorator extends ClientDecorator {
 
   private void extractChatCompletionParameters(AgentSpan span, ChatCompletionCreateParams params) {
     // Extract max_tokens
-    Optional<Long> maxTokens = params.maxTokens();
-    maxTokens.ifPresent(tokens -> span.setTag("openai.request.max_tokens", tokens));
+    params
+        .maxCompletionTokens()
+        .ifPresent(tokens -> span.setTag("openai.request.max_tokens", tokens));
 
     // Extract temperature
-    Optional<Double> temperature = params.temperature();
-    temperature.ifPresent(temp -> span.setTag("openai.request.temperature", temp));
+    params.temperature().ifPresent(temp -> span.setTag("openai.request.temperature", temp));
   }
 
   private void extractCompletionParameters(AgentSpan span, CompletionCreateParams params) {
     // Extract max_tokens
-    if (params.maxTokens().isPresent()) {
-      span.setTag("openai.request.max_tokens", params.maxTokens().get());
-    }
-
+    params.maxTokens().ifPresent(tokens -> span.setTag("openai.request.max_tokens", tokens));
     // Extract temperature
-    Optional<Double> temperature = params.temperature();
-    if (temperature.isPresent()) {
-      span.setTag("openai.request.temperature", temperature.get());
-    }
+    params.temperature().ifPresent(temp -> span.setTag("openai.request.temperature", temp));
   }
 
   private void extractResponseData(AgentSpan span, Object result) {

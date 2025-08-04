@@ -9,8 +9,10 @@ import com.openai.models.completions.CompletionCreateParams;
 import com.openai.services.blocking.CompletionService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -21,6 +23,11 @@ public class CompletionServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public CompletionServiceInstrumentation() {
     super("openai-client");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("openai"), false);
   }
 
   @Override

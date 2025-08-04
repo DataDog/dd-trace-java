@@ -10,7 +10,9 @@ import com.openai.services.blocking.EmbeddingService;
 import com.openai.services.blocking.chat.ChatCompletionService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -19,6 +21,11 @@ public class OpenAIClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public OpenAIClientInstrumentation() {
     super("openai-client");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("openai"), false);
   }
 
   @Override
@@ -60,6 +67,7 @@ public class OpenAIClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final OpenAIClientImpl client,
         @Advice.Argument(0) final ClientOptions options,
         @Advice.Thrown final Throwable throwable) {
+      // This information will be used later to populate future LLMObs spans
       OpenAIClientInfo info = OpenAIClientInfo.fromClientOptions(options);
       if (info != null) {
         InstrumentationContext.get(CompletionService.class, OpenAIClientInfo.class)

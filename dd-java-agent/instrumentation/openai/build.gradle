@@ -8,8 +8,6 @@ muzzle {
 }
 
 // Instrumentation is currently in preview. Additional testing will be implemented before enabling this by default.
-//minimumBranchCoverage = 0.0
-//minimumInstructionCoverage = 0.0
 
 apply from: "$rootDir/gradle/java.gradle"
 

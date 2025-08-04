@@ -97,6 +97,7 @@ import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaHandler;
+import datadog.trace.llmobs.LLMObsSystem;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -788,6 +789,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
+
+    if (config.isLlmObsEnabled()) {
+      LLMObsSystem.start(null, sharedCommunicationObjects);
+    }
 
     // Register context propagators
     HttpCodec.Extractor tracingExtractor =
