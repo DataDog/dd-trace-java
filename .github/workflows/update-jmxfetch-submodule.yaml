@@ -24,6 +24,10 @@ jobs:
       - name: Pick a branch name
         id: define-branch
         run: echo "branch=ci/update-jmxfetch-submodule-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+      - name: Create branch
+        run: |
+          git checkout -b ${{ steps.define-branch.outputs.branch }}
+          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
