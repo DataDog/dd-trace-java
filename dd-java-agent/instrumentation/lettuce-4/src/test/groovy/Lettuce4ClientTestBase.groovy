@@ -3,11 +3,14 @@ import com.lambdaworks.redis.RedisClient
 import com.lambdaworks.redis.api.StatefulConnection
 import com.lambdaworks.redis.api.async.RedisAsyncCommands
 import com.lambdaworks.redis.api.sync.RedisCommands
+import com.sun.management.HotSpotDiagnosticMXBean
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
+import javax.management.MBeanServer
+import java.lang.management.ManagementFactory
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
@@ -122,8 +125,13 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
     }
 
     void start() {
+      new File(outputDir, "${System.currentTimeMillis()}-start-mark.txt") << testName
+      heapDump("initial")
+
       task = scheduler.scheduleAtFixedRate({
-        def reportFile = new File(outputDir, "thread-dump-${System.currentTimeMillis()}.log")
+        heapDump("test")
+
+        def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
         try (def writer = new FileWriter(reportFile)) {
           writer.write("=== Test: ${testName} ===\n")
           writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
@@ -133,7 +141,15 @@ abstract class Lettuce4ClientTestBase extends VersionedNamingTestBase {
           }
           writer.write("==============================================\n")
         }
-      }, 10001, 60000, TimeUnit.MILLISECONDS)
+      }, 10000, 60000, TimeUnit.MILLISECONDS)
+    }
+
+    void heapDump(String kind) {
+      def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer()
+      HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
+      server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
+      mxBean.dumpHeap(heapDumpFile, true)
     }
 
     void stop() {

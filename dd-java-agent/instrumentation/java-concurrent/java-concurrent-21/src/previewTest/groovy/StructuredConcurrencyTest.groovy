@@ -1,6 +1,9 @@
+import com.sun.management.HotSpotDiagnosticMXBean
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 
+import javax.management.MBeanServer
+import java.lang.management.ManagementFactory
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -207,8 +210,13 @@ class StructuredConcurrencyTest extends AgentTestRunner {
     }
 
     void start() {
+      new File(outputDir, "${System.currentTimeMillis()}-start-mark.txt") << testName
+      heapDump("initial")
+
       task = scheduler.scheduleAtFixedRate({
-        def reportFile = new File(outputDir, "thread-dump-${System.currentTimeMillis()}.log")
+        heapDump("test")
+
+        def reportFile = new File(outputDir, "${System.currentTimeMillis()}-thread-dump.log")
         try (def writer = new FileWriter(reportFile)) {
           writer.write("=== Test: ${testName} ===\n")
           writer.write("=== Thread Dump Triggered at ${new Date()} ===\n")
@@ -218,7 +226,15 @@ class StructuredConcurrencyTest extends AgentTestRunner {
           }
           writer.write("==============================================\n")
         }
-      }, 10001, 60001, TimeUnit.MILLISECONDS)
+      }, 10000, 60000, TimeUnit.MILLISECONDS)
+    }
+
+    void heapDump(String kind) {
+      def heapDumpFile = new File(outputDir, "${System.currentTimeMillis()}-heap-dump-${kind}.hprof").absolutePath
+      MBeanServer server = ManagementFactory.getPlatformMBeanServer()
+      HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
+      server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class)
+      mxBean.dumpHeap(heapDumpFile, true)
     }
 
     void stop() {
