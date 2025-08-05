@@ -135,15 +135,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   /**
    * Starts a span.
    *
-   * @param instrumentationName The instrumentation creating the span.
    * @param carrier The request carrier.
    * @param context The parent context of the span to create.
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(
-      String instrumentationName,
+      String unused, // TODO Remove
       REQUEST_CARRIER carrier,
       Context context) { // TODO Rename "context" to "parent"?
+    String instrumentationName =
+        instrumentationNames().length == 0 ? "http-server" : instrumentationNames()[0];
     AgentSpanContext.Extracted spanContext = getExtractedSpanContext(context);
     AgentSpan span =
         tracer()
@@ -396,18 +397,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     return span;
   }
-
-  //  @Override
-  //  public Span onError(final Span span, final Throwable throwable) {
-  //    assert span != null;
-  //    // FIXME
-  //    final Object status = span.getTag("http.status");
-  //    if (status == null || status.equals(200)) {
-  //      // Ensure status set correctly
-  //      span.setTag("http.status", 500);
-  //    }
-  //    return super.onError(span, throwable);
-  //  }
 
   private AgentSpanContext.Extracted callIGCallbackStart(final AgentSpanContext.Extracted context) {
     AgentTracer.TracerAPI tracer = tracer();
