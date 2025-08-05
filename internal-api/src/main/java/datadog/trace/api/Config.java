@@ -254,6 +254,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_FOLLOW_SYMLINKS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED;
@@ -1001,6 +1002,7 @@ public class Config {
   private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
+  private final boolean ciVisibilityRepoIndexFollowSymlinks;
   private final int ciVisibilityExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
   private final int ciVisibilityCoverageRootPackagesLimit;
@@ -2261,6 +2263,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
     ciVisibilityRepoIndexDuplicateKeyCheckEnabled =
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED, true);
+    ciVisibilityRepoIndexFollowSymlinks =
+        configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_FOLLOW_SYMLINKS, false);
     ciVisibilityExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
@@ -3820,6 +3824,10 @@ public class Config {
 
   public boolean isCiVisibilityRepoIndexDuplicateKeyCheckEnabled() {
     return ciVisibilityRepoIndexDuplicateKeyCheckEnabled;
+  }
+
+  public boolean isCiVisibilityRepoIndexFollowSymlinks() {
+    return ciVisibilityRepoIndexFollowSymlinks;
   }
 
   public int getCiVisibilityExecutionSettingsCacheSize() {
