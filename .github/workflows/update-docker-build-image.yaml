@@ -58,11 +58,6 @@ jobs:
           else
             echo "commit_changes=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Download ghcommit CLI
-        if: steps.check-changes.outputs.commit_changes == 'true'
-        run: |
-          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
-          chmod +x /usr/local/bin/ghcommit
       - name: Pick a branch name
         if: steps.check-changes.outputs.commit_changes == 'true'
         id: define-branch
