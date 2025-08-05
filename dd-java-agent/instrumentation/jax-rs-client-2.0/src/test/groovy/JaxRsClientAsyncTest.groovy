@@ -1,3 +1,4 @@
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
@@ -118,7 +119,7 @@ class ResteasyClientAsyncV1ForkedTest extends ResteasyClientAsyncTest implements
 @IgnoreIf({
   // TODO Java 17: This version of apache-cxf doesn't work on Java 17
   //  exception in org.apache.cxf.common.util.ReflectionUtil
-  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+  JavaVirtualMachine.isJavaVersionAtLeast(17)
 })
 class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 

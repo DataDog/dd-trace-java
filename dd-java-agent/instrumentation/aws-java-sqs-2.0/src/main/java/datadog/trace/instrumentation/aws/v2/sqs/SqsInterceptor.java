@@ -3,20 +3,16 @@ package datadog.trace.instrumentation.aws.v2.sqs;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -95,15 +91,10 @@ public class SqsInterceptor implements ExecutionInterceptor {
   private datadog.context.Context getContext(
       ExecutionAttributes executionAttributes, String queueUrl) {
     AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-    DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return span.with(dsmContext);
-  }
 
-  private LinkedHashMap<String, String> getTags(String queueUrl) {
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TOPIC_TAG, urlFileName(queueUrl));
-    sortedTags.put(TYPE_TAG, "sqs");
-    return sortedTags;
+    DataStreamsTags tags =
+        DataStreamsTags.create("sqs", DataStreamsTags.Direction.Outbound, urlFileName(queueUrl));
+    DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+    return span.with(dsmContext);
   }
 }

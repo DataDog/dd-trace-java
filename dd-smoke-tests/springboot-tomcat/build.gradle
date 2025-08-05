@@ -19,9 +19,9 @@ repositories {
     url 'https://archive.apache.org/dist'
     patternLayout {
       artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
-      metadataSources {
-        artifact()
-      }
+    }
+    metadataSources {
+      it.artifact()
     }
   }
 }

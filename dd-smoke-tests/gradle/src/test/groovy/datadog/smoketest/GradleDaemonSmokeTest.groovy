@@ -256,9 +256,20 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
-    def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
-    println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
-    buildResult
+    try {
+      def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
+      return buildResult
+
+    } catch (Exception e) {
+      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+      if (daemonLog != null) {
+        println "=============================================================="
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+        println "=============================================================="
+      }
+      throw e
+    }
   }
 
   private void assertBuildSuccessful(buildResult) {

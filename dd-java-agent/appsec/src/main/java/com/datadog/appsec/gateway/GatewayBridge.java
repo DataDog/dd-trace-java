@@ -1014,7 +1014,7 @@ public class GatewayBridge {
     }
 
     Map<String, List<String>> queryParams = EMPTY_QUERY_PARAMS;
-    int i = savedRawURI.indexOf("?");
+    int i = savedRawURI.indexOf('?');
     if (i != -1) {
       String qs = savedRawURI.substring(i + 1);
       // ideally we'd have the query string as parsed by the server

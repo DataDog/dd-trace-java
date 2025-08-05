@@ -2,11 +2,6 @@ package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
@@ -15,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
+import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
@@ -25,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import datadog.trace.core.datastreams.TagsProcessor;
 import datadog.trace.payloadtags.PayloadTagsData;
 import java.net.URI;
 import java.time.Instant;
@@ -33,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -214,6 +208,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
     }
 
+    // Set peer.service based on Config for serverless functions
+    if (Config.get().isAwsServerless()) {
+      URI uri = httpRequest.getUri();
+      String hostname = uri.getHost();
+      if (uri.getPort() != -1) {
+        hostname = hostname + ":" + uri.getPort();
+      }
+
+      span.setTag(Tags.PEER_SERVICE, hostname);
+      span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
+    }
+
     return span;
   }
 
@@ -338,10 +344,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     //noinspection unchecked
                     List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
                     if (!records.isEmpty()) {
-                      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-                      sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-                      sortedTags.put(TOPIC_TAG, streamArn);
-                      sortedTags.put(TYPE_TAG, "kinesis");
+                      DataStreamsTags tags =
+                          DataStreamsTags.create(
+                              "kinesis", DataStreamsTags.Direction.Inbound, streamArn);
                       if (null == kinesisApproximateArrivalTimestampField) {
                         Optional<SdkField<?>> maybeField =
                             records.get(0).sdkFields().stream()
@@ -363,7 +368,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                             AgentTracer.get().getDataStreamsMonitoring();
                         PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
                         pathwayContext.setCheckpoint(
-                            create(sortedTags, arrivalTime.toEpochMilli(), 0),
+                            create(tags, arrivalTime.toEpochMilli(), 0),
                             dataStreamsMonitoring::add);
                         if (!span.context().getPathwayContext().isStarted()) {
                           span.context().mergePathwayContext(pathwayContext);
@@ -384,17 +389,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
         if (key != null && bucket != null && awsOperation != null) {
           if ("GetObject".equalsIgnoreCase(awsOperation)) {
-            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-
-            sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
-            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
-            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
-            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
-            sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
-
+            DataStreamsTags tags =
+                DataStreamsTags.createWithDataset(
+                    "s3", DataStreamsTags.Direction.Inbound, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(sortedTags, 0, responseSize));
+                .setCheckpoint(span, create(tags, 0, responseSize));
           }
 
           if ("PutObject".equalsIgnoreCase(awsOperation)) {
@@ -404,17 +404,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
               payloadSize = (long) requestSize;
             }
 
-            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-
-            sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
-            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
-            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
-            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
-            sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
-
+            DataStreamsTags tags =
+                DataStreamsTags.createWithDataset(
+                    "s3", DataStreamsTags.Direction.Outbound, bucket, key, bucket);
             AgentTracer.get()
                 .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(sortedTags, 0, payloadSize));
+                .setCheckpoint(span, create(tags, 0, payloadSize));
           }
         }
       }

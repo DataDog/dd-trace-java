@@ -2,6 +2,7 @@ package com.datadog.appsec.ddwaf;
 
 import com.datadog.appsec.util.StandardizedLogging;
 import com.datadog.ddwaf.Waf;
+import datadog.environment.SystemProperties;
 import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
@@ -13,9 +14,9 @@ public class WafInitialization {
 
   private static boolean initWAF() {
     try {
-      boolean simpleLoad = System.getProperty("POWERWAF_SIMPLE_LOAD") != null;
+      boolean simpleLoad = SystemProperties.get("POWERWAF_SIMPLE_LOAD") != null;
       Waf.initialize(simpleLoad);
-    } catch (Exception e) {
+    } catch (Throwable e) {
       Logger logger = LoggerFactory.getLogger(WafInitialization.class);
       logger.warn("Error initializing WAF library", e);
       StandardizedLogging.libddwafCannotBeLoaded(logger, getLibc());
@@ -26,7 +27,7 @@ public class WafInitialization {
   }
 
   private static String getLibc() {
-    String os = System.getProperty("os.name");
+    String os = SystemProperties.get("os.name");
     if ("Linux".equals(os)) {
       File file = new File("/proc/self/maps");
       try (Scanner sc = new Scanner(file, "ISO-8859-1")) {

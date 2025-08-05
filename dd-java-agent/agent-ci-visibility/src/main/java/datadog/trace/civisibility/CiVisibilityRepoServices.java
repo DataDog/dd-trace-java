@@ -6,7 +6,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfoProvider;
-import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
@@ -126,25 +125,15 @@ public class CiVisibilityRepoServices {
     }
 
     // complete with CI vars if user didn't provide all information
-    PullRequestInfo ciInfo = PullRequestInfo.merge(userInfo, ciProviderInfo.buildPullRequestInfo());
-    if (Strings.isNotBlank(ciInfo.getGitCommitHead().getSha())) {
+    PullRequestInfo ciInfo =
+        PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
+    String headSha = ciInfo.getHeadCommit().getSha();
+    if (Strings.isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
       try {
-        gitRepoUnshallow.unshallow(true);
-        String headSha = ciInfo.getGitCommitHead().getSha();
-        PersonInfo authorInfo =
-            new PersonInfo(
-                gitClient.getAuthorName(headSha),
-                gitClient.getAuthorEmail(headSha),
-                gitClient.getAuthorDate(headSha));
-        PersonInfo committerInfo =
-            new PersonInfo(
-                gitClient.getCommitterName(headSha),
-                gitClient.getCommitterEmail(headSha),
-                gitClient.getCommitterDate(headSha));
-        CommitInfo commitInfo =
-            new CommitInfo(headSha, authorInfo, committerInfo, gitClient.getFullMessage(headSha));
-        return PullRequestInfo.merge(ciInfo, new PullRequestInfo(null, null, commitInfo, null));
+        CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
+        return PullRequestInfo.coalesce(
+            ciInfo, new PullRequestInfo(null, null, null, commitInfo, null));
       } catch (Exception ignored) {
       }
     }
@@ -158,6 +147,7 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
             config.getGitPullRequestBaseBranchSha(),
+            null,
             new CommitInfo(config.getGitCommitHeadSha()),
             null);
 
@@ -177,10 +167,11 @@ public class CiVisibilityRepoServices {
         new PullRequestInfo(
             null,
             mergeBase,
+            null,
             new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
             null);
 
-    return PullRequestInfo.merge(userInfo, ddCiInfo);
+    return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {

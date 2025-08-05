@@ -1,9 +1,7 @@
 package datadog.trace.api.datastreams;
 
-import java.util.List;
-
 public class StatsPoint implements InboxItem {
-  private final List<String> edgeTags;
+  private final DataStreamsTags tags;
   private final long hash;
   private final long parentHash;
   private final long aggregationHash;
@@ -14,7 +12,7 @@ public class StatsPoint implements InboxItem {
   private final String serviceNameOverride;
 
   public StatsPoint(
-      List<String> edgeTags,
+      DataStreamsTags tags,
       long hash,
       long parentHash,
       long aggregationHash,
@@ -23,7 +21,7 @@ public class StatsPoint implements InboxItem {
       long edgeLatencyNano,
       long payloadSizeBytes,
       String serviceNameOverride) {
-    this.edgeTags = edgeTags;
+    this.tags = tags;
     this.hash = hash;
     this.parentHash = parentHash;
     this.aggregationHash = aggregationHash;
@@ -34,8 +32,8 @@ public class StatsPoint implements InboxItem {
     this.serviceNameOverride = serviceNameOverride;
   }
 
-  public List<String> getEdgeTags() {
-    return edgeTags;
+  public DataStreamsTags getTags() {
+    return tags;
   }
 
   public long getHash() {
@@ -74,7 +72,7 @@ public class StatsPoint implements InboxItem {
   public String toString() {
     return "StatsPoint{"
         + "tags='"
-        + edgeTags
+        + tags
         + '\''
         + ", hash="
         + hash

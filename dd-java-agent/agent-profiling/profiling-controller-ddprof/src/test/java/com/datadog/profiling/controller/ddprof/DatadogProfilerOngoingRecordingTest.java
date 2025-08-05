@@ -3,11 +3,10 @@ package com.datadog.profiling.controller.ddprof;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import com.datadog.profiling.ddprof.JavaProfilerLoader;
+import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,8 @@ public class DatadogProfilerOngoingRecordingTest {
   public static void setupAll() {
     // If the profiler couldn't be loaded, the reason why is saved.
     // This test assumes the profiler could be loaded.
-    Assumptions.assumeTrue(JavaProfilerLoader.REASON_NOT_LOADED == null, "profiler not available");
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
   }
 
   @BeforeEach

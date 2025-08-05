@@ -111,8 +111,8 @@ configurations {
   }
 }
 
-tasks.withType(AbstractPublishToMaven).configureEach {
+tasks.withType(AbstractPublishToMaven).configureEach { task ->
   rootProject.subprojects {
-    mustRunAfter tasks.matching { it instanceof VerificationTask }
+    task.mustRunAfter tasks.matching { it instanceof VerificationTask }
   }
 }
