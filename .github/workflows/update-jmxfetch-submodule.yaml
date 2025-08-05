@@ -43,8 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dd-java-agent/agent-jmxfetch/integrations-core
-          git commit -m "Update agent-jmxfetch submodule"
+          git commit --message "feat(ci): Update agent-jmxfetch submodule" dd-java-agent/agent-jmxfetch/integrations-core
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
         uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
