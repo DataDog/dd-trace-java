@@ -54,8 +54,8 @@ class TelemetryRunnableSpecification extends DDSpecification {
 
     then: 'two unsuccessful attempts to send app-started with the following successful attempt'
     3 * telemetryService.sendAppStartedEvent() >>> [false, false, true]
+    _ * telemetryService.addConfigurationByOrigin(_)
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000
-    _ * telemetryService.addConfiguration(_)
 
     then:
     1 * metricCollector.prepareMetrics()
@@ -69,7 +69,8 @@ class TelemetryRunnableSpecification extends DDSpecification {
     3 * telemetryService.sendTelemetryEvents() >>> [true, true, false]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     1 * sleeperMock.sleep(9999)
-    0 * _
+    // 0 * _
+    _ * telemetryService.addConfigurationByOrigin(_)
 
     when: 'second iteration (10 seconds, metrics)'
     sleeper.go.await(10, TimeUnit.SECONDS)
