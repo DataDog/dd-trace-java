@@ -632,8 +632,10 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -1166,6 +1168,7 @@ public class Config {
 
   private final boolean azureAppServices;
   private final boolean azureFunctions;
+  private final boolean awsServerless;
   private final String traceAgentPath;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
@@ -1239,7 +1242,7 @@ public class Config {
     configFileStatus = configProvider.getConfigFileStatus();
     runtimeIdEnabled =
         configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
-    runtimeVersion = System.getProperty("java.version", "unknown");
+    runtimeVersion = SystemProperties.getOrDefault("java.version", "unknown");
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1484,6 +1487,9 @@ public class Config {
 
     azureFunctions =
         getEnv("FUNCTIONS_WORKER_RUNTIME") != null && getEnv("FUNCTIONS_EXTENSION_VERSION") != null;
+
+    awsServerless =
+        getEnv("AWS_LAMBDA_FUNCTION_NAME") != null && !getEnv("AWS_LAMBDA_FUNCTION_NAME").isEmpty();
 
     spanAttributeSchemaVersion = schemaVersionFromConfig();
 
@@ -3409,7 +3415,7 @@ public class Config {
     // don't want to put this logic (which will evolve) in the public ProfilingConfig, and can't
     // access Platform there
     if (!JavaVirtualMachine.isJ9() && isJavaVersion(8)) {
-      String arch = System.getProperty("os.arch");
+      String arch = SystemProperties.get("os.arch");
       if ("aarch64".equalsIgnoreCase(arch) || "arm64".equalsIgnoreCase(arch)) {
         return false;
       }
@@ -4268,6 +4274,10 @@ public class Config {
     return azureAppServices;
   }
 
+  public boolean isAwsServerless() {
+    return awsServerless;
+  }
+
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
   }
@@ -4453,12 +4463,12 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        System.getProperty("java.runtime.name"),
-        System.getProperty("java.version"),
-        System.getProperty("java.vendor"),
-        System.getProperty("os.arch"),
-        System.getProperty("os.name"),
-        System.getProperty("os.version"),
+        SystemProperties.get("java.runtime.name"),
+        SystemProperties.get("java.version"),
+        SystemProperties.get("java.vendor"),
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("os.name"),
+        SystemProperties.get("os.version"),
         isServiceNameSetByUser() ? "true" : "false");
   }
 
@@ -4639,7 +4649,7 @@ public class Config {
     // Example: 8c500027-5f00-400e-8f00-60000000000f+apm-dotnet-EastUSwebspace
     // Format: {subscriptionId}+{planResourceGroup}-{hostedInRegion}
     String websiteOwner = getEnv("WEBSITE_OWNER_NAME");
-    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf("+");
+    int plusIndex = websiteOwner == null ? -1 : websiteOwner.indexOf('+');
 
     // The subscription ID of the site instance in Azure App Services
     String subscriptionId = null;
@@ -5197,7 +5207,7 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    String value = System.getenv(name);
+    String value = EnvironmentVariables.get(name);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.ENV);
     }
@@ -5220,7 +5230,7 @@ public class Config {
   }
 
   private static String getProp(String name, String def) {
-    String value = System.getProperty(name, def);
+    String value = SystemProperties.getOrDefault(name, def);
     if (value != null) {
       ConfigCollector.get().put(name, value, ConfigOrigin.JVM_PROP);
     }

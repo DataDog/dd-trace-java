@@ -33,9 +33,9 @@ class CommitInfoTest extends Specification {
     new CommitInfo("sha", PERSON_A, PERSON_A, "msg")       | true
   }
 
-  def "test info merge"() {
+  def 'test info coalesce'() {
     expect:
-    CommitInfo.merge(infoA, infoB) == result
+    CommitInfo.coalesce(infoA, infoB) == result
     where:
     infoA                                                      | infoB                                                  | result
     new CommitInfo("shaA", PERSON_A, PERSON_A, "msgA")         | new CommitInfo("shaB", PERSON_B, PERSON_B, "msgB")     | new CommitInfo("shaA", PERSON_A, PERSON_A, "msgA")

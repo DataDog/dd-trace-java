@@ -40,57 +40,11 @@ class JvmOptions {
     return null;
   }
 
-  private List<String> findVmOptions() {
-    return findVmOptions(PROCFS_CMDLINE);
-  }
-
   @SuppressForbidden // Class.forName() as backup
-  // Visible for testing
-  List<String> findVmOptions(String[] procfsCmdline) {
+  private List<String> findVmOptions() {
     // Try ProcFS on Linux
-    // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
-    // executable
-    if (procfsCmdline != null) {
-      // Create list of VM options
-      List<String> vmOptions = new ArrayList<>();
-      // Start at 1 to skip "java" command itself
-      int index = 1;
-      // Look for first self-standing argument that is not prefixed with "-" or end of VM options
-      // Skip "-jar" and the jar file
-      // Simultaneously, collect all arguments in the VM options
-      for (; index < procfsCmdline.length; index++) {
-        String argument = procfsCmdline[index];
-        if (argument.startsWith("@")) {
-          vmOptions.addAll(getArgumentsFromFile(argument));
-        } else {
-          if ("-jar".equals(argument)) {
-            // skip "-jar" and the jar file
-            index++;
-            continue;
-          } else if ("-cp".equals(argument)) {
-            // slurp '-cp' and the classpath
-            vmOptions.add(argument);
-            if (index + 1 < procfsCmdline.length) {
-              argument = procfsCmdline[++index];
-            }
-          } else if (!argument.startsWith("-")) {
-            // end of VM options
-            break;
-          }
-          vmOptions.add(argument);
-        }
-      }
-      // Insert JDK_JAVA_OPTIONS at the start if present and supported
-      List<String> jdkJavaOptions = getJdkJavaOptions();
-      if (!jdkJavaOptions.isEmpty()) {
-        vmOptions.addAll(0, jdkJavaOptions);
-      }
-      // Insert JAVA_TOOL_OPTIONS at the start if present
-      List<String> javaToolOptions = getJavaToolOptions();
-      if (!javaToolOptions.isEmpty()) {
-        vmOptions.addAll(0, javaToolOptions);
-      }
-      return vmOptions;
+    if (PROCFS_CMDLINE != null) {
+      return findVmOptionsFromProcFs(PROCFS_CMDLINE);
     }
 
     // Try Oracle-based
@@ -135,6 +89,48 @@ class JvmOptions {
       System.err.println("WARNING: Unable to get VM args using managed beans");
     }
     return emptyList();
+  }
+
+  // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
+  // executable
+  // Visible for testing
+  List<String> findVmOptionsFromProcFs(String[] procfsCmdline) {
+    // Create list of VM options
+    List<String> vmOptions = new ArrayList<>();
+    // Look for first self-standing argument that is not prefixed with "-" or end of VM options
+    // while simultaneously, collect all arguments in the VM options
+    // Starts from 1 as 0 is the java command itself (or native-image)
+    for (int index = 1; index < procfsCmdline.length; index++) {
+      String argument = procfsCmdline[index];
+      // Inflate arg files
+      if (argument.startsWith("@")) {
+        vmOptions.addAll(getArgumentsFromFile(argument));
+      }
+      // Skip classpath argument (not part of VM options)
+      else if ("-cp".equals(argument)) {
+        index++;
+      }
+      // Check "-jar" or class name argument as the end of the VM options
+      else if ("-jar".equals(argument) || !argument.startsWith("-")) {
+        // End of VM options
+        break;
+      }
+      // Otherwise add as VM option
+      else {
+        vmOptions.add(argument);
+      }
+    }
+    // Insert JDK_JAVA_OPTIONS at the start if present and supported
+    List<String> jdkJavaOptions = getJdkJavaOptions();
+    if (!jdkJavaOptions.isEmpty()) {
+      vmOptions.addAll(0, jdkJavaOptions);
+    }
+    // Insert JAVA_TOOL_OPTIONS at the start if present
+    List<String> javaToolOptions = getJavaToolOptions();
+    if (!javaToolOptions.isEmpty()) {
+      vmOptions.addAll(0, javaToolOptions);
+    }
+    return vmOptions;
   }
 
   private static List<String> getArgumentsFromFile(String argFile) {

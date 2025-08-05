@@ -62,6 +62,11 @@ final class SmapEntryCache {
     this.smapsPath = smapsPath;
   }
 
+  // @VisibleForTesting
+  void invalidate() {
+    UPDATER.getAndSet(this, System.nanoTime() - (2 * ttl));
+  }
+
   @SuppressWarnings("unchecked")
   public List<SmapEntryEvent> getEvents() {
     long prevTimestamp = lastTimestamp;
@@ -296,9 +301,9 @@ final class SmapEntryCache {
     return Collections.emptyMap();
   }
 
-  private static void collectEvents(List<SmapEntryEvent> events) {
+  private void collectEvents(List<SmapEntryEvent> events) {
     try (BufferedReader br =
-        new BufferedReader(new InputStreamReader(Files.newInputStream(SMAPS_PATH)), 64 * 1024)) {
+        new BufferedReader(new InputStreamReader(Files.newInputStream(smapsPath)), 64 * 1024)) {
       readEvents(br, events);
       Map<Long, String> regions = getAnnotatedRegions();
       for (SmapEntryEvent e : events) {

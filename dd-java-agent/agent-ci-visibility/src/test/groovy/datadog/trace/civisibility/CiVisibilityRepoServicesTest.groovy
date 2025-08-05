@@ -36,7 +36,7 @@ class CiVisibilityRepoServicesTest extends Specification {
     setup:
     def expectedInfo = new PullRequestInfo(
       "master",
-      "baseSha",
+      "baseSha", null,
       new CommitInfo(
       "sourceSha",
       new PersonInfo("john", "john@doe.com", "never"),
@@ -47,7 +47,7 @@ class CiVisibilityRepoServicesTest extends Specification {
       )
 
     def config = Stub(Config)
-    config.getGitPullRequestBaseBranch() >> expectedInfo.getPullRequestBaseBranch()
+    config.getGitPullRequestBaseBranch() >> expectedInfo.getBaseBranch()
 
     def environment = Stub(CiEnvironment)
     environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA) >> "targetSha"
@@ -55,10 +55,10 @@ class CiVisibilityRepoServicesTest extends Specification {
 
     def repoUnshallow = Stub(GitRepoUnshallow)
     def ciProviderInfo = Stub(CIProviderInfo)
-    ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
+    ciProviderInfo.buildPullRequestInfo() >> new PullRequestInfo(null, null, null, CommitInfo.NOOP, expectedInfo.getPullRequestNumber())
 
     def gitClient = Stub(GitClient)
-    gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getPullRequestBaseBranchSha()
+    gitClient.getMergeBase("targetSha", "sourceSha") >> expectedInfo.getBaseBranchSha()
     gitClient.getCommitInfo("sourceSha", true) >> expectedInfo.getHeadCommit()
 
     expect:

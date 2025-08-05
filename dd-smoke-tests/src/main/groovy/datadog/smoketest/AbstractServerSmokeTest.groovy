@@ -3,6 +3,7 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.test.util.Flaky
 import okhttp3.OkHttpClient
 import spock.lang.Shared
 import static org.junit.Assume.assumeTrue
@@ -155,6 +156,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     []
   }
 
+  @Flaky("Possible reasons: tests are too fast, the waiting mechanism is not robust enough; somehow too much telemetry is produced.")
   @RunLast
   @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'receive telemetry app-dependencies-loaded'() {

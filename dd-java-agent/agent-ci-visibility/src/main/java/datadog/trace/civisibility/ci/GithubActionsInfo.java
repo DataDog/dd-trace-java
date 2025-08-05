@@ -82,6 +82,7 @@ class GithubActionsInfo implements CIProviderInfo {
         .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
+        .ciJobId(environment.get(GHACTIONS_JOB))
         .ciJobName(environment.get(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
@@ -107,7 +108,7 @@ class GithubActionsInfo implements CIProviderInfo {
           moshi.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
       Map<String, Object> eventJson = mapJsonAdapter.fromJson(event);
 
-      String baseSha = null;
+      String baseBranchHeadSha = null;
       String headSha = null;
       String prNumber = null;
 
@@ -120,7 +121,7 @@ class GithubActionsInfo implements CIProviderInfo {
 
         Map<String, Object> base = (Map<String, Object>) pullRequest.get("base");
         if (base != null) {
-          baseSha = (String) base.get("sha");
+          baseBranchHeadSha = (String) base.get("sha");
         }
 
         Double number = (Double) pullRequest.get("number");
@@ -129,11 +130,12 @@ class GithubActionsInfo implements CIProviderInfo {
         }
       }
 
-      return new PullRequestInfo(baseRef, baseSha, new CommitInfo(headSha), prNumber);
+      return new PullRequestInfo(
+          baseRef, null, baseBranchHeadSha, new CommitInfo(headSha), prNumber);
 
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
-      return new PullRequestInfo(baseRef, null, CommitInfo.NOOP, null);
+      return new PullRequestInfo(baseRef, null, null, CommitInfo.NOOP, null);
     }
   }
 
