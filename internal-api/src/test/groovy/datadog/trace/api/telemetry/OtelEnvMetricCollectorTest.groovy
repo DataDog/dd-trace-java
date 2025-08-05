@@ -1,8 +1,6 @@
 package datadog.trace.api.telemetry
 
 import datadog.trace.test.util.DDSpecification
-import datadog.environment.ConfigHelper
-import datadog.trace.api.ConfigInversionStrictStyle
 
 // PLEASE READ
 // When a metric is generated, it's duplicated in these tests. We call twice setupOteEnvironment() because of the separation of the configuration done in the rebuild function of DDSpecification between datadog/trace/api/InstrumenterConfig.java and internal-api/src/main/java/datadog/trace/api/Config.java.
@@ -12,16 +10,6 @@ import datadog.trace.api.ConfigInversionStrictStyle
 
 
 class OtelEnvMetricCollectorTest extends DDSpecification {
-  //  def strictness
-  //  def setup() {
-  //    strictness = ConfigHelper.configInversionStrictFlag()
-  //    ConfigHelper.setConfigInversionStrict(ConfigInversionStrictStyle.TEST)
-  //  }
-  //
-  //  def cleanup(){
-  //    ConfigHelper.setConfigInversionStrict(strictness)
-  //  }
-
   def "otel disabled - no metric"() {
     setup:
     injectEnvConfig('DD_SERVICE_NAME', 'DD_TEST_SERVICE', false)
@@ -213,5 +201,4 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     'OTEL_TRACES_EXPORTER'  | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_traces_exporter'
     'OTEL_LOGS_EXPORTER'    | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_logs_exporter'
   }
-
 }
