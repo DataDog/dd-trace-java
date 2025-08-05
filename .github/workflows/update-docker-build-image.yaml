@@ -70,17 +70,9 @@ jobs:
       - name: Commit changes
         if: steps.check-changes.outputs.commit_changes == 'true'
         id: create-commit
-        env:
-          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if [[ -z "$(git status -s)" ]]; then
-            echo "No changes to commit, exiting."
-            exit 0;
-          fi
-
           git commit --message "feat(ci): Update Docker build image" .gitlab-ci.yml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
