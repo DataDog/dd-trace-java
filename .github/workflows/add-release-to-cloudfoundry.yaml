@@ -6,7 +6,7 @@ on:
 jobs:
   update-releases:
     permissions:
-      contents: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout "cloudfoundry" branch
