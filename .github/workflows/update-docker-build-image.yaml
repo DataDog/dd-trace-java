@@ -74,6 +74,7 @@ jobs:
           git push -u origin ${{ steps.define-branch.outputs.branch }} --force
       - name: Commit changes
         if: steps.check-changes.outputs.commit_changes == 'true'
+        id: create-commit
         env:
           GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
@@ -89,7 +90,7 @@ jobs:
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
         uses: DataDog/commit-headless@1186485b788f57eedaaadb19919781698b4d262f # action/v1.0.0
-        if: ${{ steps.create-commit.outputs.commit != '' }}
+        if: ${{ steps.check-changes.outputs.commit_changes == 'true' && steps.create-commit.outputs.commit != '' }}
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"
